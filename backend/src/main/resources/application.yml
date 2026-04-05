@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    # Local IDE run uses localhost; in Docker-to-Docker mode set DB_HOST=postgres.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/aranya_crm
+    username: aranya_admin
+    password: aranya_secret
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    enabled: false
+
