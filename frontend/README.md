@@ -1,73 +1,68 @@
-# React + TypeScript + Vite
+# Aranya CRM Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend uses React + TypeScript + Vite + Ant Design. The current homepage is the dashboard demo at `/dashboard`.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Dashboard data mode
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The dashboard supports API and mock data with one env variable:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- `VITE_DASHBOARD_DATA_MODE=mock`: always use local mock data
+- `VITE_DASHBOARD_DATA_MODE=api`: always call backend API; fail if API is unavailable
+- `VITE_DASHBOARD_DATA_MODE=auto` (default): call API first, fallback to mock if request fails
+
+Optional API base URL:
+
+- `VITE_API_BASE_URL` (default `/api`)
+
+### Example
+
+```bash
+VITE_DASHBOARD_DATA_MODE=api
+VITE_API_BASE_URL=http://localhost:8080/api
 ```
+
+## Dashboard API contract (temporary)
+
+`GET /dashboard`
+
+```json
+{
+  "activeCases": [
+    {
+      "id": "case-001",
+      "title": { "zh": "紧急住房支持", "en": "Emergency Housing Support" },
+      "client": { "zh": "释慧明", "en": "Monk Sumedho" },
+      "status": { "zh": "审核中", "en": "In Review" }
+    }
+  ],
+  "attentionCases": [
+    {
+      "id": "attention-001",
+      "client": { "zh": "释妙音", "en": "Monk Dhamma" },
+      "reason": { "zh": "等待志愿者分配", "en": "Awaiting volunteer assignment" },
+      "daysOpen": 5
+    }
+  ],
+  "upcomingAppointments": [
+    {
+      "id": "appt-001",
+      "startsAt": "2026-04-06T10:00:00+08:00",
+      "client": { "zh": "释慧明", "en": "Monk Sumedho" },
+      "purpose": { "zh": "家访评估", "en": "Home Visit Assessment" }
+    }
+  ]
+}
+```
+
+The frontend applies your agreed rule for appointments:
+
+- sorted by appointment date/time (ascending)
+- maximum 5 records shown on dashboard
+
