@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015
+      author: ShiDu
+      changes:
+        - createTable:
+            tableName: client_document
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: client_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_client_document_client
+                    references: client(id)
+              - column:
+                  name: document_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_client_document_document
+                    references: document(id)
+              - column:
+                  name: linked_by
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_client_document_linked_by
+                    references: user(id)
+              - column:
+                  name: linked_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
