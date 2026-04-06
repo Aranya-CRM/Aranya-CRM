@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:15:///aranya_crm
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: aranya_admin
+    password: aranya_secret
+
+  jpa:
+    show-sql: true
+
+  logging:
+    level:
+      aranya.com: DEBUG
+      org.springframework.security: DEBUG
