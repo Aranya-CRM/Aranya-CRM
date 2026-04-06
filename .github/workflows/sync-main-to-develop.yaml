@@ -17,6 +17,11 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.ORG_PAT_TOKEN }}
+
+      - name: Verify token
+        run: gh auth status
+        env:
+          GH_TOKEN: ${{ secrets.ORG_PAT_TOKEN }}
           
       - name: Create sync branch and PR
         run: |
