@@ -54,4 +54,4 @@ jobs:
             exit 1
           fi
         env:
-          GH_TOKEN: $ {{ secrets.ORG_PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.ORG_PAT_TOKEN }}
