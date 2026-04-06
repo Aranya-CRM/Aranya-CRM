@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.ORG_PAT_TOKEN }}
           
       - name: Create sync branch and PR
         run: |
@@ -49,4 +49,4 @@ jobs:
             exit 1
           fi
         env:
-          GH_TOKEN: $ {{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: $ {{ secrets.ORG_PAT_TOKEN }}
