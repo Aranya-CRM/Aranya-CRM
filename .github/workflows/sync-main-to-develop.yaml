@@ -23,7 +23,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@user.noreply.github.com"
 
-          BRANCH="sync/main-to-develop-${date +%Y%m%d%H%M%S}"
+          SHORT_SHA=$(git rev-parse --short origin/main)
+          BRANCH="sync/main-to-develop-${SHORT_SHA}"
 
           git checkout -b $BRANCH origin/develop
 
