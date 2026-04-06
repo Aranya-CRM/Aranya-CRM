@@ -1,0 +1,57 @@
+name: Sync main to develop
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions: 
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ORG_PAT_TOKEN }}
+
+      - name: Verify token
+        run: gh auth status
+        env:
+          GH_TOKEN: ${{ secrets.ORG_PAT_TOKEN }}
+          
+      - name: Create sync branch and PR
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@user.noreply.github.com"
+
+          SHORT_SHA=$(git rev-parse --short origin/main)
+          BRANCH="sync/main-to-develop-${SHORT_SHA}"
+
+          git checkout -b $BRANCH origin/develop
+
+          if git merge origin/main --no-edit; then
+            git push origin $BRANCH
+            
+            DIFF=$(git log origin/develop..$BRANCH --oneline)
+            if [ -z "$DIFF" ]; then
+              echo "✅ develop is already up to date, no PR needed"
+              exit 0
+            fi
+            
+            gh pr create \
+              --title "chore: sync main to develop" \
+              --body "Auto-generated PR to sync changes from \`main\` into \`develop\`." \
+              --base develop \
+              --head $BRANCH
+            echo "✅ PR crated successfully"
+          else
+            echo "❌ Merge conflict detected"
+            git merge --abort
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.ORG_PAT_TOKEN }}
