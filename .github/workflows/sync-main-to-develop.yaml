@@ -1,0 +1,46 @@
+name: Sync main to develop
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create sync branch and PR
+        env:
+          GH_TOKEN: $ {{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@user.noreply.github.com"
+
+          BRANCH="sync/main-to-develop-${date+%Y%m%d%H%M%S}"
+
+          git checkout -b $BRANCH origin/develop
+
+          if git merge origin/main --no-edit; then
+            git push origin $BRANCH
+            if [ -z "$(git log origin/develop..$BRANCH)"];then
+              echo "✅ develop is already up to date with main, no PR need"
+              exit 0
+            fi
+
+            gh pr create \
+              --title "chore: sync main to develop" \
+              --body "Auto-generated PR to sync changes from \`main\` into \`develop\`." \
+              --base develop \
+              --head $BRANCH
+            echo "✅ PR crated successfully"
+          else
+            echo "❌ Merge conflict detected"
+            git merge --abort
+            exit 1
+          fi
