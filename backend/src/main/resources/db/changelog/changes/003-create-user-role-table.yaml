@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003
+      author: ShiDu
+      changes:
+        - createTable:
+            tableName: user_role
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_role_user
+                    references: user(id)
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_role_role
+                    references: role(id)
+              - column:
+                  name: assigned_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assigned_by
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_user_role_assigned_by
+                    references: user(id)

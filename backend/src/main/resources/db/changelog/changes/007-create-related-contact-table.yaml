@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007
+      author: ShiDu
+      changes:
+        - createTable:
+            tableName: related_contact
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: client_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_related_contact_client
+                    references: client(id)
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: relationship_type
+                  type: VARCHAR(50)
+              - column:
+                  name: phone
+                  type: VARCHAR(20)
+              - column:
+                  name: email
+                  type: VARCHAR(100)
+              - column:
+                  name: address_text
+                  type: TEXT
+              - column:
+                  name: is_primary
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: notes
+                  type: TEXT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
