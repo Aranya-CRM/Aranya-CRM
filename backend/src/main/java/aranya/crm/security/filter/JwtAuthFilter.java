@@ -30,13 +30,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService userDetailsService;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // 公开接口不需要经过 JWT 过滤器
+        boolean skip = path.equals("/api/v1/auth/login") ||
+                path.equals("/api/v1/auth/refresh");
+        log.debug("shouldNotFilter: path={}, skip={}", path, skip);
+        return skip;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws SecurityException, IOException, ServletException {
-        final String token = extractToken(request);
 
-        if (token == null){
-            filterChain.doFilter(request,response);
+        log.debug("doFilterInternal executing: {}", request.getRequestURI());
+        final String token = extractToken(request);
+        log.debug("extracted token: {}", token == null ? "null" : token.substring(0, 20) + "...");
+
+        if (token == null) {
+            log.debug("No token found, passing through filter chain");
+            filterChain.doFilter(request, response);
             return;
         }
         try{

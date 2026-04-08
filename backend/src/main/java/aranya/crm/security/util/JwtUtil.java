@@ -25,13 +25,13 @@ public class JwtUtil {
         REFRESH
     }
 
-    @Value("${spring.jwt.secret}")
+    @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${spring.jwt.access-token-expiration}")
+    @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
-    @Value("${spring.jwt.refresh-token-expiration}")
+    @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
     private SecretKey signingKey;
@@ -41,13 +41,11 @@ public class JwtUtil {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    private String generateAccessToken(UserDetails userDetails) {
+    public String generateAccessToken(UserDetails userDetails) {
         return buildToken(userDetails.getUsername(),accessTokenExpiration, TokenType.ACCESS);
     }
 
-    private String generateRefreshToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("type","refresh");
+    public String generateRefreshToken(UserDetails userDetails) {
         return buildToken(userDetails.getUsername(),refreshTokenExpiration,TokenType.REFRESH);
     }
 
@@ -81,7 +79,7 @@ public class JwtUtil {
 
     public boolean isRefreshToken(String token){
         Claims claims = extractClaims(token);
-        return "refresh".equals(claims.get("type"));
+        return TokenType.REFRESH.name().equals(claims.get("tokenType"));
     }
 
     private boolean isTokenExpired(String token) {

@@ -19,13 +19,13 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     foreignKeyName: fk_email_log_send_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: recipient_user_id
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_email_log_recipient_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: recipient_email
                   type: VARCHAR(100)

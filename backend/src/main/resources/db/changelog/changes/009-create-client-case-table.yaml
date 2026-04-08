@@ -38,7 +38,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_client_case_added_by
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: relationship_note
                   type: TEXT

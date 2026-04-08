@@ -41,7 +41,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_service_appointment_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: status
                   type: VARCHAR(20)
@@ -53,7 +53,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_service_appointment_created_by
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: created_at
                   type: TIMESTAMP

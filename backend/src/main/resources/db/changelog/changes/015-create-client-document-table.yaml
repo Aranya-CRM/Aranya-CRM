@@ -32,7 +32,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_client_document_linked_by
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: linked_at
                   type: TIMESTAMP

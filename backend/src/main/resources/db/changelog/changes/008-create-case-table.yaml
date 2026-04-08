@@ -59,7 +59,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     foreignKeyName: fk_case_created_by
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: created_at
                   type: TIMESTAMP

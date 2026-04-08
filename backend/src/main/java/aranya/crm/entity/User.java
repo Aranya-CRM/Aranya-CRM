@@ -37,16 +37,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 
     // 一个用户对应多个 user_role 记录
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserRole> userRoles = new ArrayList<>();
 
-    // 自动填充创建时间，不依赖数据库 DEFAULT
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }
