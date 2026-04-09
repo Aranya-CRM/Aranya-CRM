@@ -1,12 +1,16 @@
 package aranya.crm.service;
 
+import aranya.crm.config.AppProperties;
 import aranya.crm.dto.LoginRequest;
 import aranya.crm.dto.LoginResponse;
+import aranya.crm.entity.RefreshToken;
+import aranya.crm.entity.User;
+import aranya.crm.repository.RefreshTokenRepository;
+import aranya.crm.repository.UserRepository;
 import aranya.crm.security.model.UserPrincipal;
 import aranya.crm.security.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -14,6 +18,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
 
 @Slf4j
 @Service
@@ -23,15 +34,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
-
-    @Value("${jwt.access-token-expiration}")
-    private long accessTokenExpiration;
+    private final AppProperties appProperties;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
 
     /**
      * 登录
      * authenticate() 内部已调用 loadUserByUsername()
      * 直接从认证结果取 UserPrincipal，不再查第二次数据库
      */
+    @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
         Authentication authentication = authenticate(loginRequest.getEmail(),loginRequest.getPassword());
 
@@ -40,6 +52,7 @@ public class AuthService {
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
 
+        saveRefreshToken(refreshToken,principal.getId());
         log.info("User logged in successfully, userId: {}", principal.getId());
 
         return buildLoginResponse(accessToken, refreshToken, principal);
@@ -49,10 +62,26 @@ public class AuthService {
      * 刷新 Token
      * 只校验 JWT 本身合法性，不做数据库持久化校验
      */
+    @Transactional
     public LoginResponse refreshToken(String refreshToken) {
         if (!jwtUtil.isRefreshToken(refreshToken)) {
             throw new BadCredentialsException("Invalid refresh token");
         }
+
+        String tokenHash = hashToken(refreshToken);
+        RefreshToken storedToken = refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> {
+                    log.warn("Refresh token not found in database");
+                    return new BadCredentialsException("Refresh token not found");
+                });
+        if (!storedToken.isValid()){
+            log.warn("Invalid refresh token used,possible replay attack, userId: {}",storedToken.getUser().getId());
+            refreshTokenRepository.revokeAllByUserId(storedToken.getUser().getId());
+            throw new BadCredentialsException("Refresh token is invalid or expired");
+        }
+
+        storedToken.setRevoked(true);
+        refreshTokenRepository.save(storedToken);
 
         String email = jwtUtil.extractEmail(refreshToken);
         UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(email);
@@ -60,13 +89,17 @@ public class AuthService {
         String newAccessToken = jwtUtil.generateAccessToken(principal);
         String newRefreshToken = jwtUtil.generateRefreshToken(principal);
 
+        saveRefreshToken(newRefreshToken,principal.getId());
+
         log.info("Token refreshed successfully, userId: {}", principal.getId());
 
         return buildLoginResponse(newAccessToken, newRefreshToken, principal);
     }
 
+    @Transactional
     public void logout(Long userId) {
-        log.info("User logged out successfully");
+        refreshTokenRepository.revokeAllByUserId(userId);
+        log.info("User logged out successfully,userId:{}",userId);
     }
 
     private Authentication authenticate(String email,String password) {
@@ -91,9 +124,30 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(accessTokenExpiration/1000)
+                .expiresIn(appProperties.getJwt().getAccessTokenExpiration()/1000)
                 .email(principal.getEmail())
                 .fullName(principal.getFullName())
                 .build();
+    }
+
+    private void saveRefreshToken(String refreshToken, Long userId) {
+        User userRef = userRepository.getReferenceById(userId);
+
+        RefreshToken rt = new RefreshToken();
+        rt.setTokenHash(hashToken(refreshToken));
+        rt.setUser(userRef);
+        rt.setExpiresAt(LocalDateTime.now().plusSeconds(appProperties.getJwt().getRefreshTokenExpiration()/1000));
+
+        refreshTokenRepository.save(rt);
+    }
+
+    private String hashToken(String token) {
+        try{
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException("SHA-256 algorithm not available",e);
+        }
     }
 }

@@ -1,12 +1,13 @@
 package aranya.crm.security.util;
 
 
+import aranya.crm.config.AppProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SecurityException;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -14,10 +15,10 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.jar.JarException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtUtil {
 
     public enum TokenType {
@@ -25,28 +26,25 @@ public class JwtUtil {
         REFRESH
     }
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    @Value("${jwt.access-token-expiration}")
-    private long accessTokenExpiration;
-
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
+    private final AppProperties appProperties;
 
     private SecretKey signingKey;
 
     @PostConstruct
     public void init() {
-        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+        this.signingKey = Keys.hmacShaKeyFor(
+                appProperties.getJwt().getSecret().getBytes()
+        );
     }
 
     public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(),accessTokenExpiration, TokenType.ACCESS);
+        return buildToken(userDetails.getUsername(),
+                appProperties.getJwt().getAccessTokenExpiration(), TokenType.ACCESS);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(),refreshTokenExpiration,TokenType.REFRESH);
+        return buildToken(userDetails.getUsername(),
+                appProperties.getJwt().getRefreshTokenExpiration(),TokenType.REFRESH);
     }
 
 
