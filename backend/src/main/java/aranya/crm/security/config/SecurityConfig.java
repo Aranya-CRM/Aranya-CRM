@@ -33,6 +33,7 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
 
     private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/dashboard",
             "/api/v1/auth/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
