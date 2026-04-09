@@ -33,7 +33,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_case_status_history_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: changed_at
                   type: TIMESTAMP

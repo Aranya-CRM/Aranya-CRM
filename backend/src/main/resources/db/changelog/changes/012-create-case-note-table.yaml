@@ -39,7 +39,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_case_note_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: created_at
                   type: TIMESTAMP

@@ -19,7 +19,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     foreignKeyName: fk_user_role_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: role_id
                   type: BIGINT
@@ -38,4 +38,4 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_user_role_assigned_by
-                    references: user(id)
+                    references: users(id)

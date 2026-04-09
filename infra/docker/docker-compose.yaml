@@ -1,8 +1,8 @@
 # Docker Compose configuration for Aranya's PostgreSQL database
 services:
   postgres:
-    image: postgres:17
-    container_name: aranya-postgres
+    image: postgres:15
+    container_name: aranya_crm_dev
     restart: unless-stopped
     environment:
       POSTGRES_DB: aranya_crm
@@ -10,9 +10,9 @@ services:
       POSTGRES_PASSWORD: aranya_secret
       TZ: Asia/Singapore
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     volumes:
-      - aranya_postgres_data:/var/lib/postgresql/data
+      - aranya_crm_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aranya_admin -d aranya_crm"]
       interval: 10s
@@ -21,4 +21,4 @@ services:
       start_period: 30s
 
 volumes:
-  aranya_postgres_data:
+  aranya_crm_data:

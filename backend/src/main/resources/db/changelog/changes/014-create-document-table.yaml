@@ -49,7 +49,7 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_document_uploaded_by
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: uploaded_at
                   type: TIMESTAMP

@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: ActiveCase['status'] }) {
 }
 
 function formatHonorific(name: string): string {
-  return name.replace(/^Monk\s+/i, 'Ven. ')
+  return name.replace(/^Monk\s+/i, 'Bhante ')
 }
 
 export function DashboardPage() {
@@ -297,4 +297,5 @@ export function DashboardPage() {
     </div>
   )
 }
+
 

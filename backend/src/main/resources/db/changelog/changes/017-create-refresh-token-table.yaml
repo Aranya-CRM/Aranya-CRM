@@ -1,10 +1,10 @@
 databaseChangeLog:
   - changeSet:
-      id: 009
+      id: 017
       author: ShiDu
       changes:
         - createTable:
-            tableName: client_case
+            tableName: refresh_token
             columns:
               - column:
                   name: id
@@ -14,31 +14,31 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: case_id
+                  name: token_hash
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: user_id
                   type: BIGINT
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_client_case_case
-                    references: case(id)
-              - column:
-                  name: client_id
-                  type: BIGINT
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_client_case_client
-                    references: client(id)
-              - column:
-                  name: joined_at
-                  type: TIMESTAMP
-                  defaultValueComputed: CURRENT_TIMESTAMP
-                  constraints:
-                    nullable: false
-              - column:
-                  name: added_by
-                  type: BIGINT
-                  constraints:
-                    foreignKeyName: fk_client_case_added_by
+                    foreignKeyName: fk_refresh_token_user
                     references: users(id)
               - column:
-                  name: relationship_note
-                  type: TEXT
+                  name: expires_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revoked
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

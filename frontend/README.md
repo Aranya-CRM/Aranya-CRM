@@ -38,14 +38,14 @@ VITE_API_BASE_URL=http://localhost:8080/api
     {
       "id": "case-001",
       "title": { "zh": "紧急住房支持", "en": "Emergency Housing Support" },
-      "client": { "zh": "释慧明", "en": "Monk Sumedho" },
+      "client": { "zh": "释慧明", "en": "Bhante Sumedho" },
       "status": { "zh": "审核中", "en": "In Review" }
     }
   ],
   "attentionCases": [
     {
       "id": "attention-001",
-      "client": { "zh": "释妙音", "en": "Monk Dhamma" },
+      "client": { "zh": "释妙音", "en": "Bhante Dhamma" },
       "reason": { "zh": "等待志愿者分配", "en": "Awaiting volunteer assignment" },
       "daysOpen": 5
     }
@@ -54,7 +54,7 @@ VITE_API_BASE_URL=http://localhost:8080/api
     {
       "id": "appt-001",
       "startsAt": "2026-04-06T10:00:00+08:00",
-      "client": { "zh": "释慧明", "en": "Monk Sumedho" },
+      "client": { "zh": "释慧明", "en": "Bhante Sumedho" },
       "purpose": { "zh": "家访评估", "en": "Home Visit Assessment" }
     }
   ]
@@ -65,4 +65,5 @@ The frontend applies your agreed rule for appointments:
 
 - sorted by appointment date/time (ascending)
 - maximum 5 records shown on dashboard
+
 

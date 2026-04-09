@@ -26,7 +26,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     foreignKeyName: fk_case_assignment_user
-                    references: user(id)
+                    references: users(id)
               - column:
                   name: assignment_role
                   type: VARCHAR(50)
@@ -50,4 +50,4 @@ databaseChangeLog:
                   type: BIGINT
                   constraints:
                     foreignKeyName: fk_case_assignment_assigned_by
-                    references: user(id)
+                    references: users(id)
