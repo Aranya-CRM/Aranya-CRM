@@ -44,7 +44,9 @@ function StatusBadge({ status }: { status: ActiveCase['status'] }) {
 }
 
 function formatHonorific(name: string): string {
-  return name.replace(/^Monk\s+/i, 'Bhante ')
+  return name
+    .replace(/^Bhante\s+/i, 'Monastic ')
+    .replace(/^Monk\s+/i, 'Monastic ')
 }
 
 export function DashboardPage() {
@@ -228,7 +230,7 @@ export function DashboardPage() {
                 <thead>
                   <tr>
                     <th><span className="th-zh">服务对象</span><span className="th-en">Client</span></th>
-                    <th><span className="th-zh">原因</span><span className="th-en">Reason</span></th>
+                    <th><span className="th-zh">状态</span><span className="th-en">Status</span></th>
                     <th className="action-cell-left"><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
                   </tr>
                 </thead>

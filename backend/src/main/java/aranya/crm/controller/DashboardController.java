@@ -23,26 +23,26 @@ public class DashboardController {
                                 DashboardResponse.ActiveCase.builder()
                                         .id("case-001")
                                         .title(text("紧急住房支持", "Emergency Housing Support"))
-                                        .client(text("释慧明", "Bhante Sumedho"))
+                                        .client(text("释慧明", "Monastic Sumedho"))
                                         .status(text("审核中", "In Review"))
                                         .build(),
                                 DashboardResponse.ActiveCase.builder()
                                         .id("case-002")
                                         .title(text("医疗补助申请", "Medical Assistance Application"))
-                                        .client(text("释妙音", "Bhante Dhamma"))
+                                        .client(text("释妙音", "Monastic Dhamma"))
                                         .status(text("待跟进", "Pending Follow-up"))
                                         .build()
                         ))
                         .attentionCases(List.of(
                                 DashboardResponse.AttentionCase.builder()
                                         .id("attention-001")
-                                        .client(text("释妙音", "Bhante Dhamma"))
+                                        .client(text("释妙音", "Monastic Dhamma"))
                                         .reason(text("等待志愿者分配", "Awaiting volunteer assignment"))
                                         .daysOpen(5)
                                         .build(),
                                 DashboardResponse.AttentionCase.builder()
                                         .id("attention-002")
-                                        .client(text("释法住", "Bhante Saddha"))
+                                        .client(text("释法住", "Monastic Saddha"))
                                         .reason(text("补充材料待提交", "Supporting documents pending"))
                                         .daysOpen(3)
                                         .build()
@@ -51,13 +51,13 @@ public class DashboardController {
                                 DashboardResponse.UpcomingAppointment.builder()
                                         .id("appt-001")
                                         .startsAt("2026-04-10T10:00:00+08:00")
-                                        .client(text("释慧明", "Bhante Sumedho"))
+                                        .client(text("释慧明", "Monastic Sumedho"))
                                         .purpose(text("家访评估", "Home Visit Assessment"))
                                         .build(),
                                 DashboardResponse.UpcomingAppointment.builder()
                                         .id("appt-002")
                                         .startsAt("2026-04-11T14:30:00+08:00")
-                                        .client(text("释妙音", "Bhante Dhamma"))
+                                        .client(text("释妙音", "Monastic Dhamma"))
                                         .purpose(text("个案跟进", "Case Follow-up"))
                                         .build()
                         ))
@@ -69,4 +69,3 @@ public class DashboardController {
         return new DashboardResponse.LocalizedText(zh, en);
     }
 }
-
