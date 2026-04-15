@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 004
       author: ShiDu
+      comment: "Create invitation table - manages user invitation workflow"
       changes:
         - createTable:
             tableName: invitation
@@ -58,3 +59,28 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+
+        - createIndex:
+            indexName: idx_invitation_email
+            tableName: invitation
+            columns:
+              - column:
+                  name: email
+
+        - createIndex:
+            indexName: idx_invitation_status
+            tableName: invitation
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            indexName: idx_invitation_expires_at
+            tableName: invitation
+            columns:
+              - column:
+                  name: expires_at
+
+      rollback:
+        - dropTable:
+            tableName: invitation

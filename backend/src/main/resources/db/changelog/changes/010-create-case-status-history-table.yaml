@@ -43,3 +43,6 @@ databaseChangeLog:
               - column:
                   name: remarks
                   type: TEXT
+      rollback:
+        - dropTable:
+            tableName: case_status_history

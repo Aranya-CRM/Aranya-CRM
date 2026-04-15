@@ -42,3 +42,6 @@ databaseChangeLog:
                   defaultValueBoolean: false
                   constraints:
                     nullable: false
+      rollback:
+        - dropTable:
+            tableName: refresh_token

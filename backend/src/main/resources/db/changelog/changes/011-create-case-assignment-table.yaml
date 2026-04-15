@@ -51,3 +51,6 @@ databaseChangeLog:
                   constraints:
                     foreignKeyName: fk_case_assignment_assigned_by
                     references: users(id)
+      rollback:
+        - dropTable:
+            tableName: case_assignment

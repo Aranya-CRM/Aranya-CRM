@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 001
       author: ShiDu
+      comment: "Create role table - stores system roles for RBAC"
       changes:
         - createTable:
             tableName: role
@@ -22,3 +23,6 @@ databaseChangeLog:
               - column:
                   name: description
                   type: VARCHAR(255)
+      rollback:
+        - dropTable:
+            tableName: role

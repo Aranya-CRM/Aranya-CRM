@@ -42,3 +42,6 @@ databaseChangeLog:
               - column:
                   name: relationship_note
                   type: TEXT
+      rollback:
+        - dropTable:
+            tableName: client_case

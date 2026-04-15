@@ -20,5 +20,43 @@ services:
       retries: 10
       start_period: 30s
 
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: aranya_crm_backend_dev
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aranya_crm
+      SPRING_DATASOURCE_USERNAME: aranya_admin
+      SPRING_DATASOURCE_PASSWORD: aranya_secret
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Singapore
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aranya_network
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: aranya_crm_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - aranya_network
+
 volumes:
   aranya_crm_data:
+
+networks:
+  aranya_network:
+    driver: bridge

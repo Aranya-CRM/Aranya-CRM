@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 006
       author: ShiDu
+      comment: "Create client table - stores CRM client/beneficiary profiles"
       changes:
         - createTable:
             tableName: client
@@ -66,3 +67,42 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+
+        - createIndex:
+            indexName: idx_client_client_code
+            tableName: client
+            columns:
+              - column:
+                  name: client_code
+
+        - createIndex:
+            indexName: idx_client_client_name
+            tableName: client
+            columns:
+              - column:
+                  name: client_name
+
+        - createIndex:
+            indexName: idx_client_identifier_no
+            tableName: client
+            columns:
+              - column:
+                  name: identifier_no
+
+        - createIndex:
+            indexName: idx_client_status
+            tableName: client
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            indexName: idx_client_temple_affiliation
+            tableName: client
+            columns:
+              - column:
+                  name: temple_affiliation
+
+      rollback:
+        - dropTable:
+            tableName: client

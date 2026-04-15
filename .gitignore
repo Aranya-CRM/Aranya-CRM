@@ -18,6 +18,7 @@ logs/
 .env
 .env.*
 !.env.example
+./infra/docker/.env
 
 # Java / Maven (backend)
 backend/target/
