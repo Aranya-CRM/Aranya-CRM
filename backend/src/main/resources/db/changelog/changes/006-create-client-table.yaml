@@ -2,11 +2,13 @@ databaseChangeLog:
   - changeSet:
       id: 006
       author: ShiDu
-      comment: "Create client table - stores CRM client/beneficiary profiles"
+      comment: "Create client table - stores Sangha (monk/nun) profile data mapped from Excel 72-column master contact list"
       changes:
         - createTable:
             tableName: client
             columns:
+
+              # --- System ---
               - column:
                   name: id
                   type: BIGINT
@@ -14,23 +16,71 @@ databaseChangeLog:
                   constraints:
                     primaryKey: true
                     nullable: false
+
+              # --- Tab 1: Basic Info ---
               - column:
-                  name: client_code
-                  type: VARCHAR(50)
+                  name: abbr
+                  type: VARCHAR(20)
                   constraints:
                     nullable: false
                     unique: true
               - column:
-                  name: client_name
-                  type: VARCHAR(100)
+                  name: name_en
+                  type: VARCHAR(150)
                   constraints:
                     nullable: false
               - column:
-                  name: dharma_name
+                  name: name_chn
                   type: VARCHAR(100)
               - column:
-                  name: identifier_no
+                  name: contact
+                  type: VARCHAR(20)
+              - column:
+                  name: preferred_communication
                   type: VARCHAR(50)
+              - column:
+                  name: whatsapp_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preferred_language
+                  type: VARCHAR(50)
+              - column:
+                  name: spoken_language
+                  type: VARCHAR(100)
+              - column:
+                  name: address_text
+                  type: TEXT
+              - column:
+                  name: postal_code
+                  type: VARCHAR(20)
+              - column:
+                  name: area_district
+                  type: VARCHAR(100)
+              - column:
+                  name: vihara_type
+                  type: VARCHAR(50)
+
+              # --- Tab 2: Identity ---
+              - column:
+                  name: nric_name_en
+                  type: VARCHAR(150)
+              - column:
+                  name: nric_name_chn
+                  type: VARCHAR(100)
+              - column:
+                  name: nric_no
+                  type: VARCHAR(50)
+              - column:
+                  name: ordination_certificate_status
+                  type: VARCHAR(20)
+              - column:
+                  name: date_of_verification
+                  type: DATE
+
+              # --- Tab 3: Personal ---
               - column:
                   name: gender
                   type: VARCHAR(10)
@@ -38,29 +88,121 @@ databaseChangeLog:
                   name: date_of_birth
                   type: DATE
               - column:
-                  name: phone
-                  type: VARCHAR(20)
+                  name: marital_status
+                  type: VARCHAR(30)
               - column:
-                  name: email
-                  type: VARCHAR(100)
-              - column:
-                  name: address_text
-                  type: TEXT
-              - column:
-                  name: temple_affiliation
-                  type: VARCHAR(100)
-              - column:
-                  name: residential_status
+                  name: nationality
                   type: VARCHAR(50)
               - column:
-                  name: notes
-                  type: TEXT
+                  name: ethnicity
+                  type: VARCHAR(50)
               - column:
-                  name: status
-                  type: VARCHAR(20)
+                  name: dialect_group
+                  type: VARCHAR(50)
+              - column:
+                  name: membership_status
+                  type: VARCHAR(30)
                   defaultValue: ACTIVE
                   constraints:
                     nullable: false
+              - column:
+                  name: date_joined
+                  type: DATE
+              - column:
+                  name: membership_remarks
+                  type: TEXT
+
+              # --- Tab 4: Ordination ---
+              - column:
+                  name: buddhist_tradition
+                  type: VARCHAR(30)
+              - column:
+                  name: ordination_status
+                  type: VARCHAR(30)
+              - column:
+                  name: date_of_tonsure
+                  type: DATE
+              - column:
+                  name: country_of_tonsure
+                  type: VARCHAR(50)
+              - column:
+                  name: place_of_tonsure
+                  type: VARCHAR(100)
+              - column:
+                  name: date_of_ordination
+                  type: DATE
+              - column:
+                  name: country_of_ordination
+                  type: VARCHAR(50)
+              - column:
+                  name: place_of_ordination
+                  type: VARCHAR(100)
+
+              # --- Tab 5: Wellbeing ---
+              - column:
+                  name: wellbeing_living_conditions
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_mental_health
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_physical_health
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_financial_stability
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_social_support
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_legal_issues
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_spiritual
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wellbeing_remarks
+                  type: TEXT
+
+              # --- Tab 6: Special Needs & Notes ---
+              - column:
+                  name: special_needs
+                  type: VARCHAR(100)
+              - column:
+                  name: special_needs_remarks
+                  type: TEXT
+              - column:
+                  name: bank_transfer_info
+                  type: VARCHAR(100)
+              - column:
+                  name: pay_now_info
+                  type: VARCHAR(100)
+              - column:
+                  name: comments
+                  type: TEXT
+
+              # --- Audit ---
               - column:
                   name: created_at
                   type: TIMESTAMP
@@ -68,40 +210,55 @@ databaseChangeLog:
                   constraints:
                     nullable: false
 
+        # --- Indexes ---
         - createIndex:
-            indexName: idx_client_client_code
+            indexName: idx_client_abbr
             tableName: client
             columns:
               - column:
-                  name: client_code
+                  name: abbr
 
         - createIndex:
-            indexName: idx_client_client_name
+            indexName: idx_client_name_en
             tableName: client
             columns:
               - column:
-                  name: client_name
+                  name: name_en
 
         - createIndex:
-            indexName: idx_client_identifier_no
+            indexName: idx_client_nric_no
             tableName: client
             columns:
               - column:
-                  name: identifier_no
+                  name: nric_no
 
         - createIndex:
-            indexName: idx_client_status
+            indexName: idx_client_membership_status
             tableName: client
             columns:
               - column:
-                  name: status
+                  name: membership_status
 
         - createIndex:
-            indexName: idx_client_temple_affiliation
+            indexName: idx_client_buddhist_tradition
             tableName: client
             columns:
               - column:
-                  name: temple_affiliation
+                  name: buddhist_tradition
+
+        - createIndex:
+            indexName: idx_client_ordination_status
+            tableName: client
+            columns:
+              - column:
+                  name: ordination_status
+
+        - createIndex:
+            indexName: idx_client_area_district
+            tableName: client
+            columns:
+              - column:
+                  name: area_district
 
       rollback:
         - dropTable:
