@@ -19,6 +19,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - aranya_network
 
   backend:
     build:
@@ -26,12 +28,13 @@ services:
       dockerfile: Dockerfile
     container_name: aranya_crm_backend_dev
     restart: unless-stopped
+    env_file:
+      - ../../backend/.env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aranya_crm
       SPRING_DATASOURCE_USERNAME: aranya_admin
       SPRING_DATASOURCE_PASSWORD: aranya_secret
-      JWT_SECRET: ${JWT_SECRET}
       TZ: Asia/Singapore
     ports:
       - "8080:8080"

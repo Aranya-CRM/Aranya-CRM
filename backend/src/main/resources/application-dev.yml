@@ -8,6 +8,9 @@ spring:
   jpa:
     show-sql: true
 
+  liquibase:
+    contexts: dev
+
 logging:
   level:
     aranya.crm: DEBUG
