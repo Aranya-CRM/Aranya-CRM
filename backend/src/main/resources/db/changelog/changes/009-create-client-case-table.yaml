@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009
+      author: ShiDu
+      changes:
+        - createTable:
+            tableName: client_case
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: case_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_client_case_case
+                    references: case(id)
+              - column:
+                  name: client_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_client_case_client
+                    references: client(id)
+              - column:
+                  name: joined_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: added_by
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_client_case_added_by
+                    references: users(id)
+              - column:
+                  name: relationship_note
+                  type: TEXT
+      rollback:
+        - dropTable:
+            tableName: client_case

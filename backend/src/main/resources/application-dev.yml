@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aranya_crm}
+    driver-class-name: org.postgresql.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:aranya_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:aranya_secret}
+
+  jpa:
+    show-sql: true
+
+  liquibase:
+    contexts: dev
+
+logging:
+  level:
+    aranya.crm: DEBUG
+    org.springframework.security: DEBUG

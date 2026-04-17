@@ -1,0 +1,86 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004
+      author: ShiDu
+      comment: "Create invitation table - manages user invitation workflow"
+      changes:
+        - createTable:
+            tableName: invitation
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: email
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: assigned_role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_invitation_role
+                    references: role(id)
+              - column:
+                  name: invited_by
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_invitation_user
+                    references: users(id)
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: accepted_at
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_invitation_email
+            tableName: invitation
+            columns:
+              - column:
+                  name: email
+
+        - createIndex:
+            indexName: idx_invitation_status
+            tableName: invitation
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            indexName: idx_invitation_expires_at
+            tableName: invitation
+            columns:
+              - column:
+                  name: expires_at
+
+      rollback:
+        - dropTable:
+            tableName: invitation

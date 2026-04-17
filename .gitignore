@@ -1,0 +1,53 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# VS Code (if used locally)
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment / local config
+.env
+.env.*
+!.env.example
+./infra/docker/.env
+
+# Java / Maven (backend)
+backend/target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Node.js / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+frontend/.next/
+frontend/.nuxt/
+frontend/coverage/
+frontend/*.tsbuildinfo
+
+# Test / coverage outputs
+coverage/
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+/Notes/2026 Sample Master Contact List (Sangha).xlsx
+/Notes/2026 Sample ARANYA_2026_C_100_Case Notes.docx
+/Notes/2026 SAMPLE Aranya Engagement Report (Responses).xlsx
+/Notes/2026 SAMPLE Case Number Key.xlsx
+/.claude/settings.local.json

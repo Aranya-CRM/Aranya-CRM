@@ -1,24 +1,65 @@
 # Docker Compose configuration for Aranya's PostgreSQL database
 services:
-  db:
-    image: postgres:17
-    container_name: aranya-postgres
+  postgres:
+    image: postgres:15
+    container_name: aranya_crm_dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: aranya_crm
+      POSTGRES_USER: aranya_admin
+      POSTGRES_PASSWORD: aranya_secret
       TZ: Asia/Singapore
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     volumes:
-      - aranya_postgres_data:/var/lib/postgresql/data
+      - aranya_crm_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U aranya_admin -d aranya_crm"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - aranya_network
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: aranya_crm_backend_dev
+    restart: unless-stopped
+    env_file:
+      - ../../backend/.env
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aranya_crm
+      SPRING_DATASOURCE_USERNAME: aranya_admin
+      SPRING_DATASOURCE_PASSWORD: aranya_secret
+      TZ: Asia/Singapore
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aranya_network
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: aranya_crm_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - aranya_network
 
 volumes:
-  aranya_postgres_data:
+  aranya_crm_data:
+
+networks:
+  aranya_network:
+    driver: bridge

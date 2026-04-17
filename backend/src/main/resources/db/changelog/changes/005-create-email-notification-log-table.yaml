@@ -1,0 +1,82 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005
+      author: ShiDu
+      comment: "Create email_notification_log table - audit trail for all outbound emails"
+      changes:
+        - createTable:
+            tableName: email_notification_log
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: send_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_email_log_send_user
+                    references: users(id)
+              - column:
+                  name: recipient_user_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_email_log_recipient_user
+                    references: users(id)
+              - column:
+                  name: recipient_email
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_id
+                  type: BIGINT
+              - column:
+                  name: send_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_email_log_send_user_id
+            tableName: email_notification_log
+            columns:
+              - column:
+                  name: send_user_id
+
+        - createIndex:
+            indexName: idx_email_log_recipient_email
+            tableName: email_notification_log
+            columns:
+              - column:
+                  name: recipient_email
+
+        - createIndex:
+            indexName: idx_email_log_source
+            tableName: email_notification_log
+            columns:
+              - column:
+                  name: source_type
+              - column:
+                  name: source_id
+
+        - createIndex:
+            indexName: idx_email_log_send_at
+            tableName: email_notification_log
+            columns:
+              - column:
+                  name: send_at
+
+      rollback:
+        - dropTable:
+            tableName: email_notification_log

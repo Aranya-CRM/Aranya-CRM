@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012
+      author: ShiDu
+      changes:
+        - createTable:
+            tableName: case_note
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: case_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_case_note_case
+                    references: case(id)
+              - column:
+                  name: note_type
+                  type: VARCHAR(50)
+              - column:
+                  name: content
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: visibility
+                  type: VARCHAR(20)
+                  defaultValue: INTERNAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_case_note_user
+                    references: users(id)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+      rollback:
+        - dropTable:
+            tableName: case_note
