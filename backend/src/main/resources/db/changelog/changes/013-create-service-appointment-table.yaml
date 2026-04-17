@@ -63,3 +63,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: TIMESTAMP
+      rollback:
+        - dropTable:
+            tableName: service_appointment

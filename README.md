@@ -1,6 +1,12 @@
 # Aranya-CRM
 This is a CRM system for Aranya orgnization
 
+## Documentation
+
+For onboarding, local setup, Docker usage, architecture notes, and ongoing development guidance, start here:
+
+- [Developer Guide](docs/developer-guide.md)
+
 ## Local PostgreSQL (Docker Compose)
 
 PostgreSQL is managed in `infra/docker/docker-compose.yaml` with fixed local dev credentials:

@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 002
       author: ShiDu
+      comment: "Create users table - stores system user accounts"
       changes:
         - createTable:
             tableName: users
@@ -44,3 +45,27 @@ databaseChangeLog:
                   defaultValue: ACTIVE
                   constraints:
                     nullable: false
+        - createIndex:
+            indexName: idx_user_email
+            tableName: users
+            columns:
+              - column:
+                  name: email
+
+        - createIndex:
+            indexName: idx_users_status
+            tableName: users
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            indexName: idx_users_username
+            tableName: users
+            columns:
+              - column:
+                  name: username
+
+      rollback:
+        - dropTable:
+            tableName: users

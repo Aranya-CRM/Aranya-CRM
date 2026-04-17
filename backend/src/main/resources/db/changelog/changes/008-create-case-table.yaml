@@ -66,3 +66,6 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+      rollback:
+        - dropTable:
+            tableName: case

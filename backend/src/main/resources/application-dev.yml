@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:15:///test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    username: test
-    password: test
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aranya_crm}
+    driver-class-name: org.postgresql.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:aranya_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:aranya_secret}
 
   jpa:
     show-sql: true

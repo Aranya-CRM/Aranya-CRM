@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 003
       author: ShiDu
+      comment: "Create user_role table - maps users to roles for RBAC"
       changes:
         - createTable:
             tableName: user_role
@@ -39,3 +40,19 @@ databaseChangeLog:
                   constraints:
                     foreignKeyName: fk_user_role_assigned_by
                     references: users(id)
+
+        - addUniqueConstraint:
+            tableName: user_role
+            columnNames: user_id, role_id
+            constraintName: uq_user_role_user_id_role_id
+
+        - createIndex:
+            indexName: idx_user_role_user_id
+            tableName: user_role
+            columns:
+              - column:
+                  name: user_id
+
+      rollback:
+        - dropTable:
+            tableName: user_role
