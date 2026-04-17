@@ -49,13 +49,14 @@ This guide is meant to help a new contributor run, understand, and continue deve
 - `backend/src/main/java/aranya/crm/repository/`: data access layer
 - `backend/src/main/resources/application*.yml`: environment config
 - `backend/src/main/resources/db/changelog/`: Liquibase migrations
+- `backend/.env`: local backend secret values used by Docker Compose
 - `backend/Dockerfile`: backend image build
 - `backend/pom.xml`: Maven dependencies
 
 ### Infrastructure
 
 - `infra/docker/docker-compose.yaml`: local multi-container dev stack
-- `infra/docker/.env`: compose secrets and environment values
+- `infra/docker/.env`: older compose env file kept in the repo, but the current backend container setup reads `backend/.env`
 
 ## 3. Tech Stack
 
@@ -188,7 +189,7 @@ Liquibase runs on backend startup and applies schema changes from:
 ## 5.4 Full stack with Docker Compose
 
 ```powershell
-docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.yaml up --build
+docker compose -f infra/docker/docker-compose.yaml up --build
 ```
 
 Expected URLs:
@@ -254,12 +255,12 @@ Frontend auth helpers live in:
 - `frontend/src/contexts/AuthContext.tsx`
 
 Current implementation stores tokens and user identity in `localStorage`.
+`AuthProvider` is mounted at the application root in `frontend/src/main.tsx`, so routed pages can safely use `useAuth()`.
 
 Important note:
 
-- there is a current mismatch between `AuthContext.tsx` and `services/auth.ts`
-- `AuthContext` expects a user role, but the auth service currently does not persist or return one
-- strict TypeScript build currently fails because of this mismatch
+- the frontend is currently aligned to the backend's actual auth response and only treats `email` and `fullName` as canonical user identity fields
+- role-based UI is temporarily running in a compatibility mode until the backend starts returning role information
 - Docker frontend build was temporarily adjusted to use `npm run build:docker`, which skips the TypeScript compile step and runs only `vite build`
 
 This should be treated as temporary technical debt and should be fixed properly later.
@@ -387,23 +388,25 @@ Current compose file starts:
 
 The current compose file has already been corrected so that:
 
+- `postgres`, `backend`, and `frontend` all join `aranya_network`
 - `backend` and `frontend` are under `services`
-- backend and frontend join `aranya_network`
 - backend maps `8080:8080`
+- backend loads its JWT secret from `backend/.env`
 
 ## 10. Known Issues And Risks
 
 ### Known issue: frontend TypeScript build is not clean
 
-There is an unresolved mismatch between:
+The Docker build path is currently more permissive than the regular local build:
 
-- `frontend/src/contexts/AuthContext.tsx`
-- `frontend/src/services/auth.ts`
+- `npm run build` runs `tsc -b && vite build`
+- `npm run build:docker` runs only `vite build`
 
 Impact:
 
-- `npm run build` fails because it runs `tsc -b`
+- `npm run build` still fails on frontend TypeScript issues
 - Docker currently avoids this by using `npm run build:docker`
+- one current example is an unused variable in `frontend/src/components/layout/AppLayout.tsx`
 
 Recommended long-term fix:
 
@@ -411,6 +414,7 @@ Recommended long-term fix:
 - include role in backend login response if role-based UI is required
 - persist role in frontend auth storage
 - align `AuthContext`, `services/auth.ts`, and the backend DTO
+- remove the temporary UI compatibility code once role information is available
 
 ### Known issue: docs are still sparse
 

@@ -3,15 +3,11 @@ import {
   clearSession,
   getCurrentUser,
   isAuthenticated,
-  type UserRole,
 } from '../services/auth'
 
 interface AuthContextValue {
   authenticated: boolean
-  user: { email: string | null; fullName: string | null; role: UserRole }
-  role: UserRole
-  isSocialWorker: boolean
-  isVolunteer: boolean
+  user: { email: string | null; fullName: string | null }
   logout: () => void
 }
 
@@ -25,9 +21,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       authenticated,
       user,
-      role: user.role,
-      isSocialWorker: user.role === 'SOCIAL_WORKER',
-      isVolunteer: user.role === 'VOLUNTEER',
       logout: () => {
         clearSession()
         window.location.href = '/login'

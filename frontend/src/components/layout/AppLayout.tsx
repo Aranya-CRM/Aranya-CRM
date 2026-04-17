@@ -104,11 +104,12 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, role, isVolunteer, logout } = useAuth()
+  const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-
-  const roleBadge = role === 'SOCIAL_WORKER' ? 'Social Worker' : 'Volunteer'
+  const role = 'MEMBER'
+  const isVolunteer = false
+  const roleBadge = 'Member'
 
   function handleNavClick(item: NavItem) {
     if (isVolunteer && item.disabledForVolunteer) return
@@ -172,7 +173,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <span className="topbar-user-name">
                 {user.fullName ?? 'User'}
               </span>
-              <span className={'topbar-role-badge role-' + role.toLowerCase()}>
+              <span className="topbar-role-badge">
                 {roleBadge}
               </span>
             </div>
