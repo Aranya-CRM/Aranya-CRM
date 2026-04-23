@@ -1,3 +1,8 @@
+app:
+  two-factor:
+    # Base64 of "AranyaCRM2FADevKeyForTesting1234" (32 bytes) — dev only, set TWO_FACTOR_ENCRYPTION_KEY in prod
+    encryption-key: ${TWO_FACTOR_ENCRYPTION_KEY:QXJhbnlhQ1JNMkZBRGV2S2V5Rm9yVGVzdGluZzEyMzQ=}
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aranya_crm}

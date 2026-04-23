@@ -34,7 +34,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         // 公开接口不需要经过 JWT 过滤器
         boolean skip = path.equals("/api/v1/auth/login") ||
-                path.equals("/api/v1/auth/refresh");
+                path.equals("/api/v1/auth/refresh") ||
+                path.equals("/api/v1/auth/2fa/verify");
         log.debug("shouldNotFilter: path={}, skip={}", path, skip);
         return skip;
     }
@@ -56,9 +57,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try{
             final String email = jwtUtil.extractEmail(token);
 
-            if (jwtUtil.isRefreshToken(token)) {
-                log.warn("Refresh token used as access token, request URI: {}", request.getRequestURI());
-                sendUnauthorized(response, "Refresh token cannot be used to access resources");
+            if (!jwtUtil.isAccessToken(token)) {
+                log.warn("Non-access token used on protected resource, URI: {}", request.getRequestURI());
+                sendUnauthorized(response, "Invalid token type for this request");
                 return;
             }
 

@@ -18,6 +18,7 @@ public class UserPrincipal implements UserDetails {
     private final String fullName;
     private final String passwordHash;
     private final String status;
+    private final boolean twoFactorEnabled;
     private final Collection<? extends GrantedAuthority> authorities;
 
     private UserPrincipal(User user, List<String> roleNames){
@@ -26,6 +27,7 @@ public class UserPrincipal implements UserDetails {
         this.fullName = user.getFullName();
         this.passwordHash = user.getPasswordHash();
         this.status = user.getStatus();
+        this.twoFactorEnabled = user.isTwoFactorEnabled();
         this.authorities=roleNames.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_"+role.toUpperCase()))
                 .collect(Collectors.toList());
