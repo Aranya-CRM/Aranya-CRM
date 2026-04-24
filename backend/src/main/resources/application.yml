@@ -7,6 +7,10 @@ app:
     secret: ${JWT_SECRET}
     access-token-expiration: 1800000
     refresh-token-expiration: 604800000
+  two-factor:
+    issuer: AranyaCRM
+    temp-token-expiration: 300000
+    encryption-key: ${TWO_FACTOR_ENCRYPTION_KEY}
 
 spring:
   profiles:

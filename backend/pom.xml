@@ -74,6 +74,13 @@
             <artifactId>liquibase-core</artifactId>
         </dependency>
 
+        <!-- TOTP (2FA) -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
+
         <!-- Swagger / OpenAPI -->
         <dependency>
             <groupId>org.springdoc</groupId>

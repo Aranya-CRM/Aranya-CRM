@@ -32,9 +32,14 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    // 建议用枚举管理状态，避免魔法字符串
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    private boolean twoFactorEnabled = false;
+
+    @Column(name = "two_factor_secret", length = 512)
+    private String twoFactorSecret;
 
 
     // 一个用户对应多个 user_role 记录

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aranya CRM — Site Map</title>
+<style>
+  :root {
+    --vol:      #3b82f6;
+    --vol-bg:   #dbeafe;
+    --vol-text: #1e40af;
+    --sw:       #f59e0b;
+    --sw-bg:    #fef3c7;
+    --sw-text:  #92400e;
+    --mgr:      #7c3aed;
+    --mgr-bg:   #ede9fe;
+    --mgr-text: #5b21b6;
+    --border:   #e5e7eb;
+    --muted:    #9ca3af;
+    --bg:       #f3f4f6;
+    --text:     #111827;
+    --line:     #d1d5db;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; background: var(--bg); color: var(--text); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 44px 40px 60px; }
+
+  /* ── Header ── */
+  .hd { text-align: center; margin-bottom: 28px; }
+  .hd h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; }
+  .hd .hd-sub { font-size: 14px; color: var(--muted); margin-top: 5px; }
+  .hd .hd-date { font-size: 12px; color: #ccc; margin-top: 3px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; margin: 0 0 20px; }
+  .li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .li-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .li-box { width: 16px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Stats bar ── */
+  .stats { display: flex; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
+  .st { flex: 1; padding: 14px 10px; text-align: center; border-right: 1.5px solid var(--border); }
+  .st:last-child { border-right: none; }
+  .st-n { font-size: 24px; font-weight: 800; }
+  .st-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+
+  /* ── Section label ── */
+  .sec-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Flow card (auth / dashboard) ── */
+  .flow-card { background: #fff; border: 1.5px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 10px; }
+  .flow-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+  /* ── Node ── */
+  .node { background: #fff; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 13px; min-width: 148px; }
+  .node-name { font-size: 12px; font-weight: 700; }
+  .node-route { font-size: 9px; color: var(--muted); font-family: 'Courier New', monospace; margin-top: 1px; }
+  .node-pills { display: flex; gap: 3px; margin-top: 5px; flex-wrap: wrap; }
+  .node.n-vol { border-top: 3px solid var(--vol); }
+  .node.n-sw  { border-top: 3px solid var(--sw);  }
+  .node.n-mgr { border-top: 3px solid var(--mgr); }
+
+  /* ── Pills ── */
+  .pill { font-size: 8px; padding: 2px 5px; border-radius: 10px; font-weight: 700; white-space: nowrap; }
+  .p-vol { background: var(--vol-bg); color: var(--vol-text); }
+  .p-sw  { background: var(--sw-bg);  color: var(--sw-text); }
+  .p-mgr { background: var(--mgr-bg); color: var(--mgr-text); }
+  .p-all { background: #f0f0f0; color: #555; }
+
+  /* ── Arrow ── */
+  .arr { text-align: center; font-size: 22px; color: var(--line); line-height: 1; margin: 6px 0; }
+
+  /* ── Modules grid ── */
+  .mods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+  /* ── Module card ── */
+  .mod { border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); background: #fff; display: flex; flex-direction: column; }
+  .mod-hd { padding: 13px 14px; color: #fff; flex-shrink: 0; }
+  .mod-hd h2 { font-size: 13px; font-weight: 700; }
+  .mod-hd .mod-route { font-size: 9px; opacity: 0.7; font-family: 'Courier New', monospace; margin-top: 2px; }
+  .mod-hd .mod-pills { display: flex; gap: 3px; margin-top: 7px; flex-wrap: wrap; }
+  .mod-hd .pill { opacity: 0.95; }
+
+  .mod-clients  .mod-hd { background: #111827; }
+  .mod-cases    .mod-hd { background: #1f2937; }
+  .mod-reports  .mod-hd { background: #374151; }
+  .mod-usermgmt .mod-hd { background: #4c1d95; }
+
+  .mod-pages { padding: 10px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+
+  /* ── Page item ── */
+  .pg { border: 1.5px solid var(--border); border-radius: 7px; padding: 9px 10px; background: #fff; }
+  .pg.pg-restricted { border-color: #fca5a5; border-style: dashed; background: #fff8f8; }
+  .pg.pg-mgr-only   { border-color: #c4b5fd; background: #faf5ff; }
+
+  .pg-name  { font-size: 11px; font-weight: 700; }
+  .pg-route { font-size: 9px; color: var(--muted); font-family: 'Courier New', monospace; margin-top: 1px; }
+  .pg-pills { display: flex; gap: 3px; margin-top: 5px; flex-wrap: wrap; }
+  .deny-tag { display: inline-block; font-size: 8px; background: #fee2e2; color: #dc2626; border-radius: 3px; padding: 1px 5px; font-weight: 700; margin-top: 4px; }
+
+  .pg-notes { margin-top: 6px; padding-top: 6px; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; gap: 2px; }
+  .pg-note { font-size: 9.5px; color: #555; padding-left: 8px; position: relative; line-height: 1.4; }
+  .pg-note::before { content: '›'; position: absolute; left: 0; }
+  .pg-note.nv { color: var(--vol-text); }
+  .pg-note.ns { color: var(--sw-text); }
+  .pg-note.nm { color: var(--mgr-text); }
+
+  /* ── Role comparison table ── */
+  .compare { width: 100%; border-collapse: collapse; margin-top: 28px; background: #fff; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); font-size: 12px; }
+  .compare th { padding: 10px 14px; font-size: 11px; font-weight: 700; text-align: left; border-bottom: 2px solid var(--border); background: #fafafa; }
+  .compare th.hv { background: var(--vol-bg); color: var(--vol-text); }
+  .compare th.hs { background: var(--sw-bg);  color: var(--sw-text); }
+  .compare th.hm { background: var(--mgr-bg); color: var(--mgr-text); }
+  .compare td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare td.feature { font-weight: 600; color: #374151; font-size: 11px; }
+  .compare td.mod-group { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); background: #fafafa; }
+  .ck  { color: #16a34a; font-weight: 700; }
+  .cr  { color: #dc2626; }
+  .ca  { color: #374151; }
+
+  /* ── Key flows ── */
+  .flows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; }
+  .flow-item { background: #fff; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .flow-item-hd { padding: 10px 14px; font-size: 12px; font-weight: 700; color: #fff; }
+  .flow-item-hd.fv { background: var(--vol); }
+  .flow-item-hd.fs { background: var(--sw); }
+  .flow-item-hd.fm { background: var(--mgr); }
+  .flow-steps { padding: 12px 14px; display: flex; flex-direction: column; gap: 0; }
+  .flow-step { font-size: 11px; color: #374151; padding: 5px 0; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; gap: 6px; }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step .step-n { background: #f3f4f6; color: #6b7280; font-size: 9px; font-weight: 700; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #ccc; }
+
+  @media print {
+    body { background: #fff; }
+    .wrap { padding: 20px; max-width: 100%; }
+    .mods { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ── HEADER ── -->
+<div class="hd">
+  <h1>Aranya CRM — Site Map</h1>
+  <div class="hd-sub">Role-based navigation structure · 僧人关怀系统页面架构</div>
+  <div class="hd-date">Document date: April 2026</div>
+</div>
+
+<!-- ── LEGEND ── -->
+<div class="legend">
+  <div class="li"><div class="li-dot" style="background:var(--vol)"></div>Volunteer — Limited access</div>
+  <div class="li"><div class="li-dot" style="background:var(--sw)"></div>Social Worker — Full operational access</div>
+  <div class="li"><div class="li-dot" style="background:var(--mgr)"></div>Manager — Admin &amp; audit access</div>
+  <div class="li" style="margin-left:8px"><div class="li-box" style="border:1.5px dashed #fca5a5;background:#fff8f8"></div>Role-restricted (403 for Volunteer)</div>
+  <div class="li"><div class="li-box" style="border:1.5px solid #c4b5fd;background:#faf5ff"></div>Manager only</div>
+</div>
+
+<!-- ── STATS ── -->
+<div class="stats">
+  <div class="st"><div class="st-n">14</div><div class="st-l">Total Pages / Views</div></div>
+  <div class="st"><div class="st-n">3</div><div class="st-l">User Roles</div></div>
+  <div class="st"><div class="st-n">4</div><div class="st-l">Main Modules</div></div>
+  <div class="st"><div class="st-n">2</div><div class="st-l">Role-Gated Modules</div></div>
+  <div class="st"><div class="st-n">RBAC</div><div class="st-l">Access Control Model</div></div>
+</div>
+
+<!-- ── AUTH ── -->
+<div class="sec-label">① Entry &amp; Authentication</div>
+<div class="flow-card">
+  <div class="flow-row">
+    <div class="node">
+      <div class="node-name">Login Page</div>
+      <div class="node-route">/login</div>
+      <div class="node-pills"><span class="pill p-all">All Roles</span></div>
+    </div>
+    <div class="node">
+      <div class="node-name">Two-Factor Auth (TOTP)</div>
+      <div class="node-route">/auth/2fa</div>
+      <div class="node-pills"><span class="pill p-all">All Roles</span></div>
+    </div>
+    <div class="node">
+      <div class="node-name">Reset Password</div>
+      <div class="node-route">/reset-password</div>
+      <div class="node-pills"><span class="pill p-all">All Roles</span></div>
+    </div>
+    <div class="node">
+      <div class="node-name">Register via Invite</div>
+      <div class="node-route">/register?token=…</div>
+      <div class="node-pills"><span class="pill p-all">All Roles</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="arr">↓</div>
+
+<!-- ── DASHBOARDS ── -->
+<div class="sec-label">② Role Dashboards — Redirect target after successful login</div>
+<div class="flow-card">
+  <div class="flow-row">
+    <div class="node n-vol">
+      <div class="node-name">Volunteer Dashboard</div>
+      <div class="node-route">/dashboard</div>
+      <div class="node-pills"><span class="pill p-vol">Volunteer</span></div>
+    </div>
+    <div class="node n-sw">
+      <div class="node-name">Social Worker Dashboard</div>
+      <div class="node-route">/dashboard</div>
+      <div class="node-pills"><span class="pill p-sw">Social Worker</span></div>
+    </div>
+    <div class="node n-mgr">
+      <div class="node-name">Manager Dashboard</div>
+      <div class="node-route">/dashboard</div>
+      <div class="node-pills"><span class="pill p-mgr">Manager</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="arr">↓</div>
+
+<!-- ── MODULES ── -->
+<div class="sec-label">③ Main Modules — Role-differentiated pages</div>
+<div class="mods">
+
+  <!-- CLIENT PROFILES -->
+  <div class="mod mod-clients">
+    <div class="mod-hd">
+      <h2>👤 Client Profiles</h2>
+      <div class="mod-route">僧人档案 · /clients</div>
+      <div class="mod-pills">
+        <span class="pill p-vol">Volunteer</span>
+        <span class="pill p-sw">Social Worker</span>
+        <span class="pill p-mgr">Manager</span>
+      </div>
+    </div>
+    <div class="mod-pages">
+
+      <div class="pg">
+        <div class="pg-name">Client List</div>
+        <div class="pg-route">/clients</div>
+        <div class="pg-pills">
+          <span class="pill p-vol">Volunteer</span>
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="pg-notes">
+          <div class="pg-note nv">List view only · No detail access · No create/edit</div>
+          <div class="pg-note ns">Full list · Create &amp; Edit</div>
+          <div class="pg-note nm">Full list · Create / Edit / Delete</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Client Detail</div>
+        <div class="pg-route">/clients/:id</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+        <div class="pg-notes">
+          <div class="pg-note ns">All 6 tabs · Edit enabled</div>
+          <div class="pg-note nm">All tabs · Delete Profile available</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Create Client</div>
+        <div class="pg-route">/clients/new</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+        <div class="pg-notes">
+          <div class="pg-note ns">6-step wizard · All 72 fields</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Edit Client</div>
+        <div class="pg-route">/clients/:id/edit</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CASE MANAGEMENT -->
+  <div class="mod mod-cases">
+    <div class="mod-hd">
+      <h2>📁 Case Management</h2>
+      <div class="mod-route">个案管理 · /cases</div>
+      <div class="mod-pills">
+        <span class="pill p-vol">Volunteer</span>
+        <span class="pill p-sw">Social Worker</span>
+        <span class="pill p-mgr">Manager</span>
+      </div>
+    </div>
+    <div class="mod-pages">
+
+      <div class="pg">
+        <div class="pg-name">Case List</div>
+        <div class="pg-route">/cases</div>
+        <div class="pg-pills">
+          <span class="pill p-vol">Volunteer</span>
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="pg-notes">
+          <div class="pg-note nv">List view only · No detail access · No create</div>
+          <div class="pg-note ns">Full list · New Case button</div>
+          <div class="pg-note nm">All records · Audit View toggle</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Case Detail</div>
+        <div class="pg-route">/cases/:id</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+        <div class="pg-notes">
+          <div class="pg-note ns">Update Status / Assign / Close / Upload Docs</div>
+          <div class="pg-note nm">Audit tab · Flag Case · Delete Docs</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Create Case</div>
+        <div class="pg-route">/cases/new</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+        <div class="pg-notes">
+          <div class="pg-note ns">Services matrix · Assign volunteer</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="mod mod-reports">
+    <div class="mod-hd">
+      <h2>📝 Reports</h2>
+      <div class="mod-route">探访报告 · /reports</div>
+      <div class="mod-pills">
+        <span class="pill p-vol">Volunteer</span>
+        <span class="pill p-sw">Social Worker</span>
+        <span class="pill p-mgr">Manager</span>
+      </div>
+    </div>
+    <div class="mod-pages">
+
+      <div class="pg">
+        <div class="pg-name">Report List</div>
+        <div class="pg-route">/reports</div>
+        <div class="pg-pills">
+          <span class="pill p-vol">Volunteer</span>
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="pg-notes">
+          <div class="pg-note nv">Submit new · List own reports · No detail view</div>
+          <div class="pg-note ns">All reports · Urgent alert banner</div>
+          <div class="pg-note nm">All reports · Approve / Archive</div>
+        </div>
+      </div>
+
+      <div class="pg">
+        <div class="pg-name">Submit Report</div>
+        <div class="pg-route">/reports/new</div>
+        <div class="pg-pills">
+          <span class="pill p-vol">Volunteer</span>
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="pg-notes">
+          <div class="pg-note nv">+ Mark as Urgent flag</div>
+          <div class="pg-note ns">+ Link related contacts</div>
+          <div class="pg-note">17-field observation form</div>
+        </div>
+      </div>
+
+      <div class="pg pg-restricted">
+        <div class="pg-name">Report Detail</div>
+        <div class="pg-route">/reports/:id</div>
+        <div class="pg-pills">
+          <span class="pill p-sw">Social Worker</span>
+          <span class="pill p-mgr">Manager</span>
+        </div>
+        <div class="deny-tag">403 for Volunteer</div>
+        <div class="pg-notes">
+          <div class="pg-note ns">Edit / Delete / Mark as Resolved</div>
+          <div class="pg-note nm">Approve / Archive / Delete</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- USER MANAGEMENT -->
+  <div class="mod mod-usermgmt">
+    <div class="mod-hd">
+      <h2>👥 User Management</h2>
+      <div class="mod-route">用户管理 · /users</div>
+      <div class="mod-pills">
+        <span class="pill p-mgr">Manager only</span>
+      </div>
+    </div>
+    <div class="mod-pages">
+
+      <div class="pg pg-mgr-only">
+        <div class="pg-name">User List</div>
+        <div class="pg-route">/users</div>
+        <div class="pg-pills"><span class="pill p-mgr">Manager</span></div>
+        <div class="deny-tag">403 for Volunteer &amp; Social Worker</div>
+        <div class="pg-notes">
+          <div class="pg-note nm">View all users · Manage roles</div>
+        </div>
+      </div>
+
+      <div class="pg pg-mgr-only">
+        <div class="pg-name">Invite User</div>
+        <div class="pg-route">/users/invite</div>
+        <div class="pg-pills"><span class="pill p-mgr">Manager</span></div>
+        <div class="deny-tag">403 for Volunteer &amp; Social Worker</div>
+        <div class="pg-notes">
+          <div class="pg-note nm">Send invitation email to new user</div>
+        </div>
+      </div>
+
+      <div class="pg pg-mgr-only">
+        <div class="pg-name">Assign Role</div>
+        <div class="pg-route">/users/:id/role</div>
+        <div class="pg-pills"><span class="pill p-mgr">Manager</span></div>
+        <div class="deny-tag">403 for Volunteer &amp; Social Worker</div>
+        <div class="pg-notes">
+          <div class="pg-note nm">Set user as Volunteer / SW / Manager</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /mods -->
+
+<!-- ── ACCESS CONTROL SUMMARY TABLE ── -->
+<div class="sec-label" style="margin-top:32px">④ Role Access Summary — Key permissions per module</div>
+<table class="compare">
+  <thead>
+    <tr>
+      <th style="width:22%">Feature</th>
+      <th class="hv" style="width:26%">Volunteer</th>
+      <th class="hs" style="width:26%">Social Worker</th>
+      <th class="hm" style="width:26%">Manager</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="mod-group" colspan="4">Authentication</td></tr>
+    <tr>
+      <td class="feature">Login / Logout / 2FA</td>
+      <td><span class="ck">✓</span> All users</td>
+      <td><span class="ck">✓</span> All users</td>
+      <td><span class="ck">✓</span> All users</td>
+    </tr>
+    <tr>
+      <td class="feature">Invite &amp; Assign Roles</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="ck">✓</span> Full control</td>
+    </tr>
+    <tr><td class="mod-group" colspan="4">Client Profiles 僧人档案</td></tr>
+    <tr>
+      <td class="feature">View profile</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="ck">✓</span> Full profile incl. IC</td>
+      <td><span class="ck">✓</span> Full profile incl. IC</td>
+    </tr>
+    <tr>
+      <td class="feature">Edit profile</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Delete profile</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="cr">✗</span> Not allowed</td>
+      <td><span class="ck">✓</span> Yes (archived)</td>
+    </tr>
+    <tr>
+      <td class="feature">Link related contacts</td>
+      <td><span class="ca">△</span> Within assigned scope</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr><td class="mod-group" colspan="4">Case Management 个案管理</td></tr>
+    <tr>
+      <td class="feature">View cases</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="ck">✓</span> Full view</td>
+      <td><span class="ck">✓</span> Full view + audit</td>
+    </tr>
+    <tr>
+      <td class="feature">Add notes to case</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Create case</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="ck">✓</span> Status: New Intake</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Update status / Assign / Close</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="ck">✓</span> Full control</td>
+      <td><span class="ck">✓</span> Full control</td>
+    </tr>
+    <tr>
+      <td class="feature">Upload / edit documents</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Delete documents</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="cr">✗</span> Not allowed</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Audit case / Flag case</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="cr">✗</span> Not allowed</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Flag urgent observation</td>
+      <td><span class="ck">✓</span> Triggers alert to SW</td>
+      <td><span class="ca">—</span> Receives alerts</td>
+      <td><span class="ca">—</span> Receives alerts</td>
+    </tr>
+    <tr><td class="mod-group" colspan="4">Reports 探访报告</td></tr>
+    <tr>
+      <td class="feature">Create / submit report</td>
+      <td><span class="ck">✓</span> Can mark urgent</td>
+      <td><span class="ck">✓</span> Can link contacts</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">View reports</td>
+      <td><span class="cr">✗</span> 403 Forbidden</td>
+      <td><span class="ck">✓</span> All reports</td>
+      <td><span class="ck">✓</span> All reports</td>
+    </tr>
+    <tr>
+      <td class="feature">Edit / delete reports</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Approve / archive reports</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="cr">✗</span> Not allowed</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+    <tr>
+      <td class="feature">Resolve urgent reports</td>
+      <td><span class="cr">✗</span> No access</td>
+      <td><span class="ck">✓</span> Yes</td>
+      <td><span class="ck">✓</span> Yes</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ── KEY USER FLOWS ── -->
+<div class="sec-label" style="margin-top:32px">⑤ Key User Flows — Typical journeys per role</div>
+<div class="flows">
+
+  <div class="flow-item">
+    <div class="flow-item-hd fv">Volunteer Journey</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="step-n">1</div>Login → 2FA → Volunteer Dashboard</div>
+      <div class="flow-step"><div class="step-n">2</div>Search Client → View Basic Profile</div>
+      <div class="flow-step"><div class="step-n">3</div>Browse assigned Cases → View Details</div>
+      <div class="flow-step"><div class="step-n">4</div>Add observation note to Case</div>
+      <div class="flow-step"><div class="step-n">5</div>Submit Observation Report (17 fields)</div>
+      <div class="flow-step"><div class="step-n">6</div>Mark report Urgent → Alert sent to SW</div>
+    </div>
+  </div>
+
+  <div class="flow-item">
+    <div class="flow-item-hd fs">Social Worker Journey</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="step-n">1</div>Login → 2FA → SW Dashboard</div>
+      <div class="flow-step"><div class="step-n">2</div>Create or search Client → Edit full profile</div>
+      <div class="flow-step"><div class="step-n">3</div>Create Case → Assign Volunteer</div>
+      <div class="flow-step"><div class="step-n">4</div>Update Case status → Upload documents</div>
+      <div class="flow-step"><div class="step-n">5</div>Receive Urgent Alert → View Report</div>
+      <div class="flow-step"><div class="step-n">6</div>Mark Urgent Report as Resolved</div>
+    </div>
+  </div>
+
+  <div class="flow-item">
+    <div class="flow-item-hd fm">Manager Journey</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="step-n">1</div>Login → 2FA → Manager Dashboard</div>
+      <div class="flow-step"><div class="step-n">2</div>Invite new user → Assign Role</div>
+      <div class="flow-step"><div class="step-n">3</div>Audit Cases → Flag issues → Notify SW</div>
+      <div class="flow-step"><div class="step-n">4</div>Review all Reports → Approve / Archive</div>
+      <div class="flow-step"><div class="step-n">5</div>Delete Client Profile (if required)</div>
+      <div class="flow-step"><div class="step-n">6</div>Delete Case Documents (admin cleanup)</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FOOTER ── -->
+<div class="footer">
+  Aranya CRM · Site Map · Role-Based Access Control (RBAC) · 2026<br>
+  <span style="color:#e5e7eb">Prototype documents: 1-僧人档案 · 2-个案管理 · 3-探访报告 · Role-Permission-Overview.md</span>
+</div>
+
+</div>
+</body>
+</html>

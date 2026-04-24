@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.SecurityException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +24,8 @@ public class JwtUtil {
 
     public enum TokenType {
         ACCESS,
-        REFRESH
+        REFRESH,
+        TWO_FACTOR
     }
 
     private final AppProperties appProperties;
@@ -44,7 +46,24 @@ public class JwtUtil {
 
     public String generateRefreshToken(UserDetails userDetails) {
         return buildToken(userDetails.getUsername(),
-                appProperties.getJwt().getRefreshTokenExpiration(),TokenType.REFRESH);
+                appProperties.getJwt().getRefreshTokenExpiration(), TokenType.REFRESH);
+    }
+
+    public String generateTempToken(UserDetails userDetails) {
+        return buildToken(userDetails.getUsername(),
+                appProperties.getTwoFactor().getTempTokenExpiration(), TokenType.TWO_FACTOR);
+    }
+
+    public String extractEmailFromTempToken(String token) {
+        try {
+            Claims claims = extractClaims(token);
+            if (!TokenType.TWO_FACTOR.name().equals(claims.get("tokenType"))) {
+                throw new BadCredentialsException("Invalid temp token type");
+            }
+            return claims.getSubject();
+        } catch (JwtException e) {
+            throw new BadCredentialsException("Invalid or expired temp token");
+        }
     }
 
 
@@ -78,6 +97,11 @@ public class JwtUtil {
     public boolean isRefreshToken(String token){
         Claims claims = extractClaims(token);
         return TokenType.REFRESH.name().equals(claims.get("tokenType"));
+    }
+
+    public boolean isAccessToken(String token) {
+        Claims claims = extractClaims(token);
+        return TokenType.ACCESS.name().equals(claims.get("tokenType"));
     }
 
     private boolean isTokenExpired(String token) {
