@@ -12,10 +12,11 @@ Aranya CRM is a full-stack internal CRM system with:
 At the moment, the project is partially implemented:
 
 - login flow exists
+- two-factor authentication (2FA) exists on the backend
 - dashboard API exists
 - client/case/report pages exist in the frontend
 - many frontend modules still support mock data fallback
-- the backend currently exposes only a small set of real endpoints
+- the backend currently exposes auth, 2FA, and dashboard endpoints
 
 This guide is meant to help a new contributor run, understand, and continue developing the project safely.
 
@@ -80,6 +81,7 @@ This guide is meant to help a new contributor run, understand, and continue deve
 - PostgreSQL
 - Liquibase
 - JWT via `jjwt`
+- TOTP-based 2FA via `dev.samstevens.totp`
 - springdoc OpenAPI UI
 
 ## 4. Current Functional Scope
@@ -90,6 +92,12 @@ This guide is meant to help a new contributor run, understand, and continue deve
   - `POST /api/v1/auth/login`
   - `POST /api/v1/auth/refresh`
   - `POST /api/v1/auth/logout`
+- two-factor authentication endpoints:
+  - `GET /api/v1/auth/2fa/setup`
+  - `POST /api/v1/auth/2fa/enable`
+  - `POST /api/v1/auth/2fa/verify`
+  - `POST /api/v1/auth/2fa/disable`
+  - `POST /api/v1/auth/2fa/backup-codes`
 - dashboard endpoint:
   - `GET /api/dashboard`
 - frontend pages:
@@ -101,9 +109,10 @@ This guide is meant to help a new contributor run, understand, and continue deve
 
 ### Important current reality
 
-Only `AuthController` and `DashboardController` are present in the backend right now. That means:
+`AuthController`, `TwoFactorController`, and `DashboardController` are present in the backend right now. That means:
 
 - login is real
+- 2FA setup, enable, login verification, disable, and backup-code regeneration are real backend flows
 - dashboard is real, but currently returns hard-coded demo data
 - many other frontend pages are not backed by real backend endpoints yet
 - those pages rely on frontend-side mock data in `frontend/src/mocks/`
@@ -155,11 +164,15 @@ Default dev profile behavior:
 - username defaults to `aranya_admin`
 - password defaults to `aranya_secret`
 - JWT secret must be provided through environment variable `JWT_SECRET`
+- 2FA secret encryption uses `TWO_FACTOR_ENCRYPTION_KEY`
+  - dev profile has a default test key
+  - production must provide a Base64-encoded 32-byte key
 
 Example:
 
 ```powershell
 $env:JWT_SECRET="replace-with-a-long-random-secret"
+$env:TWO_FACTOR_ENCRYPTION_KEY="replace-with-base64-encoded-32-byte-key"
 cd backend
 mvn spring-boot:run
 ```
@@ -261,6 +274,7 @@ Important note:
 
 - the frontend is currently aligned to the backend's actual auth response and only treats `email` and `fullName` as canonical user identity fields
 - role-based UI is temporarily running in a compatibility mode until the backend starts returning role information
+- frontend login is not yet fully wired for backend 2FA responses; `requiresTwoFactor` and `tempToken` still need login-page handling before users with 2FA enabled can complete sign-in through the UI
 - Docker frontend build was temporarily adjusted to use `npm run build:docker`, which skips the TypeScript compile step and runs only `vite build`
 
 This should be treated as temporary technical debt and should be fixed properly later.
@@ -276,15 +290,32 @@ Security is JWT-based and mainly wired through:
 - `backend/src/main/java/aranya/crm/security/util/JwtUtil.java`
 - `backend/src/main/java/aranya/crm/security/model/UserPrincipal.java`
 
+2FA-specific backend classes:
+
+- `backend/src/main/java/aranya/crm/controller/TwoFactorController.java`
+- `backend/src/main/java/aranya/crm/service/TwoFactorService.java`
+- `backend/src/main/java/aranya/crm/dto/TwoFactorSetupResponse.java`
+- `backend/src/main/java/aranya/crm/dto/TwoFactorEnableRequest.java`
+- `backend/src/main/java/aranya/crm/dto/TwoFactorVerifyRequest.java`
+- `backend/src/main/java/aranya/crm/dto/TwoFactorDisableRequest.java`
+- `backend/src/main/java/aranya/crm/dto/BackupCodesResponse.java`
+
 ### Authentication flow
 
 Backend auth flow:
 
 1. login request enters `AuthController`
 2. `AuthService` authenticates against Spring Security
-3. access token and refresh token are generated
+3. if the user has 2FA disabled, access token and refresh token are generated
 4. refresh token hash is persisted
 5. response returns token data and basic user info
+
+If the user has 2FA enabled:
+
+1. login still validates email and password first
+2. backend returns `requiresTwoFactor: true` and a short-lived `tempToken`
+3. client submits `tempToken` plus either a TOTP code or a backup code to `POST /api/v1/auth/2fa/verify`
+4. successful 2FA verification returns the normal login response with access and refresh tokens
 
 Current response includes:
 
@@ -294,8 +325,53 @@ Current response includes:
 - `expiresIn`
 - `email`
 - `fullName`
+- `requiresTwoFactor`
+- `tempToken`
 
 Current response does not include role information.
+
+### Two-factor authentication flow
+
+2FA uses TOTP with SHA1, 6 digits, and a 30-second period. The verifier allows one time-step of clock discrepancy.
+
+Setup and enable flow:
+
+1. authenticated user calls `GET /api/v1/auth/2fa/setup`
+2. backend returns:
+   - `secret`
+   - `qrCodeUri`
+3. client shows the QR URI or secret to the user for an authenticator app
+4. user submits `{ "secret": "...", "code": "123456" }` to `POST /api/v1/auth/2fa/enable`
+5. backend verifies the code, stores the encrypted TOTP secret, enables 2FA, and returns backup codes
+
+Login verification flow:
+
+1. user logs in with email/password
+2. if 2FA is enabled, response contains only `requiresTwoFactor` and `tempToken`
+3. user submits `{ "tempToken": "...", "code": "123456" }` or a backup code to `POST /api/v1/auth/2fa/verify`
+4. backend returns the normal token response
+
+Disable flow:
+
+1. authenticated user submits `{ "password": "...", "code": "123456" }` to `POST /api/v1/auth/2fa/disable`
+2. backend verifies password and 2FA code
+3. backend clears the stored 2FA secret and deletes backup codes
+
+Backup-code behavior:
+
+- enabling 2FA creates 8 one-time backup codes
+- backup codes are stored as SHA-256 hashes, not plaintext
+- a backup code is marked used after successful verification
+- authenticated users can regenerate backup codes with `POST /api/v1/auth/2fa/backup-codes`
+- regenerated backup codes replace old backup codes
+
+Security notes:
+
+- TOTP secrets are encrypted with AES-GCM before storage
+- `TWO_FACTOR_ENCRYPTION_KEY` must decode to exactly 32 bytes
+- used OTP values are cached briefly to reduce replay within the accepted time window
+- `POST /api/v1/auth/2fa/verify` is public because it authenticates with the temporary 2FA token
+- setup, enable, disable, and backup-code regeneration require an access token
 
 ### Database model
 
@@ -314,6 +390,11 @@ Liquibase changelogs indicate the domain already includes:
 - appointments
 - documents
 - refresh tokens
+- user 2FA columns:
+  - `users.two_factor_enabled`
+  - `users.two_factor_secret`
+- 2FA backup codes:
+  - `two_factor_backup_code`
 
 This means the schema design is ahead of the current controller implementation.
 
@@ -348,6 +429,13 @@ Rules to follow:
 - create a new numbered file under `backend/src/main/resources/db/changelog/changes/`
 - do not rewrite already-applied migrations casually
 - let Liquibase apply changes automatically on backend startup
+
+For 2FA, the relevant migrations are:
+
+- `019-add-2fa-columns-to-users.yaml`
+- `020-create-two-factor-backup-codes-table.yaml`
+
+Do not store plaintext TOTP secrets or plaintext backup codes in new migrations or seed data.
 
 ## 9. Docker Notes
 
@@ -391,7 +479,7 @@ The current compose file has already been corrected so that:
 - `postgres`, `backend`, and `frontend` all join `aranya_network`
 - `backend` and `frontend` are under `services`
 - backend maps `8080:8080`
-- backend loads its JWT secret from `backend/.env`
+- backend loads its JWT secret and production 2FA encryption key from `backend/.env`
 
 ## 10. Known Issues And Risks
 
@@ -421,6 +509,13 @@ Recommended long-term fix:
 - `docs/01-api-spec.md` is still a placeholder
 - API surface is not fully documented yet
 
+### Known issue: frontend 2FA flow is not wired yet
+
+- backend can require 2FA during login by returning `requiresTwoFactor` and `tempToken`
+- frontend `LoginResponse` currently expects access and refresh tokens immediately
+- login UI still needs a second-step code form and calls to `POST /api/v1/auth/2fa/verify`
+- account settings UI still needs setup, enable, disable, and backup-code regeneration screens if 2FA is exposed to end users
+
 ### Known issue: backend feature coverage is incomplete
 
 - frontend already contains more pages than the backend currently supports
@@ -429,10 +524,12 @@ Recommended long-term fix:
 ## 11. Recommended Next Improvements
 
 - fix the auth role mismatch properly instead of relying on the temporary Docker build workaround
+- wire the frontend login flow for 2FA challenge responses
+- add an account-security screen for 2FA setup, disable, and backup-code regeneration
 - add real backend endpoints for clients, cases, and reports
 - expand route wiring so all frontend pages are reachable through the router
 - replace placeholder API spec with real endpoint contracts
-- add integration tests for login, refresh token flow, and dashboard
+- add integration tests for login, 2FA verification, refresh token flow, and dashboard
 - add a top-level `.env.example` or per-module environment examples
 - document seed data or provide sample test users
 
@@ -447,4 +544,4 @@ If you are joining the project and want the fastest working setup:
 5. use frontend mock modes for unfinished modules
 6. treat Docker frontend build as deploy packaging, not as proof that TypeScript is clean
 
-If you want the most stable development path, start with the login flow and dashboard, because those are the parts that already have both frontend and backend pieces in place.
+If you want the most stable development path, start with the login flow and dashboard, because those are the parts that already have both frontend and backend pieces in place. For 2FA specifically, start with backend API testing first, then wire the frontend second-step login UI.
