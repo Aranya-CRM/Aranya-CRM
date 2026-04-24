@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aranya CRM — Client Profile Module · Role-Based Prototypes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
+  .page { max-width: 1200px; margin: 0 auto; padding: 40px; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+  h2 { font-size: 18px; margin: 36px 0 12px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px; }
+  h3 { font-size: 14px; margin: 6px 0 0; color: #444; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; background: #fff; }
+  th, td { padding: 7px 11px; text-align: left; border: 1px solid #e0e0e0; font-size: 13px; }
+  th { background: #f5f5f5; font-weight: 600; color: #333; }
+  .note { background: #fffff0; border: 1px solid #e8e8c0; border-radius: 6px; padding: 11px 15px; margin: 10px 0; font-size: 13px; color: #666; }
+
+  /* ── Wireframe shell ── */
+  .wireframe { border: 2px solid #ddd; border-radius: 10px; background: #fff; margin: 12px 0 28px; overflow: hidden; }
+  .wireframe.v-vol  { border-top: 4px solid #3b82f6; }
+  .wireframe.v-sw   { border-top: 4px solid #f59e0b; }
+  .wireframe.v-mgr  { border-top: 4px solid #7c3aed; }
+
+  .wf-topbar { height: 48px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; }
+  .wf-topbar-title { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+  .wf-topbar-right { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #888; }
+
+  .wf-body { display: flex; min-height: 420px; }
+  .wf-sidebar { width: 192px; background: #f5f5f5; border-right: 1px solid #e8e8e8; padding: 14px 0; flex-shrink: 0; }
+  .wf-nav { padding: 9px 18px; font-size: 13px; color: #666; cursor: default; }
+  .wf-nav.active { background: #e8e8e8; font-weight: 700; color: #1a1a1a; }
+  .wf-nav-note { font-size: 10px; color: #aaa; font-weight: 400; margin-left: 3px; }
+
+  .wf-content { flex: 1; padding: 22px; min-width: 0; }
+  .wf-pg-title { font-size: 20px; font-weight: 700; }
+  .wf-pg-sub { font-size: 12px; color: #888; margin-top: 2px; }
+
+  .wf-toolbar { display: flex; gap: 8px; margin: 14px 0; align-items: center; flex-wrap: wrap; }
+  .wf-input  { height: 32px; border: 1px solid #ddd; border-radius: 5px; padding: 0 10px; font-size: 12px; width: 210px; color: #999; background: #fff; }
+  .wf-select { height: 32px; border: 1px solid #ddd; border-radius: 5px; padding: 0 10px; font-size: 12px; color: #999; background: #fff; }
+  .sp { flex: 1; }
+
+  .btn { height: 30px; border: none; border-radius: 5px; padding: 0 13px; font-size: 12px; cursor: default; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .btn-dark  { background: #1a1a1a; color: #fff; }
+  .btn-light { background: #fff; border: 1px solid #ddd; color: #333; }
+  .btn-red   { background: #dc2626; color: #fff; }
+
+  .wf-table { width: 100%; border-collapse: collapse; }
+  .wf-table th { background: #fafafa; padding: 7px 9px; text-align: left; font-size: 11px; color: #888; border-bottom: 1px solid #eee; font-weight: 400; }
+  .wf-table td { padding: 9px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .wf-table tr.dimmed td { color: #bbb; }
+
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #e8f5e8; color: #2d6a2d; }
+  .badge-gray  { background: #f0f0f0; color: #888; }
+
+  .lnk     { font-size: 12px; color: #1a1a1a; text-decoration: underline; cursor: default; margin-right: 6px; }
+  .lnk-red { font-size: 12px; color: #dc2626; text-decoration: underline; cursor: default; margin-right: 6px; }
+
+  .tabs { display: flex; border-bottom: 1px solid #e0e0e0; margin: 16px 0 0; flex-wrap: wrap; }
+  .tab { padding: 7px 15px; font-size: 12px; color: #888; border-bottom: 2px solid transparent; }
+  .tab.active { color: #1a1a1a; font-weight: 600; border-bottom-color: #1a1a1a; }
+  .tab.locked { color: #d1d5db; text-decoration: line-through; font-size: 11px; cursor: not-allowed; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 28px; margin: 16px 0; }
+  .info-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; }
+  .info-val   { font-size: 13px; color: #333; margin-top: 2px; }
+  .info-val.redacted { color: #d1d5db; font-style: italic; }
+
+  .sec-title { font-size: 13px; font-weight: 700; color: #555; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #f0f0f0; }
+  .steps { display: flex; border-bottom: 1px solid #eee; margin: 12px 0 18px; overflow-x: auto; }
+  .step { padding: 7px 13px; font-size: 12px; color: #aaa; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .step.active { color: #1a1a1a; font-weight: 600; border-bottom-color: #1a1a1a; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 22px; margin: 10px 0; }
+  .form-label { font-size: 11px; color: #666; font-weight: 600; }
+  .form-input { height: 30px; border: 1px solid #ddd; border-radius: 5px; margin-top: 4px; width: 100%; background: #fafafa; }
+  .footer-bar { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 13px; border-top: 1px solid #eee; }
+
+  /* Role badges & notices */
+  .role-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .r-vol { background: #dbeafe; color: #1e40af; }
+  .r-sw  { background: #fef3c7; color: #92400e; }
+  .r-mgr { background: #ede9fe; color: #5b21b6; }
+
+  .view-header { display: flex; align-items: center; gap: 10px; margin: 26px 0 5px; }
+  .notice { border-radius: 6px; padding: 9px 13px; font-size: 12px; margin: 10px 0; }
+  .notice-blue   { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+  .notice-amber  { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .notice-purple { background: #f5f3ff; border: 1px solid #ddd6fe; color: #5b21b6; }
+  .access-denied { background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 8px; padding: 40px; text-align: center; margin: 16px 0; }
+  .ad-icon  { font-size: 34px; margin-bottom: 10px; }
+  .ad-title { font-size: 15px; font-weight: 700; color: #6b7280; margin-bottom: 5px; }
+  .ad-sub   { font-size: 12px; color: #9ca3af; }
+
+  .page-break { page-break-before: always; margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Client Profile Module — Role-Based Prototypes</h1>
+<p style="font-size:15px;color:#555;margin-top:3px">僧人档案模块 · 三种权限视图</p>
+<p class="subtitle" style="margin-top:6px">
+  <span class="role-tag r-vol">Volunteer</span>&nbsp;
+  <span class="role-tag r-sw">Social Worker</span>&nbsp;
+  <span class="role-tag r-mgr">Manager</span>
+  &nbsp;|&nbsp; Source: 2026 Sample Master Contact List (Sangha).xlsx — 72 fields
+</p>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 1: FIELD MAPPING
+════════════════════════════════════════════════ -->
+<h2>1. Field Mapping — Excel → System (字段映射)</h2>
+<div class="note">72 Excel columns divided into 6 tabs / form steps. Tab 2 (Identity / IC) is sensitive and restricted to Social Worker and Manager only.</div>
+
+<h3>Tab 1 · Basic Info 基本信息</h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Notes</th></tr>
+  <tr><td>Abbr</td><td>abbr</td><td>e.g. VXA</td></tr>
+  <tr><td>Sangha Full Name (Eng)</td><td>nameEn</td><td>e.g. Venerable Xian Ai</td></tr>
+  <tr><td>Sangha Full Name (Chn)</td><td>nameChn</td><td></td></tr>
+  <tr><td>Contact</td><td>contact</td><td>Restricted from Volunteer view</td></tr>
+  <tr><td>Preferred Mode of Communication</td><td>preferredComms</td><td>WhatsApp / Phone / Home Visit</td></tr>
+  <tr><td>Able to use Whatsapp</td><td>whatsappEnabled</td><td>YES / NO</td></tr>
+  <tr><td>Preferred Language</td><td>preferredLanguage</td><td></td></tr>
+  <tr><td>Spoken Language</td><td>spokenLanguage</td><td></td></tr>
+  <tr><td>Address</td><td>address</td><td>Restricted from Volunteer view</td></tr>
+  <tr><td>Postal Code</td><td>postalCode</td><td>Restricted from Volunteer view</td></tr>
+  <tr><td>Area, District</td><td>area</td><td>Visible to all</td></tr>
+  <tr><td>Vihara Type</td><td>viharaType</td><td></td></tr>
+</table>
+
+<h3>Tab 2 · Identity 身份文件 &nbsp;<span style="color:#dc2626;font-size:11px;font-weight:400">⚠ Social Worker &amp; Manager only</span></h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Notes</th></tr>
+  <tr><td>NRIC Full Name (Eng)</td><td>nricNameEn</td><td>Sensitive — hidden from Volunteer</td></tr>
+  <tr><td>NRIC Full Name (Chn)</td><td>nricNameChn</td><td>Sensitive</td></tr>
+  <tr><td>NRIC No.</td><td>nricNo</td><td>Sensitive</td></tr>
+  <tr><td>Submission of Ordination Certificate</td><td>ordinationCert</td><td>Completed / Incomplete</td></tr>
+  <tr><td>Date of Verification</td><td>verificationDate</td><td></td></tr>
+</table>
+
+<h3>Tab 3 · Personal 个人信息</h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Notes</th></tr>
+  <tr><td>Sex</td><td>sex</td><td>M / F</td></tr>
+  <tr><td>Date of Birth</td><td>dob</td><td></td></tr>
+  <tr><td>Age</td><td>age</td><td>Auto-calculated</td></tr>
+  <tr><td>Marital Status</td><td>maritalStatus</td><td>Never married / Married / Divorced / Widowed</td></tr>
+  <tr><td>Nationality</td><td>nationality</td><td></td></tr>
+  <tr><td>Ethnicity / Dialect Group</td><td>ethnicity / dialect</td><td></td></tr>
+  <tr><td>Contact for Next of Kin</td><td>nextOfKin</td><td></td></tr>
+  <tr><td>Membership Status</td><td>membershipStatus</td><td>Active / Inactive / Discharged / Deceased</td></tr>
+  <tr><td>Date Joined / Remarks</td><td>dateJoined / membershipRemarks</td><td></td></tr>
+</table>
+
+<h3>Tab 4 · Ordination 受戒历史</h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Notes</th></tr>
+  <tr><td>Buddhist Tradition (Current)</td><td>tradition</td><td>Mahayana / Theravada / Vajrayana</td></tr>
+  <tr><td>Ordination Status</td><td>ordinationStatus</td><td>Bhikkhu / Bhikkhuni / Samanera / Sayalay…</td></tr>
+  <tr><td>Date / Country / Place of Tonsure</td><td>tonsureDate / tonsureLocation</td><td></td></tr>
+  <tr><td>Date / Country / Place of Ordination</td><td>ordinationDate / ordinationLocation</td><td></td></tr>
+  <tr><td>Ordination Years Till Date</td><td>ordinationYears</td><td>Auto-calculated</td></tr>
+</table>
+
+<h3>Tab 5 · Wellbeing 健康评估</h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Format</th></tr>
+  <tr><td>Housing</td><td>livingConditions</td><td>1 = issue present</td></tr>
+  <tr><td>Mental Health</td><td>mentalHealth</td><td>1 = issue present</td></tr>
+  <tr><td>Physical Health</td><td>physicalHealth</td><td>1 = issue present</td></tr>
+  <tr><td>Financial</td><td>financialStability</td><td>1 = issue present</td></tr>
+  <tr><td>Social Conflicts (merged)</td><td>socialSupport</td><td>Multiple columns merged</td></tr>
+  <tr><td>Legal</td><td>legalIssues</td><td>1 = issue present</td></tr>
+  <tr><td>End of Life / Grief / Stress (merged)</td><td>spiritualWellbeing</td><td>Multiple columns merged</td></tr>
+  <tr><td>Remarks</td><td>wellbeingRemarks</td><td>Free text</td></tr>
+</table>
+
+<h3>Tab 6 · Special Needs &amp; Remarks 特殊需求</h3>
+<table>
+  <tr><th>Excel Column</th><th>System Field</th><th>Notes</th></tr>
+  <tr><td>Special Needs</td><td>specialNeeds</td><td>Physical / Hearing / Visual / Intellectual</td></tr>
+  <tr><td>Remarks (Special Needs)</td><td>specialNeedsRemarks</td><td></td></tr>
+  <tr><td>Bank Transfer / PayNow</td><td>bankTransfer / payNow</td><td>Payment methods</td></tr>
+  <tr><td>Comments</td><td>comments</td><td>General remarks</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 2: CLIENT LIST PAGE
+════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>2. Client List Page — 僧人列表页 &nbsp;<code style="font-size:12px;background:#f5f5f5;padding:2px 6px;border-radius:4px">/clients</code></h2>
+
+<!-- Volunteer -->
+<div class="view-header">
+  <span class="role-tag r-vol">Volunteer</span>
+  <h3>Read-Only · Basic fields only · No create/edit</h3>
+</div>
+<div class="wireframe v-vol">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right">
+      <span>Volunteer Lee</span>
+      <span class="role-tag r-vol">Volunteer</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases <span class="wf-nav-note">(read-only)</span></div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div class="wf-pg-title">Client Profiles</div>
+      <div class="wf-pg-sub">僧人档案 · Read-only access</div>
+      <div class="notice notice-blue" style="margin-top:10px">🔒 You can search and see the client list only. Viewing full client profiles requires Social Worker or Manager permission.</div>
+      <div class="wf-toolbar">
+        <div class="wf-input">🔍 Search by name or abbr...</div>
+        <select class="wf-select"><option>All Traditions</option></select>
+        <div class="sp"></div>
+        <!-- No "+ New Client" button -->
+      </div>
+      <table class="wf-table">
+        <thead><tr><th>Abbr</th><th>Name / 法名</th><th>Tradition</th><th>Area</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>VXA</td>
+            <td>贤爱师父<br><span style="color:#888;font-size:11px">Venerable Xian Ai</span></td>
+            <td>Mahayana</td><td>Ubi</td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+          <tr>
+            <td>VKB</td>
+            <td>空白师父<br><span style="color:#888;font-size:11px">Venerable Kong Bai</span></td>
+            <td>Theravada</td><td>Tiong Bahru</td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+          <tr class="dimmed"><td>...</td><td>More records</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#aaa;margin-top:6px">* No "View" action — detail page is restricted. Search provides name, tradition, area, status only.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Social Worker -->
+<div class="view-header">
+  <span class="role-tag r-sw">Social Worker</span>
+  <h3>Full access · Create / Edit · All fields visible</h3>
+</div>
+<div class="wireframe v-sw">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right">
+      <span>Sarah (SW)</span>
+      <span class="role-tag r-sw">Social Worker</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div class="wf-pg-title">Client Profiles</div>
+      <div class="wf-pg-sub">僧人档案 · Full access</div>
+      <div class="wf-toolbar">
+        <div class="wf-input">🔍 Search by name or abbr...</div>
+        <select class="wf-select"><option>All Status</option></select>
+        <select class="wf-select"><option>All Traditions</option></select>
+        <div class="sp"></div>
+        <div class="btn btn-dark">＋ New Client</div>
+      </div>
+      <table class="wf-table">
+        <thead><tr><th>Abbr</th><th>Name / 法名</th><th>Tradition</th><th>Ordination</th><th>Area</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>VXA</td>
+            <td>贤爱师父<br><span style="color:#888;font-size:11px">Venerable Xian Ai</span></td>
+            <td>Mahayana</td><td>Samaneri</td><td>Ubi</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="lnk">View</span><span class="lnk">Edit</span></td>
+          </tr>
+          <tr>
+            <td>VKB</td>
+            <td>空白师父<br><span style="color:#888;font-size:11px">Venerable Kong Bai</span></td>
+            <td>Theravada</td><td>Bhikkhu</td><td>Tiong Bahru</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="lnk">View</span><span class="lnk">Edit</span></td>
+          </tr>
+          <tr class="dimmed"><td>...</td><td>More records</td><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Manager -->
+<div class="view-header">
+  <span class="role-tag r-mgr">Manager</span>
+  <h3>Admin controls · Create / Edit / Delete · Extra filter by Social Worker</h3>
+</div>
+<div class="wireframe v-mgr">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right">
+      <span>Admin (Mgr)</span>
+      <span class="role-tag r-mgr">Manager</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+      <div class="wf-nav">👥 User Management</div>
+    </div>
+    <div class="wf-content">
+      <div class="wf-pg-title">Client Profiles</div>
+      <div class="wf-pg-sub">僧人档案 · Admin access</div>
+      <div class="wf-toolbar">
+        <div class="wf-input">🔍 Search by name or abbr...</div>
+        <select class="wf-select"><option>All Status</option></select>
+        <select class="wf-select"><option>All Traditions</option></select>
+        <select class="wf-select"><option>All Social Workers</option></select>
+        <div class="sp"></div>
+        <div class="btn btn-dark">＋ New Client</div>
+      </div>
+      <table class="wf-table">
+        <thead><tr><th>Abbr</th><th>Name / 法名</th><th>Tradition</th><th>Ordination</th><th>Area</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>VXA</td>
+            <td>贤爱师父<br><span style="color:#888;font-size:11px">Venerable Xian Ai</span></td>
+            <td>Mahayana</td><td>Samaneri</td><td>Ubi</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="lnk">View</span><span class="lnk">Edit</span><span class="lnk-red">Delete</span></td>
+          </tr>
+          <tr>
+            <td>VKB</td>
+            <td>空白师父<br><span style="color:#888;font-size:11px">Venerable Kong Bai</span></td>
+            <td>Theravada</td><td>Bhikkhu</td><td>Tiong Bahru</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="lnk">View</span><span class="lnk">Edit</span><span class="lnk-red">Delete</span></td>
+          </tr>
+          <tr class="dimmed"><td>...</td><td>More records</td><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 3: CLIENT DETAIL PAGE
+════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>3. Client Detail Page — 僧人详情页 &nbsp;<code style="font-size:12px;background:#f5f5f5;padding:2px 6px;border-radius:4px">/clients/:id</code></h2>
+
+<!-- Volunteer Detail -->
+<div class="view-header">
+  <span class="role-tag r-vol">Volunteer</span>
+  <h3>Access Denied — 403 Forbidden</h3>
+</div>
+<div class="wireframe v-vol">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right"><span>Volunteer Lee</span><span class="role-tag r-vol">Volunteer</span></div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div class="access-denied">
+        <div class="ad-icon">🔒</div>
+        <div class="ad-title">Access Denied — 403 Forbidden</div>
+        <div class="ad-sub">Viewing client profile details requires Social Worker or Manager permission.<br>Contact your administrator if you need assistance.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SW Detail -->
+<div class="view-header">
+  <span class="role-tag r-sw">Social Worker</span>
+  <h3>All 6 tabs · Full profile incl. IC · Edit enabled</h3>
+</div>
+<div class="wireframe v-sw">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right"><span>Sarah (SW)</span><span class="role-tag r-sw">Social Worker</span></div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div style="font-size:12px;color:#888;margin-bottom:10px">← Back to List</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <span class="wf-pg-title">贤爱师父 / Venerable Xian Ai</span>
+          <span style="background:#f0f0f0;border-radius:4px;padding:1px 7px;font-size:11px;color:#888;margin-left:8px">VXA</span>
+          <span class="badge badge-green" style="margin-left:6px">Active</span>
+        </div>
+        <div style="display:flex;gap:7px">
+          <span class="btn btn-light">Link Contacts</span>
+          <span class="btn btn-dark">Edit Profile</span>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">Basic Info</div>
+        <div class="tab">Identity (IC)</div>
+        <div class="tab">Personal</div>
+        <div class="tab">Ordination</div>
+        <div class="tab">Wellbeing</div>
+        <div class="tab">Cases</div>
+      </div>
+      <div class="info-grid" style="margin-top:14px">
+        <div><div class="info-label">Chinese Name</div><div class="info-val">贤爱师父</div></div>
+        <div><div class="info-label">English Name</div><div class="info-val">Venerable Xian Ai</div></div>
+        <div><div class="info-label">Abbreviation</div><div class="info-val">VXA</div></div>
+        <div><div class="info-label">Contact</div><div class="info-val">97654322</div></div>
+        <div><div class="info-label">WhatsApp Enabled</div><div class="info-val">Yes</div></div>
+        <div><div class="info-label">Preferred Communication</div><div class="info-val">WhatsApp Msg</div></div>
+        <div><div class="info-label">Preferred Language</div><div class="info-val">English</div></div>
+        <div><div class="info-label">Area</div><div class="info-val">Ubi</div></div>
+        <div><div class="info-label">Address</div><div class="info-val">Blk 321 Ubi Ave 1, #08-01</div></div>
+        <div><div class="info-label">Buddhist Tradition</div><div class="info-val">Mahayana</div></div>
+        <div><div class="info-label">Ordination Status</div><div class="info-val">Samaneri</div></div>
+        <div><div class="info-label">Membership Status</div><div class="info-val">Active</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manager Detail -->
+<div class="view-header">
+  <span class="role-tag r-mgr">Manager</span>
+  <h3>All tabs · Edit + Delete Profile · Admin controls</h3>
+</div>
+<div class="wireframe v-mgr">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right"><span>Admin (Mgr)</span><span class="role-tag r-mgr">Manager</span></div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+      <div class="wf-nav">👥 User Management</div>
+    </div>
+    <div class="wf-content">
+      <div style="font-size:12px;color:#888;margin-bottom:10px">← Back to List</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <span class="wf-pg-title">贤爱师父 / Venerable Xian Ai</span>
+          <span style="background:#f0f0f0;border-radius:4px;padding:1px 7px;font-size:11px;color:#888;margin-left:8px">VXA</span>
+          <span class="badge badge-green" style="margin-left:6px">Active</span>
+        </div>
+        <div style="display:flex;gap:7px">
+          <span class="btn btn-light">Link Contacts</span>
+          <span class="btn btn-dark">Edit Profile</span>
+          <span class="btn btn-red">Delete Profile</span>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">Basic Info</div>
+        <div class="tab">Identity (IC)</div>
+        <div class="tab">Personal</div>
+        <div class="tab">Ordination</div>
+        <div class="tab">Wellbeing</div>
+        <div class="tab">Cases</div>
+      </div>
+      <div class="notice notice-purple" style="margin-top:10px">⚙ Manager view: Delete Profile available. Deletion will archive and remove the profile from active records.</div>
+      <div class="info-grid" style="margin-top:10px">
+        <div><div class="info-label">Chinese Name</div><div class="info-val">贤爱师父</div></div>
+        <div><div class="info-label">English Name</div><div class="info-val">Venerable Xian Ai</div></div>
+        <div><div class="info-label">Abbreviation</div><div class="info-val">VXA</div></div>
+        <div><div class="info-label">Contact</div><div class="info-val">97654322</div></div>
+        <div><div class="info-label">Address</div><div class="info-val">Blk 321 Ubi Ave 1, #08-01</div></div>
+        <div><div class="info-label">Area</div><div class="info-val">Ubi</div></div>
+        <div><div class="info-label">Buddhist Tradition</div><div class="info-val">Mahayana</div></div>
+        <div><div class="info-label">Ordination Status</div><div class="info-val">Samaneri</div></div>
+        <div><div class="info-label">Membership Status</div><div class="info-val">Active</div></div>
+        <div><div class="info-label">Date Joined</div><div class="info-val">2018-03-15</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 4: CREATE / EDIT FORM
+════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>4. Create / Edit Client Form — 新建/编辑僧人档案 &nbsp;<code style="font-size:12px;background:#f5f5f5;padding:2px 6px;border-radius:4px">/clients/new</code></h2>
+
+<!-- Volunteer - Access Denied -->
+<div class="view-header">
+  <span class="role-tag r-vol">Volunteer</span>
+  <h3>Access Denied — 403 Forbidden</h3>
+</div>
+<div class="wireframe v-vol">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right"><span>Volunteer Lee</span><span class="role-tag r-vol">Volunteer</span></div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases <span class="wf-nav-note">(read-only)</span></div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div class="access-denied">
+        <div class="ad-icon">🔒</div>
+        <div class="ad-title">Access Denied — 403 Forbidden</div>
+        <div class="ad-sub">Creating or editing client profiles requires Social Worker or Manager permission.<br>Contact your administrator if you need assistance.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SW + Manager Form -->
+<div class="view-header">
+  <span class="role-tag r-sw">Social Worker</span>
+  <span class="role-tag r-mgr" style="margin-left:5px">Manager</span>
+  <h3>6-Step Form Wizard · All 72 fields</h3>
+</div>
+<div class="wireframe v-sw">
+  <div class="wf-topbar">
+    <span class="wf-topbar-title">Aranya CRM</span>
+    <div class="wf-topbar-right"><span>Sarah (SW)</span><span class="role-tag r-sw">Social Worker</span></div>
+  </div>
+  <div class="wf-body">
+    <div class="wf-sidebar">
+      <div class="wf-nav">🏠 Dashboard</div>
+      <div class="wf-nav active">👤 Client Profiles</div>
+      <div class="wf-nav">📁 Cases</div>
+      <div class="wf-nav">📝 Reports</div>
+    </div>
+    <div class="wf-content">
+      <div style="font-size:12px;color:#888;margin-bottom:10px">← Back to List</div>
+      <div class="wf-pg-title">New Client Profile</div>
+      <div class="wf-pg-sub">新建僧人档案 · Step 1 of 6</div>
+      <div class="steps">
+        <div class="step active">1. Basic Info</div>
+        <div class="step">2. Identity</div>
+        <div class="step">3. Personal</div>
+        <div class="step">4. Ordination</div>
+        <div class="step">5. Wellbeing</div>
+        <div class="step">6. Special Needs</div>
+      </div>
+      <div class="form-grid">
+        <div><div class="form-label">Chinese Name / 法名(中) *</div><div class="form-input"></div></div>
+        <div><div class="form-label">English Name / 法名(英) *</div><div class="form-input"></div></div>
+        <div><div class="form-label">Abbreviation / 缩写 *</div><div class="form-input"></div></div>
+        <div><div class="form-label">Contact / 联系电话</div><div class="form-input"></div></div>
+        <div><div class="form-label">Preferred Communication</div><div class="form-input"></div></div>
+        <div><div class="form-label" style="padding-top:14px">☐ Can use WhatsApp</div></div>
+        <div><div class="form-label">Preferred Language</div><div class="form-input"></div></div>
+        <div><div class="form-label">Spoken Languages</div><div class="form-input"></div></div>
+        <div style="grid-column:1/-1"><div class="form-label">Address / 地址</div><div class="form-input"></div></div>
+        <div><div class="form-label">Postal Code</div><div class="form-input"></div></div>
+        <div><div class="form-label">Area / District</div><div class="form-input"></div></div>
+      </div>
+      <div class="footer-bar">
+        <span></span>
+        <span class="btn btn-dark">Next: Identity →</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
