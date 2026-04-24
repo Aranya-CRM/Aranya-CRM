@@ -117,7 +117,7 @@
      SECTION 1: FIELD MAPPING
 ════════════════════════════════════════════════ -->
 <h2>1. Field Mapping — Excel → System (字段映射)</h2>
-<div class="note">All three roles can submit reports. Social Worker sees all reports; Volunteer sees only their own. Manager can approve/archive.</div>
+<div class="note">All three roles can submit reports. Social Worker sees all reports; Volunteer sees their own reports + other volunteers' reports (not SW reports), with no edit/delete actions. Manager can approve/archive.</div>
 <table>
   <tr><th>Excel Column</th><th>System Field</th><th>Control</th><th>Who can fill</th></tr>
   <tr><td>Timestamp</td><td>timestamp</td><td>Auto-generated</td><td>System</td></tr>
@@ -195,7 +195,7 @@
           <tr class="dimmed"><td>...</td><td>More reports</td><td></td><td></td><td></td><td></td></tr>
         </tbody>
       </table>
-      <p style="font-size:11px;color:#aaa;margin-top:6px">* No "View" action — report detail page is restricted to Social Worker and Manager.</p>
+      <p style="font-size:11px;color:#aaa;margin-top:6px">* Volunteer 只能看到自己及其他义工提交的报告，Social Worker 提交的报告不在列表中显示。</p>
     </div>
   </div>
 </div>
@@ -492,26 +492,105 @@
 <!-- Volunteer Detail -->
 <div class="view-header">
   <span class="role-tag r-vol">Volunteer</span>
-  <h3>Access Denied — 403 Forbidden</h3>
+  <h3>探访报告列表 · Own + other volunteers' reports only · No SW reports · No edit/delete actions · Task assignment banner</h3>
 </div>
 <div class="wireframe v-vol">
   <div class="wf-topbar">
-    <span class="wf-topbar-title">Aranya CRM</span>
-    <div class="wf-topbar-right"><span>Volunteer Lee</span><span class="role-tag r-vol">Volunteer</span></div>
+    <span class="wf-topbar-title">Aranya CRM &nbsp;<span style="font-weight:400;color:#aaa;font-size:11px">| 阿兰若关怀系统</span></span>
+    <div class="wf-topbar-right">
+      <span style="font-size:12px;color:#555">切换角色 · Switch Role ▾</span>
+      <span style="font-size:12px;color:#555">Volunteer Lee</span>
+      <span class="role-tag r-vol">Volunteer</span>
+    </div>
   </div>
   <div class="wf-body">
     <div class="wf-sidebar">
-      <div class="wf-nav">🏠 Dashboard</div>
-      <div class="wf-nav">👤 Client Profiles</div>
-      <div class="wf-nav">📁 Cases</div>
-      <div class="wf-nav active">📝 Reports</div>
+      <div class="wf-nav">🏠 工作台<br><span class="wf-nav-note">Dashboard</span></div>
+      <div class="wf-nav">👤 僧人档案<br><span class="wf-nav-note">Clients</span></div>
+      <div class="wf-nav">📁 个案管理<br><span class="wf-nav-note">Cases</span></div>
+      <div class="wf-nav active">📝 探访报告<br><span class="wf-nav-note">Reports</span></div>
     </div>
     <div class="wf-content">
-      <div class="access-denied">
-        <div class="ad-icon">🔒</div>
-        <div class="ad-title">Access Denied — 403 Forbidden</div>
-        <div class="ad-sub">Viewing report details requires Social Worker or Manager permission.<br>Contact your administrator if you need assistance.</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="wf-pg-title">探访报告 &nbsp;<span style="font-size:14px;font-weight:400;color:#888">Reports</span></div>
+          <div class="wf-pg-sub">All Submissions · Volunteer Reports</div>
+        </div>
+        <span class="btn btn-dark">＋ 创建报告 · Create Report</span>
       </div>
+
+      <!-- SW Task assignment banner (replaces urgent alert) -->
+      <div class="notice notice-amber" style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          📋 <strong>来自 Social Worker 分配的任务，待创建报告</strong><br>
+          <span style="font-size:11px;color:#92400e;margin-top:2px;display:block">Sarah (SW) assigned you a visit to 释德行 / Bodhi — Home Visit · Bright Hill Temple · Due 2026-03-15. Please submit the report after your visit.</span>
+        </div>
+        <span class="btn btn-amber" style="white-space:nowrap;flex-shrink:0">创建报告 · Create</span>
+      </div>
+
+      <!-- Filters -->
+      <div class="wf-toolbar" style="margin-top:10px">
+        <select class="wf-select"><option>全部义工 · All Volunteers</option></select>
+        <select class="wf-select"><option>全部类型 · All Types</option></select>
+        <select class="wf-select"><option>全部状态 · All Status</option></select>
+      </div>
+
+      <!-- Report list — volunteers only, no Actions column -->
+      <table class="wf-table">
+        <thead>
+          <tr>
+            <th>探访日期<br><span style="font-weight:400">Date</span></th>
+            <th>提交者<br><span style="font-weight:400">Submitted By</span></th>
+            <th>僧人<br><span style="font-weight:400">Monastic</span></th>
+            <th>探访类型<br><span style="font-weight:400">Type</span></th>
+            <th>地点<br><span style="font-weight:400">Location</span></th>
+            <th>状态<br><span style="font-weight:400">Status</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Own report, urgent flagged — visible but no action buttons -->
+          <tr class="urgent-row">
+            <td>2026-03-08</td>
+            <td>
+              <strong>Volunteer Lee</strong> <span style="font-size:10px;color:#888">(You)</span><br>
+              <span class="badge badge-red" style="margin-top:3px;font-size:10px">⚠ 紧急 · Urgent</span>
+            </td>
+            <td>释德行<br><span style="color:#888;font-size:11px">Ven. Bodhi</span></td>
+            <td>Temple Visit</td>
+            <td>Bright Hill Temple</td>
+            <td><span class="badge badge-blue">Submitted</span></td>
+          </tr>
+          <!-- Another volunteer's report — visible -->
+          <tr>
+            <td>2026-03-05</td>
+            <td>Volunteer Wong</td>
+            <td>释觉慧<br><span style="color:#888;font-size:11px">Ven. Ajahn Chah</span></td>
+            <td>Home Visit</td>
+            <td>Bishan</td>
+            <td><span class="badge badge-blue">Submitted</span></td>
+          </tr>
+          <!-- Own report, resolved -->
+          <tr>
+            <td>2026-02-22</td>
+            <td><strong>Volunteer Lee</strong> <span style="font-size:10px;color:#888">(You)</span></td>
+            <td>释觉慧<br><span style="color:#888;font-size:11px">Ven. Ajahn Chah</span></td>
+            <td>Home Visit</td>
+            <td>Bishan</td>
+            <td><span class="badge badge-green">Resolved</span></td>
+          </tr>
+          <!-- Another volunteer's report -->
+          <tr>
+            <td>2026-02-18</td>
+            <td>Volunteer Tan</td>
+            <td>释慧明<br><span style="color:#888;font-size:11px">Ven. Sumedho</span></td>
+            <td>Temple Visit</td>
+            <td>Bright Hill Temple</td>
+            <td><span class="badge badge-green">Resolved</span></td>
+          </tr>
+          <tr class="dimmed"><td>...</td><td colspan="5" style="color:#ccc;font-size:12px">More volunteer reports</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#aaa;margin-top:6px">* Social Worker 提交的报告不在此列表中显示。Reports submitted by Social Workers are not shown in this view.</p>
     </div>
   </div>
 </div>
