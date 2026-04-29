@@ -37,6 +37,8 @@ public class SecurityConfig {
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/2fa/verify",
+            "/api/v1/auth/2fa/setup-init",
+            "/api/v1/auth/2fa/enable-init",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",

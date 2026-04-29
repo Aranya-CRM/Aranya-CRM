@@ -3,6 +3,8 @@ package aranya.crm.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Builder
 public class LoginResponse {
@@ -13,5 +15,7 @@ public class LoginResponse {
     private String email;
     private String fullName;
     private Boolean requiresTwoFactor;
+    private Boolean requiresTwoFactorSetup;
     private String tempToken;
+    private List<String> backupCodes;
 }

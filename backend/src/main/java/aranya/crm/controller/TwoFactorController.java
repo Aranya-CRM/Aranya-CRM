@@ -52,4 +52,18 @@ public class TwoFactorController {
         return ResponseEntity.ok(
                 new BackupCodesResponse(twoFactorService.regenerateBackupCodes(principal.getId())));
     }
+
+    // ── 强制初始化 2FA 流程（公开端点，使用 tempToken） ──
+
+    @PostMapping("/setup-init")
+    public ResponseEntity<TwoFactorSetupResponse> setupInit(
+            @Valid @RequestBody TwoFactorInitSetupRequest request) {
+        return ResponseEntity.ok(authService.initSetupTwoFactor(request));
+    }
+
+    @PostMapping("/enable-init")
+    public ResponseEntity<LoginResponse> enableInit(
+            @Valid @RequestBody TwoFactorInitEnableRequest request) {
+        return ResponseEntity.ok(authService.initEnableTwoFactor(request));
+    }
 }

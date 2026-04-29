@@ -21,10 +21,51 @@ export interface LoginResponse {
   email: string
   fullName: string
   role?: UserRole
+  requiresTwoFactor?: boolean
+  requiresTwoFactorSetup?: boolean
+  tempToken?: string
+  backupCodes?: string[]
+}
+
+export interface TwoFactorVerifyPayload {
+  tempToken: string
+  code: string
+}
+
+export interface TwoFactorSetupData {
+  secret: string
+  qrCodeUri: string
+  qrCodeBase64?: string
+}
+
+export interface TwoFactorInitEnablePayload {
+  tempToken: string
+  secret: string
+  code: string
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
   const response = await http.post<LoginResponse>('/v1/auth/login', payload)
+  const needsAction = response.data.requiresTwoFactor || response.data.requiresTwoFactorSetup
+  if (!needsAction) {
+    persistSession(response.data)
+  }
+  return response.data
+}
+
+export async function verifyTwoFactor(payload: TwoFactorVerifyPayload): Promise<LoginResponse> {
+  const response = await http.post<LoginResponse>('/v1/auth/2fa/verify', payload)
+  persistSession(response.data)
+  return response.data
+}
+
+export async function setupTwoFactorInit(tempToken: string): Promise<TwoFactorSetupData> {
+  const response = await http.post<TwoFactorSetupData>('/v1/auth/2fa/setup-init', { tempToken })
+  return response.data
+}
+
+export async function enableTwoFactorInit(payload: TwoFactorInitEnablePayload): Promise<LoginResponse> {
+  const response = await http.post<LoginResponse>('/v1/auth/2fa/enable-init', payload)
   persistSession(response.data)
   return response.data
 }
