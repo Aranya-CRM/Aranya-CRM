@@ -129,13 +129,13 @@ The system applies **Dual-Lens Permission Logic** to control what each role can 
 | Create Case                      |           ❌            | ✅ | ✅ |
 | Update Case Status               |           ❌            | ✅ | ✅ |
 | Assign Volunteer to Case         |           ❌            | ✅ | ✅ |
-| Close / Clone Case               |           ❌            | ✅ | ✅ |
+| Close                            |           ❌            | ❌ | ✅ |
 | Upload / Edit Documents          |           ❌            | ✅ | ✅ |
 | Delete Documents                 |           ❌            | ❌ | ✅ |
 | Audit Cases                      |           ❌            | ❌ | ✅ |
 | Create / Submit Reports          |           ✅            | ✅ | ✅ |
-| Edit Reports                     |           ❌            | ✅ | ✅ |
-| Delete Reports                   |           ❌            | ✅ | ✅ |
+| Edit Reports                     |           ✅            | ✅ | ✅ |
+| Delete Reports                   |           ❌            | ❌ | ✅ |
 | view the Reports                 |    ✅ Only the list     | ✅ | ✅ |
 | Receive Urgent Alerts            |   ❌ (triggers only)    | ✅ | ✅ |
 
