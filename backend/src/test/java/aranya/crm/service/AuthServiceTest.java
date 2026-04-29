@@ -100,6 +100,29 @@ class AuthServiceTest {
     }
 
     @Test
+    @Order(1)
+    @DisplayName("登录成功的 LoginResponse 携带角色列表")
+    void login_ShouldIncludeRoles_InResponse() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("admin@test.com");
+        request.setPassword("password");
+
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(mockPrincipal, null, mockPrincipal.getAuthorities());
+
+        when(authenticationManager.authenticate(any())).thenReturn(authToken);
+        when(jwtUtil.generateAccessToken(any())).thenReturn("access-token");
+        when(jwtUtil.generateRefreshToken(any())).thenReturn("refresh-token");
+        when(userRepository.getReferenceById(1L)).thenReturn(mockUser);
+
+        LoginResponse response = authService.login(request);
+
+        // mockPrincipal 在 setUp 里挂的是 ADMIN，UserPrincipal 会自动加 ROLE_ 前缀；
+        // buildLoginResponse 应去掉前缀，只回传裸 role 名
+        assertThat(response.getRoles()).containsExactly("ADMIN");
+    }
+
+    @Test
     @Order(2)
     @DisplayName("密码错误登录失败抛出异常")
     void login_ShouldThrowException_WhenCredentialsAreInvalid() {
