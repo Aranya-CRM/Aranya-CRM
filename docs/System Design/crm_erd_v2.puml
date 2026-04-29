@@ -10,6 +10,15 @@
 '   #D6E8FF (Blue)   = Admin + Social Worker
 '   #D6FFD6 (Green)  = All Roles (column-level restriction)
 '   #FFFACC (Yellow) = All Roles can Write
+'
+' Changelog v2:
+'   [1] Role zone retained; relationship labels simplified
+'   [2] client_document removed; case_document retained (1 case = 1 client)
+'   [3] case_assignment: added is_primary flag for primary handler
+'       case.social_worker_id removed (redundant)
+'   [4] service_category + service_type tables added (Admin-managed);
+'       service_appointment.service_type VARCHAR replaced with FK
+'   [5] case_status_history replaced by case_change_log (method A)
 ' ============================================================
 
 hide circle
@@ -48,7 +57,7 @@ package "Auth Zone  [ADMIN ONLY]" #FFD6D6 {
     phone : VARCHAR(20)
     * password_hash : VARCHAR(255)
     * status : VARCHAR(20)
-    ..2FA (added in v019)..
+    ..2FA..
     * two_factor_enabled : BOOLEAN
     two_factor_secret : VARCHAR(512)
   }
@@ -193,6 +202,37 @@ package "Client Zone  [ALL ROLES — column-level]" #D6FFD6 {
 
 
 ' ============================================================
+' ZONE: SERVICE CONFIG  [ADMIN ONLY]
+' Admin manages service categories and types
+' ============================================================
+
+package "Service Config Zone  [ADMIN ONLY]" #FFD6D6 {
+
+  entity "service_category" as service_category {
+    * id : BIGINT <<PK>>
+    --
+    * name : VARCHAR(100) <<UQ>>
+    description : TEXT
+    * is_active : BOOLEAN
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+  }
+
+  entity "service_type" as service_type {
+    * id : BIGINT <<PK>>
+    --
+    * category_id : BIGINT <<FK>>
+    * name : VARCHAR(100)
+    description : TEXT
+    * is_active : BOOLEAN
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
 ' ZONE: CASE  [ADMIN + SW ONLY]
 ' ============================================================
 
@@ -202,9 +242,9 @@ package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
     * id : BIGINT <<PK>>
     --
     * case_code : VARCHAR(50) <<UQ>>
+    * client_id : BIGINT <<FK>>
     * title : VARCHAR(255)
     description : TEXT
-    * service_type : VARCHAR(50)
     * priority : VARCHAR(20)
     * status : VARCHAR(20)
     color_code : VARCHAR(20)
@@ -213,21 +253,8 @@ package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
     closed_at : TIMESTAMP
     * created_by : BIGINT <<FK>>
     * created_at : TIMESTAMP
-    ..Added in v021..
-    client_id : BIGINT <<FK>>
-    social_worker_id : BIGINT <<FK>>
     comments : TEXT
     remarks : TEXT
-  }
-
-  entity "client_case" as client_case {
-    * id : BIGINT <<PK>>
-    --
-    * case_id : BIGINT <<FK>>
-    * client_id : BIGINT <<FK>>
-    * joined_at : TIMESTAMP
-    added_by : BIGINT <<FK>>
-    relationship_note : TEXT
   }
 
   entity "case_assignment" as case_assignment {
@@ -235,20 +262,23 @@ package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
     --
     * case_id : BIGINT <<FK>>
     * user_id : BIGINT <<FK>>
-    assignment_role : VARCHAR(50)
+    * is_primary : BOOLEAN
+    ..Constraint: only one active is_primary per case..
+    * assignment_role : VARCHAR(50)
     * status : VARCHAR(20)
     * assigned_at : TIMESTAMP
     end_at : TIMESTAMP
     assigned_by : BIGINT <<FK>>
   }
 
-  entity "case_status_history" as case_status_history {
+  entity "case_change_log" as case_change_log {
     * id : BIGINT <<PK>>
     --
     * case_id : BIGINT <<FK>>
-    old_status : VARCHAR(20)
-    * new_status : VARCHAR(20)
-    changed_by : BIGINT <<FK>>
+    * field_name : VARCHAR(100)
+    old_value : TEXT
+    * new_value : TEXT
+    * changed_by : BIGINT <<FK>>
     * changed_at : TIMESTAMP
     remarks : TEXT
   }
@@ -269,7 +299,7 @@ package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
     * id : BIGINT <<PK>>
     --
     * case_id : BIGINT <<FK>>
-    * service_type : VARCHAR(50)
+    * service_type_id : BIGINT <<FK>>
     * scheduled_start : TIMESTAMP
     scheduled_end : TIMESTAMP
     location : VARCHAR(255)
@@ -285,6 +315,8 @@ package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
 
 ' ============================================================
 ' ZONE: DOCUMENT  [ADMIN + SW ONLY]
+' client_document removed; case_document is the single link
+' (1 case = 1 client, so case_document covers both)
 ' ============================================================
 
 package "Document Zone  [ADMIN + SW ONLY]" #EDE0FF {
@@ -305,15 +337,6 @@ package "Document Zone  [ADMIN + SW ONLY]" #EDE0FF {
     description : TEXT
     checksum : VARCHAR(255)
     updated_at : TIMESTAMP
-  }
-
-  entity "client_document" as client_document {
-    * id : BIGINT <<PK>>
-    --
-    * client_id : BIGINT <<FK>>
-    * document_id : BIGINT <<FK>>
-    linked_by : BIGINT <<FK>>
-    * linked_at : TIMESTAMP
   }
 
   entity "case_document" as case_document {
@@ -365,45 +388,44 @@ package "Visit Report Zone  [ALL ROLES — WRITE]" #FFFACC {
 
 ' ============================================================
 ' RELATIONSHIPS
-' (Audit FKs: created_by / changed_by / assigned_by
-'  are shown as columns only to keep diagram readable)
 ' ============================================================
 
 ' -- Auth --
-users          ||--o{ user_role              : "has"
-role           ||--o{ user_role              : "defines"
-users          ||--o{ invitation             : "invited_by"
-role           ||--o{ invitation             : "assigned_role"
-users          ||--o{ refresh_token          : "owns"
-users          ||--o{ two_factor_backup_code : "owns"
-users          ||--o{ email_notification_log : "sends"
+users          ||--o{ user_role              : ""
+role           ||--o{ user_role              : ""
+users          ||--o{ invitation             : ""
+role           ||--o{ invitation             : ""
+users          ||--o{ refresh_token          : ""
+users          ||--o{ two_factor_backup_code : ""
+users          ||--o{ email_notification_log : ""
 
 ' -- Client --
-client         ||--o{ related_contact  : "has"
-client         ||--o{ client_document  : "has"
-client         ||--o{ client_case      : "involved in"
-client         ||--o{ visit_report     : "subject of"
+client         ||--o{ related_contact  : ""
+client         ||--o{ visit_report     : ""
 
 ' -- Case core --
-case_t         ||--o{ client_case          : "involves"
-case_t         ||--o{ case_assignment      : "assigned via"
-case_t         ||--o{ case_status_history  : "tracked by"
-case_t         ||--o{ case_note            : "has"
-case_t         ||--o{ service_appointment  : "has"
-case_t         ||--o{ case_document        : "has"
-case_t         }o--o| client              : "primary client\n(client_id)"
-case_t         }o--o| users               : "social_worker_id"
+client         ||--o{ case_t               : ""
+case_t         ||--o{ case_assignment      : ""
+case_t         ||--o{ case_change_log      : ""
+case_t         ||--o{ case_note            : ""
+case_t         ||--o{ service_appointment  : ""
+case_t         ||--o{ case_document        : ""
 
 ' -- Case participants --
-users          ||--o{ case_assignment     : "assigned to"
-users          ||--o{ service_appointment : "assigned_user"
+users          ||--o{ case_assignment      : ""
+users          ||--o{ service_appointment  : ""
+
+' -- Service config --
+service_category ||--o{ service_type        : ""
+service_type     ||--o{ service_appointment : ""
+users            ||--o{ service_category    : ""
+users            ||--o{ service_type        : ""
 
 ' -- Document --
-document       ||--o{ client_document : "linked via"
-document       ||--o{ case_document   : "linked via"
-users          ||--o{ document        : "uploads"
+document       ||--o{ case_document : ""
+users          ||--o{ document      : ""
 
 ' -- Visit Report --
-users          ||--o{ visit_report : "creates"
+users          ||--o{ visit_report : ""
 
 @enduml
