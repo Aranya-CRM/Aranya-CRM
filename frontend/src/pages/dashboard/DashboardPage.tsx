@@ -21,11 +21,10 @@ function formatHonorific(name: string): string {
 }
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { user, isSocialWorker } = useAuth()
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<DashboardData>()
   const [errorMessage, setErrorMessage] = useState<string>()
-  const isSocialWorker = Boolean(user.email)
 
   useEffect(() => {
     let active = true
