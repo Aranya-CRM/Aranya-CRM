@@ -3,6 +3,10 @@ package aranya.crm.service;
 import aranya.crm.config.AppProperties;
 import aranya.crm.dto.LoginRequest;
 import aranya.crm.dto.LoginResponse;
+import aranya.crm.dto.TwoFactorEnableRequest;
+import aranya.crm.dto.TwoFactorInitEnableRequest;
+import aranya.crm.dto.TwoFactorInitSetupRequest;
+import aranya.crm.dto.TwoFactorSetupResponse;
 import aranya.crm.dto.TwoFactorVerifyRequest;
 import aranya.crm.entity.RefreshToken;
 import aranya.crm.entity.User;
@@ -62,11 +66,12 @@ public class AuthService {
                     .build();
         }
 
-        String accessToken = jwtUtil.generateAccessToken(principal);
-        String refreshToken = jwtUtil.generateRefreshToken(principal);
-        saveRefreshToken(refreshToken, principal.getId());
-        log.info("User logged in successfully, userId: {}", principal.getId());
-        return buildLoginResponse(accessToken, refreshToken, principal);
+        String tempToken = jwtUtil.generateTempToken(principal);
+        log.info("2FA setup required for userId: {}", principal.getId());
+        return LoginResponse.builder()
+                .requiresTwoFactorSetup(true)
+                .tempToken(tempToken)
+                .build();
     }
 
     @Transactional
@@ -86,6 +91,39 @@ public class AuthService {
         saveRefreshToken(refreshToken, principal.getId());
         log.info("2FA verified, user logged in, userId: {}", principal.getId());
         return buildLoginResponse(accessToken, refreshToken, principal);
+    }
+
+    @Transactional
+    public TwoFactorSetupResponse initSetupTwoFactor(TwoFactorInitSetupRequest request) {
+        String email = jwtUtil.extractEmailFromTempToken(request.getTempToken());
+        return twoFactorService.generateSetup(email);
+    }
+
+    @Transactional
+    public LoginResponse initEnableTwoFactor(TwoFactorInitEnableRequest request) {
+        String email = jwtUtil.extractEmailFromTempToken(request.getTempToken());
+        UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(email);
+
+        TwoFactorEnableRequest enableRequest = new TwoFactorEnableRequest();
+        enableRequest.setSecret(request.getSecret());
+        enableRequest.setCode(request.getCode());
+
+        List<String> backupCodes = twoFactorService.enableTwoFactor(principal.getId(), enableRequest);
+
+        String accessToken = jwtUtil.generateAccessToken(principal);
+        String refreshToken = jwtUtil.generateRefreshToken(principal);
+        saveRefreshToken(refreshToken, principal.getId());
+        log.info("2FA setup completed, user logged in, userId: {}", principal.getId());
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(appProperties.getJwt().getAccessTokenExpiration() / 1000)
+                .email(principal.getEmail())
+                .fullName(principal.getFullName())
+                .backupCodes(backupCodes)
+                .build();
     }
 
     /**

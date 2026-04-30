@@ -8,4 +8,5 @@ import lombok.Data;
 public class TwoFactorSetupResponse {
     private String secret;
     private String qrCodeUri;
+    private String qrCodeBase64;
 }

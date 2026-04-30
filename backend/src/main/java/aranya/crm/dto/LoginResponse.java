@@ -16,5 +16,7 @@ public class LoginResponse {
     private String fullName;
     private List<String> roles;
     private Boolean requiresTwoFactor;
+    private Boolean requiresTwoFactorSetup;
     private String tempToken;
+    private List<String> backupCodes;
 }

@@ -21,10 +21,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -72,10 +80,27 @@ public class TwoFactorService {
         String uri = String.format(
                 "otpauth://totp/%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
                 label, secret, encodedIssuer);
+        String qrBase64 = generateQrBase64(uri, 250);
         return TwoFactorSetupResponse.builder()
                 .secret(secret)
                 .qrCodeUri(uri)
+                .qrCodeBase64(qrBase64)
                 .build();
+    }
+
+    private String generateQrBase64(String content, int size) {
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
+            hints.put(EncodeHintType.MARGIN, 2);
+            BitMatrix matrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size, hints);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
+            return Base64.getEncoder().encodeToString(out.toByteArray());
+        } catch (Exception e) {
+            log.warn("QR code generation failed, falling back to text-only setup: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Transactional

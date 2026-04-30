@@ -11,8 +11,11 @@ Aranya CRM is a full-stack internal CRM system with:
 
 At the moment, the project is partially implemented:
 
-- login flow exists
-- two-factor authentication (2FA) exists on the backend
+- login flow exists and is fully wired end-to-end
+- two-factor authentication (2FA) is fully implemented on both backend and frontend:
+  - mandatory 2FA setup is enforced at login for all accounts
+  - TOTP verification is required for accounts that already have 2FA enabled
+  - QR code is generated server-side and returned as Base64 for display in the browser
 - dashboard API exists
 - client/case/report pages exist in the frontend
 - many frontend modules still support mock data fallback
@@ -82,6 +85,7 @@ This guide is meant to help a new contributor run, understand, and continue deve
 - Liquibase
 - JWT via `jjwt`
 - TOTP-based 2FA via `dev.samstevens.totp`
+- QR code generation via `com.google.zxing:javase`
 - springdoc OpenAPI UI
 
 ## 4. Current Functional Scope
@@ -93,11 +97,13 @@ This guide is meant to help a new contributor run, understand, and continue deve
   - `POST /api/v1/auth/refresh`
   - `POST /api/v1/auth/logout`
 - two-factor authentication endpoints:
-  - `GET /api/v1/auth/2fa/setup`
-  - `POST /api/v1/auth/2fa/enable`
-  - `POST /api/v1/auth/2fa/verify`
-  - `POST /api/v1/auth/2fa/disable`
-  - `POST /api/v1/auth/2fa/backup-codes`
+  - `GET /api/v1/auth/2fa/setup` — generate TOTP secret and QR code (authenticated)
+  - `POST /api/v1/auth/2fa/enable` — activate 2FA after setup (authenticated)
+  - `POST /api/v1/auth/2fa/verify` — verify TOTP or backup code during login (public, uses tempToken)
+  - `POST /api/v1/auth/2fa/disable` — disable 2FA (authenticated)
+  - `POST /api/v1/auth/2fa/backup-codes` — regenerate backup codes (authenticated)
+  - `POST /api/v1/auth/2fa/setup-init` — generate TOTP secret for first-time setup during login (public, uses tempToken)
+  - `POST /api/v1/auth/2fa/enable-init` — activate 2FA and complete login in one step (public, uses tempToken)
 - dashboard endpoint:
   - `GET /api/dashboard`
 - frontend pages:
@@ -111,8 +117,9 @@ This guide is meant to help a new contributor run, understand, and continue deve
 
 `AuthController`, `TwoFactorController`, and `DashboardController` are present in the backend right now. That means:
 
-- login is real
+- login is real and the full frontend login flow is wired, including mandatory 2FA setup for new users and TOTP verification for returning users
 - 2FA setup, enable, login verification, disable, and backup-code regeneration are real backend flows
+- QR code generation is done server-side using ZXing; the frontend receives a Base64-encoded PNG and renders it directly — no third-party QR service is used
 - dashboard is real, but currently returns hard-coded demo data
 - many other frontend pages are not backed by real backend endpoints yet
 - those pages rely on frontend-side mock data in `frontend/src/mocks/`
@@ -270,14 +277,15 @@ Frontend auth helpers live in:
 Current implementation stores tokens and user identity in `localStorage`.
 `AuthProvider` is mounted at the application root in `frontend/src/main.tsx`, so routed pages can safely use `useAuth()`.
 
-Important note:
+Important notes:
 
 - the frontend is currently aligned to the backend's actual auth response and only treats `email` and `fullName` as canonical user identity fields
 - role-based UI is temporarily running in a compatibility mode until the backend starts returning role information
-- frontend login is not yet fully wired for backend 2FA responses; `requiresTwoFactor` and `tempToken` still need login-page handling before users with 2FA enabled can complete sign-in through the UI
+- the login page handles four steps: `credentials`, `totp` (existing 2FA users), `setup` (mandatory first-time 2FA binding), and `backup-codes` (displayed once after enabling)
+- `frontend/src/services/auth.ts` exposes `login`, `verifyTwoFactor`, `setupTwoFactorInit`, and `enableTwoFactorInit` as the four auth-related API functions
 - Docker frontend build was temporarily adjusted to use `npm run build:docker`, which skips the TypeScript compile step and runs only `vite build`
 
-This should be treated as temporary technical debt and should be fixed properly later.
+The TypeScript build skipping should be treated as temporary technical debt and fixed properly later.
 
 ## 7. Backend Architecture Notes
 
@@ -302,22 +310,28 @@ Security is JWT-based and mainly wired through:
 
 ### Authentication flow
 
-Backend auth flow:
+2FA is mandatory for all accounts. There is no path that grants access tokens directly from email and password alone.
 
-1. login request enters `AuthController`
+Login when 2FA is already enabled:
+
+1. client submits email and password to `POST /api/v1/auth/login`
 2. `AuthService` authenticates against Spring Security
-3. if the user has 2FA disabled, access token and refresh token are generated
-4. refresh token hash is persisted
-5. response returns token data and basic user info
+3. backend returns `{ requiresTwoFactor: true, tempToken: "..." }`
+4. client submits `{ tempToken, code }` to `POST /api/v1/auth/2fa/verify`
+5. backend validates the TOTP or backup code and returns the full session response
 
-If the user has 2FA enabled:
+Login when 2FA has not yet been set up (mandatory first-time binding):
 
-1. login still validates email and password first
-2. backend returns `requiresTwoFactor: true` and a short-lived `tempToken`
-3. client submits `tempToken` plus either a TOTP code or a backup code to `POST /api/v1/auth/2fa/verify`
-4. successful 2FA verification returns the normal login response with access and refresh tokens
+1. client submits email and password to `POST /api/v1/auth/login`
+2. backend returns `{ requiresTwoFactorSetup: true, tempToken: "..." }`
+3. client submits `{ tempToken }` to `POST /api/v1/auth/2fa/setup-init`
+4. backend returns `{ secret, qrCodeUri, qrCodeBase64 }`; the `qrCodeBase64` is a PNG image encoded as Base64, rendered directly in the browser
+5. user scans the QR code with an authenticator app or enters the secret manually
+6. client submits `{ tempToken, secret, code }` to `POST /api/v1/auth/2fa/enable-init`
+7. backend enables 2FA and returns the full session response including `backupCodes`
+8. client displays backup codes to the user before redirecting to the dashboard
 
-Current response includes:
+Full session response fields:
 
 - `accessToken`
 - `refreshToken`
@@ -325,53 +339,83 @@ Current response includes:
 - `expiresIn`
 - `email`
 - `fullName`
+- `backupCodes` (only on first-time setup via `/enable-init`)
+
+Intermediate-only response fields (not present in full session response):
+
 - `requiresTwoFactor`
+- `requiresTwoFactorSetup`
 - `tempToken`
 
-Current response does not include role information.
+Role information is not currently included in any login response.
 
 ### Two-factor authentication flow
 
 2FA uses TOTP with SHA1, 6 digits, and a 30-second period. The verifier allows one time-step of clock discrepancy.
 
-Setup and enable flow:
+**First-time setup during login** (mandatory, uses `tempToken`):
 
-1. authenticated user calls `GET /api/v1/auth/2fa/setup`
-2. backend returns:
-   - `secret`
-   - `qrCodeUri`
-3. client shows the QR URI or secret to the user for an authenticator app
-4. user submits `{ "secret": "...", "code": "123456" }` to `POST /api/v1/auth/2fa/enable`
-5. backend verifies the code, stores the encrypted TOTP secret, enables 2FA, and returns backup codes
+1. login returns `{ requiresTwoFactorSetup: true, tempToken }`
+2. client calls `POST /api/v1/auth/2fa/setup-init` with `{ tempToken }` — backend generates a fresh TOTP secret and returns `{ secret, qrCodeUri, qrCodeBase64 }`
+3. `qrCodeBase64` is a 250×250 PNG generated server-side with ZXing; the frontend renders it as `<img src="data:image/png;base64,...">` — no third-party QR service is involved
+4. user scans the QR code or manually enters the secret key into an authenticator app
+5. client calls `POST /api/v1/auth/2fa/enable-init` with `{ tempToken, secret, code }` — backend verifies the TOTP code, stores the encrypted secret, enables 2FA, issues access and refresh tokens, and returns 8 backup codes
+6. client shows backup codes to the user before navigating to the dashboard
 
-Login verification flow:
+**Authenticated setup and enable** (for re-binding after disable):
 
-1. user logs in with email/password
-2. if 2FA is enabled, response contains only `requiresTwoFactor` and `tempToken`
-3. user submits `{ "tempToken": "...", "code": "123456" }` or a backup code to `POST /api/v1/auth/2fa/verify`
-4. backend returns the normal token response
+1. authenticated user calls `GET /api/v1/auth/2fa/setup` — backend generates a fresh TOTP secret and returns `{ secret, qrCodeUri, qrCodeBase64 }`
+2. user submits `{ secret, code }` to `POST /api/v1/auth/2fa/enable`
+3. backend verifies the code, stores the encrypted TOTP secret, enables 2FA, and returns backup codes
 
-Disable flow:
+**Login verification** (for accounts with 2FA already enabled):
 
-1. authenticated user submits `{ "password": "...", "code": "123456" }` to `POST /api/v1/auth/2fa/disable`
-2. backend verifies password and 2FA code
-3. backend clears the stored 2FA secret and deletes backup codes
+1. login returns `{ requiresTwoFactor: true, tempToken }`
+2. user submits `{ tempToken, code }` to `POST /api/v1/auth/2fa/verify` — accepts either a 6-digit TOTP or a backup code
+3. backend returns the normal session response
 
-Backup-code behavior:
+**Disable flow**:
+
+1. authenticated user submits `{ password, code }` to `POST /api/v1/auth/2fa/disable`
+2. backend verifies both the password and the current TOTP code
+3. backend clears the stored 2FA secret and deletes all backup codes
+
+**Backup-code behavior**:
 
 - enabling 2FA creates 8 one-time backup codes
 - backup codes are stored as SHA-256 hashes, not plaintext
 - a backup code is marked used after successful verification
-- authenticated users can regenerate backup codes with `POST /api/v1/auth/2fa/backup-codes`
-- regenerated backup codes replace old backup codes
+- authenticated users can regenerate backup codes via `POST /api/v1/auth/2fa/backup-codes`
+- regenerated backup codes replace all previous codes
 
-Security notes:
+**New DTOs added for the mandatory-setup flow**:
+
+- `TwoFactorInitSetupRequest` — `{ tempToken }`
+- `TwoFactorInitEnableRequest` — `{ tempToken, secret, code }`
+- `LoginResponse` extended with `requiresTwoFactorSetup` and `backupCodes` fields
+- `TwoFactorSetupResponse` extended with `qrCodeBase64` field
+
+**Security notes**:
 
 - TOTP secrets are encrypted with AES-GCM before storage
 - `TWO_FACTOR_ENCRYPTION_KEY` must decode to exactly 32 bytes
-- used OTP values are cached briefly to reduce replay within the accepted time window
-- `POST /api/v1/auth/2fa/verify` is public because it authenticates with the temporary 2FA token
-- setup, enable, disable, and backup-code regeneration require an access token
+- used OTP codes are cached in-memory for 90 seconds to prevent replay within the accepted time window
+- `POST /api/v1/auth/2fa/verify`, `POST /api/v1/auth/2fa/setup-init`, and `POST /api/v1/auth/2fa/enable-init` are all public endpoints; they authenticate via a short-lived `tempToken` in the request body, not a Bearer header
+- setup, enable, disable, and backup-code regeneration via the authenticated endpoints (`GET /setup`, `POST /enable`, etc.) still require a valid access token
+
+**Future consideration — email OTP as an alternative second factor**:
+
+The current implementation uses TOTP exclusively. A possible future extension is to offer email-based OTP as an alternative for users who cannot use an authenticator app.
+
+Proposed design if this is added:
+
+- `POST /api/v1/auth/email-otp/send` — accepts `{ tempToken }`, sends a time-limited 6-digit code to the account's registered email, returns 204
+- `POST /api/v1/auth/email-otp/verify` — accepts `{ tempToken, code }`, verifies and returns the full session response
+- both endpoints would be public (same model as `/2fa/verify`)
+- OTP storage should use an in-memory TTL cache or Redis; not the database
+- `LoginResponse` would need a `requiresEmailOtp` flag parallel to `requiresTwoFactor`
+- SMTP must be configured via `spring-boot-starter-mail` and environment variables (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`)
+- the frontend login page would need a new `'email-otp'` step alongside the existing `'totp'` step
 
 ### Database model
 
@@ -509,13 +553,6 @@ Recommended long-term fix:
 - `docs/01-api-spec.md` is still a placeholder
 - API surface is not fully documented yet
 
-### Known issue: frontend 2FA flow is not wired yet
-
-- backend can require 2FA during login by returning `requiresTwoFactor` and `tempToken`
-- frontend `LoginResponse` currently expects access and refresh tokens immediately
-- login UI still needs a second-step code form and calls to `POST /api/v1/auth/2fa/verify`
-- account settings UI still needs setup, enable, disable, and backup-code regeneration screens if 2FA is exposed to end users
-
 ### Known issue: backend feature coverage is incomplete
 
 - frontend already contains more pages than the backend currently supports
@@ -524,12 +561,13 @@ Recommended long-term fix:
 ## 11. Recommended Next Improvements
 
 - fix the auth role mismatch properly instead of relying on the temporary Docker build workaround
-- wire the frontend login flow for 2FA challenge responses
-- add an account-security screen for 2FA setup, disable, and backup-code regeneration
+- add an account settings screen for 2FA re-binding, disable, and backup-code regeneration (the backend endpoints exist; only the frontend UI is missing)
+- implement email OTP as an alternative second factor for users without an authenticator app (see design notes in Section 7 under Two-factor authentication flow)
+- add a frontend Authorization header interceptor in `frontend/src/services/http.ts` to automatically attach the access token to all authenticated requests
 - add real backend endpoints for clients, cases, and reports
 - expand route wiring so all frontend pages are reachable through the router
 - replace placeholder API spec with real endpoint contracts
-- add integration tests for login, 2FA verification, refresh token flow, and dashboard
+- add integration tests for login, mandatory 2FA setup, TOTP verification, refresh token flow, and dashboard
 - add a top-level `.env.example` or per-module environment examples
 - document seed data or provide sample test users
 
@@ -544,4 +582,4 @@ If you are joining the project and want the fastest working setup:
 5. use frontend mock modes for unfinished modules
 6. treat Docker frontend build as deploy packaging, not as proof that TypeScript is clean
 
-If you want the most stable development path, start with the login flow and dashboard, because those are the parts that already have both frontend and backend pieces in place. For 2FA specifically, start with backend API testing first, then wire the frontend second-step login UI.
+If you want the most stable development path, start with the login flow and dashboard, because those are the parts that already have both frontend and backend pieces in place. The full 2FA flow — including mandatory first-time setup, QR code display, backup codes, and returning-user TOTP verification — is fully wired and testable end-to-end.
