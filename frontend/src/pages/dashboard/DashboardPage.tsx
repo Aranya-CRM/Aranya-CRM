@@ -48,7 +48,7 @@ function formatHonorific(name: string): string {
 }
 
 export function DashboardPage() {
-  const { isSocialWorker } = useAuth()
+  const { user, isSocialWorker } = useAuth()
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<DashboardData>()
   const [errorMessage, setErrorMessage] = useState<string>()

@@ -1,6 +1,8 @@
 import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import type { UserRole } from '../../services/auth'
+import { DevRoleSwitcher } from './DevRoleSwitcher'
 import './AppLayout.css'
 
 /* ── SVG Icons ── */
@@ -48,6 +50,17 @@ function ReportsIcon() {
   )
 }
 
+function UsersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 19c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M15 19c0-2.5 1.8-4 4-4s2.5 1.5 2.5 4" />
+    </svg>
+  )
+}
+
 function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -65,8 +78,8 @@ interface NavItem {
   zhLabel: string
   enLabel: string
   icon: ReactNode
-  swOnly?: boolean       // hidden for volunteers
-  disabledForVolunteer?: boolean  // visible but greyed out
+  /** Roles allowed to see this nav item. Omit to allow everyone. */
+  roles?: UserRole[]
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -87,7 +100,7 @@ const NAV_ITEMS: NavItem[] = [
     zhLabel: '个案管理',
     enLabel: 'Cases',
     icon: <CasesIcon />,
-    disabledForVolunteer: true,
+    roles: ['SOCIAL_WORKER', 'MANAGER'],
   },
   {
     path: '/reports',
@@ -95,7 +108,28 @@ const NAV_ITEMS: NavItem[] = [
     enLabel: 'Reports',
     icon: <ReportsIcon />,
   },
+  {
+    path: '/users',
+    zhLabel: '用户管理',
+    enLabel: 'Users',
+    icon: <UsersIcon />,
+    roles: ['MANAGER'],
+  },
 ]
+
+/* ── Role badge helpers ── */
+
+const ROLE_BADGE_LABEL: Record<UserRole, string> = {
+  VOLUNTEER: 'Volunteer',
+  SOCIAL_WORKER: 'Social Worker',
+  MANAGER: 'Manager',
+}
+
+const ROLE_BADGE_CLASS: Record<UserRole, string> = {
+  VOLUNTEER: 'role-volunteer',
+  SOCIAL_WORKER: 'role-social_worker',
+  MANAGER: 'role-manager',
+}
 
 /* ── Layout Component ── */
 
@@ -104,16 +138,15 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, logout } = useAuth()
+  const { user, logout, primaryRole, hasAnyRole } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const role = 'MEMBER'
-  const isVolunteer = false
-  const roleBadge = 'Member'
+
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.roles || hasAnyRole(...item.roles),
+  )
 
   function handleNavClick(item: NavItem) {
-    if (isVolunteer && item.disabledForVolunteer) return
-    if (item.swOnly && isVolunteer) return
     navigate(item.path)
   }
 
@@ -126,24 +159,15 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <nav className="nav" aria-label="Sidebar Navigation">
-          {NAV_ITEMS.map((item) => {
-            if (item.swOnly && isVolunteer) return null
-
+          {visibleItems.map((item) => {
             const isActive = location.pathname.startsWith(item.path)
-            const isDisabled = isVolunteer && item.disabledForVolunteer
 
             return (
               <a
                 key={item.path}
-                className={
-                  'nav-item' +
-                  (isActive ? ' active' : '') +
-                  (isDisabled ? ' disabled' : '')
-                }
+                className={'nav-item' + (isActive ? ' active' : '')}
                 href={item.path}
                 aria-current={isActive ? 'page' : undefined}
-                aria-disabled={isDisabled || undefined}
-                title={isDisabled ? '权限不足 / Insufficient permissions' : undefined}
                 onClick={(e) => {
                   e.preventDefault()
                   handleNavClick(item)
@@ -169,13 +193,18 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="topbar-subtitle">Aranya CRM Admin System</div>
           </div>
           <div className="topbar-right">
+            <DevRoleSwitcher />
             <div className="topbar-user">
               <span className="topbar-user-name">
                 {user.fullName ?? 'User'}
               </span>
-              <span className="topbar-role-badge">
-                {roleBadge}
-              </span>
+              {primaryRole ? (
+                <span
+                  className={`topbar-role-badge ${ROLE_BADGE_CLASS[primaryRole]}`}
+                >
+                  {ROLE_BADGE_LABEL[primaryRole]}
+                </span>
+              ) : null}
             </div>
             <button className="logout-btn" type="button" onClick={logout} title="登出 / Logout">
               <LogoutIcon />

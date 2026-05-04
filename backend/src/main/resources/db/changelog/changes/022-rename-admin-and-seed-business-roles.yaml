@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 022-1-rename-admin-to-manager
+      author: ShiDu
+      context: dev, test
+      comment: "Rename existing ADMIN role (seeded in dev/test by 018) to MANAGER"
+      changes:
+        - update:
+            tableName: role
+            columns:
+              - column:
+                  name: name
+                  value: MANAGER
+              - column:
+                  name: description
+                  value: "Full admin access - invite users, assign roles, audit"
+            where: name = 'ADMIN'
+
+  - changeSet:
+      id: 022-2-seed-business-roles
+      author: ShiDu
+      comment: "Seed the three business roles: MANAGER, SOCIAL_WORKER, VOLUNTEER (idempotent)"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role (name, description) VALUES
+                ('MANAGER', 'Full admin access - invite users, assign roles, audit'),
+                ('SOCIAL_WORKER', 'Day-to-day case operations'),
+                ('VOLUNTEER', 'Field volunteer - limited read + reports')
+              ON CONFLICT (name) DO NOTHING;

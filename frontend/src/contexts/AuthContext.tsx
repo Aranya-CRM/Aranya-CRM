@@ -22,7 +22,6 @@ interface AuthContextValue {
    */
   setRoleOverride?: (role: UserRole | null) => void
   roleOverride: UserRole | null
-  refreshAuth: () => void
   logout: () => void
 }
 
@@ -30,7 +29,6 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [roleOverride, setRoleOverride] = useState<UserRole | null>(null)
-  const [sessionVersion, setSessionVersion] = useState(0)
 
   const value = useMemo<AuthContextValue>(() => {
     const authenticated = isAuthenticated()
@@ -56,13 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasAnyRole: hasAny,
       roleOverride,
       setRoleOverride: import.meta.env.DEV ? setRoleOverride : undefined,
-      refreshAuth: () => setSessionVersion((version) => version + 1),
       logout: () => {
         clearSession()
         window.location.href = '/login'
       },
     }
-  }, [roleOverride, sessionVersion])
+  }, [roleOverride])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
