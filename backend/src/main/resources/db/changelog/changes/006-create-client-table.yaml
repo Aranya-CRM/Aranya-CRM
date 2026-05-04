@@ -199,6 +199,9 @@ databaseChangeLog:
                   name: pay_now_info
                   type: VARCHAR(100)
               - column:
+                  name: next_of_kin_contact
+                  type: VARCHAR(100)
+              - column:
                   name: comments
                   type: TEXT
 

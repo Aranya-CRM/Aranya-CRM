@@ -2,42 +2,8 @@ databaseChangeLog:
   - changeSet:
       id: 021
       author: ShiDu
-      comment: "Add missing client and case fields, and create visit_report table"
+      comment: "Create visit_report table"
       changes:
-        - addColumn:
-            tableName: client
-            columns:
-              - column:
-                  name: next_of_kin_contact
-                  type: VARCHAR(100)
-        - addColumn:
-            tableName: case
-            columns:
-              - column:
-                  name: client_id
-                  type: BIGINT
-                  constraints:
-                    nullable: true
-                    foreignKeyName: fk_case_client
-                    references: client(id)
-              - column:
-                  name: tradition
-                  type: VARCHAR(30)
-              - column:
-                  name: color_code
-                  type: VARCHAR(20)
-              - column:
-                  name: social_worker_id
-                  type: BIGINT
-                  constraints:
-                    foreignKeyName: fk_case_social_worker
-                    references: users(id)
-              - column:
-                  name: comments
-                  type: TEXT
-              - column:
-                  name: remarks
-                  type: TEXT
         - createTable:
             tableName: visit_report
             columns:
@@ -124,30 +90,6 @@ databaseChangeLog:
                   name: updated_at
                   type: TIMESTAMP
         - createIndex:
-            indexName: idx_case_client_id
-            tableName: case
-            columns:
-              - column:
-                  name: client_id
-        - createIndex:
-            indexName: idx_case_color_code
-            tableName: case
-            columns:
-              - column:
-                  name: color_code
-        - createIndex:
-            indexName: idx_case_tradition
-            tableName: case
-            columns:
-              - column:
-                  name: tradition
-        - createIndex:
-            indexName: idx_case_social_worker_id
-            tableName: case
-            columns:
-              - column:
-                  name: social_worker_id
-        - createIndex:
             indexName: idx_visit_report_client_id
             tableName: visit_report
             columns:
@@ -162,23 +104,3 @@ databaseChangeLog:
       rollback:
         - dropTable:
             tableName: visit_report
-        - dropColumn:
-            tableName: case
-            columns:
-              - column:
-                  name: client_id
-              - column:
-                  name: tradition
-              - column:
-                  name: color_code
-              - column:
-                  name: social_worker_id
-              - column:
-                  name: comments
-              - column:
-                  name: remarks
-        - dropColumn:
-            tableName: client
-            columns:
-              - column:
-                  name: next_of_kin_contact

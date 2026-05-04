@@ -1,10 +1,10 @@
 databaseChangeLog:
   - changeSet:
-      id: 010
+      id: 009
       author: ShiDu
       changes:
         - createTable:
-            tableName: case_status_history
+            tableName: service_category
             columns:
               - column:
                   name: id
@@ -14,35 +14,32 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: case_id
-                  type: BIGINT
+                  name: name
+                  type: VARCHAR(100)
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_case_status_history_case
-                    references: case(id)
+                    unique: true
               - column:
-                  name: old_status
-                  type: VARCHAR(20)
+                  name: description
+                  type: TEXT
               - column:
-                  name: new_status
-                  type: VARCHAR(20)
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
                   constraints:
                     nullable: false
               - column:
-                  name: changed_by
+                  name: created_by
                   type: BIGINT
                   constraints:
-                    foreignKeyName: fk_case_status_history_user
+                    foreignKeyName: fk_service_category_created_by
                     references: users(id)
               - column:
-                  name: changed_at
+                  name: created_at
                   type: TIMESTAMP
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
-              - column:
-                  name: remarks
-                  type: TEXT
       rollback:
         - dropTable:
-            tableName: case_status_history
+            tableName: service_category
