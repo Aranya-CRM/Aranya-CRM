@@ -21,10 +21,12 @@ databaseChangeLog:
                     foreignKeyName: fk_service_appointment_case
                     references: case(id)
               - column:
-                  name: service_type
-                  type: VARCHAR(50)
+                  name: service_type_id
+                  type: BIGINT
                   constraints:
                     nullable: false
+                    foreignKeyName: fk_service_appointment_service_type
+                    references: service_type(id)
               - column:
                   name: scheduled_start
                   type: TIMESTAMP

@@ -28,8 +28,16 @@ databaseChangeLog:
                     foreignKeyName: fk_case_assignment_user
                     references: users(id)
               - column:
+                  name: is_primary
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
                   name: assignment_role
                   type: VARCHAR(50)
+                  constraints:
+                    nullable: false
               - column:
                   name: status
                   type: VARCHAR(20)
@@ -51,6 +59,11 @@ databaseChangeLog:
                   constraints:
                     foreignKeyName: fk_case_assignment_assigned_by
                     references: users(id)
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_case_assignment_active_primary
+              ON case_assignment (case_id)
+              WHERE is_primary = true AND status = 'ACTIVE';
       rollback:
         - dropTable:
             tableName: case_assignment
