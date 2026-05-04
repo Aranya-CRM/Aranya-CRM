@@ -1,6 +1,8 @@
 # 构建阶段
 FROM node:22-alpine AS builder
 WORKDIR /app
+ARG VITE_DASHBOARD_DATA_MODE=auto
+ENV VITE_DASHBOARD_DATA_MODE=$VITE_DASHBOARD_DATA_MODE
 COPY package*.json .
 RUN npm ci
 COPY . .

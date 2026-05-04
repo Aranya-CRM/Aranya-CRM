@@ -48,6 +48,8 @@ services:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
+      args:
+        VITE_DASHBOARD_DATA_MODE: mock
     container_name: aranya_crm_frontend_dev
     restart: unless-stopped
     ports:
@@ -59,7 +61,3 @@ services:
 
 volumes:
   aranya_crm_data:
-
-networks:
-  aranya_network:
-    driver: bridge

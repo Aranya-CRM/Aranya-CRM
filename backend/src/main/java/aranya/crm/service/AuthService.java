@@ -3,11 +3,6 @@ package aranya.crm.service;
 import aranya.crm.config.AppProperties;
 import aranya.crm.dto.LoginRequest;
 import aranya.crm.dto.LoginResponse;
-import aranya.crm.dto.TwoFactorEnableRequest;
-import aranya.crm.dto.TwoFactorInitEnableRequest;
-import aranya.crm.dto.TwoFactorInitSetupRequest;
-import aranya.crm.dto.TwoFactorSetupResponse;
-import aranya.crm.dto.TwoFactorVerifyRequest;
 import aranya.crm.entity.RefreshToken;
 import aranya.crm.entity.User;
 import aranya.crm.repository.RefreshTokenRepository;
@@ -22,7 +17,6 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +25,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -44,7 +37,6 @@ public class AuthService {
     private final AppProperties appProperties;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
-    private final TwoFactorService twoFactorService;
 
     /**
      * 登录
@@ -53,42 +45,16 @@ public class AuthService {
      */
     @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
-        Authentication authentication = authenticate(loginRequest.getEmail(), loginRequest.getPassword());
+        Authentication authentication = authenticate(loginRequest.getEmail(),loginRequest.getPassword());
+
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-
-        if (principal.isTwoFactorEnabled()) {
-            String tempToken = jwtUtil.generateTempToken(principal);
-            log.info("2FA required for userId: {}", principal.getId());
-            return LoginResponse.builder()
-                    .requiresTwoFactor(true)
-                    .tempToken(tempToken)
-                    .build();
-        }
-
-        String tempToken = jwtUtil.generateTempToken(principal);
-        log.info("2FA setup required for userId: {}", principal.getId());
-        return LoginResponse.builder()
-                .requiresTwoFactorSetup(true)
-                .tempToken(tempToken)
-                .build();
-    }
-
-    @Transactional
-    public LoginResponse verifyTwoFactor(TwoFactorVerifyRequest request) {
-        String email = jwtUtil.extractEmailFromTempToken(request.getTempToken());
-        UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(email);
-        User user = userRepository.findById(principal.getId())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        if (!twoFactorService.verifyCodeForUser(user, request.getCode())) {
-            log.warn("Failed 2FA verification for userId: {}", principal.getId());
-            throw new BadCredentialsException("Invalid 2FA code");
-        }
 
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
-        saveRefreshToken(refreshToken, principal.getId());
-        log.info("2FA verified, user logged in, userId: {}", principal.getId());
+
+        saveRefreshToken(refreshToken,principal.getId());
+        log.info("User logged in successfully, userId: {}", principal.getId());
+
         return buildLoginResponse(accessToken, refreshToken, principal);
     }
 
@@ -114,15 +80,9 @@ public class AuthService {
         saveRefreshToken(refreshToken, principal.getId());
         log.info("2FA setup completed, user logged in, userId: {}", principal.getId());
 
-        return LoginResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresIn(appProperties.getJwt().getAccessTokenExpiration() / 1000)
-                .email(principal.getEmail())
-                .fullName(principal.getFullName())
-                .backupCodes(backupCodes)
-                .build();
+        LoginResponse response = buildLoginResponse(accessToken, refreshToken, principal);
+        response.setBackupCodes(backupCodes);
+        return response;
     }
 
     /**
