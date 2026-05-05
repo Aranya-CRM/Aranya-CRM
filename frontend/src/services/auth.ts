@@ -2,11 +2,12 @@ import { http } from './http'
 
 const ACCESS_TOKEN_KEY = 'aranya_access_token'
 const REFRESH_TOKEN_KEY = 'aranya_refresh_token'
-const USER_EMAIL_KEY = 'aranya_user_email'
-const USER_NAME_KEY = 'aranya_user_name'
-const USER_ROLES_KEY = 'aranya_user_roles'
-// Legacy single-role key (pre roles[] migration). Kept here so we can clear it
-// during clearSession; new sessions only write USER_ROLES_KEY.
+// Legacy keys from the pre-decoupled-auth design where role/profile state was
+// persisted in localStorage. Kept here only so clearSession can wipe stale
+// values from existing dev sessions; nothing reads or writes them.
+const LEGACY_USER_EMAIL_KEY = 'aranya_user_email'
+const LEGACY_USER_NAME_KEY = 'aranya_user_name'
+const LEGACY_USER_ROLES_KEY = 'aranya_user_roles'
 const LEGACY_USER_ROLE_KEY = 'aranya_user_role'
 
 export type UserRole = 'VOLUNTEER' | 'SOCIAL_WORKER' | 'MANAGER'
@@ -25,7 +26,26 @@ export interface LoginResponse {
   expiresIn: number
   email: string
   fullName: string
-  roles?: UserRole[]
+  requiresTwoFactor?: boolean
+  requiresTwoFactorSetup?: boolean
+  tempToken?: string
+  backupCodes?: string[]
+}
+
+export interface TwoFactorVerifyPayload {
+  tempToken: string
+  code: string
+}
+
+export interface TwoFactorSetupData {
+  secret: string
+  qrCodeBase64?: string
+}
+
+export interface TwoFactorInitEnablePayload {
+  tempToken: string
+  secret: string
+  code: string
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
@@ -54,20 +74,22 @@ export async function enableTwoFactorInit(payload: TwoFactorInitEnablePayload): 
   return response.data
 }
 
+/**
+ * Persist auth tokens only. User identity and roles are NOT cached in
+ * localStorage — AuthContext fetches them from `/users/me` on demand.
+ */
 export function persistSession(session: LoginResponse): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken)
   localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken)
-  localStorage.setItem(USER_EMAIL_KEY, session.email)
-  localStorage.setItem(USER_NAME_KEY, session.fullName)
-  localStorage.setItem(USER_ROLES_KEY, JSON.stringify(session.roles ?? []))
 }
 
 export function clearSession(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
-  localStorage.removeItem(USER_EMAIL_KEY)
-  localStorage.removeItem(USER_NAME_KEY)
-  localStorage.removeItem(USER_ROLES_KEY)
+  // Defensive cleanup of legacy keys from older sessions.
+  localStorage.removeItem(LEGACY_USER_EMAIL_KEY)
+  localStorage.removeItem(LEGACY_USER_NAME_KEY)
+  localStorage.removeItem(LEGACY_USER_ROLES_KEY)
   localStorage.removeItem(LEGACY_USER_ROLE_KEY)
 }
 
@@ -77,43 +99,4 @@ export function getAccessToken(): string | null {
 
 export function isAuthenticated(): boolean {
   return Boolean(getAccessToken())
-}
-
-export function getUserRoles(): UserRole[] {
-  const raw = localStorage.getItem(USER_ROLES_KEY)
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        return parsed.filter((r): r is UserRole =>
-          r === 'VOLUNTEER' || r === 'SOCIAL_WORKER' || r === 'MANAGER',
-        )
-      }
-    } catch {
-      // fall through to legacy / empty
-    }
-  }
-  // One-time migration from the old singular key (e.g. existing dev sessions).
-  const legacy = localStorage.getItem(LEGACY_USER_ROLE_KEY)
-  if (legacy === 'VOLUNTEER' || legacy === 'SOCIAL_WORKER' || legacy === 'MANAGER') {
-    return [legacy]
-  }
-  return []
-}
-
-export function hasRole(role: UserRole): boolean {
-  return getUserRoles().includes(role)
-}
-
-export function hasAnyRole(...roles: UserRole[]): boolean {
-  const owned = getUserRoles()
-  return roles.some((r) => owned.includes(r))
-}
-
-export function getCurrentUser() {
-  return {
-    email: localStorage.getItem(USER_EMAIL_KEY),
-    fullName: localStorage.getItem(USER_NAME_KEY),
-    roles: getUserRoles(),
-  }
 }

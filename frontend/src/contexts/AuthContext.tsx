@@ -1,65 +1,85 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   clearSession,
-  getCurrentUser,
-  isAuthenticated,
+  getAccessToken,
   type UserRole,
 } from '../services/auth'
+import { getCurrentUser, type MeResponse } from '../services/user.api'
 
 interface AuthContextValue {
+  /** True while the initial /me fetch is in flight. Routes should render a loading state until this is false. */
+  loading: boolean
   authenticated: boolean
-  user: { email: string | null; fullName: string | null; roles: UserRole[] }
-  /** roles[0] — used to drive "primary" role-conditional UI */
+  user: MeResponse | null
+  /** roles[0] — used to drive "primary" role-conditional UI (badge color, etc.) */
   primaryRole: UserRole | null
   isVolunteer: boolean
   isSocialWorker: boolean
   isManager: boolean
   hasRole: (role: UserRole) => boolean
   hasAnyRole: (...roles: UserRole[]) => boolean
-  /**
-   * Dev-only role override. Available only when `import.meta.env.DEV` is true,
-   * `undefined` in production builds. Passing `null` clears the override.
-   */
-  setRoleOverride?: (role: UserRole | null) => void
-  roleOverride: UserRole | null
+  /** Re-fetch /me. Call this after a successful login flow completes. */
+  refreshUser: () => Promise<void>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<MeResponse | null>(null)
+
+  const refreshUser = useCallback(async () => {
+    if (!getAccessToken()) {
+      setUser(null)
+      return
+    }
+    try {
+      const me = await getCurrentUser()
+      setUser(me)
+    } catch {
+      // Token invalid / expired / network failure — drop session so the user
+      // gets bounced to the login page on the next protected-route render.
+      clearSession()
+      setUser(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshUser().finally(() => setLoading(false))
+  }, [refreshUser])
 
   const value = useMemo<AuthContextValue>(() => {
-    const authenticated = isAuthenticated()
-    const stored = getCurrentUser()
-    const realRoles = stored.roles
-    const effectiveRoles: UserRole[] = roleOverride ? [roleOverride] : realRoles
-
-    const has = (role: UserRole) => effectiveRoles.includes(role)
-    const hasAny = (...roles: UserRole[]) => roles.some((r) => effectiveRoles.includes(r))
+    const roles = user?.roles ?? []
+    const has = (role: UserRole) => roles.includes(role)
+    const hasAny = (...rs: UserRole[]) => rs.some((r) => roles.includes(r))
 
     return {
-      authenticated,
-      user: {
-        email: stored.email,
-        fullName: stored.fullName,
-        roles: effectiveRoles,
-      },
-      primaryRole: effectiveRoles[0] ?? null,
+      loading,
+      authenticated: user !== null,
+      user,
+      primaryRole: roles[0] ?? null,
       isVolunteer: has('VOLUNTEER'),
       isSocialWorker: has('SOCIAL_WORKER'),
       isManager: has('MANAGER'),
       hasRole: has,
       hasAnyRole: hasAny,
-      roleOverride,
-      setRoleOverride: import.meta.env.DEV ? setRoleOverride : undefined,
+      refreshUser,
       logout: () => {
         clearSession()
+        setUser(null)
         window.location.href = '/login'
       },
     }
-  }, [roleOverride])
+  }, [loading, user, refreshUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

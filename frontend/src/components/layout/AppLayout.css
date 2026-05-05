@@ -219,47 +219,6 @@
   border: 1px solid #ddd6fe;
 }
 
-/* ── Dev role switcher (only rendered in dev) ── */
-
-.dev-role-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px 2px 6px;
-  border: 1px dashed #f59e0b;
-  border-radius: 6px;
-  background: #fffbeb;
-}
-
-.dev-role-switcher-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #b45309;
-}
-
-.dev-role-switcher-select {
-  font-size: 12px;
-  border: none;
-  background: transparent;
-  color: var(--text-main);
-  cursor: pointer;
-  outline: none;
-  padding: 2px 4px;
-}
-
-.dev-role-switcher-select.dev-role-volunteer {
-  color: #1e40af;
-}
-
-.dev-role-switcher-select.dev-role-social_worker {
-  color: #92400e;
-}
-
-.dev-role-switcher-select.dev-role-manager {
-  color: #5b21b6;
-}
-
 .logout-btn {
   display: inline-flex;
   align-items: center;

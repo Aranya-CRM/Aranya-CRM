@@ -2,7 +2,6 @@ import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import type { UserRole } from '../../services/auth'
-import { DevRoleSwitcher } from './DevRoleSwitcher'
 import './AppLayout.css'
 
 /* ── SVG Icons ── */
@@ -193,10 +192,9 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="topbar-subtitle">Aranya CRM Admin System</div>
           </div>
           <div className="topbar-right">
-            <DevRoleSwitcher />
             <div className="topbar-user">
               <span className="topbar-user-name">
-                {user.fullName ?? 'User'}
+                {user?.fullName ?? 'User'}
               </span>
               {primaryRole ? (
                 <span
