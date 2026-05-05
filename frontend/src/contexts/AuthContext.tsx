@@ -10,23 +10,21 @@ import {
 import {
   clearSession,
   getAccessToken,
-  type UserRole,
 } from '../services/auth'
 import { getCurrentUser, type MeResponse } from '../services/user.api'
+import { getUiManifest } from '../services/uiManifest.api'
+import type { UiManifest } from '../types/uiManifest'
 
 interface AuthContextValue {
-  /** True while the initial /me fetch is in flight. Routes should render a loading state until this is false. */
+  /** True while the initial session + UI manifest fetch is in flight. */
   loading: boolean
   authenticated: boolean
   user: MeResponse | null
-  /** roles[0] — used to drive "primary" role-conditional UI (badge color, etc.) */
-  primaryRole: UserRole | null
-  isVolunteer: boolean
-  isSocialWorker: boolean
-  isManager: boolean
-  hasRole: (role: UserRole) => boolean
-  hasAnyRole: (...roles: UserRole[]) => boolean
-  /** Re-fetch /me. Call this after a successful login flow completes. */
+  manifest: UiManifest | null
+  canRoute: (routeId: string) => boolean
+  canFeature: (featureId: string) => boolean
+  canWidget: (widgetId: string) => boolean
+  /** Re-fetch profile + UI manifest. Call this after a successful login flow completes. */
   refreshUser: () => Promise<void>
   logout: () => void
 }
@@ -36,20 +34,27 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<MeResponse | null>(null)
+  const [manifest, setManifest] = useState<UiManifest | null>(null)
 
   const refreshUser = useCallback(async () => {
     if (!getAccessToken()) {
       setUser(null)
+      setManifest(null)
       return
     }
     try {
-      const me = await getCurrentUser()
+      const [me, uiManifest] = await Promise.all([
+        getCurrentUser(),
+        getUiManifest(),
+      ])
       setUser(me)
+      setManifest(uiManifest)
     } catch {
       // Token invalid / expired / network failure — drop session so the user
       // gets bounced to the login page on the next protected-route render.
       clearSession()
       setUser(null)
+      setManifest(null)
     }
   }, [])
 
@@ -58,28 +63,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser])
 
   const value = useMemo<AuthContextValue>(() => {
-    const roles = user?.roles ?? []
-    const has = (role: UserRole) => roles.includes(role)
-    const hasAny = (...rs: UserRole[]) => rs.some((r) => roles.includes(r))
+    const canRoute = (routeId: string) => Boolean(manifest?.routes.includes(routeId))
+    const canFeature = (featureId: string) => Boolean(manifest?.features.includes(featureId))
+    const canWidget = (widgetId: string) => Boolean(manifest?.widgets.includes(widgetId))
 
     return {
       loading,
-      authenticated: user !== null,
+      authenticated: user !== null && manifest !== null,
       user,
-      primaryRole: roles[0] ?? null,
-      isVolunteer: has('VOLUNTEER'),
-      isSocialWorker: has('SOCIAL_WORKER'),
-      isManager: has('MANAGER'),
-      hasRole: has,
-      hasAnyRole: hasAny,
+      manifest,
+      canRoute,
+      canFeature,
+      canWidget,
       refreshUser,
       logout: () => {
         clearSession()
         setUser(null)
+        setManifest(null)
         window.location.href = '/login'
       },
     }
-  }, [loading, user, refreshUser])
+  }, [loading, user, manifest, refreshUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

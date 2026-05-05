@@ -21,7 +21,7 @@ function formatHonorific(name: string): string {
 }
 
 export function DashboardPage() {
-  const { isSocialWorker } = useAuth()
+  const { canFeature, canRoute, canWidget } = useAuth()
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<DashboardData>()
   const [errorMessage, setErrorMessage] = useState<string>()
@@ -56,6 +56,13 @@ export function DashboardPage() {
     () => dashboardData?.upcomingAppointments ?? [],
     [dashboardData],
   )
+  const canCreateClient = canFeature('clients.create')
+  const canCreateCase = canFeature('cases.create')
+  const canCreateReport = canFeature('reports.create')
+  const canViewCases = canRoute('cases.list')
+  const showActiveCases = canWidget('dashboard.activeCases')
+  const showUrgentCases = canWidget('dashboard.urgentCases')
+  const showUpcomingAppointments = canWidget('dashboard.upcomingAppointments')
 
   return (
     <>
@@ -71,8 +78,7 @@ export function DashboardPage() {
           <div className="card-title">快速操作</div>
           <div className="card-subtitle">Quick Actions</div>
           <div className="quick-actions quick-actions-spacing">
-            {isSocialWorker && (
-              <>
+            {canCreateClient ? (
                 <button className="quick-btn" type="button" onClick={() => navigate('/clients/new')}>
                   <span className="quick-icon">＋</span>
                   <span className="quick-label">
@@ -80,6 +86,8 @@ export function DashboardPage() {
                     <span className="en">New Client</span>
                   </span>
                 </button>
+            ) : null}
+            {canCreateCase ? (
                 <button className="quick-btn" type="button" onClick={() => navigate('/cases/new')}>
                   <span className="quick-icon">＋</span>
                   <span className="quick-label">
@@ -87,6 +95,8 @@ export function DashboardPage() {
                     <span className="en">New Case</span>
                   </span>
                 </button>
+            ) : null}
+            {canViewCases ? (
                 <button className="quick-btn" type="button" onClick={() => navigate('/cases')}>
                   <span className="quick-icon">📋</span>
                   <span className="quick-label">
@@ -94,62 +104,66 @@ export function DashboardPage() {
                     <span className="en">View My Cases</span>
                   </span>
                 </button>
-              </>
-            )}
-            <button className="quick-btn" type="button" onClick={() => navigate('/reports/new')}>
-              <span className="quick-icon">📄</span>
-              <span className="quick-label">
-                <span className="zh">提交探访报告</span>
-                <span className="en">Submit Report</span>
-              </span>
-            </button>
+            ) : null}
+            {canCreateReport ? (
+              <button className="quick-btn" type="button" onClick={() => navigate('/reports/new')}>
+                <span className="quick-icon">📄</span>
+                <span className="quick-label">
+                  <span className="zh">提交探访报告</span>
+                  <span className="en">Submit Report</span>
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
       </section>
 
-      {isSocialWorker && (
+      {(showActiveCases || showUrgentCases) && (
         <>
-          <section className="card" aria-label="My Active Cases">
-            <div className="card-header">
-              <div className="card-title">我的活跃个案</div>
-              <div className="card-subtitle">My Active Cases</div>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <colgroup>
-                  <col className="col-title" />
-                  <col className="col-client" />
-                  <col className="col-status" />
-                  <col className="col-actions" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th><span className="th-zh">标题</span><span className="th-en">Title</span></th>
-                    <th><span className="th-zh">服务对象</span><span className="th-en">Client</span></th>
-                    <th><span className="th-zh">状态</span><span className="th-en">Status</span></th>
-                    <th className="action-cell-left"><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeCases.map((item) => (
-                    <tr key={item.id}>
-                      <td><span className="cell-zh">{item.title.zh}</span><span className="cell-en">{item.title.en}</span></td>
-                      <td><span className="cell-zh">{item.client.zh}</span><span className="cell-en">{formatHonorific(item.client.en)}</span></td>
-                      <td><StatusBadge status={item.status} /></td>
-                      <td className="action-cell action-cell-left">
-                        <button className="action-link" type="button">
-                          <span className="cell-zh">查看</span>
-                          <span className="cell-en">View</span>
-                        </button>
-                      </td>
+          {showActiveCases ? (
+            <section className="card" aria-label="My Active Cases">
+              <div className="card-header">
+                <div className="card-title">我的活跃个案</div>
+                <div className="card-subtitle">My Active Cases</div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <colgroup>
+                    <col className="col-title" />
+                    <col className="col-client" />
+                    <col className="col-status" />
+                    <col className="col-actions" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th><span className="th-zh">标题</span><span className="th-en">Title</span></th>
+                      <th><span className="th-zh">服务对象</span><span className="th-en">Client</span></th>
+                      <th><span className="th-zh">状态</span><span className="th-en">Status</span></th>
+                      <th className="action-cell-left"><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {activeCases.map((item) => (
+                      <tr key={item.id}>
+                        <td><span className="cell-zh">{item.title.zh}</span><span className="cell-en">{item.title.en}</span></td>
+                        <td><span className="cell-zh">{item.client.zh}</span><span className="cell-en">{formatHonorific(item.client.en)}</span></td>
+                        <td><StatusBadge status={item.status} /></td>
+                        <td className="action-cell action-cell-left">
+                          <button className="action-link" type="button">
+                            <span className="cell-zh">查看</span>
+                            <span className="cell-en">View</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
 
-          <section className="card" aria-label="Cases Needing Attention">
+          {showUrgentCases ? (
+            <section className="card" aria-label="Cases Needing Attention">
             <div className="card-header">
               <div className="card-title">需要关注的个案</div>
               <div className="card-subtitle">Cases Needing Attention</div>
@@ -185,10 +199,12 @@ export function DashboardPage() {
               </table>
             </div>
           </section>
+          ) : null}
         </>
       )}
 
-      <section className="card" aria-label="Upcoming Appointments">
+      {showUpcomingAppointments ? (
+        <section className="card" aria-label="Upcoming Appointments">
         <div className="card-header">
           <div className="card-title">即将到来的预约</div>
           <div className="card-subtitle">Upcoming Appointments</div>
@@ -230,6 +246,7 @@ export function DashboardPage() {
           </table>
         </div>
       </section>
+      ) : null}
     </>
   )
 }

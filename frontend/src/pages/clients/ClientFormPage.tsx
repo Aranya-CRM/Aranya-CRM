@@ -57,13 +57,14 @@ function emptyClient(): Omit<Client, 'id'> {
 export function ClientFormPage() {
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
-  const { isSocialWorker } = useAuth()
+  const { canFeature } = useAuth()
   const navigate = useNavigate()
 
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<Omit<Client, 'id'>>(emptyClient())
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+  const canWriteClient = isEdit ? canFeature('clients.update') : canFeature('clients.create')
 
   useEffect(() => {
     if (!id) return
@@ -85,13 +86,13 @@ export function ClientFormPage() {
     return () => { active = false }
   }, [id])
 
-  if (!isSocialWorker) {
+  if (!canWriteClient) {
     return (
       <>
         <h2 className="page-title">权限不足</h2>
         <div className="page-subtitle">Access Denied</div>
         <p style={{ marginTop: 16, color: 'var(--text-muted)', fontSize: 13 }}>
-          仅 Social Worker 可创建或编辑僧人档案。 / Only Social Workers can create or edit client profiles.
+          当前账户不可创建或编辑僧人档案。 / Your current access does not allow creating or editing client profiles.
         </p>
       </>
     )

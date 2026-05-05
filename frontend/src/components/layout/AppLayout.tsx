@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import type { UserRole } from '../../services/auth'
 import './AppLayout.css'
 
 /* ── SVG Icons ── */
@@ -73,62 +72,64 @@ function LogoutIcon() {
 /* ── Navigation definition ── */
 
 interface NavItem {
+  id: string
+  routeId: string
   path: string
   zhLabel: string
   enLabel: string
   icon: ReactNode
-  /** Roles allowed to see this nav item. Omit to allow everyone. */
-  roles?: UserRole[]
+}
+
+const ICONS: Record<string, ReactNode> = {
+  LayoutDashboard: <DashboardIcon />,
+  Users: <ClientsIcon />,
+  FolderOpen: <CasesIcon />,
+  ClipboardList: <ReportsIcon />,
+  Shield: <UsersIcon />,
 }
 
 const NAV_ITEMS: NavItem[] = [
   {
+    id: 'dashboard',
+    routeId: 'dashboard',
     path: '/dashboard',
     zhLabel: '工作台',
     enLabel: 'Dashboard',
-    icon: <DashboardIcon />,
+    icon: ICONS.LayoutDashboard,
   },
   {
+    id: 'clients',
+    routeId: 'clients.list',
     path: '/clients',
     zhLabel: '僧人档案',
     enLabel: 'Clients',
-    icon: <ClientsIcon />,
+    icon: ICONS.Users,
   },
   {
+    id: 'cases',
+    routeId: 'cases.list',
     path: '/cases',
     zhLabel: '个案管理',
     enLabel: 'Cases',
-    icon: <CasesIcon />,
-    roles: ['SOCIAL_WORKER', 'MANAGER'],
+    icon: ICONS.FolderOpen,
   },
   {
+    id: 'reports',
+    routeId: 'reports.list',
     path: '/reports',
     zhLabel: '探访报告',
     enLabel: 'Reports',
-    icon: <ReportsIcon />,
+    icon: ICONS.ClipboardList,
   },
   {
+    id: 'users',
+    routeId: 'users.list',
     path: '/users',
     zhLabel: '用户管理',
     enLabel: 'Users',
-    icon: <UsersIcon />,
-    roles: ['MANAGER'],
+    icon: ICONS.Shield,
   },
 ]
-
-/* ── Role badge helpers ── */
-
-const ROLE_BADGE_LABEL: Record<UserRole, string> = {
-  VOLUNTEER: 'Volunteer',
-  SOCIAL_WORKER: 'Social Worker',
-  MANAGER: 'Manager',
-}
-
-const ROLE_BADGE_CLASS: Record<UserRole, string> = {
-  VOLUNTEER: 'role-volunteer',
-  SOCIAL_WORKER: 'role-social_worker',
-  MANAGER: 'role-manager',
-}
 
 /* ── Layout Component ── */
 
@@ -137,13 +138,11 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, logout, primaryRole, hasAnyRole } = useAuth()
+  const { user, canRoute, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roles || hasAnyRole(...item.roles),
-  )
+  const visibleItems = NAV_ITEMS.filter((item) => canRoute(item.routeId))
 
   function handleNavClick(item: NavItem) {
     navigate(item.path)
@@ -196,13 +195,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               <span className="topbar-user-name">
                 {user?.fullName ?? 'User'}
               </span>
-              {primaryRole ? (
-                <span
-                  className={`topbar-role-badge ${ROLE_BADGE_CLASS[primaryRole]}`}
-                >
-                  {ROLE_BADGE_LABEL[primaryRole]}
-                </span>
-              ) : null}
             </div>
             <button className="logout-btn" type="button" onClick={logout} title="登出 / Logout">
               <LogoutIcon />

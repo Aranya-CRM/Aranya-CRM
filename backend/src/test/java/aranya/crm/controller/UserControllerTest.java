@@ -123,51 +123,48 @@ class UserControllerTest {
     /* ── /me endpoint：方法级 isAuthenticated() 显式覆盖类级 hasRole('MANAGER') ── */
 
     @Test
-    @DisplayName("Volunteer 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @DisplayName("Volunteer 调用 GET /api/v1/users/me 返回 200 且不返回 roles")
     @WithMockUser(roles = "VOLUNTEER")
     void me_returns200_forVolunteer() throws Exception {
         when(userService.getCurrentUser(any())).thenReturn(
                 MeResponse.builder()
                         .id(2L).email("v@x.com").fullName("V")
-                        .roles(List.of("VOLUNTEER"))
                         .build()
         );
 
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.roles[0]").value("VOLUNTEER"));
+                .andExpect(jsonPath("$.roles").doesNotExist());
     }
 
     @Test
-    @DisplayName("Social Worker 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @DisplayName("Social Worker 调用 GET /api/v1/users/me 返回 200 且不返回 roles")
     @WithMockUser(roles = "SOCIAL_WORKER")
     void me_returns200_forSocialWorker() throws Exception {
         when(userService.getCurrentUser(any())).thenReturn(
                 MeResponse.builder()
                         .id(3L).email("sw@x.com").fullName("SW")
-                        .roles(List.of("SOCIAL_WORKER"))
                         .build()
         );
 
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.roles[0]").value("SOCIAL_WORKER"));
+                .andExpect(jsonPath("$.roles").doesNotExist());
     }
 
     @Test
-    @DisplayName("Manager 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @DisplayName("Manager 调用 GET /api/v1/users/me 返回 200 且不返回 roles")
     @WithMockUser(roles = "MANAGER")
     void me_returns200_forManager() throws Exception {
         when(userService.getCurrentUser(any())).thenReturn(
                 MeResponse.builder()
                         .id(1L).email("admin@x.com").fullName("Admin")
-                        .roles(List.of("MANAGER"))
                         .build()
         );
 
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.roles[0]").value("MANAGER"));
+                .andExpect(jsonPath("$.roles").doesNotExist());
     }
 
     @Test
