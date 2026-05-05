@@ -22,7 +22,6 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -188,10 +187,6 @@ public class AuthService {
     }
 
     private LoginResponse buildLoginResponse(String accessToken, String refreshToken, UserPrincipal principal) {
-        List<String> roles = principal.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(a -> a.startsWith("ROLE_") ? a.substring("ROLE_".length()) : a)
-                .toList();
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -199,7 +194,6 @@ public class AuthService {
                 .expiresIn(appProperties.getJwt().getAccessTokenExpiration()/1000)
                 .email(principal.getEmail())
                 .fullName(principal.getFullName())
-                .roles(roles)
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package aranya.crm.controller;
 
+import aranya.crm.dto.MeResponse;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.security.util.JwtUtil;
 import aranya.crm.service.CustomUserDetailsService;
@@ -22,12 +23,14 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = UserController.class)
@@ -114,6 +117,63 @@ class UserControllerTest {
     @WithMockUser(roles = "VOLUNTEER")
     void delete_returns403_forVolunteer() throws Exception {
         mockMvc.perform(delete("/api/v1/users/42").with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    /* ── /me endpoint：方法级 isAuthenticated() 显式覆盖类级 hasRole('MANAGER') ── */
+
+    @Test
+    @DisplayName("Volunteer 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @WithMockUser(roles = "VOLUNTEER")
+    void me_returns200_forVolunteer() throws Exception {
+        when(userService.getCurrentUser(any())).thenReturn(
+                MeResponse.builder()
+                        .id(2L).email("v@x.com").fullName("V")
+                        .roles(List.of("VOLUNTEER"))
+                        .build()
+        );
+
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles[0]").value("VOLUNTEER"));
+    }
+
+    @Test
+    @DisplayName("Social Worker 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @WithMockUser(roles = "SOCIAL_WORKER")
+    void me_returns200_forSocialWorker() throws Exception {
+        when(userService.getCurrentUser(any())).thenReturn(
+                MeResponse.builder()
+                        .id(3L).email("sw@x.com").fullName("SW")
+                        .roles(List.of("SOCIAL_WORKER"))
+                        .build()
+        );
+
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles[0]").value("SOCIAL_WORKER"));
+    }
+
+    @Test
+    @DisplayName("Manager 调用 GET /api/v1/users/me 返回 200 + 自己的 roles")
+    @WithMockUser(roles = "MANAGER")
+    void me_returns200_forManager() throws Exception {
+        when(userService.getCurrentUser(any())).thenReturn(
+                MeResponse.builder()
+                        .id(1L).email("admin@x.com").fullName("Admin")
+                        .roles(List.of("MANAGER"))
+                        .build()
+        );
+
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles[0]").value("MANAGER"));
+    }
+
+    @Test
+    @DisplayName("匿名（未登录）调用 GET /api/v1/users/me 返回 403")
+    void me_returns403_forAnonymous() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isForbidden());
     }
 }

@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Spin } from 'antd'
 import { AppLayout } from './components/layout/AppLayout'
 import { useAuth } from './contexts/AuthContext'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
@@ -24,7 +25,23 @@ interface RoleProtectedRouteProps {
 }
 
 function RoleProtectedRoute({ allow, children }: RoleProtectedRouteProps) {
-  const { authenticated, hasAnyRole } = useAuth()
+  const { loading, authenticated, hasAnyRole } = useAuth()
+
+  // 初始 /me 还没回来 — 显示全屏 Spin，避免闪一下登录页再跳回。
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <Spin size="large" tip="Loading..." />
+      </div>
+    )
+  }
 
   if (!authenticated) {
     return <Navigate to="/login" replace />

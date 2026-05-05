@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { AxiosError } from 'axios'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   enableTwoFactorInit,
   isAuthenticated,
@@ -25,6 +26,7 @@ type LoginStep = 'credentials' | 'totp' | 'setup' | 'backup-codes'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { refreshUser } = useAuth()
 
   const [step, setStep] = useState<LoginStep>('credentials')
   const [email, setEmail] = useState('')
@@ -73,6 +75,8 @@ export function LoginPage() {
         return
       }
 
+      // 登录成功且无需 2FA — 先拉 /me 填角色，再跳。
+      await refreshUser()
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(normalizeError(error, '登录失败，请检查邮箱和密码后重试。 / Unable to sign in. Please check your email and password.'))
@@ -88,6 +92,7 @@ export function LoginPage() {
 
     try {
       await verifyTwoFactor({ tempToken, code: totpCode })
+      await refreshUser()
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(normalizeError(error, '验证码无效，请重新输入。 / Invalid code. Please try again.'))
@@ -104,6 +109,9 @@ export function LoginPage() {
     try {
       const result = await enableTwoFactorInit({ tempToken, secret: setupSecret, code: setupCode })
       setBackupCodes(result.backupCodes ?? [])
+      // 至此 token 已写入 localStorage（enableTwoFactorInit 内部调了 persistSession），
+      // 提前拉一次 /me — 等用户点完 backup codes 页面的按钮，AuthContext 已就绪。
+      await refreshUser()
       setStep('backup-codes')
     } catch (error) {
       setErrorMessage(normalizeError(error, '验证码不正确，请确认 App 中的代码后重试。 / Incorrect code. Please try again.'))

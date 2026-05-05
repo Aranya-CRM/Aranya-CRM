@@ -1,6 +1,7 @@
 package aranya.crm.service;
 
 import aranya.crm.dto.InviteUserRequest;
+import aranya.crm.dto.MeResponse;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
@@ -8,10 +9,12 @@ import aranya.crm.entity.UserRole;
 import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
+import aranya.crm.security.model.UserPrincipal;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,25 @@ public class UserService {
         return userRepository.findAllWithRoles().stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /**
+     * 当前已认证用户的 profile + roles。
+     * 角色直接从 SecurityContext 的 authorities 解出（去掉 ROLE_ 前缀），
+     * 避免再走一次 DB 查询。
+     */
+    @Transactional(readOnly = true)
+    public MeResponse getCurrentUser(UserPrincipal principal) {
+        List<String> roles = principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(a -> a.startsWith("ROLE_") ? a.substring("ROLE_".length()) : a)
+                .toList();
+        return MeResponse.builder()
+                .id(principal.getId())
+                .email(principal.getEmail())
+                .fullName(principal.getFullName())
+                .roles(roles)
+                .build();
     }
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {
