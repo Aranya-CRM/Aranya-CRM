@@ -38,5 +38,6 @@ spring:
     change-log: classpath:/db/changelog/db.changelog-master.yaml
 
 firebase:
-  service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
+  service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account-dev.json}
+  project-id: ${FIREBASE_PROJECT_ID:aranya-crm-dev}
 

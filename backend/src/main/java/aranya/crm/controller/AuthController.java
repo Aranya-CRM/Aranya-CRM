@@ -4,7 +4,7 @@ package aranya.crm.controller;
 import aranya.crm.dto.LoginRequest;
 import aranya.crm.dto.LoginResponse;
 import aranya.crm.dto.RefreshTokenRequest;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal){
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal FirebaseUserPrincipal principal){
         authService.logout(principal.getId());
         return ResponseEntity.noContent().build();
     }

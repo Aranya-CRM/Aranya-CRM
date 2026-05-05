@@ -2,7 +2,7 @@ package aranya.crm.service;
 
 import aranya.crm.entity.User;
 import aranya.crm.repository.UserRepository;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.security.model.FirebaseUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,6 +33,6 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .map(userRole -> userRole.getRole().getName())
                 .toList();
 
-        return UserPrincipal.of(user, roleNames);
+        return FirebaseUserPrincipal.of(user, roleNames);
     }
 }

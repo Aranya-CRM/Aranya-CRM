@@ -1,7 +1,7 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.*;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.service.AuthService;
 import aranya.crm.service.TwoFactorService;
 import jakarta.validation.Valid;
@@ -20,13 +20,13 @@ public class TwoFactorController {
 
     @GetMapping("/setup")
     public ResponseEntity<TwoFactorSetupResponse> setup(
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal FirebaseUserPrincipal principal) {
         return ResponseEntity.ok(twoFactorService.generateSetup(principal.getEmail()));
     }
 
     @PostMapping("/enable")
     public ResponseEntity<BackupCodesResponse> enable(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @AuthenticationPrincipal FirebaseUserPrincipal principal,
             @Valid @RequestBody TwoFactorEnableRequest request) {
         return ResponseEntity.ok(
                 new BackupCodesResponse(twoFactorService.enableTwoFactor(principal.getId(), request)));
@@ -40,7 +40,7 @@ public class TwoFactorController {
 
     @PostMapping("/disable")
     public ResponseEntity<Void> disable(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @AuthenticationPrincipal FirebaseUserPrincipal principal,
             @Valid @RequestBody TwoFactorDisableRequest request) {
         twoFactorService.disableTwoFactor(principal.getId(), request);
         return ResponseEntity.noContent().build();
@@ -48,7 +48,7 @@ public class TwoFactorController {
 
     @PostMapping("/backup-codes")
     public ResponseEntity<BackupCodesResponse> regenerateBackupCodes(
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal FirebaseUserPrincipal principal) {
         return ResponseEntity.ok(
                 new BackupCodesResponse(twoFactorService.regenerateBackupCodes(principal.getId())));
     }

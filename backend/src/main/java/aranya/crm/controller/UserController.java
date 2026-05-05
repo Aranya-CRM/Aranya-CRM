@@ -4,7 +4,7 @@ import aranya.crm.dto.InviteUserRequest;
 import aranya.crm.dto.UpdateRolesRequest;
 import aranya.crm.dto.UpdateUserStatusRequest;
 import aranya.crm.dto.UserSummaryDto;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,14 +37,14 @@ public class UserController {
 
     @PostMapping("/invite")
     public ResponseEntity<UserSummaryDto> invite(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @AuthenticationPrincipal FirebaseUserPrincipal principal,
             @Valid @RequestBody InviteUserRequest request) {
         return ResponseEntity.ok(userService.invite(request, principal.getId()));
     }
 
     @PatchMapping("/{id}/roles")
     public ResponseEntity<UserSummaryDto> updateRoles(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @AuthenticationPrincipal FirebaseUserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody UpdateRolesRequest request) {
         return ResponseEntity.ok(userService.updateRoles(id, request.getRoles(), principal.getId()));

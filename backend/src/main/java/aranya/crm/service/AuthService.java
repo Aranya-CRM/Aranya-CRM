@@ -7,7 +7,7 @@ import aranya.crm.entity.RefreshToken;
 import aranya.crm.entity.User;
 import aranya.crm.repository.RefreshTokenRepository;
 import aranya.crm.repository.UserRepository;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.security.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +48,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest loginRequest) {
         Authentication authentication = authenticate(loginRequest.getEmail(),loginRequest.getPassword());
 
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        FirebaseUserPrincipal principal = (FirebaseUserPrincipal) authentication.getPrincipal();
 
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
@@ -69,7 +68,7 @@ public class AuthService {
     @Transactional
     public LoginResponse initEnableTwoFactor(TwoFactorInitEnableRequest request) {
         String email = jwtUtil.extractEmailFromTempToken(request.getTempToken());
-        UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(email);
+        FirebaseUserPrincipal principal = (FirebaseUserPrincipal) userDetailsService.loadUserByUsername(email);
 
         TwoFactorEnableRequest enableRequest = new TwoFactorEnableRequest();
         enableRequest.setSecret(request.getSecret());
@@ -113,7 +112,7 @@ public class AuthService {
         refreshTokenRepository.save(storedToken);
 
         String email = jwtUtil.extractEmail(refreshToken);
-        UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(email);
+        FirebaseUserPrincipal principal = (FirebaseUserPrincipal) userDetailsService.loadUserByUsername(email);
 
         String newAccessToken = jwtUtil.generateAccessToken(principal);
         String newRefreshToken = jwtUtil.generateRefreshToken(principal);
@@ -148,7 +147,7 @@ public class AuthService {
         }
     }
 
-    private LoginResponse buildLoginResponse(String accessToken, String refreshToken, UserPrincipal principal) {
+    private LoginResponse buildLoginResponse(String accessToken, String refreshToken, FirebaseUserPrincipal principal) {
         List<String> roles = principal.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .map(a -> a.startsWith("ROLE_") ? a.substring("ROLE_".length()) : a)

@@ -20,3 +20,7 @@ logging:
   level:
     aranya.crm: DEBUG
     org.springframework.security: DEBUG
+
+firebase:
+  service-account-path: classpath:firebase-service-account-dev.json
+  project-id: aranya-crm-dev
