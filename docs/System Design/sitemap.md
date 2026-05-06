@@ -136,7 +136,8 @@ If `canRoute(item.routeId)` is false, the frontend hides that sidebar item and b
 | reports.create | May create reports |
 | reports.view.own | May view own reports |
 | reports.view.all | May view all reports |
-| reports.update | May edit reports |
+| reports.update.own | May edit own reports |
+| reports.update.any | May edit any report |
 | reports.delete | May delete reports |
 | reports.approveArchive | May approve/archive reports |
 
@@ -146,6 +147,11 @@ If `canRoute(item.routeId)` is false, the frontend hides that sidebar item and b
 |---|---|
 | users.invite | May invite users |
 | users.assignRoles | May assign access groups |
+| users.stats.view | May view user stats |
+| users.create | May create users |
+| users.update | May update users |
+| users.activateDeactivate | May activate or deactivate users |
+| users.delete | May delete users |
 
 ### Alerts
 
@@ -162,7 +168,7 @@ If `canRoute(item.routeId)` is false, the frontend hides that sidebar item and b
 | dashboard.recentReports | Show recent reports widget |
 | dashboard.totalClients | Show total clients stat |
 | dashboard.activeCases | Show active cases stat |
-| dashboard.pendingVisits | Show pending visits stat |
+| dashboard.pendingReports | Show pending reports stat |
 | dashboard.urgentCases | Show urgent cases stat |
 | dashboard.upcomingAppointments | Show upcoming appointments widget |
 
@@ -175,18 +181,15 @@ Role names are backend/database details. They are listed here only for system de
 Routes:
 
 - dashboard
-- clients.list
-- clients.detail
 - reports.list
 - reports.create
 
 Features:
 
 - dashboard.view
-- clients.search
-- clients.view.basic
 - reports.create
 - reports.view.own
+- reports.update.own
 
 Widgets:
 
@@ -200,6 +203,7 @@ Routes:
 
 - dashboard
 - clients.list
+- clients.create
 - clients.detail
 - clients.edit
 - cases.list
@@ -213,6 +217,7 @@ Features:
 - dashboard.view
 - clients.search
 - clients.view.full
+- clients.create
 - clients.update
 - clients.contacts.link
 - cases.view
@@ -223,19 +228,17 @@ Features:
 - cases.documents.uploadEdit
 - reports.create
 - reports.view.all
-- reports.update
-- reports.delete
+- reports.update.any
 - alerts.receiveUrgent
 
 Widgets:
 
 - dashboard.totalClients
 - dashboard.activeCases
-- dashboard.pendingVisits
+- dashboard.pendingReports
 - dashboard.myReports
 - dashboard.pendingTasks
 - dashboard.recentReports
-- dashboard.upcomingAppointments
 
 ### Manager
 
@@ -273,23 +276,26 @@ Features:
 - cases.audit
 - reports.create
 - reports.view.all
-- reports.update
 - reports.delete
 - reports.approveArchive
 - alerts.receiveUrgent
 - users.invite
 - users.assignRoles
+- users.stats.view
+- users.create
+- users.update
+- users.activateDeactivate
+- users.delete
 
 Widgets:
 
 - dashboard.totalClients
 - dashboard.activeCases
-- dashboard.pendingVisits
+- dashboard.pendingReports
 - dashboard.urgentCases
 - dashboard.myReports
 - dashboard.pendingTasks
 - dashboard.recentReports
-- dashboard.upcomingAppointments
 
 ## Page Data APIs
 
