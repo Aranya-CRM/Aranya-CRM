@@ -13,12 +13,34 @@ Thumbs.db
 # Logs
 *.log
 logs/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.firebase/
 
 # Environment / local config
 .env
 .env.*
 !.env.example
-./infra/docker/.env
+.envrc
+infra/docker/.env
+**/application-local.yml
+**/application-local.yaml
+**/application-*.local.yml
+**/application-*.local.yaml
+
+# Secrets / credentials
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+*service-account*.json
+*serviceAccount*.json
+*google-application-credentials*.json
+backend/src/main/resources/firebase-service-account-*.json
+firebase-service-account-*.json
 
 # Java / Maven (backend)
 backend/target/

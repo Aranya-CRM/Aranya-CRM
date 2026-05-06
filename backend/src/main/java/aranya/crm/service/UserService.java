@@ -9,13 +9,11 @@ import aranya.crm.entity.UserRole;
 import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
-import aranya.crm.security.model.UserPrincipal;
 import com.google.firebase.auth.FirebaseToken;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +57,7 @@ public class UserService {
     public User syncFromFirebase(User user, FirebaseToken token){
         boolean changed = false;
 
-        if (token.isEmailVerified() !=user.getEmailVerified()){
+        if (token.isEmailVerified() != user.isEmailVerified()){
             user.setEmailVerified(token.isEmailVerified());
             changed = true;
         }
@@ -77,7 +75,7 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<User> findByFirebasedUidWithRoles(String firebaseUid) {
+    public Optional<User> findByFirebaseUidWithRoles(String firebaseUid) {
         return userRepository.findByFirebaseUidWithRoles(firebaseUid);
     }
     /**

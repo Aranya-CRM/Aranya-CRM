@@ -39,9 +39,27 @@ build/
 
 ### ENV ###
 .env
+.env.*
+!.env.example
+.envrc
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-*.local.yml
+src/main/resources/application-*.local.yaml
 
 ### Firebase service account ###
 src/main/resources/firebase-service-account-*.json
 firebase-service-account-*.json
 
 ../firebase-service-account-*.json
+
+### Secrets / credentials ###
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+*service-account*.json
+*serviceAccount*.json
+*google-application-credentials*.json

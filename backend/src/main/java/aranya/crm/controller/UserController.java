@@ -1,19 +1,16 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.request.InviteUserRequest;
-import aranya.crm.dto.response.MeResponse;
 import aranya.crm.dto.request.UpdateRolesRequest;
 import aranya.crm.dto.request.UpdateUserStatusRequest;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.entity.User;
 import aranya.crm.security.annotation.CurrentUser;
-import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,7 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-// @PreAuthorize("hasRole('MANAGER')")
+@PreAuthorize("hasRole('MANAGER')")
 public class UserController {
 
     private final UserService userService;

@@ -20,12 +20,13 @@ databaseChangeLog:
 
         - sql:
             sql: >
-              INSERT INTO users (username, full_name, email, password_hash, status)
+              INSERT INTO users (firebase_uid, username, full_name, email, email_verified, status)
               VALUES (
+                'dev-admin-firebase-uid',
                 'admin',
                 'Admin User',
                 'admin@test.com',
-                crypt('password', gen_salt('bf', 10)),
+                true,
                 'ACTIVE'
               );
 

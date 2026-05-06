@@ -1,7 +1,7 @@
 package aranya.crm.security.filter;
 
+import aranya.crm.common.dto.ApiErrorResponse;
 import aranya.crm.entity.User;
-import aranya.crm.security.model.FirebaseUserPrincipal;
 import aranya.crm.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.auth.FirebaseAuth;
@@ -15,14 +15,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +46,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
     private final UserService userService;
 
     @Override
@@ -93,14 +91,14 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             }
 
             // 通过验证后拿到 Firebase UID,在本地数据库查找对应用户和用户角色信息
-            User user = userService.findByFirebasedUidWithRoles(uid)
+            User user = userService.findByFirebaseUidWithRoles(uid)
                     .orElse(null);
 
             if (user == null) {
                 log.warn("Firebase user {} not registered in local database",uid);
                 writeErrorResponse(response,request,HttpServletResponse.SC_FORBIDDEN,
-                        "USER_NOT_REGISTRED",
-                        "user not registerd in this system");
+                        "USER_NOT_REGISTERED",
+                        "user not registered in this system");
                 return;
             }
 
@@ -145,5 +143,8 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
+
+        ApiErrorResponse body = ApiErrorResponse.of(code,message,request.getRequestURI());
+        objectMapper.writeValue(response.getWriter(), body);
     }
 }

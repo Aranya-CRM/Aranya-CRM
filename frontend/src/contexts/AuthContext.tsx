@@ -8,15 +8,15 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  clearSession,
-  getAccessToken,
+  logoutFirebase,
+  subscribeFirebaseAuth,
 } from '../services/auth'
 import { getCurrentUser, type MeResponse } from '../services/user.api'
 import { getUiManifest } from '../services/uiManifest.api'
 import type { UiManifest } from '../types/uiManifest'
 
 interface AuthContextValue {
-  /** True while the initial session + UI manifest fetch is in flight. */
+  /** True while the Firebase session + backend profile check is in flight. */
   loading: boolean
   authenticated: boolean
   user: MeResponse | null
@@ -24,9 +24,9 @@ interface AuthContextValue {
   canRoute: (routeId: string) => boolean
   canFeature: (featureId: string) => boolean
   canWidget: (widgetId: string) => boolean
-  /** Re-fetch profile + UI manifest. Call this after a successful login flow completes. */
+  /** Re-fetch profile + UI manifest. Call this after a successful Firebase login flow completes. */
   refreshUser: () => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -37,11 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [manifest, setManifest] = useState<UiManifest | null>(null)
 
   const refreshUser = useCallback(async () => {
-    if (!getAccessToken()) {
-      setUser(null)
-      setManifest(null)
-      return
-    }
     try {
       const [me, uiManifest] = await Promise.all([
         getCurrentUser(),
@@ -50,16 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(me)
       setManifest(uiManifest)
     } catch {
-      // Token invalid / expired / network failure — drop session so the user
-      // gets bounced to the login page on the next protected-route render.
-      clearSession()
       setUser(null)
       setManifest(null)
     }
   }, [])
 
   useEffect(() => {
-    void refreshUser().finally(() => setLoading(false))
+    return subscribeFirebaseAuth((firebaseUser) => {
+      setLoading(true)
+
+      if (!firebaseUser) {
+        setUser(null)
+        setManifest(null)
+        setLoading(false)
+        return
+      }
+
+      void refreshUser().finally(() => setLoading(false))
+    })
   }, [refreshUser])
 
   const value = useMemo<AuthContextValue>(() => {
@@ -76,8 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canFeature,
       canWidget,
       refreshUser,
-      logout: () => {
-        clearSession()
+      logout: async () => {
+        await logoutFirebase()
         setUser(null)
         setManifest(null)
         window.location.href = '/login'

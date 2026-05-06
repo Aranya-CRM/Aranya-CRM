@@ -9,9 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
-
 /**
  * 认证测试接口。
  * GET /api/auth/me 返回当前认证用户的信息(从 Firebase Token 中提取)。

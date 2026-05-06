@@ -5,7 +5,6 @@ import aranya.crm.dto.request.LoginRequest;
 import aranya.crm.dto.response.LoginResponse;
 import aranya.crm.entity.User;
 import aranya.crm.repository.UserRepository;
-import aranya.crm.security.model.FirebaseUserPrincipal;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
