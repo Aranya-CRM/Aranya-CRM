@@ -1,31 +1,29 @@
 package aranya.crm.security.filter;
 
+import aranya.crm.entity.User;
 import aranya.crm.security.model.FirebaseUserPrincipal;
-import aranya.crm.security.util.JwtUtil;
-import aranya.crm.service.CustomUserDetailsService;
+import aranya.crm.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 
@@ -51,6 +49,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final UserService userService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -93,13 +92,39 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            FirebaseUserPrincipal principal = new FirebaseUserPrincipal(
-                    uid,email,emailVerified,signInProvider,secondFactor
-            );
+            // 通过验证后拿到 Firebase UID,在本地数据库查找对应用户和用户角色信息
+            User user = userService.findByFirebasedUidWithRoles(uid)
+                    .orElse(null);
 
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    principal,null, Collections.emptyList()
-            );
+            if (user == null) {
+                log.warn("Firebase user {} not registered in local database",uid);
+                writeErrorResponse(response,request,HttpServletResponse.SC_FORBIDDEN,
+                        "USER_NOT_REGISTRED",
+                        "user not registerd in this system");
+                return;
+            }
+
+            if(!user.getStatus().equals("ACTIVE")) {
+                log.warn("User {} is disabled",uid);
+                writeErrorResponse(response,request,HttpServletResponse.SC_FORBIDDEN,
+                        "USER_DISABLED","Your account has been disabled");
+                return;
+            }
+
+            user = userService.syncFromFirebase(user,decodedToken);
+
+            List<SimpleGrantedAuthority> authorities = user.getUserRoles().stream()
+                    .map(userRole -> userRole.getRole().getName())
+                    .map(roleName -> "ROLE_" + roleName) // Spring Security 角色前缀
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            authorities
+                    );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }catch (FirebaseAuthException e){
@@ -117,6 +142,8 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                                     int status,
                                     String code,
                                     String message) throws IOException {
-
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
     }
 }

@@ -1,4 +1,4 @@
-package aranya.crm.security.util;
+package aranya.crm.security.annotation;
 
 import aranya.crm.config.AppProperties;
 import org.junit.jupiter.api.*;

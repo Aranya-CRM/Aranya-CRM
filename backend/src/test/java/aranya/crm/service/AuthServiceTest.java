@@ -1,14 +1,11 @@
 package aranya.crm.service;
 
 import aranya.crm.config.AppProperties;
-import aranya.crm.dto.LoginRequest;
-import aranya.crm.dto.LoginResponse;
-import aranya.crm.entity.RefreshToken;
+import aranya.crm.dto.request.LoginRequest;
+import aranya.crm.dto.response.LoginResponse;
 import aranya.crm.entity.User;
-import aranya.crm.repository.RefreshTokenRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.security.model.FirebaseUserPrincipal;
-import aranya.crm.security.util.JwtUtil;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

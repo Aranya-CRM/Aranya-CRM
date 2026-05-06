@@ -15,6 +15,12 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
+                  name: firebase_uid
+                  type: VARCHAR(128)
+                  constraints:
+                    unique: true
+                    nullable: false
+              - column:
                   name: username
                   type: VARCHAR(50)
                   constraints:
@@ -32,17 +38,35 @@ databaseChangeLog:
                     nullable: false
                     unique: true
               - column:
-                  name: phone
-                  type: VARCHAR(20)
-              - column:
-                  name: password_hash
-                  type: VARCHAR(255)
+                  name: email_verified
+                  type: BOOLEAN
+                  defaultValueBoolean: false
                   constraints:
                     nullable: false
+              - column:
+                  name: phone
+                  type: VARCHAR(20)
+#              - column:
+#                  name: password_hash
+#                  type: VARCHAR(255)
+#                  constraints:
+#                    nullable: false
               - column:
                   name: status
                   type: VARCHAR(20)
                   defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: JAVA.SQL.Types.TIMESTAMP_WITH_TIMEZONE
+                  defaultValue: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: JAVA.SQL.TYPES.TIMESTAMP_WITH_TIMEZONE
+                  defaultValueComputed: NOW()
                   constraints:
                     nullable: false
         - createIndex:

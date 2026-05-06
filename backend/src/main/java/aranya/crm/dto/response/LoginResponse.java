@@ -1,4 +1,4 @@
-package aranya.crm.dto;
+package aranya.crm.dto.response;
 
 import lombok.Builder;
 import lombok.Data;

@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.env
+
+# Firebase service account credentials must be provided at runtime, not baked into images.
+src/main/resources/firebase-service-account-*.json
+firebase-service-account-*.json

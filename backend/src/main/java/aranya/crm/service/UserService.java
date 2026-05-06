@@ -1,7 +1,7 @@
 package aranya.crm.service;
 
-import aranya.crm.dto.InviteUserRequest;
-import aranya.crm.dto.MeResponse;
+import aranya.crm.dto.request.InviteUserRequest;
+import aranya.crm.dto.response.MeResponse;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
@@ -10,6 +10,7 @@ import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
 import aranya.crm.security.model.UserPrincipal;
+import com.google.firebase.auth.FirebaseToken;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -37,7 +39,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public List<UserSummaryDto> listUsers() {
@@ -46,16 +47,49 @@ public class UserService {
                 .toList();
     }
 
+    public Optional<User> findByFirebaseUid(String firebaseUid) {
+        return userRepository.findByFirebaseUid(firebaseUid);
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    @Transactional
+    public User syncFromFirebase(User user, FirebaseToken token){
+        boolean changed = false;
+
+        if (token.isEmailVerified() !=user.getEmailVerified()){
+            user.setEmailVerified(token.isEmailVerified());
+            changed = true;
+        }
+
+        String tokenName = token.getName();
+        if (tokenName != null && !tokenName.equals(user.getFullName())){
+            user.setFullName(tokenName);
+            changed = true;
+        }
+
+        if (changed){
+            return userRepository.save(user);
+        }
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<User> findByFirebasedUidWithRoles(String firebaseUid) {
+        return userRepository.findByFirebaseUidWithRoles(firebaseUid);
+    }
     /**
      * 当前已认证用户的基础 profile。
      * UI 渲染权限由 /ui/manifest 单独返回，/me 不暴露角色信息。
      */
     @Transactional(readOnly = true)
-    public MeResponse getCurrentUser(UserPrincipal principal) {
+    public MeResponse getCurrentUser(User user) {
         return MeResponse.builder()
-                .id(principal.getId())
-                .email(principal.getEmail())
-                .fullName(principal.getFullName())
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
                 .build();
     }
 
@@ -74,7 +108,6 @@ public class UserService {
         user.setFullName(request.getFullName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        user.setPasswordHash(passwordEncoder.encode(tempPassword));
         user.setStatus("ACTIVE");
         userRepository.save(user);
 

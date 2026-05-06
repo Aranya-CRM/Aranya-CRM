@@ -21,6 +21,14 @@ public interface UserRepository extends JpaRepository<User,Long> {
             SELECT DISTINCT u FROM User u
             LEFT JOIN FETCH u.userRoles ur
             LEFT JOIN FETCH ur.role
+            WHERE u.firebaseUid = :firebaseUid
+            """)
+    Optional<User> findByFirebaseUidWithRoles(@Param("firebaseUid") String firebaseUid);
+
+    @Query("""
+            SELECT DISTINCT u FROM User u
+            LEFT JOIN FETCH u.userRoles ur
+            LEFT JOIN FETCH ur.role
             ORDER BY u.id
             """)
     List<User> findAllWithRoles();
@@ -32,6 +40,10 @@ public interface UserRepository extends JpaRepository<User,Long> {
             WHERE u.id = :id
             """)
     Optional<User> findByIdWithRoles(@Param("id") Long id);
+
+    Optional<User> findByFirebaseUid(String firebaseUid);
+
+    Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
 

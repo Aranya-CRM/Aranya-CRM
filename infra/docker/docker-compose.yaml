@@ -35,9 +35,17 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aranya_crm
       SPRING_DATASOURCE_USERNAME: aranya_admin
       SPRING_DATASOURCE_PASSWORD: aranya_secret
+      FIREBASE_SERVICE_ACCOUNT_PATH: file:/run/secrets/firebase-service-account-dev.json
       TZ: Asia/Singapore
     ports:
       - "8080:8080"
+    volumes:
+      - type: bind
+        source: ../../backend/src/main/resources/firebase-service-account-dev.json
+        target: /run/secrets/firebase-service-account-dev.json
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +69,7 @@ services:
 
 volumes:
   aranya_crm_data:
+
+networks:
+  aranya_network:
+    driver: bridge
