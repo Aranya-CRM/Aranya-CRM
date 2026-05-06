@@ -14,7 +14,6 @@ public class LoginResponse {
     private long expiresIn;
     private String email;
     private String fullName;
-    private List<String> roles;
     private Boolean requiresTwoFactor;
     private Boolean requiresTwoFactorSetup;
     private String tempToken;

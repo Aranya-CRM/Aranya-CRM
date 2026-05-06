@@ -1,6 +1,7 @@
 package aranya.crm.service;
 
 import aranya.crm.dto.InviteUserRequest;
+import aranya.crm.dto.MeResponse;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
@@ -8,6 +9,7 @@ import aranya.crm.entity.UserRole;
 import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
+import aranya.crm.security.model.UserPrincipal;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +44,19 @@ public class UserService {
         return userRepository.findAllWithRoles().stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /**
+     * 当前已认证用户的基础 profile。
+     * UI 渲染权限由 /ui/manifest 单独返回，/me 不暴露角色信息。
+     */
+    @Transactional(readOnly = true)
+    public MeResponse getCurrentUser(UserPrincipal principal) {
+        return MeResponse.builder()
+                .id(principal.getId())
+                .email(principal.getEmail())
+                .fullName(principal.getFullName())
+                .build();
     }
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {

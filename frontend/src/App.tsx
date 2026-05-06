@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Spin } from 'antd'
 import { AppLayout } from './components/layout/AppLayout'
 import { useAuth } from './contexts/AuthContext'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
@@ -12,34 +13,53 @@ import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { LoginPage } from './pages/login/LoginPage'
 import { ReportFormPage } from './pages/reports/ReportFormPage'
 import { ReportListPage } from './pages/reports/ReportListPage'
-import type { UserRole } from './services/auth'
 
-interface RoleProtectedRouteProps {
-  /**
-   * If provided, only users whose role is in this list can enter the route.
-   * Omit to require authentication only.
-   */
-  allow?: UserRole[]
+interface ManifestProtectedRouteProps {
+  routeId: string
   children: ReactNode
 }
 
-function RoleProtectedRoute({ allow, children }: RoleProtectedRouteProps) {
-  const { authenticated, hasAnyRole } = useAuth()
+function ManifestProtectedRoute({ routeId, children }: ManifestProtectedRouteProps) {
+  const { loading, authenticated, canRoute } = useAuth()
+
+  // 初始 profile + manifest 还没回来 — 显示全屏 Spin，避免闪一下登录页再跳回。
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <Spin size="large" tip="Loading..." />
+      </div>
+    )
+  }
 
   if (!authenticated) {
     return <Navigate to="/login" replace />
   }
 
-  if (allow && allow.length > 0 && !hasAnyRole(...allow)) {
-    // 角色不匹配 — 退到 Dashboard（所有角色都能进）。
+  if (!canRoute(routeId)) {
+    // 当前 capability 清单没有返回这个 route — 退到 Dashboard。
     return <Navigate to="/dashboard" replace />
   }
 
   return <AppLayout>{children}</AppLayout>
 }
 
-const ALL_AUTHED: UserRole[] = ['VOLUNTEER', 'SOCIAL_WORKER', 'MANAGER']
-const SW_OR_MANAGER: UserRole[] = ['SOCIAL_WORKER', 'MANAGER']
+function UsersPlaceholderPage() {
+  return (
+    <>
+      <h2 className="page-title">用户管理</h2>
+      <div className="page-subtitle">User Management</div>
+      <div className="desc-zh">用户管理页面将在后续步骤实现。</div>
+      <div className="desc-en">This page will be implemented in a later step.</div>
+    </>
+  )
+}
 
 function App() {
   return (
@@ -47,91 +67,99 @@ function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Dashboard — 所有登录用户 */}
+      {/* Dashboard */}
       <Route
         path="/dashboard"
         element={
-          <RoleProtectedRoute allow={ALL_AUTHED}>
+          <ManifestProtectedRoute routeId="dashboard">
             <DashboardPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
 
-      {/* Clients — 列表 / 详情：所有角色（Volunteer 看基本视图）；新建 / 编辑：SW + Manager */}
+      {/* Clients */}
       <Route
         path="/clients"
         element={
-          <RoleProtectedRoute allow={ALL_AUTHED}>
+          <ManifestProtectedRoute routeId="clients.list">
             <ClientListPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/clients/new"
         element={
-          <RoleProtectedRoute allow={SW_OR_MANAGER}>
+          <ManifestProtectedRoute routeId="clients.create">
             <ClientFormPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/clients/:id"
         element={
-          <RoleProtectedRoute allow={ALL_AUTHED}>
+          <ManifestProtectedRoute routeId="clients.detail">
             <ClientDetailPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/clients/:id/edit"
         element={
-          <RoleProtectedRoute allow={SW_OR_MANAGER}>
+          <ManifestProtectedRoute routeId="clients.edit">
             <ClientFormPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
 
-      {/* Cases — SW + Manager only（Volunteer 在 sidebar 看不到，直接访问被重定向） */}
+      {/* Cases */}
       <Route
         path="/cases"
         element={
-          <RoleProtectedRoute allow={SW_OR_MANAGER}>
+          <ManifestProtectedRoute routeId="cases.list">
             <CaseListPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/cases/new"
         element={
-          <RoleProtectedRoute allow={SW_OR_MANAGER}>
+          <ManifestProtectedRoute routeId="cases.create">
             <CaseFormPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/cases/:id"
         element={
-          <RoleProtectedRoute allow={SW_OR_MANAGER}>
+          <ManifestProtectedRoute routeId="cases.detail">
             <CaseDetailPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
 
-      {/* Reports — 所有角色 */}
+      {/* Reports */}
       <Route
         path="/reports"
         element={
-          <RoleProtectedRoute allow={ALL_AUTHED}>
+          <ManifestProtectedRoute routeId="reports.list">
             <ReportListPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
         }
       />
       <Route
         path="/reports/new"
         element={
-          <RoleProtectedRoute allow={ALL_AUTHED}>
+          <ManifestProtectedRoute routeId="reports.create">
             <ReportFormPage />
-          </RoleProtectedRoute>
+          </ManifestProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ManifestProtectedRoute routeId="users.list">
+            <UsersPlaceholderPage />
+          </ManifestProtectedRoute>
         }
       />
     </Routes>

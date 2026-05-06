@@ -1,6 +1,7 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.InviteUserRequest;
+import aranya.crm.dto.MeResponse;
 import aranya.crm.dto.UpdateRolesRequest;
 import aranya.crm.dto.UpdateUserStatusRequest;
 import aranya.crm.dto.UserSummaryDto;
@@ -29,6 +30,18 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+
+    /**
+     * 当前已认证用户的角色信息。
+     * 显式覆盖类级别 hasRole('MANAGER') —— 任何已认证用户都能调用 /me。
+     * 这是前端 AuthContext 在初始化和登录后获取角色的入口。
+     */
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MeResponse> getCurrentUser(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(userService.getCurrentUser(principal));
+    }
 
     @GetMapping
     public ResponseEntity<List<UserSummaryDto>> list() {

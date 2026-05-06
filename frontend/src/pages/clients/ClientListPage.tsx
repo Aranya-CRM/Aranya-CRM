@@ -11,13 +11,15 @@ function MembershipBadge({ status }: { status: Client['membershipStatus'] }) {
 }
 
 export function ClientListPage() {
-  const { isSocialWorker } = useAuth()
+  const { canFeature } = useAuth()
   const navigate = useNavigate()
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const canCreateClient = canFeature('clients.create')
+  const canUpdateClient = canFeature('clients.update')
 
   useEffect(() => {
     let active = true
@@ -84,7 +86,7 @@ export function ClientListPage() {
           <option value="Mahayana">Mahayana</option>
           <option value="Vajrayana">Vajrayana</option>
         </select>
-        {isSocialWorker && (
+        {canCreateClient && (
           <div className="toolbar-right">
             <button
               className="btn-primary"
@@ -148,10 +150,10 @@ export function ClientListPage() {
                           type="button"
                           onClick={() => navigate(`/clients/${c.id}`)}
                         >
-                          <span className="cell-zh">{isSocialWorker ? '查看档案' : '查看信息'}</span>
-                          <span className="cell-en">{isSocialWorker ? 'View Profile' : 'View Info'}</span>
+                          <span className="cell-zh">{canUpdateClient ? '查看档案' : '查看信息'}</span>
+                          <span className="cell-en">{canUpdateClient ? 'View Profile' : 'View Info'}</span>
                         </button>
-                        {isSocialWorker && (
+                        {canUpdateClient && (
                           <button
                             className="action-link"
                             type="button"

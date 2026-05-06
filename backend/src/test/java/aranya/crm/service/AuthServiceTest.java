@@ -73,8 +73,8 @@ class AuthServiceTest {
 
     @Test
     @Order(1)
-    @DisplayName("登录成功返回 Token 对")
-    void login_ShouldReturnTokens_WhenCredentialsAreValid() {
+    @DisplayName("登录成功（未绑 2FA）返回 tempToken，要求进入 2FA 绑定流程")
+    void login_ShouldReturnTempToken_WhenCredentialsValidAnd2FaSetupNeeded() {
         // Arrange
         LoginRequest request = new LoginRequest();
         request.setEmail("admin@test.com");
@@ -84,42 +84,20 @@ class AuthServiceTest {
                 new UsernamePasswordAuthenticationToken(mockPrincipal, null, mockPrincipal.getAuthorities());
 
         when(authenticationManager.authenticate(any())).thenReturn(authToken);
-        when(jwtUtil.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken(any())).thenReturn("refresh-token");
-        when(userRepository.getReferenceById(1L)).thenReturn(mockUser);
+        when(jwtUtil.generateTempToken(any())).thenReturn("temp-token");
 
         // Act
         LoginResponse response = authService.login(request);
 
-        // Assert
-        assertThat(response.getAccessToken()).isEqualTo("access-token");
-        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
-        assertThat(response.getEmail()).isEqualTo("admin@test.com");
-        assertThat(response.getTokenType()).isEqualTo("Bearer");
-        verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
-    }
-
-    @Test
-    @Order(1)
-    @DisplayName("登录成功的 LoginResponse 携带角色列表")
-    void login_ShouldIncludeRoles_InResponse() {
-        LoginRequest request = new LoginRequest();
-        request.setEmail("admin@test.com");
-        request.setPassword("password");
-
-        UsernamePasswordAuthenticationToken authToken =
-                new UsernamePasswordAuthenticationToken(mockPrincipal, null, mockPrincipal.getAuthorities());
-
-        when(authenticationManager.authenticate(any())).thenReturn(authToken);
-        when(jwtUtil.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken(any())).thenReturn("refresh-token");
-        when(userRepository.getReferenceById(1L)).thenReturn(mockUser);
-
-        LoginResponse response = authService.login(request);
-
-        // mockPrincipal 在 setUp 里挂的是 ADMIN，UserPrincipal 会自动加 ROLE_ 前缀；
-        // buildLoginResponse 应去掉前缀，只回传裸 role 名
-        assertThat(response.getRoles()).containsExactly("ADMIN");
+        // Assert：
+        // mockPrincipal 默认未开 2FA → AuthService.login() 走 "2FA setup required" 分支，
+        // 返回 tempToken（不直接发 access/refresh）。真实 token 等用户绑完 2FA 后才下发。
+        assertThat(response.getRequiresTwoFactorSetup()).isTrue();
+        assertThat(response.getTempToken()).isEqualTo("temp-token");
+        assertThat(response.getAccessToken()).isNull();
+        assertThat(response.getRefreshToken()).isNull();
+        // login() 不应在 2FA 完成前持久化 refresh token
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
     }
 
     @Test
