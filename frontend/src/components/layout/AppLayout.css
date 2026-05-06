@@ -192,33 +192,6 @@
   color: var(--text-normal);
 }
 
-.topbar-role-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.role-social_worker {
-  background: #e8e8e8;
-  color: #333333;
-  border: 1px solid #cccccc;
-}
-
-.role-volunteer {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
-}
-
-.role-manager {
-  background: #ede9fe;
-  color: #5b21b6;
-  border: 1px solid #ddd6fe;
-}
-
 .logout-btn {
   display: inline-flex;
   align-items: center;

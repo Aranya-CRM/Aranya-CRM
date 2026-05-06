@@ -29,16 +29,16 @@ interface TabDef {
   id: TabId
   zh: string
   en: string
-  swOnly?: boolean
+  detailOnly?: boolean
 }
 
 const TABS: TabDef[] = [
   { id: 'basic', zh: '基本信息', en: 'Basic Info' },
-  { id: 'identity', zh: '身份文件', en: 'Identity', swOnly: true },
-  { id: 'personal', zh: '个人信息', en: 'Personal', swOnly: true },
-  { id: 'ordination', zh: '受戒历史', en: 'Ordination', swOnly: true },
-  { id: 'wellbeing', zh: '健康评估', en: 'Wellbeing', swOnly: true },
-  { id: 'cases', zh: '关联个案', en: 'Cases', swOnly: true },
+  { id: 'identity', zh: '身份文件', en: 'Identity', detailOnly: true },
+  { id: 'personal', zh: '个人信息', en: 'Personal', detailOnly: true },
+  { id: 'ordination', zh: '受戒历史', en: 'Ordination', detailOnly: true },
+  { id: 'wellbeing', zh: '健康评估', en: 'Wellbeing', detailOnly: true },
+  { id: 'cases', zh: '关联个案', en: 'Cases', detailOnly: true },
 ]
 
 function InfoItem({ label, value }: { label: string; value: string | number | boolean | undefined }) {
@@ -197,7 +197,7 @@ function CasesTab({ clientId }: { clientId: string }) {
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { isSocialWorker } = useAuth()
+  const { canFeature } = useAuth()
   const navigate = useNavigate()
   const [client, setClient] = useState<Client>()
   const [loading, setLoading] = useState(true)
@@ -220,7 +220,9 @@ export function ClientDetailPage() {
     return () => { active = false }
   }, [id])
 
-  const visibleTabs = isSocialWorker ? TABS : TABS.filter((t) => !t.swOnly)
+  const canViewDetailedProfile = canFeature('clients.view.full')
+  const canUpdateClient = canFeature('clients.update')
+  const visibleTabs = canViewDetailedProfile ? TABS : TABS.filter((t) => !t.detailOnly)
 
   if (loading) {
     return (
@@ -257,7 +259,7 @@ export function ClientDetailPage() {
             {client.membershipStatus}
           </span>
         </div>
-        {isSocialWorker && (
+        {canUpdateClient && (
           <button className="btn-primary" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
             编辑 / Edit
           </button>
@@ -278,15 +280,15 @@ export function ClientDetailPage() {
       </div>
 
       {activeTab === 'basic' && <BasicTab client={client} />}
-      {activeTab === 'identity' && isSocialWorker && <IdentityTab client={client} />}
-      {activeTab === 'personal' && isSocialWorker && <PersonalTab client={client} />}
-      {activeTab === 'ordination' && isSocialWorker && <OrdinationTab client={client} />}
-      {activeTab === 'wellbeing' && isSocialWorker && <WellbeingTab client={client} />}
-      {activeTab === 'cases' && isSocialWorker && <CasesTab clientId={client.id} />}
+      {activeTab === 'identity' && canViewDetailedProfile && <IdentityTab client={client} />}
+      {activeTab === 'personal' && canViewDetailedProfile && <PersonalTab client={client} />}
+      {activeTab === 'ordination' && canViewDetailedProfile && <OrdinationTab client={client} />}
+      {activeTab === 'wellbeing' && canViewDetailedProfile && <WellbeingTab client={client} />}
+      {activeTab === 'cases' && canViewDetailedProfile && <CasesTab clientId={client.id} />}
 
-      {!isSocialWorker && (
+      {!canViewDetailedProfile && (
         <div className="volunteer-notice">
-          如需查看完整档案，请联系 Social Worker。 / For full profile access, please contact a Social Worker.
+          如需查看完整档案，请联系负责人员。 / For full profile access, please contact the responsible staff.
         </div>
       )}
     </>

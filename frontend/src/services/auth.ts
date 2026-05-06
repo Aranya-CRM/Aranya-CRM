@@ -2,17 +2,9 @@ import { http } from './http'
 
 const ACCESS_TOKEN_KEY = 'aranya_access_token'
 const REFRESH_TOKEN_KEY = 'aranya_refresh_token'
-// Legacy keys from the pre-decoupled-auth design where role/profile state was
-// persisted in localStorage. Kept here only so clearSession can wipe stale
-// values from existing dev sessions; nothing reads or writes them.
+// Legacy profile keys from older dev sessions. Nothing reads or writes them.
 const LEGACY_USER_EMAIL_KEY = 'aranya_user_email'
 const LEGACY_USER_NAME_KEY = 'aranya_user_name'
-const LEGACY_USER_ROLES_KEY = 'aranya_user_roles'
-const LEGACY_USER_ROLE_KEY = 'aranya_user_role'
-
-export type UserRole = 'VOLUNTEER' | 'SOCIAL_WORKER' | 'MANAGER'
-
-export const ALL_ROLES: UserRole[] = ['VOLUNTEER', 'SOCIAL_WORKER', 'MANAGER']
 
 export interface LoginPayload {
   email: string
@@ -75,8 +67,8 @@ export async function enableTwoFactorInit(payload: TwoFactorInitEnablePayload): 
 }
 
 /**
- * Persist auth tokens only. User identity and roles are NOT cached in
- * localStorage — AuthContext fetches them from `/users/me` on demand.
+ * Persist auth tokens only. User identity and render instructions are NOT
+ * cached in localStorage — AuthContext fetches them on demand.
  */
 export function persistSession(session: LoginResponse): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken)
@@ -89,8 +81,6 @@ export function clearSession(): void {
   // Defensive cleanup of legacy keys from older sessions.
   localStorage.removeItem(LEGACY_USER_EMAIL_KEY)
   localStorage.removeItem(LEGACY_USER_NAME_KEY)
-  localStorage.removeItem(LEGACY_USER_ROLES_KEY)
-  localStorage.removeItem(LEGACY_USER_ROLE_KEY)
 }
 
 export function getAccessToken(): string | null {

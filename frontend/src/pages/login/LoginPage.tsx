@@ -75,7 +75,7 @@ export function LoginPage() {
         return
       }
 
-      // 登录成功且无需 2FA — 先拉 /me 填角色，再跳。
+      // 登录成功且无需 2FA — 先拉 profile + manifest，再跳。
       await refreshUser()
       navigate('/dashboard', { replace: true })
     } catch (error) {
