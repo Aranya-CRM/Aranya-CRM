@@ -81,6 +81,7 @@ databaseChangeLog:
   - changeSet:
       id: 024-3-seed-permissions
       author: ShiDu
+      validCheckSum: ANY
       comment: "Seed route, feature, and widget capability codes"
       changes:
         - sql:
@@ -117,18 +118,24 @@ databaseChangeLog:
                 ('reports.create', 'FEATURE', 'Create reports'),
                 ('reports.view.own', 'FEATURE', 'View own reports'),
                 ('reports.view.all', 'FEATURE', 'View all reports'),
-                ('reports.update', 'FEATURE', 'Update reports'),
+                ('reports.update.own', 'FEATURE', 'Update own reports'),
+                ('reports.update.any', 'FEATURE', 'Update any report'),
                 ('reports.delete', 'FEATURE', 'Delete reports'),
                 ('reports.approveArchive', 'FEATURE', 'Approve or archive reports'),
                 ('alerts.receiveUrgent', 'FEATURE', 'Receive urgent alerts'),
                 ('users.invite', 'FEATURE', 'Invite users'),
                 ('users.assignRoles', 'FEATURE', 'Assign user access groups'),
+                ('users.stats.view', 'FEATURE', 'View user stats'),
+                ('users.create', 'FEATURE', 'Create users'),
+                ('users.update', 'FEATURE', 'Update users'),
+                ('users.activateDeactivate', 'FEATURE', 'Activate or deactivate users'),
+                ('users.delete', 'FEATURE', 'Delete users'),
                 ('dashboard.myReports', 'WIDGET', 'Dashboard widget: my reports'),
                 ('dashboard.pendingTasks', 'WIDGET', 'Dashboard widget: pending tasks'),
                 ('dashboard.recentReports', 'WIDGET', 'Dashboard widget: recent reports'),
                 ('dashboard.totalClients', 'WIDGET', 'Dashboard widget: total clients'),
                 ('dashboard.activeCases', 'WIDGET', 'Dashboard widget: active cases'),
-                ('dashboard.pendingVisits', 'WIDGET', 'Dashboard widget: pending visits'),
+                ('dashboard.pendingReports', 'WIDGET', 'Dashboard widget: pending reports'),
                 ('dashboard.urgentCases', 'WIDGET', 'Dashboard widget: urgent cases'),
                 ('dashboard.upcomingAppointments', 'WIDGET', 'Dashboard widget: upcoming appointments')
               ON CONFLICT (code, type) DO NOTHING;
@@ -136,6 +143,7 @@ databaseChangeLog:
   - changeSet:
       id: 024-4-seed-role-permissions
       author: ShiDu
+      validCheckSum: ANY
       comment: "Seed role-to-capability mappings"
       changes:
         - sql:
@@ -146,15 +154,12 @@ databaseChangeLog:
               JOIN permission p ON
                 (r.name = 'VOLUNTEER' AND p.code IN (
                   'dashboard',
-                  'clients.list',
-                  'clients.detail',
                   'reports.list',
                   'reports.create',
                   'dashboard.view',
-                  'clients.search',
-                  'clients.view.basic',
                   'reports.create',
                   'reports.view.own',
+                  'reports.update.own',
                   'dashboard.myReports',
                   'dashboard.pendingTasks',
                   'dashboard.recentReports'
@@ -162,6 +167,7 @@ databaseChangeLog:
                 OR (r.name = 'SOCIAL_WORKER' AND p.code IN (
                   'dashboard',
                   'clients.list',
+                  'clients.create',
                   'clients.detail',
                   'clients.edit',
                   'cases.list',
@@ -172,6 +178,7 @@ databaseChangeLog:
                   'dashboard.view',
                   'clients.search',
                   'clients.view.full',
+                  'clients.create',
                   'clients.update',
                   'clients.contacts.link',
                   'cases.view',
@@ -182,16 +189,14 @@ databaseChangeLog:
                   'cases.documents.uploadEdit',
                   'reports.create',
                   'reports.view.all',
-                  'reports.update',
-                  'reports.delete',
+                  'reports.update.any',
                   'alerts.receiveUrgent',
                   'dashboard.totalClients',
                   'dashboard.activeCases',
-                  'dashboard.pendingVisits',
+                  'dashboard.pendingReports',
                   'dashboard.myReports',
                   'dashboard.pendingTasks',
-                  'dashboard.recentReports',
-                  'dashboard.upcomingAppointments'
+                  'dashboard.recentReports'
                 ))
                 OR (r.name = 'MANAGER' AND p.code IN (
                   'dashboard',
@@ -223,19 +228,101 @@ databaseChangeLog:
                   'cases.audit',
                   'reports.create',
                   'reports.view.all',
-                  'reports.update',
                   'reports.delete',
                   'reports.approveArchive',
                   'alerts.receiveUrgent',
                   'users.invite',
                   'users.assignRoles',
+                  'users.stats.view',
+                  'users.create',
+                  'users.update',
+                  'users.activateDeactivate',
+                  'users.delete',
                   'dashboard.totalClients',
                   'dashboard.activeCases',
-                  'dashboard.pendingVisits',
+                  'dashboard.pendingReports',
                   'dashboard.urgentCases',
                   'dashboard.myReports',
                   'dashboard.pendingTasks',
-                  'dashboard.recentReports',
-                  'dashboard.upcomingAppointments'
+                  'dashboard.recentReports'
+                ))
+              ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+  - changeSet:
+      id: 024-5-align-capability-permissions
+      author: ShiDu
+      comment: "Align capability codes with current permission design"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO permission (code, type, description) VALUES
+                ('reports.update.own', 'FEATURE', 'Update own reports'),
+                ('reports.update.any', 'FEATURE', 'Update any report'),
+                ('users.stats.view', 'FEATURE', 'View user stats'),
+                ('users.create', 'FEATURE', 'Create users'),
+                ('users.update', 'FEATURE', 'Update users'),
+                ('users.activateDeactivate', 'FEATURE', 'Activate or deactivate users'),
+                ('users.delete', 'FEATURE', 'Delete users'),
+                ('dashboard.pendingReports', 'WIDGET', 'Dashboard widget: pending reports')
+              ON CONFLICT (code, type) DO NOTHING;
+
+  - changeSet:
+      id: 024-6-remove-stale-role-capabilities
+      author: ShiDu
+      comment: "Remove capabilities that conflict with the current permission design"
+      changes:
+        - sql:
+            sql: >
+              DELETE FROM role_permission rp
+              USING role r, permission p
+              WHERE rp.role_id = r.id
+                AND rp.permission_id = p.id
+                AND (
+                  (r.name = 'VOLUNTEER' AND p.code IN (
+                    'clients.list',
+                    'clients.detail',
+                    'clients.search',
+                    'clients.view.basic'
+                  ))
+                  OR (r.name = 'SOCIAL_WORKER' AND p.code IN (
+                    'reports.delete',
+                    'cases.close',
+                    'dashboard.pendingVisits',
+                    'dashboard.upcomingAppointments'
+                  ))
+                  OR (r.name = 'MANAGER' AND p.code IN (
+                    'reports.update',
+                    'reports.update.any',
+                    'dashboard.pendingVisits',
+                    'dashboard.upcomingAppointments'
+                  ))
+                );
+
+  - changeSet:
+      id: 024-7-add-current-role-capabilities
+      author: ShiDu
+      comment: "Add capabilities required by the current permission design"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role_permission (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM role r
+              JOIN permission p ON
+                (r.name = 'VOLUNTEER' AND p.code IN (
+                  'reports.update.own'
+                ))
+                OR (r.name = 'SOCIAL_WORKER' AND p.code IN (
+                  'clients.create',
+                  'reports.update.any',
+                  'dashboard.pendingReports'
+                ))
+                OR (r.name = 'MANAGER' AND p.code IN (
+                  'dashboard.pendingReports',
+                  'users.stats.view',
+                  'users.create',
+                  'users.update',
+                  'users.activateDeactivate',
+                  'users.delete'
                 ))
               ON CONFLICT (role_id, permission_id) DO NOTHING;
