@@ -51,6 +51,15 @@
   margin-left: auto;
 }
 
+.client-list-card {
+  margin-top: 16px;
+}
+
+.table-action-group {
+  display: flex;
+  gap: 8px;
+}
+
 .btn-primary {
   height: 36px;
   padding: 0 16px;
@@ -178,6 +187,16 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 8px;
+}
+
+.client-form-header {
+  margin-top: 8px;
+}
+
+.access-denied-copy {
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .detail-name {
@@ -313,6 +332,18 @@
   line-height: 1.5;
 }
 
+.detail-paragraph {
+  font-size: 13px;
+  color: var(--text-normal);
+  line-height: 1.6;
+}
+
+.detail-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ── Form Page (Wizard) ── */
 
 .wizard-steps {
@@ -412,6 +443,10 @@
   width: 16px;
   height: 16px;
   accent-color: #1a1a1a;
+}
+
+.form-section-field {
+  margin-top: 16px;
 }
 
 .wizard-footer {

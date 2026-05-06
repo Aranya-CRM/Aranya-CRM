@@ -21,9 +21,6 @@ interface AuthContextValue {
   authenticated: boolean
   user: MeResponse | null
   manifest: UiManifest | null
-  canRoute: (routeId: string) => boolean
-  canFeature: (featureId: string) => boolean
-  canWidget: (widgetId: string) => boolean
   /** Re-fetch profile + UI manifest. Call this after a successful Firebase login flow completes. */
   refreshUser: () => Promise<void>
   logout: () => Promise<void>
@@ -66,18 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser])
 
   const value = useMemo<AuthContextValue>(() => {
-    const canRoute = (routeId: string) => Boolean(manifest?.routes.includes(routeId))
-    const canFeature = (featureId: string) => Boolean(manifest?.features.includes(featureId))
-    const canWidget = (widgetId: string) => Boolean(manifest?.widgets.includes(widgetId))
-
     return {
       loading,
       authenticated: user !== null && manifest !== null,
       user,
       manifest,
-      canRoute,
-      canFeature,
-      canWidget,
       refreshUser,
       logout: async () => {
         await logoutFirebase()
