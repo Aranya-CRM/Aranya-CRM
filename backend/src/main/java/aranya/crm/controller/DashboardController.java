@@ -1,6 +1,6 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.DashboardResponse;
+import aranya.crm.dto.response.DashboardResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

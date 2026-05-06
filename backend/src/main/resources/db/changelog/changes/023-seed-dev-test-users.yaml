@@ -7,10 +7,10 @@ databaseChangeLog:
       changes:
         - sql:
             sql: >
-              INSERT INTO users (username, full_name, email, password_hash, status)
+              INSERT INTO users (firebase_uid, username, full_name, email, email_verified, status)
               VALUES
-                ('volunteer', 'Volunteer User', 'volunteer@test.com', crypt('password', gen_salt('bf', 10)), 'ACTIVE'),
-                ('social_worker', 'Social Worker User', 'socialworker@test.com', crypt('password', gen_salt('bf', 10)), 'ACTIVE')
+                ('dev-volunteer-firebase-uid', 'volunteer', 'Volunteer User', 'volunteer@test.com', true, 'ACTIVE'),
+                ('dev-social-worker-firebase-uid', 'social_worker', 'Social Worker User', 'socialworker@test.com', true, 'ACTIVE')
               ON CONFLICT (email) DO NOTHING;
 
         - sql:

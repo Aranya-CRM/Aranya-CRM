@@ -1,92 +1,105 @@
-import { http } from './http'
+import {
+  GoogleAuthProvider,
+  TotpMultiFactorGenerator,
+  getMultiFactorResolver,
+  multiFactor,
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  type MultiFactorError,
+  type MultiFactorResolver,
+  type TotpSecret,
+  type User,
+} from 'firebase/auth'
+import { firebaseAuth } from './firebase'
 
-const ACCESS_TOKEN_KEY = 'aranya_access_token'
-const REFRESH_TOKEN_KEY = 'aranya_refresh_token'
-// Legacy profile keys from older dev sessions. Nothing reads or writes them.
-const LEGACY_USER_EMAIL_KEY = 'aranya_user_email'
-const LEGACY_USER_NAME_KEY = 'aranya_user_name'
+export type PrimarySignInResult =
+  | { status: 'signed-in'; user: User }
+  | { status: 'mfa-required'; resolver: MultiFactorResolver }
 
-export interface LoginPayload {
-  email: string
-  password: string
+function isMultiFactorRequired(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === 'auth/multi-factor-auth-required'
 }
 
-export interface LoginResponse {
-  accessToken: string
-  refreshToken: string
-  tokenType: string
-  expiresIn: number
-  email: string
-  fullName: string
-  requiresTwoFactor?: boolean
-  requiresTwoFactorSetup?: boolean
-  tempToken?: string
-  backupCodes?: string[]
-}
-
-export interface TwoFactorVerifyPayload {
-  tempToken: string
-  code: string
-}
-
-export interface TwoFactorSetupData {
-  secret: string
-  qrCodeBase64?: string
-}
-
-export interface TwoFactorInitEnablePayload {
-  tempToken: string
-  secret: string
-  code: string
-}
-
-export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const response = await http.post<LoginResponse>('/v1/auth/login', payload)
-  const needsAction = response.data.requiresTwoFactor || response.data.requiresTwoFactorSetup
-  if (!needsAction) {
-    persistSession(response.data)
+export async function signInWithPassword(email: string, password: string): Promise<PrimarySignInResult> {
+  try {
+    const credential = await signInWithEmailAndPassword(firebaseAuth, email, password)
+    return { status: 'signed-in', user: credential.user }
+  } catch (error) {
+    if (isMultiFactorRequired(error)) {
+      return { status: 'mfa-required', resolver: getMultiFactorResolver(firebaseAuth, error as MultiFactorError) }
+    }
+    throw error
   }
-  return response.data
 }
 
-export async function verifyTwoFactor(payload: TwoFactorVerifyPayload): Promise<LoginResponse> {
-  const response = await http.post<LoginResponse>('/v1/auth/2fa/verify', payload)
-  persistSession(response.data)
-  return response.data
+export async function signInWithGoogle(): Promise<PrimarySignInResult> {
+  try {
+    const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
+    return { status: 'signed-in', user: credential.user }
+  } catch (error) {
+    if (isMultiFactorRequired(error)) {
+      return { status: 'mfa-required', resolver: getMultiFactorResolver(firebaseAuth, error as MultiFactorError) }
+    }
+    throw error
+  }
 }
 
-export async function setupTwoFactorInit(tempToken: string): Promise<TwoFactorSetupData> {
-  const response = await http.post<TwoFactorSetupData>('/v1/auth/2fa/setup-init', { tempToken })
-  return response.data
+export async function completeTotpSignIn(resolver: MultiFactorResolver, code: string): Promise<User> {
+  const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID)
+
+  if (!hint) {
+    throw new Error('No TOTP factor is enrolled for this account.')
+  }
+
+  const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code)
+  const credential = await resolver.resolveSignIn(assertion)
+  return credential.user
 }
 
-export async function enableTwoFactorInit(payload: TwoFactorInitEnablePayload): Promise<LoginResponse> {
-  const response = await http.post<LoginResponse>('/v1/auth/2fa/enable-init', payload)
-  persistSession(response.data)
-  return response.data
+export async function startTotpEnrollment(user: User): Promise<{
+  secret: TotpSecret
+  secretKey: string
+  qrUri: string
+}> {
+  const session = await multiFactor(user).getSession()
+  const secret = await TotpMultiFactorGenerator.generateSecret(session)
+
+  return {
+    secret,
+    secretKey: secret.secretKey,
+    qrUri: secret.generateQrCodeUrl(user.email ?? 'user', 'Aranya CRM'),
+  }
 }
 
-/**
- * Persist auth tokens only. User identity and render instructions are NOT
- * cached in localStorage — AuthContext fetches them on demand.
- */
-export function persistSession(session: LoginResponse): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken)
-  localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken)
+export async function finishTotpEnrollment(user: User, secret: TotpSecret, code: string): Promise<void> {
+  const assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code)
+  await multiFactor(user).enroll(assertion, 'Authenticator app')
 }
 
-export function clearSession(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
-  // Defensive cleanup of legacy keys from older sessions.
-  localStorage.removeItem(LEGACY_USER_EMAIL_KEY)
-  localStorage.removeItem(LEGACY_USER_NAME_KEY)
+export function hasTotpFactor(user: User): boolean {
+  return multiFactor(user).enrolledFactors.some(
+    (factor) => factor.factorId === TotpMultiFactorGenerator.FACTOR_ID,
+  )
 }
 
-export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+export async function sendVerificationEmail(user: User): Promise<void> {
+  await sendEmailVerification(user)
 }
 
-export function isAuthenticated(): boolean {
-  return Boolean(getAccessToken())
+export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
+  return firebaseAuth.currentUser?.getIdToken(forceRefresh) ?? null
+}
+
+export async function logoutFirebase(): Promise<void> {
+  await signOut(firebaseAuth)
+}
+
+export function subscribeFirebaseAuth(callback: (user: User | null) => void): () => void {
+  return onAuthStateChanged(firebaseAuth, callback)
 }

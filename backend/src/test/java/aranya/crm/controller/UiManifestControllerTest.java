@@ -1,7 +1,5 @@
 package aranya.crm.controller;
 
-import aranya.crm.security.util.JwtUtil;
-import aranya.crm.service.CustomUserDetailsService;
 import aranya.crm.service.UiManifestService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

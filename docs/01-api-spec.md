@@ -1,13 +1,15 @@
 # Aranya CRM API Specification
 
-This document describes the API contract used by the current frontend and backend.
+This document describes the API contract currently used by the frontend and backend.
 
 Current status:
 
-- Backend implemented APIs: authentication, 2FA, dashboard
-- Frontend-designed APIs not yet implemented by backend: clients, cases, reports
-- Frontend Axios base URL defaults to `/api`
-- Backend full route prefix is included in this document, for example `/api/v1/auth/login`
+- Authentication is handled by Firebase Auth on the frontend.
+- The backend does not expose email/password login, refresh-token, logout, or custom 2FA endpoints.
+- The backend verifies Firebase ID tokens on protected API requests.
+- TOTP MFA is enforced by the backend through Firebase token claims.
+- Dashboard and user-management endpoints exist.
+- Clients, cases, and reports are still frontend-designed APIs and are not fully implemented by the backend.
 
 ## 1. Conventions
 
@@ -27,8 +29,8 @@ Frontend service base URL:
 
 Example mapping:
 
-- frontend call: `http.post('/v1/auth/login')`
-- backend route: `POST /api/v1/auth/login`
+- frontend call: `http.get('/v1/auth/me')`
+- backend route: `GET /api/v1/auth/me`
 
 ### Content Type
 
@@ -40,152 +42,129 @@ Content-Type: application/json
 
 ### Authentication
 
-Protected endpoints require a bearer access token:
+Protected endpoints require a Firebase ID token:
 
 ```http
-Authorization: Bearer <accessToken>
+Authorization: Bearer <firebase-id-token>
 ```
+
+The token must satisfy the backend filter requirements:
+
+- token is valid according to Firebase Admin SDK
+- `email_verified` is true
+- Firebase token claim `firebase.sign_in_second_factor` is `totp`
+- Firebase UID exists in the local `users.firebase_uid` column
+- local user status is `ACTIVE`
+
+The backend loads the local `User` and user roles after token verification. Roles are not part of Firebase authentication itself; they are local authorization data.
 
 Public endpoints:
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/2fa/verify`
-- `GET /api/dashboard`
+- `GET /api/health`
+- `GET /actuator/health`
+- `/api/public/**`
 - OpenAPI / Swagger routes
-- health and error routes
+- `/error`
 
 All other endpoints require authentication under the current backend security configuration.
 
+### Firebase Login Flow
+
+The frontend uses Firebase Client SDK for:
+
+- email/password sign-in
+- Google sign-in
+- email verification
+- TOTP MFA enrollment
+- TOTP MFA challenge
+- sign-out
+
+After Firebase sign-in is complete, the frontend calls:
+
+```http
+GET /api/v1/auth/me
+GET /api/v1/ui/manifest
+```
+
+The shared Axios client in `frontend/src/services/http.ts` attaches the Firebase ID token to API requests.
+
 ### Error Shape
 
-The JWT authentication filter returns this shape for unauthenticated requests:
+Firebase authentication filter errors use:
 
 ```json
 {
-  "error": "Unauthorized",
-  "message": "Authentication required"
+  "code": "INVALID_TOKEN",
+  "message": "Invalid or expired Firebase token",
+  "timestamp": "2026-05-06T16:00:00+08:00",
+  "path": "/api/v1/auth/me"
 }
 ```
 
-Access-denied responses use:
+Common authentication error codes:
 
-```json
-{
-  "error": "Forbidden",
-  "message": "Access denied"
-}
-```
+- `INVALID_TOKEN` with HTTP 401
+- `EMAIL_NOT_VERIFIED` with HTTP 401
+- `MFA_NOT_ENROLLED` with HTTP 428
+- `USER_NOT_REGISTERED` with HTTP 403
+- `USER_DISABLED` with HTTP 403
 
-Note: the backend does not currently have a global exception handler for all validation and service errors, so non-auth error payloads may still use Spring Boot default error responses.
+Access denied responses may return HTTP 403 for authenticated users without required Spring Security roles.
 
 ## 2. Implemented APIs
 
 ## 2.1 Authentication
 
-### Login
+### Get Current User
+
+```http
+GET /api/v1/auth/me
+```
+
+Protected endpoint.
+
+Headers:
+
+```http
+Authorization: Bearer <firebase-id-token>
+```
+
+Successful response:
+
+```json
+{
+  "id": 4,
+  "email": "user@example.com",
+  "fullName": "Example User"
+}
+```
+
+Notes:
+
+- This endpoint is the backend authentication smoke test.
+- It only returns the basic local profile.
+- Role/capability data is returned by `GET /api/v1/ui/manifest`.
+- If the user signed in to Firebase but has not completed TOTP MFA, the backend returns HTTP 428.
+
+### Backend Login Endpoints
+
+The backend intentionally does not provide these endpoints now:
 
 ```http
 POST /api/v1/auth/login
-```
-
-Public endpoint.
-
-Request body:
-
-```json
-{
-  "email": "admin@test.com",
-  "password": "password"
-}
-```
-
-Validation:
-
-- `email` is required and must be a valid email
-- `password` is required and must be at least 8 characters
-
-Successful response when 2FA is not required:
-
-```json
-{
-  "accessToken": "<jwt-access-token>",
-  "refreshToken": "<jwt-refresh-token>",
-  "tokenType": "Bearer",
-  "expiresIn": 1800,
-  "email": "admin@test.com",
-  "fullName": "Admin User",
-  "requiresTwoFactor": null,
-  "tempToken": null
-}
-```
-
-Successful response when 2FA is required:
-
-```json
-{
-  "accessToken": null,
-  "refreshToken": null,
-  "tokenType": null,
-  "expiresIn": 0,
-  "email": null,
-  "fullName": null,
-  "requiresTwoFactor": true,
-  "tempToken": "<short-lived-2fa-token>"
-}
-```
-
-Notes:
-
-- `expiresIn` is returned in seconds.
-- Current login response does not include role information yet.
-- Frontend login currently expects immediate access and refresh tokens; 2FA challenge UI still needs to be wired.
-
-### Refresh Token
-
-```http
 POST /api/v1/auth/refresh
-```
-
-Public endpoint.
-
-Request body:
-
-```json
-{
-  "refreshToken": "<jwt-refresh-token>"
-}
-```
-
-Validation:
-
-- `refreshToken` is required
-
-Successful response:
-
-```json
-{
-  "accessToken": "<new-jwt-access-token>",
-  "refreshToken": "<new-jwt-refresh-token>",
-  "tokenType": "Bearer",
-  "expiresIn": 1800,
-  "email": "admin@test.com",
-  "fullName": "Admin User",
-  "requiresTwoFactor": null,
-  "tempToken": null
-}
-```
-
-Notes:
-
-- Refresh tokens are persisted as hashes.
-- Refresh token rotation is enabled: the used refresh token is revoked and replaced.
-- If a revoked or expired refresh token is used, all refresh tokens for the user are revoked.
-
-### Logout
-
-```http
 POST /api/v1/auth/logout
+POST /api/v1/auth/2fa/*
+```
+
+Use Firebase Client SDK instead. Backend sessions are stateless and based only on the Firebase ID token sent with each request.
+
+## 2.2 UI Manifest
+
+### Get UI Manifest
+
+```http
+GET /api/v1/ui/manifest
 ```
 
 Protected endpoint.
@@ -193,235 +172,24 @@ Protected endpoint.
 Headers:
 
 ```http
-Authorization: Bearer <accessToken>
-```
-
-Request body: none.
-
-Successful response:
-
-```http
-204 No Content
-```
-
-Notes:
-
-- Logout revokes all refresh tokens for the authenticated user.
-- The current access token remains valid until expiry unless token blacklisting is added later.
-
-## 2.2 Two-Factor Authentication
-
-2FA uses TOTP:
-
-- algorithm: SHA1
-- digits: 6
-- period: 30 seconds
-- allowed clock discrepancy: 1 time step
-
-Backup codes:
-
-- 8 codes are generated when 2FA is enabled
-- backup codes are one-time use
-- backup codes are stored as SHA-256 hashes
-
-### Get 2FA Setup
-
-```http
-GET /api/v1/auth/2fa/setup
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <accessToken>
+Authorization: Bearer <firebase-id-token>
 ```
 
 Successful response:
 
 ```json
 {
-  "secret": "BASE32TOTPSECRET",
-  "qrCodeUri": "otpauth://totp/AranyaCRM%3Aadmin%40test.com?secret=BASE32TOTPSECRET&issuer=AranyaCRM&algorithm=SHA1&digits=6&period=30"
+  "routes": ["dashboard", "users"],
+  "features": ["user.invite", "user.update_roles"],
+  "widgets": ["dashboard.active_cases"]
 }
 ```
 
 Notes:
 
-- The returned secret is not persisted until `POST /api/v1/auth/2fa/enable` succeeds.
-- The frontend can render `qrCodeUri` as a QR code for authenticator apps.
-
-### Enable 2FA
-
-```http
-POST /api/v1/auth/2fa/enable
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-Request body:
-
-```json
-{
-  "secret": "BASE32TOTPSECRET",
-  "code": "123456"
-}
-```
-
-Validation:
-
-- `secret` is required
-- `code` is required and must be exactly 6 characters
-
-Successful response:
-
-```json
-{
-  "codes": [
-    "ABCDEFGH",
-    "JKLMNPQR",
-    "STUVWXYZ",
-    "23456789",
-    "A2C4E6G8",
-    "H3J5L7N9",
-    "P2R4T6V8",
-    "W3X5Y7Z9"
-  ]
-}
-```
-
-Notes:
-
-- The TOTP secret is encrypted before storage.
-- A user who already has 2FA enabled must disable it before enabling again.
-- Backup codes are only returned as plaintext at generation time.
-
-### Verify 2FA Login Challenge
-
-```http
-POST /api/v1/auth/2fa/verify
-```
-
-Public endpoint.
-
-Request body:
-
-```json
-{
-  "tempToken": "<short-lived-2fa-token>",
-  "code": "123456"
-}
-```
-
-Validation:
-
-- `tempToken` is required
-- `code` is required
-
-Successful response:
-
-```json
-{
-  "accessToken": "<jwt-access-token>",
-  "refreshToken": "<jwt-refresh-token>",
-  "tokenType": "Bearer",
-  "expiresIn": 1800,
-  "email": "admin@test.com",
-  "fullName": "Admin User",
-  "requiresTwoFactor": null,
-  "tempToken": null
-}
-```
-
-Notes:
-
-- `code` can be either a 6-digit TOTP code or a backup code.
-- TOTP codes are cached briefly after successful use to reduce replay within the accepted time window.
-- Backup codes are marked as used after successful verification.
-
-### Disable 2FA
-
-```http
-POST /api/v1/auth/2fa/disable
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-Request body:
-
-```json
-{
-  "password": "password",
-  "code": "123456"
-}
-```
-
-Validation:
-
-- `password` is required
-- `code` is required
-
-Successful response:
-
-```http
-204 No Content
-```
-
-Notes:
-
-- The backend verifies both password and 2FA code.
-- Disabling 2FA clears the encrypted TOTP secret and deletes backup codes.
-
-### Regenerate Backup Codes
-
-```http
-POST /api/v1/auth/2fa/backup-codes
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-Request body: none.
-
-Successful response:
-
-```json
-{
-  "codes": [
-    "ABCDEFGH",
-    "JKLMNPQR",
-    "STUVWXYZ",
-    "23456789",
-    "A2C4E6G8",
-    "H3J5L7N9",
-    "P2R4T6V8",
-    "W3X5Y7Z9"
-  ]
-}
-```
-
-Notes:
-
-- Regeneration requires 2FA to already be enabled.
-- Old backup codes are deleted and replaced.
+- The response is built from local roles and permissions.
+- Permission rows are read from `permission`, `role_permission`, and `role`.
+- This endpoint is for frontend rendering and route gating. Backend controllers must still enforce authorization.
 
 ## 2.3 Dashboard
 
@@ -431,7 +199,13 @@ Notes:
 GET /api/dashboard
 ```
 
-Public endpoint under the current backend security configuration.
+Protected endpoint.
+
+Headers:
+
+```http
+Authorization: Bearer <firebase-id-token>
+```
 
 Request body: none.
 
@@ -487,17 +261,138 @@ Successful response:
 }
 ```
 
-Response fields:
-
-- `activeCases`: active case summary cards
-- `attentionCases`: cases needing attention
-- `upcomingAppointments`: upcoming appointment summary cards
-- localized text fields use `{ "zh": "...", "en": "..." }`
-
 Notes:
 
 - Backend currently returns hard-coded demo data.
 - Frontend sorts `upcomingAppointments` by `startsAt` and keeps the first 5 items.
+
+## 2.4 User Management
+
+All endpoints in this section require local role `MANAGER`.
+
+The backend maps local role names to Spring Security authorities as `ROLE_<NAME>`.
+
+### List Users
+
+```http
+GET /api/v1/users
+```
+
+Protected endpoint. Requires `ROLE_MANAGER`.
+
+Successful response:
+
+```json
+[
+  {
+    "id": 4,
+    "username": "aranya_crm_admin",
+    "email": "user@example.com",
+    "fullName": "Example User",
+    "status": "ACTIVE",
+    "roles": ["MANAGER"]
+  }
+]
+```
+
+### Invite User
+
+```http
+POST /api/v1/users/invite
+```
+
+Protected endpoint. Requires `ROLE_MANAGER`.
+
+Request body:
+
+```json
+{
+  "username": "new_user",
+  "fullName": "New User",
+  "email": "new.user@example.com",
+  "phone": "+65 0000 0000",
+  "roles": ["VOLUNTEER"]
+}
+```
+
+Successful response:
+
+```json
+{
+  "id": 5,
+  "username": "new_user",
+  "email": "new.user@example.com",
+  "fullName": "New User",
+  "status": "ACTIVE",
+  "roles": ["VOLUNTEER"]
+}
+```
+
+Important limitation:
+
+- This endpoint currently creates only the local database user.
+- It does not create a Firebase Auth user.
+- It does not set `firebase_uid`.
+- The created user cannot pass Firebase-backed backend authentication until a Firebase Auth user exists and the local row is linked by UID.
+
+### Update User Roles
+
+```http
+PATCH /api/v1/users/{id}/roles
+```
+
+Protected endpoint. Requires `ROLE_MANAGER`.
+
+Request body:
+
+```json
+{
+  "roles": ["MANAGER", "SOCIAL_WORKER"]
+}
+```
+
+Successful response uses the same `UserSummaryDto` shape as list users.
+
+### Update User Status
+
+```http
+PATCH /api/v1/users/{id}/status
+```
+
+Protected endpoint. Requires `ROLE_MANAGER`.
+
+Request body:
+
+```json
+{
+  "status": "ACTIVE"
+}
+```
+
+Allowed status values:
+
+- `ACTIVE`
+- `INACTIVE`
+
+Successful response uses the same `UserSummaryDto` shape as list users.
+
+### Delete User
+
+```http
+DELETE /api/v1/users/{id}
+```
+
+Protected endpoint. Requires `ROLE_MANAGER`.
+
+Successful response:
+
+```http
+204 No Content
+```
+
+Notes:
+
+- This is a soft delete: the local user is marked `INACTIVE`.
 
 ## 3. Frontend-Designed APIs Not Yet Implemented By Backend
 
@@ -580,12 +475,6 @@ interface Client {
 }
 ```
 
-Notes:
-
-- `POST /api/v1/clients` currently expects `Omit<Client, 'id'>` on the frontend.
-- `PUT /api/v1/clients/{id}` currently expects `Partial<Client>` on the frontend.
-- Volunteer-facing views may use the reduced `ClientBasicInfo` shape.
-
 ## 3.2 Cases
 
 Frontend service file:
@@ -628,39 +517,6 @@ interface Case {
   services: Record<string, boolean>
 }
 ```
-
-Current frontend `CaseNote` shape:
-
-```ts
-interface CaseNote {
-  id: string
-  caseId: string
-  date: string
-  content: string
-  followUp: string
-  recordedBy: string
-  createdAt: string
-}
-```
-
-Current frontend `CaseStatusChange` shape:
-
-```ts
-interface CaseStatusChange {
-  id: string
-  caseId: string
-  fromStatus: CaseStatus
-  toStatus: CaseStatus
-  changedBy: string
-  changedAt: string
-  reason: string
-}
-```
-
-Notes:
-
-- `POST /api/v1/cases` currently expects `Omit<Case, 'id'>` on the frontend.
-- `POST /api/v1/cases/{caseId}/notes` currently expects `Omit<CaseNote, 'id' | 'createdAt'>`.
 
 ## 3.3 Reports
 
@@ -705,42 +561,29 @@ interface EngagementReport {
 }
 ```
 
-Notes:
-
-- `POST /api/v1/reports` currently expects `Omit<EngagementReport, 'id' | 'timestamp'>` on the frontend.
-- `submittedById` query filtering is a frontend service expectation and still needs backend support.
-
 ## 4. Role And Permission Direction
 
-The backend already has `role` and `user_role` tables and maps role names to Spring Security authorities as `ROLE_<NAME>`.
-
-Planned role names:
+Current local role names include:
 
 ```text
-ADMIN
+MANAGER
 SOCIAL_WORKER
 VOLUNTEER
 ```
 
-Current API gap:
-
-- `LoginResponse` does not return roles yet.
-- Endpoint-level or method-level role restrictions have not been applied beyond general authentication.
-
-Recommended future response addition:
-
-```json
-{
-  "roles": ["ADMIN"]
-}
-```
-
-Recommended future authorization style:
+Authorization style:
 
 ```java
-@PreAuthorize("hasRole('ADMIN')")
-@PreAuthorize("hasAnyRole('ADMIN', 'SOCIAL_WORKER')")
+@PreAuthorize("hasRole('MANAGER')")
+@PreAuthorize("hasAnyRole('MANAGER', 'SOCIAL_WORKER')")
 ```
+
+Notes:
+
+- Firebase proves identity and MFA completion.
+- The local database controls CRM roles, permissions, and account status.
+- `/api/v1/auth/me` intentionally does not expose roles.
+- `/api/v1/ui/manifest` exposes UI capabilities derived from local roles.
 
 ## 5. OpenAPI UI
 
@@ -755,4 +598,3 @@ OpenAPI JSON should be available at:
 ```text
 http://localhost:8080/v3/api-docs
 ```
-

@@ -1,14 +1,10 @@
 package aranya.crm.service;
 
 import aranya.crm.config.AppProperties;
-import aranya.crm.dto.LoginRequest;
-import aranya.crm.dto.LoginResponse;
-import aranya.crm.entity.RefreshToken;
+import aranya.crm.dto.request.LoginRequest;
+import aranya.crm.dto.response.LoginResponse;
 import aranya.crm.entity.User;
-import aranya.crm.repository.RefreshTokenRepository;
 import aranya.crm.repository.UserRepository;
-import aranya.crm.security.model.UserPrincipal;
-import aranya.crm.security.util.JwtUtil;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,7 +49,7 @@ class AuthServiceTest {
     private AuthService authService;
 
     private User mockUser;
-    private UserPrincipal mockPrincipal;
+    private FirebaseUserPrincipal mockPrincipal;
 
     @BeforeEach
     void setUp() {
@@ -64,7 +60,7 @@ class AuthServiceTest {
         mockUser.setPasswordHash("hashedPassword");
         mockUser.setStatus("ACTIVE");
 
-        mockPrincipal = UserPrincipal.of(mockUser, List.of("ADMIN"));
+        mockPrincipal = FirebaseUserPrincipal.of(mockUser, List.of("ADMIN"));
 
         when(appProperties.getJwt()).thenReturn(jwtConfig);
         when(jwtConfig.getAccessTokenExpiration()).thenReturn(3600000L);

@@ -1,9 +1,7 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.MeResponse;
+import aranya.crm.dto.response.MeResponse;
 import aranya.crm.dto.UserSummaryDto;
-import aranya.crm.security.util.JwtUtil;
-import aranya.crm.service.CustomUserDetailsService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

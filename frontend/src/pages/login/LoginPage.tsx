@@ -1,138 +1,393 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { FirebaseError } from 'firebase/app'
+import type { MultiFactorResolver, TotpSecret, User } from 'firebase/auth'
+import QRCode from 'qrcode'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { AxiosError } from 'axios'
 import { useAuth } from '../../contexts/AuthContext'
 import {
-  enableTwoFactorInit,
-  isAuthenticated,
-  login,
-  setupTwoFactorInit,
-  verifyTwoFactor,
+  completeTotpSignIn,
+  finishTotpEnrollment,
+  hasTotpFactor,
+  logoutFirebase,
+  sendVerificationEmail,
+  signInWithGoogle,
+  signInWithPassword,
+  startTotpEnrollment,
 } from '../../services/auth'
+import { firebaseAuth } from '../../services/firebase'
 import './login.css'
 
-function normalizeError(error: unknown, fallback: string): string {
-  if (error instanceof AxiosError) {
-    const message = error.response?.data?.message
-    if (typeof message === 'string' && message.trim()) {
-      return `${message} / Request failed.`
+type LoginStep =
+  | 'credentials'
+  | 'email-verification'
+  | 'totp-challenge'
+  | 'totp-enrollment'
+
+function normalizeFirebaseError(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    switch (error.code) {
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found':
+        return '邮箱或密码不正确。 / Invalid email or password.'
+      case 'auth/popup-closed-by-user':
+        return 'Google 登录窗口已关闭。 / Google sign-in was cancelled.'
+      case 'auth/too-many-requests':
+        return '尝试次数过多，请稍后再试。 / Too many attempts. Please try again later.'
+      case 'auth/invalid-verification-code':
+        return '验证码不正确，请重新输入。 / Invalid authentication code.'
+      default:
+        return `${error.message} / Authentication failed.`
     }
   }
-  return fallback
-}
 
-type LoginStep = 'credentials' | 'totp' | 'setup' | 'backup-codes'
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return '登录失败，请稍后再试。 / Unable to sign in. Please try again.'
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { refreshUser } = useAuth()
+  const { authenticated, refreshUser } = useAuth()
 
   const [step, setStep] = useState<LoginStep>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [tempToken, setTempToken] = useState('')
-
-  // 2FA verify
   const [totpCode, setTotpCode] = useState('')
-
-  // 2FA setup
-  const [setupSecret, setSetupSecret] = useState('')
-  const [setupQrBase64, setSetupQrBase64] = useState('')
   const [setupCode, setSetupCode] = useState('')
-  const [copied, setCopied] = useState(false)
-
-  // backup codes
-  const [backupCodes, setBackupCodes] = useState<string[]>([])
-
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null)
+  const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null)
+  const [totpSecretKey, setTotpSecretKey] = useState('')
+  const [totpQrUri, setTotpQrUri] = useState('')
+  const [totpQrDataUrl, setTotpQrDataUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [noticeMessage, setNoticeMessage] = useState<string>()
   const [errorMessage, setErrorMessage] = useState<string>()
 
-  if (isAuthenticated()) {
+  useEffect(() => {
+    let active = true
+
+    async function buildQrCode() {
+      if (!totpQrUri) {
+        setTotpQrDataUrl('')
+        return
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(totpQrUri, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          scale: 6,
+          width: 180,
+        })
+
+        if (active) {
+          setTotpQrDataUrl(dataUrl)
+        }
+      } catch {
+        if (active) {
+          setTotpQrDataUrl('')
+        }
+      }
+    }
+
+    void buildQrCode()
+
+    return () => {
+      active = false
+    }
+  }, [totpQrUri])
+
+  if (authenticated) {
     return <Navigate to="/dashboard" replace />
   }
 
-  async function handleCredentialsSubmit(event: FormEvent<HTMLFormElement>) {
+  async function finishBackendCheck(user: User) {
+    await user.getIdToken(true)
+    await refreshUser()
+    navigate('/dashboard', { replace: true })
+  }
+
+  async function continueAfterPrimarySignIn(user: User) {
+    if (!user.emailVerified) {
+      setStep('email-verification')
+      return
+    }
+
+    if (!hasTotpFactor(user)) {
+      const enrollment = await startTotpEnrollment(user)
+      setTotpSecret(enrollment.secret)
+      setTotpSecretKey(enrollment.secretKey)
+      setTotpQrUri(enrollment.qrUri)
+      setStep('totp-enrollment')
+      return
+    }
+
+    await finishBackendCheck(user)
+  }
+
+  async function handlePasswordLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
+    setNoticeMessage(undefined)
     setErrorMessage(undefined)
 
     try {
-      const result = await login({ email, password })
+      const result = await signInWithPassword(email, password)
 
-      if (result.requiresTwoFactor && result.tempToken) {
-        setTempToken(result.tempToken)
-        setStep('totp')
+      if (result.status === 'mfa-required') {
+        setMfaResolver(result.resolver)
+        setStep('totp-challenge')
         return
       }
 
-      if (result.requiresTwoFactorSetup && result.tempToken) {
-        setTempToken(result.tempToken)
-        const setupData = await setupTwoFactorInit(result.tempToken)
-        setSetupSecret(setupData.secret)
-        setSetupQrBase64(setupData.qrCodeBase64 ?? '')
-        setStep('setup')
+      await continueAfterPrimarySignIn(result.user)
+    } catch (error) {
+      setErrorMessage(normalizeFirebaseError(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setSubmitting(true)
+    setNoticeMessage(undefined)
+    setErrorMessage(undefined)
+
+    try {
+      const result = await signInWithGoogle()
+
+      if (result.status === 'mfa-required') {
+        setMfaResolver(result.resolver)
+        setStep('totp-challenge')
         return
       }
 
-      // 登录成功且无需 2FA — 先拉 profile + manifest，再跳。
-      await refreshUser()
-      navigate('/dashboard', { replace: true })
+      await continueAfterPrimarySignIn(result.user)
     } catch (error) {
-      setErrorMessage(normalizeError(error, '登录失败，请检查邮箱和密码后重试。 / Unable to sign in. Please check your email and password.'))
+      setErrorMessage(normalizeFirebaseError(error))
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function handleTotpSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleTotpChallenge(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (!mfaResolver) {
+      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      resetLoginState()
+      return
+    }
+
     setSubmitting(true)
     setErrorMessage(undefined)
 
     try {
-      await verifyTwoFactor({ tempToken, code: totpCode })
-      await refreshUser()
-      navigate('/dashboard', { replace: true })
+      const user = await completeTotpSignIn(mfaResolver, totpCode)
+      await finishBackendCheck(user)
     } catch (error) {
-      setErrorMessage(normalizeError(error, '验证码无效，请重新输入。 / Invalid code. Please try again.'))
+      setErrorMessage(normalizeFirebaseError(error))
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function handleSetupSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleTotpEnrollment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const user = firebaseAuth.currentUser
+    if (!user || !totpSecret) {
+      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      resetLoginState()
+      return
+    }
+
     setSubmitting(true)
     setErrorMessage(undefined)
 
     try {
-      const result = await enableTwoFactorInit({ tempToken, secret: setupSecret, code: setupCode })
-      setBackupCodes(result.backupCodes ?? [])
-      // 至此 token 已写入 localStorage（enableTwoFactorInit 内部调了 persistSession），
-      // 提前拉一次 /me — 等用户点完 backup codes 页面的按钮，AuthContext 已就绪。
-      await refreshUser()
-      setStep('backup-codes')
+      await finishTotpEnrollment(user, totpSecret, setupCode)
+      await logoutFirebase()
+      resetLoginState()
+      setNoticeMessage('认证器已绑定，请重新登录并输入验证码。 / Authenticator linked. Please sign in again.')
     } catch (error) {
-      setErrorMessage(normalizeError(error, '验证码不正确，请确认 App 中的代码后重试。 / Incorrect code. Please try again.'))
+      setErrorMessage(normalizeFirebaseError(error))
     } finally {
       setSubmitting(false)
     }
   }
 
-  function handleCopySecret() {
-    void navigator.clipboard.writeText(setupSecret)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function handleSendVerificationEmail() {
+    const user = firebaseAuth.currentUser
+
+    if (!user) {
+      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      resetLoginState()
+      return
+    }
+
+    setSubmitting(true)
+    setErrorMessage(undefined)
+
+    try {
+      await sendVerificationEmail(user)
+      setNoticeMessage('验证邮件已发送。 / Verification email sent.')
+    } catch (error) {
+      setErrorMessage(normalizeFirebaseError(error))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  function handleBackToCredentials() {
+  function resetLoginState() {
     setStep('credentials')
+    setPassword('')
     setTotpCode('')
     setSetupCode('')
-    setTempToken('')
-    setSetupSecret('')
+    setMfaResolver(null)
+    setTotpSecret(null)
+    setTotpSecretKey('')
+    setTotpQrUri('')
+    setTotpQrDataUrl('')
     setErrorMessage(undefined)
+  }
+
+  function renderStep() {
+    if (step === 'email-verification') {
+      return (
+        <div className="login-form">
+          <div className="login-copy-zh">请先验证邮箱：{firebaseAuth.currentUser?.email ?? email}</div>
+          <div className="login-copy-en">Verify your email address before continuing.</div>
+          {noticeMessage ? <div className="login-notice">{noticeMessage}</div> : null}
+          {errorMessage ? <div className="login-error">{errorMessage}</div> : null}
+          <button className="login-submit" type="button" onClick={handleSendVerificationEmail} disabled={submitting}>
+            {submitting ? '发送中... / Sending...' : '发送验证邮件 / Send Verification Email'}
+          </button>
+          <button className="login-back" type="button" onClick={resetLoginState} disabled={submitting}>
+            返回登录 / Back to Sign In
+          </button>
+        </div>
+      )
+    }
+
+    if (step === 'totp-challenge') {
+      return (
+        <form className="login-form" onSubmit={handleTotpChallenge}>
+          <label className="login-field">
+            <span className="login-label-zh">认证器验证码</span>
+            <span className="login-label-en">Authenticator Code</span>
+            <input
+              className="login-input login-input-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value)}
+              required
+            />
+          </label>
+          {errorMessage ? <div className="login-error">{errorMessage}</div> : null}
+          <button className="login-submit" type="submit" disabled={submitting}>
+            {submitting ? '验证中... / Verifying...' : '验证并进入 / Verify'}
+          </button>
+          <button className="login-back" type="button" onClick={resetLoginState} disabled={submitting}>
+            返回登录 / Back to Sign In
+          </button>
+        </form>
+      )
+    }
+
+    if (step === 'totp-enrollment') {
+      return (
+        <form className="login-form" onSubmit={handleTotpEnrollment}>
+          <div className="login-setup-block">
+            <div className="login-setup-label-zh">绑定认证器</div>
+            <div className="login-setup-label-en">Link an authenticator app</div>
+            <div className="login-setup-hint-zh">在认证器 App 中添加以下密钥，然后输入 6 位验证码。</div>
+            <div className="login-setup-hint-en">Add this secret to your authenticator app, then enter the 6-digit code.</div>
+            {totpQrDataUrl ? (
+              <div className="login-setup-qr-wrap">
+                <img className="login-setup-qr" src={totpQrDataUrl} alt="Authenticator QR code" />
+                <div className="login-setup-qr-hint-zh">Scan with authenticator app</div>
+                <div className="login-setup-qr-hint-en">Scan this QR code with your authenticator app.</div>
+              </div>
+            ) : null}
+            <div className="login-setup-secret-row">
+              <div className="login-setup-secret">{totpSecretKey}</div>
+            </div>
+            <div className="login-setup-hint-en">Manual setup key</div>
+          </div>
+          <label className="login-field">
+            <span className="login-label-zh">验证码</span>
+            <span className="login-label-en">Code</span>
+            <input
+              className="login-input login-input-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={setupCode}
+              onChange={(event) => setSetupCode(event.target.value)}
+              required
+            />
+          </label>
+          {errorMessage ? <div className="login-error">{errorMessage}</div> : null}
+          <button className="login-submit" type="submit" disabled={submitting}>
+            {submitting ? '绑定中... / Linking...' : '绑定认证器 / Link Authenticator'}
+          </button>
+          <button className="login-back" type="button" onClick={resetLoginState} disabled={submitting}>
+            返回登录 / Back to Sign In
+          </button>
+        </form>
+      )
+    }
+
+    return (
+      <form className="login-form" onSubmit={handlePasswordLogin}>
+        <label className="login-field">
+          <span className="login-label-zh">邮箱</span>
+          <span className="login-label-en">Email</span>
+          <input
+            className="login-input"
+            type="email"
+            autoComplete="username"
+            placeholder="name@example.org"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </label>
+
+        <label className="login-field">
+          <span className="login-label-zh">密码</span>
+          <span className="login-label-en">Password</span>
+          <input
+            className="login-input"
+            type="password"
+            autoComplete="current-password"
+            placeholder="At least 6 characters"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            minLength={6}
+            required
+          />
+        </label>
+
+        {noticeMessage ? <div className="login-notice">{noticeMessage}</div> : null}
+        {errorMessage ? <div className="login-error">{errorMessage}</div> : null}
+
+        <button className="login-submit" type="submit" disabled={submitting}>
+          {submitting ? '登录中... / Signing In...' : '邮箱登录 / Sign In'}
+        </button>
+        <button className="login-secondary" type="button" onClick={handleGoogleLogin} disabled={submitting}>
+          使用 Google 登录 / Continue with Google
+        </button>
+      </form>
+    )
   }
 
   return (
@@ -142,11 +397,10 @@ export function LoginPage() {
           <h1 className="login-brand-title">阿兰若个案管理系统</h1>
           <div className="login-brand-subtitle">Aranya CRM</div>
           <div className="login-brand-copy-zh">
-            通过统一的登录入口进入个案管理工作台，处理服务对象、预约与跟进事项。
+            使用 Firebase 登录，并通过认证器完成二次验证后进入工作台。
           </div>
           <div className="login-brand-copy-en">
-            Sign in through the shared access point to continue with case management,
-            appointments, and follow-up work.
+            Sign in with Firebase and complete authenticator verification to continue.
           </div>
         </div>
 
@@ -155,220 +409,36 @@ export function LoginPage() {
           <div className="login-side-card-subtitle">Sign-in Notes</div>
           <ul className="login-side-list">
             <li>
-              <span className="login-side-item-zh">使用后端已注册的邮箱和密码登录</span>
-              <span className="login-side-item-en">Use an email and password that already exist in the backend.</span>
+              <span className="login-side-item-zh">支持邮箱密码和 Google 登录</span>
+              <span className="login-side-item-en">Email/password and Google sign-in are supported.</span>
             </li>
             <li>
-              <span className="login-side-item-zh">首次登录需绑定两步验证（TOTP）</span>
-              <span className="login-side-item-en">First-time login requires binding two-factor authentication (TOTP).</span>
+              <span className="login-side-item-zh">完成 TOTP 后，后端会校验 Firebase ID token</span>
+              <span className="login-side-item-en">The backend verifies the final Firebase ID token.</span>
             </li>
             <li>
-              <span className="login-side-item-zh">请妥善保存备用码，丢失后无法找回</span>
-              <span className="login-side-item-en">Keep your backup codes safe — they cannot be recovered if lost.</span>
+              <span className="login-side-item-zh">只有本系统已授权且启用的账号可以进入</span>
+              <span className="login-side-item-en">Only active CRM users can access the workspace.</span>
             </li>
           </ul>
         </div>
       </aside>
 
       <main className="login-main">
+        <section className="login-card" aria-label="Login Form">
+          <h2 className="login-title">登录</h2>
+          <div className="login-subtitle">Login</div>
+          <div className="login-copy-zh">请选择登录方式，并根据提示完成邮箱验证或认证器验证。</div>
+          <div className="login-copy-en">
+            Choose a sign-in method and complete any required email or authenticator verification.
+          </div>
 
-        {/* ── Step 1: 账号密码 ── */}
-        {step === 'credentials' && (
-          <section className="login-card" aria-label="Login Form">
-            <h2 className="login-title">登录</h2>
-            <div className="login-subtitle">Login</div>
-            <div className="login-copy-zh">请输入邮箱和密码，系统将向后端认证接口发起登录请求。</div>
-            <div className="login-copy-en">
-              Enter your credentials and the page will submit them to the backend auth endpoint.
-            </div>
+          {renderStep()}
 
-            <form className="login-form" onSubmit={handleCredentialsSubmit}>
-              <label className="login-field">
-                <span className="login-label-zh">邮箱</span>
-                <span className="login-label-en">Email</span>
-                <input
-                  className="login-input"
-                  type="email"
-                  autoComplete="username"
-                  placeholder="name@example.org"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </label>
-
-              <label className="login-field">
-                <span className="login-label-zh">密码</span>
-                <span className="login-label-en">Password</span>
-                <input
-                  className="login-input"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={8}
-                  required
-                />
-              </label>
-
-              {errorMessage && <div className="login-error">{errorMessage}</div>}
-
-              <button className="login-submit" type="submit" disabled={submitting}>
-                {submitting ? '登录中... / Signing In...' : '登录 / Sign In'}
-              </button>
-            </form>
-
-            <div className="login-footnote">接口地址: `POST /api/v1/auth/login`</div>
-          </section>
-        )}
-
-        {/* ── Step 2a: 现有 2FA 验证码 ── */}
-        {step === 'totp' && (
-          <section className="login-card" aria-label="Two-Factor Verification Form">
-            <h2 className="login-title">两步验证</h2>
-            <div className="login-subtitle">Two-Factor Authentication</div>
-            <div className="login-copy-zh">
-              请打开您的验证器 App，输入当前的 6 位动态验证码；也可以使用备用码。
-            </div>
-            <div className="login-copy-en">
-              Open your authenticator app and enter the 6-digit code, or use a backup code.
-            </div>
-
-            <form className="login-form" onSubmit={handleTotpSubmit}>
-              <label className="login-field">
-                <span className="login-label-zh">验证码</span>
-                <span className="login-label-en">Verification Code</span>
-                <input
-                  className="login-input login-input-code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="000000"
-                  maxLength={8}
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\s/g, ''))}
-                  autoFocus
-                  required
-                />
-              </label>
-
-              {errorMessage && <div className="login-error">{errorMessage}</div>}
-
-              <button className="login-submit" type="submit" disabled={submitting}>
-                {submitting ? '验证中... / Verifying...' : '验证 / Verify'}
-              </button>
-
-              <button className="login-back" type="button" onClick={handleBackToCredentials} disabled={submitting}>
-                ← 返回重新登录 / Back to sign-in
-              </button>
-            </form>
-
-            <div className="login-footnote">接口地址: `POST /api/v1/auth/2fa/verify`</div>
-          </section>
-        )}
-
-        {/* ── Step 2b: 首次绑定 2FA ── */}
-        {step === 'setup' && (
-          <section className="login-card login-card-wide" aria-label="Two-Factor Setup Form">
-            <h2 className="login-title">绑定两步验证</h2>
-            <div className="login-subtitle">Set Up Two-Factor Authentication</div>
-            <div className="login-copy-zh">
-              系统要求所有账号开启两步验证。请将下方密钥添加到验证器 App（如 Google Authenticator 或 Authy），然后输入 App 中生成的 6 位验证码。
-            </div>
-            <div className="login-copy-en">
-              Two-factor authentication is required for all accounts. Add the key below to your authenticator app (e.g. Google Authenticator or Authy), then enter the 6-digit code it generates.
-            </div>
-
-            {setupQrBase64 && (
-              <div className="login-setup-qr-wrap">
-                <img
-                  className="login-setup-qr"
-                  src={`data:image/png;base64,${setupQrBase64}`}
-                  alt="Scan with your authenticator app"
-                />
-                <div className="login-setup-qr-hint-zh">用验证器 App 扫描此二维码</div>
-                <div className="login-setup-qr-hint-en">Scan with your authenticator app</div>
-              </div>
-            )}
-
-            <div className="login-setup-block">
-              <div className="login-setup-label-zh">或手动输入密钥</div>
-              <div className="login-setup-label-en">Or enter the key manually</div>
-              <div className="login-setup-secret-row">
-                <code className="login-setup-secret">{setupSecret}</code>
-                <button className="login-setup-copy" type="button" onClick={handleCopySecret}>
-                  {copied ? '已复制 / Copied' : '复制 / Copy'}
-                </button>
-              </div>
-              <div className="login-setup-hint-zh">
-                打开验证器 App → 添加账号 → 手动输入 → 粘贴上方密钥
-              </div>
-              <div className="login-setup-hint-en">
-                Open authenticator app → Add account → Enter setup key → Paste the key above
-              </div>
-            </div>
-
-            <form className="login-form" onSubmit={handleSetupSubmit}>
-              <label className="login-field">
-                <span className="login-label-zh">验证码</span>
-                <span className="login-label-en">Verification Code from App</span>
-                <input
-                  className="login-input login-input-code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="000000"
-                  maxLength={6}
-                  value={setupCode}
-                  onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
-                  required
-                />
-              </label>
-
-              {errorMessage && <div className="login-error">{errorMessage}</div>}
-
-              <button className="login-submit" type="submit" disabled={submitting}>
-                {submitting ? '绑定中... / Binding...' : '确认绑定 / Confirm'}
-              </button>
-
-              <button className="login-back" type="button" onClick={handleBackToCredentials} disabled={submitting}>
-                ← 返回重新登录 / Back to sign-in
-              </button>
-            </form>
-
-            <div className="login-footnote">接口地址: `POST /api/v1/auth/2fa/enable-init`</div>
-          </section>
-        )}
-
-        {/* ── Step 3: 展示备用码 ── */}
-        {step === 'backup-codes' && (
-          <section className="login-card login-card-wide" aria-label="Backup Codes">
-            <h2 className="login-title">保存备用码</h2>
-            <div className="login-subtitle">Save Your Backup Codes</div>
-            <div className="login-copy-zh">
-              两步验证已成功绑定。以下是您的 8 个备用码，每个只能使用一次。请立即抄写或打印保存，关闭此页面后将无法再次查看。
-            </div>
-            <div className="login-copy-en">
-              Two-factor authentication is now active. Below are your 8 backup codes — each can only be used once. Copy or print them now; they will not be shown again.
-            </div>
-
-            <div className="login-backup-grid">
-              {backupCodes.map((code) => (
-                <code key={code} className="login-backup-code">{code}</code>
-              ))}
-            </div>
-
-            <button
-              className="login-submit"
-              type="button"
-              onClick={() => navigate('/dashboard', { replace: true })}
-            >
-              已保存，进入系统 / I've saved these — Continue
-            </button>
-          </section>
-        )}
-
+          <div className="login-footnote">
+            后端认证入口: GET /api/v1/auth/me
+          </div>
+        </section>
       </main>
     </div>
   )

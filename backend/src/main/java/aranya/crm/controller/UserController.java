@@ -1,17 +1,16 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.InviteUserRequest;
-import aranya.crm.dto.MeResponse;
-import aranya.crm.dto.UpdateRolesRequest;
-import aranya.crm.dto.UpdateUserStatusRequest;
+import aranya.crm.dto.request.InviteUserRequest;
+import aranya.crm.dto.request.UpdateRolesRequest;
+import aranya.crm.dto.request.UpdateUserStatusRequest;
 import aranya.crm.dto.UserSummaryDto;
-import aranya.crm.security.model.UserPrincipal;
+import aranya.crm.entity.User;
+import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,13 +35,6 @@ public class UserController {
      * 显式覆盖类级别 hasRole('MANAGER') —— 任何已认证用户都能调用 /me。
      * 这是前端 AuthContext 在初始化和登录后获取角色的入口。
      */
-    @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<MeResponse> getCurrentUser(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(userService.getCurrentUser(principal));
-    }
-
     @GetMapping
     public ResponseEntity<List<UserSummaryDto>> list() {
         return ResponseEntity.ok(userService.listUsers());
@@ -50,17 +42,17 @@ public class UserController {
 
     @PostMapping("/invite")
     public ResponseEntity<UserSummaryDto> invite(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @CurrentUser User currentUser,
             @Valid @RequestBody InviteUserRequest request) {
-        return ResponseEntity.ok(userService.invite(request, principal.getId()));
+        return ResponseEntity.ok(userService.invite(request, currentUser.getId()));
     }
 
     @PatchMapping("/{id}/roles")
     public ResponseEntity<UserSummaryDto> updateRoles(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @CurrentUser User currentUser,
             @PathVariable Long id,
             @Valid @RequestBody UpdateRolesRequest request) {
-        return ResponseEntity.ok(userService.updateRoles(id, request.getRoles(), principal.getId()));
+        return ResponseEntity.ok(userService.updateRoles(id, request.getRoles(), currentUser.getId()));
     }
 
     @PatchMapping("/{id}/status")

@@ -25,6 +25,12 @@
     </parent>
 
     <dependencies>
+        <!-- Firebase -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.8.0</version>
+        </dependency>
         <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
