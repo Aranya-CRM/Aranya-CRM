@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:docker": "vite build",
+    "firebase:enable-totp": "node ../scripts/firebase/enable-totp-mfa.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
+    "@tanstack/react-query": "^5.100.9",
     "antd": "^6.3.5",
     "axios": "^1.14.0",
+    "firebase": "^12.12.1",
+    "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-redux": "^9.2.0",

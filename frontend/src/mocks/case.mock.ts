@@ -1,4 +1,4 @@
-import type { Case, CaseNote, CaseStatusChange } from '../types/case'
+import type { Case, CaseNote, CaseStatusChange } from '../features/cases/types'
 
 const defaultServices = {
   housingSupport: false,

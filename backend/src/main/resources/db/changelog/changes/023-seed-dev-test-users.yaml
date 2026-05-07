@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 023-seed-dev-test-users
+      author: ShiDu
+      context: dev, test
+      comment: "Seed dev/test users for each business role"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO users (firebase_uid, username, full_name, email, email_verified, status)
+              VALUES
+                ('dev-volunteer-firebase-uid', 'volunteer', 'Volunteer User', 'volunteer@test.com', true, 'ACTIVE'),
+                ('dev-social-worker-firebase-uid', 'social_worker', 'Social Worker User', 'socialworker@test.com', true, 'ACTIVE')
+              ON CONFLICT (email) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO user_role (user_id, role_id, assigned_at, assigned_by)
+              SELECT u.id, r.id, NOW(), NULL
+              FROM users u
+              JOIN role r ON
+                (u.email = 'volunteer@test.com' AND r.name = 'VOLUNTEER')
+                OR (u.email = 'socialworker@test.com' AND r.name = 'SOCIAL_WORKER')
+              WHERE u.email IN ('volunteer@test.com', 'socialworker@test.com')
+              ON CONFLICT (user_id, role_id) DO NOTHING;

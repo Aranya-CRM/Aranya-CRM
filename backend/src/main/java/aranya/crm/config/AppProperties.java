@@ -12,25 +12,10 @@ import java.util.List;
 public class AppProperties {
 
     private CorsProperties cors = new CorsProperties();
-    private JwtProperties jwt = new JwtProperties();
-    private TwoFactorProperties twoFactor = new TwoFactorProperties();
 
     @Data
     public static class CorsProperties {
         private List<String> allowedOrigins;
     }
 
-    @Data
-    public static class JwtProperties {
-        private String secret;
-        private long accessTokenExpiration;
-        private long refreshTokenExpiration;
-    }
-
-    @Data
-    public static class TwoFactorProperties {
-        private String issuer = "AranyaCRM";
-        private long tempTokenExpiration = 300000L;
-        private String encryptionKey;
-    }
 }

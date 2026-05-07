@@ -1,0 +1,431 @@
+@startuml Aranya_CRM_ERD
+
+' ============================================================
+' Aranya CRM - Entity Relationship Diagram (PlantUML)
+' Paste at: https://www.plantuml.com/plantuml/uml/
+' or use VS Code extension: "PlantUML"
+'
+' Access Zone Legend:
+'   #FFD6D6 (Red)    = Admin Only
+'   #D6E8FF (Blue)   = Admin + Social Worker
+'   #D6FFD6 (Green)  = All Roles (column-level restriction)
+'   #FFFACC (Yellow) = All Roles can Write
+'
+' Changelog v2:
+'   [1] Role zone retained; relationship labels simplified
+'   [2] client_document removed; case_document retained (1 case = 1 client)
+'   [3] case_assignment: added is_primary flag for primary handler
+'       case.social_worker_id removed (redundant)
+'   [4] service_category + service_type tables added (Admin-managed);
+'       service_appointment.service_type VARCHAR replaced with FK
+'   [5] case_status_history replaced by case_change_log (method A)
+' ============================================================
+
+hide circle
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555555
+  FontSize 12
+}
+skinparam arrow {
+  Color #555555
+  FontSize 11
+}
+
+
+' ============================================================
+' ZONE: AUTH  [ADMIN ONLY]
+' ============================================================
+
+package "Auth Zone  [ADMIN ONLY]" #FFD6D6 {
+
+  entity "role" as role {
+    * id : BIGINT <<PK>>
+    --
+    * name : VARCHAR(50) <<UQ>>
+    description : VARCHAR(255)
+  }
+
+  entity "users" as users {
+    * id : BIGINT <<PK>>
+    --
+    * username : VARCHAR(50) <<UQ>>
+    * full_name : VARCHAR(100)
+    * email : VARCHAR(100) <<UQ>>
+    phone : VARCHAR(20)
+    * password_hash : VARCHAR(255)
+    * status : VARCHAR(20)
+    ..2FA..
+    * two_factor_enabled : BOOLEAN
+    two_factor_secret : VARCHAR(512)
+  }
+
+  entity "user_role" as user_role {
+    * id : BIGINT <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    * role_id : BIGINT <<FK>>
+    * assigned_at : TIMESTAMP
+    assigned_by : BIGINT <<FK>>
+  }
+
+  entity "invitation" as invitation {
+    * id : BIGINT <<PK>>
+    --
+    * email : VARCHAR(100)
+    * token : VARCHAR(255) <<UQ>>
+    * assigned_role_id : BIGINT <<FK>>
+    * invited_by : BIGINT <<FK>>
+    * status : VARCHAR(20)
+    * expires_at : TIMESTAMP
+    accepted_at : TIMESTAMP
+    * created_at : TIMESTAMP
+  }
+
+  entity "email_notification_log" as email_notification_log {
+    * id : BIGINT <<PK>>
+    --
+    * send_user_id : BIGINT <<FK>>
+    recipient_user_id : BIGINT <<FK>>
+    * recipient_email : VARCHAR(100)
+    * source_type : VARCHAR(50)
+    source_id : BIGINT
+    * send_at : TIMESTAMP
+  }
+
+  entity "refresh_token" as refresh_token {
+    * id : BIGINT <<PK>>
+    --
+    * token_hash : VARCHAR(255) <<UQ>>
+    * user_id : BIGINT <<FK>>
+    * expires_at : TIMESTAMP
+    * created_at : TIMESTAMP
+    * revoked : BOOLEAN
+  }
+
+  entity "two_factor_backup_code" as two_factor_backup_code {
+    * id : BIGINT <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    * code_hash : VARCHAR(64)
+    * used : BOOLEAN
+    * created_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' ZONE: CLIENT  [ALL ROLES — column-level restriction]
+' [V] = Volunteer 可见；其余列仅 Admin + SW 可见
+' ============================================================
+
+package "Client Zone  [ALL ROLES — column-level]" #D6FFD6 {
+
+  entity "client" as client {
+    * id : BIGINT <<PK>>
+    ==  [V] Basic Info — ALL roles  ==
+    * abbr : VARCHAR(20) <<UQ>>
+    * name_en : VARCHAR(150)
+    name_chn : VARCHAR(100)
+    contact : VARCHAR(20)
+    preferred_communication : VARCHAR(50)
+    preferred_language : VARCHAR(50)
+    area_district : VARCHAR(100)
+    * membership_status : VARCHAR(30)
+    buddhist_tradition : VARCHAR(30)
+    ordination_status : VARCHAR(30)
+    * created_at : TIMESTAMP
+    ==  [RESTRICTED] Admin + SW only  ==
+    spoken_language : VARCHAR(100)
+    * whatsapp_enabled : BOOLEAN
+    address_text : TEXT
+    postal_code : VARCHAR(20)
+    vihara_type : VARCHAR(50)
+    date_joined : DATE
+    membership_remarks : TEXT
+    ..Identity..
+    nric_name_en : VARCHAR(150)
+    nric_name_chn : VARCHAR(100)
+    nric_no : VARCHAR(50)
+    ordination_certificate_status : VARCHAR(20)
+    date_of_verification : DATE
+    ..Personal..
+    gender : VARCHAR(10)
+    date_of_birth : DATE
+    marital_status : VARCHAR(30)
+    nationality : VARCHAR(50)
+    ethnicity : VARCHAR(50)
+    dialect_group : VARCHAR(50)
+    ..Ordination Details..
+    date_of_tonsure : DATE
+    country_of_tonsure : VARCHAR(50)
+    place_of_tonsure : VARCHAR(100)
+    date_of_ordination : DATE
+    country_of_ordination : VARCHAR(50)
+    place_of_ordination : VARCHAR(100)
+    ..Wellbeing..
+    * wellbeing_living_conditions : BOOLEAN
+    * wellbeing_mental_health : BOOLEAN
+    * wellbeing_physical_health : BOOLEAN
+    * wellbeing_financial_stability : BOOLEAN
+    * wellbeing_social_support : BOOLEAN
+    * wellbeing_legal_issues : BOOLEAN
+    * wellbeing_spiritual : BOOLEAN
+    wellbeing_remarks : TEXT
+    ..Special Needs & Finance..
+    special_needs : VARCHAR(100)
+    special_needs_remarks : TEXT
+    bank_transfer_info : VARCHAR(100)
+    pay_now_info : VARCHAR(100)
+    next_of_kin_contact : VARCHAR(100)
+    comments : TEXT
+  }
+
+  entity "related_contact" as related_contact {
+    * id : BIGINT <<PK>>
+    --
+    * client_id : BIGINT <<FK>>
+    * name : VARCHAR(100)
+    relationship_type : VARCHAR(50)
+    phone : VARCHAR(20)
+    email : VARCHAR(100)
+    address_text : TEXT
+    * is_primary : BOOLEAN
+    notes : TEXT
+    * created_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' ZONE: SERVICE CONFIG  [ADMIN ONLY]
+' Admin manages service categories and types
+' ============================================================
+
+package "Service Config Zone  [ADMIN ONLY]" #FFD6D6 {
+
+  entity "service_category" as service_category {
+    * id : BIGINT <<PK>>
+    --
+    * name : VARCHAR(100) <<UQ>>
+    description : TEXT
+    * is_active : BOOLEAN
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+  }
+
+  entity "service_type" as service_type {
+    * id : BIGINT <<PK>>
+    --
+    * category_id : BIGINT <<FK>>
+    * name : VARCHAR(100)
+    description : TEXT
+    * is_active : BOOLEAN
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' ZONE: CASE  [ADMIN + SW ONLY]
+' ============================================================
+
+package "Case Zone  [ADMIN + SW ONLY]" #D6E8FF {
+
+  entity "case" as case_t {
+    * id : BIGINT <<PK>>
+    --
+    * case_code : VARCHAR(50) <<UQ>>
+    * client_id : BIGINT <<FK>>
+    * title : VARCHAR(255)
+    description : TEXT
+    * priority : VARCHAR(20)
+    * status : VARCHAR(20)
+    color_code : VARCHAR(20)
+    tradition : VARCHAR(30)
+    * opened_at : TIMESTAMP
+    closed_at : TIMESTAMP
+    * created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+    comments : TEXT
+    remarks : TEXT
+  }
+
+  entity "case_assignment" as case_assignment {
+    * id : BIGINT <<PK>>
+    --
+    * case_id : BIGINT <<FK>>
+    * user_id : BIGINT <<FK>>
+    * is_primary : BOOLEAN
+    ..Constraint: only one active is_primary per case..
+    * assignment_role : VARCHAR(50)
+    * status : VARCHAR(20)
+    * assigned_at : TIMESTAMP
+    end_at : TIMESTAMP
+    assigned_by : BIGINT <<FK>>
+  }
+
+  entity "case_change_log" as case_change_log {
+    * id : BIGINT <<PK>>
+    --
+    * case_id : BIGINT <<FK>>
+    * field_name : VARCHAR(100)
+    old_value : TEXT
+    * new_value : TEXT
+    * changed_by : BIGINT <<FK>>
+    * changed_at : TIMESTAMP
+    remarks : TEXT
+  }
+
+  entity "case_note" as case_note {
+    * id : BIGINT <<PK>>
+    --
+    * case_id : BIGINT <<FK>>
+    note_type : VARCHAR(50)
+    * content : TEXT
+    * visibility : VARCHAR(20)
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+
+  entity "service_appointment" as service_appointment {
+    * id : BIGINT <<PK>>
+    --
+    * case_id : BIGINT <<FK>>
+    * service_type_id : BIGINT <<FK>>
+    * scheduled_start : TIMESTAMP
+    scheduled_end : TIMESTAMP
+    location : VARCHAR(255)
+    assigned_user_id : BIGINT <<FK>>
+    * status : VARCHAR(20)
+    created_by : BIGINT <<FK>>
+    * created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' ZONE: DOCUMENT  [ADMIN + SW ONLY]
+' client_document removed; case_document is the single link
+' (1 case = 1 client, so case_document covers both)
+' ============================================================
+
+package "Document Zone  [ADMIN + SW ONLY]" #EDE0FF {
+
+  entity "document" as document {
+    * id : BIGINT <<PK>>
+    --
+    * file_name : VARCHAR(255)
+    * store_name : VARCHAR(255)
+    s3_bucket : VARCHAR(255)
+    s3_key : VARCHAR(500)
+    mime_type : VARCHAR(100)
+    file_size : BIGINT
+    document_type : VARCHAR(50)
+    * status : VARCHAR(20)
+    uploaded_by : BIGINT <<FK>>
+    * uploaded_at : TIMESTAMP
+    description : TEXT
+    checksum : VARCHAR(255)
+    updated_at : TIMESTAMP
+  }
+
+  entity "case_document" as case_document {
+    * id : BIGINT <<PK>>
+    --
+    * case_id : BIGINT <<FK>>
+    * document_id : BIGINT <<FK>>
+    linked_by : BIGINT <<FK>>
+    * linked_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' ZONE: VISIT REPORT  [ALL ROLES — WRITE]
+' WRITE: All roles  |  READ: Admin+SW = all; Volunteer = own only
+' ============================================================
+
+package "Visit Report Zone  [ALL ROLES — WRITE]" #FFFACC {
+
+  entity "visit_report" as visit_report {
+    * id : BIGINT <<PK>>
+    --
+    * client_id : BIGINT <<FK>>
+    created_by : BIGINT <<FK>>
+    staff_name : VARCHAR(150)
+    * report_timestamp : TIMESTAMP
+    * date_of_visit : DATE
+    time_of_visit : VARCHAR(20)
+    duration_of_visit : VARCHAR(50)
+    location : VARCHAR(255)
+    programme_name : VARCHAR(255)
+    type_of_visit : VARCHAR(100)
+    purpose_of_visit : TEXT
+    what_was_done : TEXT
+    environment_observations : TEXT
+    sangha_observations : TEXT
+    other_observations : TEXT
+    personal_reflections : TEXT
+    recommendations : TEXT
+    matters_to_highlight : TEXT
+    * created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' -- Auth --
+users          ||--o{ user_role              : ""
+role           ||--o{ user_role              : ""
+users          ||--o{ invitation             : ""
+role           ||--o{ invitation             : ""
+users          ||--o{ refresh_token          : ""
+users          ||--o{ two_factor_backup_code : ""
+users          ||--o{ email_notification_log : ""
+
+' -- Client --
+client         ||--o{ related_contact  : ""
+client         ||--o{ visit_report     : ""
+
+' -- Case core --
+client         ||--o{ case_t               : ""
+case_t         ||--o{ case_assignment      : ""
+case_t         ||--o{ case_change_log      : ""
+case_t         ||--o{ case_note            : ""
+case_t         ||--o{ service_appointment  : ""
+case_t         ||--o{ case_document        : ""
+
+' -- Case participants --
+users          ||--o{ case_assignment      : ""
+users          ||--o{ service_appointment  : ""
+
+' -- Service config --
+service_category ||--o{ service_type        : ""
+service_type     ||--o{ service_appointment : ""
+users            ||--o{ service_category    : ""
+users            ||--o{ service_type        : ""
+
+' -- Document --
+document       ||--o{ case_document : ""
+users          ||--o{ document      : ""
+
+' -- Visit Report --
+users          ||--o{ visit_report : ""
+
+@enduml

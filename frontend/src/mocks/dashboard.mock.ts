@@ -1,4 +1,4 @@
-import type { DashboardData } from '../types/dashboard'
+import type { DashboardData } from '../features/dashboard/types'
 
 export const dashboardMockData: DashboardData = {
   activeCases: [

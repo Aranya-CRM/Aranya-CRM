@@ -1,0 +1,21 @@
+package aranya.crm.dto.response;
+
+import lombok.Builder;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+@Builder
+public class LoginResponse {
+    private String accessToken;
+    private String refreshToken;
+    private String tokenType;
+    private long expiresIn;
+    private String email;
+    private String fullName;
+    private Boolean requiresTwoFactor;
+    private Boolean requiresTwoFactorSetup;
+    private String tempToken;
+    private List<String> backupCodes;
+}

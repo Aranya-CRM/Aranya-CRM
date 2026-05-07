@@ -1,14 +1,10 @@
 package aranya.crm.service;
 
 import aranya.crm.config.AppProperties;
-import aranya.crm.dto.LoginRequest;
-import aranya.crm.dto.LoginResponse;
-import aranya.crm.entity.RefreshToken;
+import aranya.crm.dto.request.LoginRequest;
+import aranya.crm.dto.response.LoginResponse;
 import aranya.crm.entity.User;
-import aranya.crm.repository.RefreshTokenRepository;
 import aranya.crm.repository.UserRepository;
-import aranya.crm.security.model.UserPrincipal;
-import aranya.crm.security.util.JwtUtil;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,7 +49,7 @@ class AuthServiceTest {
     private AuthService authService;
 
     private User mockUser;
-    private UserPrincipal mockPrincipal;
+    private FirebaseUserPrincipal mockPrincipal;
 
     @BeforeEach
     void setUp() {
@@ -64,7 +60,7 @@ class AuthServiceTest {
         mockUser.setPasswordHash("hashedPassword");
         mockUser.setStatus("ACTIVE");
 
-        mockPrincipal = UserPrincipal.of(mockUser, List.of("ADMIN"));
+        mockPrincipal = FirebaseUserPrincipal.of(mockUser, List.of("ADMIN"));
 
         when(appProperties.getJwt()).thenReturn(jwtConfig);
         when(jwtConfig.getAccessTokenExpiration()).thenReturn(3600000L);
@@ -73,8 +69,8 @@ class AuthServiceTest {
 
     @Test
     @Order(1)
-    @DisplayName("登录成功返回 Token 对")
-    void login_ShouldReturnTokens_WhenCredentialsAreValid() {
+    @DisplayName("登录成功（未绑 2FA）返回 tempToken，要求进入 2FA 绑定流程")
+    void login_ShouldReturnTempToken_WhenCredentialsValidAnd2FaSetupNeeded() {
         // Arrange
         LoginRequest request = new LoginRequest();
         request.setEmail("admin@test.com");
@@ -84,19 +80,20 @@ class AuthServiceTest {
                 new UsernamePasswordAuthenticationToken(mockPrincipal, null, mockPrincipal.getAuthorities());
 
         when(authenticationManager.authenticate(any())).thenReturn(authToken);
-        when(jwtUtil.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken(any())).thenReturn("refresh-token");
-        when(userRepository.getReferenceById(1L)).thenReturn(mockUser);
+        when(jwtUtil.generateTempToken(any())).thenReturn("temp-token");
 
         // Act
         LoginResponse response = authService.login(request);
 
-        // Assert
-        assertThat(response.getAccessToken()).isEqualTo("access-token");
-        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
-        assertThat(response.getEmail()).isEqualTo("admin@test.com");
-        assertThat(response.getTokenType()).isEqualTo("Bearer");
-        verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
+        // Assert：
+        // mockPrincipal 默认未开 2FA → AuthService.login() 走 "2FA setup required" 分支，
+        // 返回 tempToken（不直接发 access/refresh）。真实 token 等用户绑完 2FA 后才下发。
+        assertThat(response.getRequiresTwoFactorSetup()).isTrue();
+        assertThat(response.getTempToken()).isEqualTo("temp-token");
+        assertThat(response.getAccessToken()).isNull();
+        assertThat(response.getRefreshToken()).isNull();
+        // login() 不应在 2FA 完成前持久化 refresh token
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
     }
 
     @Test

@@ -1,0 +1,221 @@
+import type { Client, WellbeingDomain } from '../types'
+import { InfoItem } from './InfoItem'
+
+export type ClientDetailTabId = 'basic' | 'identity' | 'personal' | 'ordination' | 'wellbeing' | 'cases'
+
+interface TabDef {
+  id: ClientDetailTabId
+  zh: string
+  en: string
+  detailOnly?: boolean
+}
+
+export const CLIENT_DETAIL_TABS: TabDef[] = [
+  { id: 'basic', zh: '基本信息', en: 'Basic Info' },
+  { id: 'identity', zh: '身份文件', en: 'Identity', detailOnly: true },
+  { id: 'personal', zh: '个人信息', en: 'Personal', detailOnly: true },
+  { id: 'ordination', zh: '受戒历史', en: 'Ordination', detailOnly: true },
+  { id: 'wellbeing', zh: '健康评估', en: 'Wellbeing', detailOnly: true },
+  { id: 'cases', zh: '关联个案', en: 'Cases', detailOnly: true },
+]
+
+const WELLBEING_LABELS: Record<WellbeingDomain, string> = {
+  physicalHealth: 'Physical Health / 身体健康',
+  mentalHealth: 'Mental Health / 心理健康',
+  socialSupport: 'Social Support / 社会支持',
+  financialStability: 'Financial Stability / 经济稳定',
+  livingConditions: 'Living Conditions / 居住条件',
+  spiritualWellbeing: 'Spiritual Wellbeing / 灵性健康',
+  legalIssues: 'Legal Issues / 法律问题',
+  substanceUse: 'Substance Use / 物质使用',
+}
+
+const SPECIAL_NEEDS_LABELS: Record<string, string> = {
+  physical: 'Physical / 肢体',
+  hearing: 'Hearing / 听力',
+  visual: 'Visual / 视力',
+  intellectual: 'Intellectual / 智力',
+}
+
+interface ClientDetailTabsProps {
+  client: Client
+  activeTab: ClientDetailTabId
+  canViewDetailedProfile: boolean
+  onTabChange: (tabId: ClientDetailTabId) => void
+}
+
+export function ClientDetailTabs({
+  client,
+  activeTab,
+  canViewDetailedProfile,
+  onTabChange,
+}: ClientDetailTabsProps) {
+  const visibleTabs = canViewDetailedProfile
+    ? CLIENT_DETAIL_TABS
+    : CLIENT_DETAIL_TABS.filter((tab) => !tab.detailOnly)
+
+  return (
+    <>
+      <div className="tab-bar">
+        {visibleTabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={'tab-btn' + (activeTab === tab.id ? ' active' : '')}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.zh} / {tab.en}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'basic' ? <BasicTab client={client} /> : null}
+      {activeTab === 'identity' && canViewDetailedProfile ? <IdentityTab client={client} /> : null}
+      {activeTab === 'personal' && canViewDetailedProfile ? <PersonalTab client={client} /> : null}
+      {activeTab === 'ordination' && canViewDetailedProfile ? <OrdinationTab client={client} /> : null}
+      {activeTab === 'wellbeing' && canViewDetailedProfile ? <WellbeingTab client={client} /> : null}
+      {activeTab === 'cases' && canViewDetailedProfile ? <CasesTab clientId={client.id} /> : null}
+    </>
+  )
+}
+
+function BasicTab({ client }: { client: Client }) {
+  return (
+    <div className="tab-content">
+      <div className="info-grid">
+        <InfoItem label="法名 (中) / Chinese Name" value={client.nameChn} />
+        <InfoItem label="法名 (英) / English Name" value={client.nameEn} />
+        <InfoItem label="缩写 / Abbreviation" value={client.abbr} />
+        <InfoItem label="联系电话 / Contact" value={client.contact} />
+        <InfoItem label="首选联系方式 / Preferred Communication" value={client.preferredCommunication} />
+        <InfoItem label="首选语言 / Preferred Language" value={client.preferredLanguage} />
+        <InfoItem label="区域 / Area" value={client.area} />
+        <InfoItem label="佛教传承 / Buddhist Tradition" value={client.buddhistTradition} />
+        <InfoItem label="戒别 / Ordination Status" value={client.ordinationStatus} />
+        <InfoItem label="会员状态 / Membership Status" value={client.membershipStatus} />
+      </div>
+    </div>
+  )
+}
+
+function IdentityTab({ client }: { client: Client }) {
+  return (
+    <div className="tab-content">
+      <div className="info-grid">
+        <InfoItem label="NRIC 姓名 (英) / NRIC Name (EN)" value={client.nricNameEn} />
+        <InfoItem label="NRIC 姓名 (中) / NRIC Name (CN)" value={client.nricNameChn} />
+        <InfoItem label="NRIC 号码 / NRIC No." value={client.nricNo} />
+        <InfoItem label="受戒证书 / Ordination Certificate" value={client.ordinationCertificate} />
+        <InfoItem label="验证日期 / Date of Verification" value={client.dateVerification} />
+      </div>
+    </div>
+  )
+}
+
+function PersonalTab({ client }: { client: Client }) {
+  return (
+    <div className="tab-content">
+      <div className="info-grid">
+        <InfoItem label="性别 / Sex" value={client.sex} />
+        <InfoItem label="出生日期 / Date of Birth" value={client.dateOfBirth} />
+        <InfoItem label="年龄 / Age" value={client.age} />
+        <InfoItem label="婚姻状况 / Marital Status" value={client.maritalStatus} />
+        <InfoItem label="国籍 / Nationality" value={client.nationality} />
+        <InfoItem label="族裔 / Ethnicity" value={client.ethnicity} />
+        <InfoItem label="方言 / Dialect Group" value={client.dialectGroup} />
+        <InfoItem label="口语 / Spoken Languages" value={client.spokenLanguage} />
+        <InfoItem label="地址 / Address" value={client.address} />
+        <InfoItem label="邮编 / Postal Code" value={client.postalCode} />
+        <InfoItem label="精舍类型 / Vihara Type" value={client.viharaType} />
+        <InfoItem label="近亲 / Next of Kin" value={client.nextOfKin} />
+        <InfoItem label="WhatsApp 使用 / Able to use WhatsApp" value={client.ableToUseWhatsApp} />
+        <InfoItem label="加入日期 / Date Joined" value={client.dateJoined} />
+        <InfoItem label="会员备注 / Membership Remarks" value={client.membershipRemarks} />
+      </div>
+    </div>
+  )
+}
+
+function OrdinationTab({ client }: { client: Client }) {
+  return (
+    <div className="tab-content">
+      <div className="info-section-title">剃度信息 / Tonsure</div>
+      <div className="info-grid">
+        <InfoItem label="剃度日期 / Date of Tonsure" value={client.dateTonsure} />
+        <InfoItem label="剃度国家 / Country" value={client.countryTonsure} />
+        <InfoItem label="剃度地点 / Place" value={client.placeTonsure} />
+      </div>
+      <div className="info-section-title">受戒信息 / Ordination</div>
+      <div className="info-grid">
+        <InfoItem label="受戒日期 / Date of Ordination" value={client.dateOrdination} />
+        <InfoItem label="受戒国家 / Country" value={client.countryOrdination} />
+        <InfoItem label="受戒地点 / Place" value={client.placeOrdination} />
+        <InfoItem label="戒龄 / Ordination Years" value={client.ordinationYears} />
+        <InfoItem label="佛教传承 / Buddhist Tradition" value={client.buddhistTradition} />
+        <InfoItem label="戒别 / Ordination Status" value={client.ordinationStatus} />
+      </div>
+    </div>
+  )
+}
+
+function WellbeingTab({ client }: { client: Client }) {
+  return (
+    <div className="tab-content">
+      <div className="info-section-title">健康评估 / Wellbeing Assessment</div>
+      <div className="check-grid">
+        {(Object.keys(WELLBEING_LABELS) as WellbeingDomain[]).map((key) => (
+          <div key={key} className="check-item">
+            <span className={'dot ' + (client.wellbeingIssues[key] ? 'dot-yes' : 'dot-no')} />
+            {WELLBEING_LABELS[key]}
+          </div>
+        ))}
+      </div>
+      {client.wellbeingRemarks ? (
+        <>
+          <div className="info-section-title">备注 / Remarks</div>
+          <p className="detail-paragraph">{client.wellbeingRemarks}</p>
+        </>
+      ) : null}
+
+      <div className="info-section-title">特殊需求 / Special Needs</div>
+      <div className="check-grid">
+        {Object.entries(SPECIAL_NEEDS_LABELS).map(([key, label]) => (
+          <div key={key} className="check-item">
+            <span className={'dot ' + (client.specialNeeds[key as keyof typeof client.specialNeeds] ? 'dot-yes' : 'dot-no')} />
+            {label}
+          </div>
+        ))}
+      </div>
+      {client.specialNeedsRemarks ? (
+        <>
+          <div className="info-section-title">特殊需求备注 / Special Needs Remarks</div>
+          <p className="detail-paragraph">{client.specialNeedsRemarks}</p>
+        </>
+      ) : null}
+
+      <div className="info-section-title">财务信息 / Financial</div>
+      <div className="info-grid">
+        <InfoItem label="银行转账 / Bank Transfer" value={client.bankTransfer} />
+        <InfoItem label="PayNow" value={client.payNow} />
+      </div>
+
+      {client.comments ? (
+        <>
+          <div className="info-section-title">备注 / Comments</div>
+          <p className="detail-paragraph">{client.comments}</p>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function CasesTab({ clientId }: { clientId: string }) {
+  return (
+    <div className="tab-content">
+      <p className="detail-paragraph">
+        关联个案将在个案模块实现后展示。 / Related cases will be shown after cases module is implemented.
+      </p>
+      <p className="detail-meta">Client ID: {clientId}</p>
+    </div>
+  )
+}
