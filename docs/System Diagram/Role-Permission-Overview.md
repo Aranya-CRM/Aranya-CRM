@@ -1,7 +1,5 @@
 # Aranya CRM Role Permission Overview
 
-Source: `D:\KON\Documents\OneDrive\Desktop\权限.txt`
-
 ## 1. Permission Model Boundary
 
 The backend decides what the current authenticated user is allowed to access or execute.
