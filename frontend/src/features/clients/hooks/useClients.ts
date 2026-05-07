@@ -1,0 +1,55 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  createClient,
+  fetchClientById,
+  fetchClients,
+  updateClient,
+} from '../api/client.api'
+import type { Client } from '../types'
+
+export const clientQueryKeys = {
+  all: ['clients'] as const,
+  lists: () => [...clientQueryKeys.all, 'list'] as const,
+  list: () => [...clientQueryKeys.lists()] as const,
+  details: () => [...clientQueryKeys.all, 'detail'] as const,
+  detail: (id: string) => [...clientQueryKeys.details(), id] as const,
+}
+
+export function useClients() {
+  return useQuery({
+    queryKey: clientQueryKeys.list(),
+    queryFn: fetchClients,
+  })
+}
+
+export function useClient(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? clientQueryKeys.detail(id) : clientQueryKeys.details(),
+    queryFn: () => fetchClientById(id!),
+    enabled: Boolean(id),
+  })
+}
+
+export function useCreateClient() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: Omit<Client, 'id'>) => createClient(data),
+    onSuccess: (client) => {
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
+      queryClient.setQueryData(clientQueryKeys.detail(client.id), client)
+    },
+  })
+}
+
+export function useUpdateClient() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Client> }) => updateClient(id, data),
+    onSuccess: (client) => {
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
+      queryClient.setQueryData(clientQueryKeys.detail(client.id), client)
+    },
+  })
+}

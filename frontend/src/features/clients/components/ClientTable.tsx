@@ -1,4 +1,4 @@
-import type { Client } from '../../../types/client'
+import type { Client } from '../types'
 import { EmptyTableRow, SectionCard, TableShell } from '../../../shared/ui'
 import { MembershipBadge } from './MembershipBadge'
 

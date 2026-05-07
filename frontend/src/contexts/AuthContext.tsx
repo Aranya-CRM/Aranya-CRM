@@ -10,9 +10,9 @@ import {
 import {
   logoutFirebase,
   subscribeFirebaseAuth,
-} from '../services/auth'
-import { getCurrentUser, type MeResponse } from '../services/user.api'
-import { getUiManifest } from '../services/uiManifest.api'
+} from '../features/auth/api/auth'
+import { getCurrentUser, type MeResponse } from '../features/auth/api/user.api'
+import { getUiManifest } from '../features/auth/api/uiManifest.api'
 import type { UiManifest } from '../types/uiManifest'
 
 interface AuthContextValue {

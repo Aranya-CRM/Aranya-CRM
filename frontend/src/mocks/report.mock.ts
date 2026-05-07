@@ -1,4 +1,4 @@
-import type { EngagementReport } from '../types/report'
+import type { EngagementReport } from '../features/reports/types'
 
 export const reportMockData: EngagementReport[] = [
   {

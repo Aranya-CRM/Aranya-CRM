@@ -12,8 +12,8 @@ import {
   signInWithGoogle,
   signInWithPassword,
   startTotpEnrollment,
-} from '../../../services/auth'
-import { firebaseAuth } from '../../../services/firebase'
+} from '../api/auth'
+import { firebaseAuth } from '../api/firebase'
 import { useTotpQrCode } from './useTotpQrCode'
 
 export type LoginStep =

@@ -1,4 +1,4 @@
-import type { Client, WellbeingDomain } from '../../../types/client'
+import type { Client, WellbeingDomain } from '../types'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 
 export type ClientFormData = Omit<Client, 'id'>

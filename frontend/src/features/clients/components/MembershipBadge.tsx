@@ -1,4 +1,4 @@
-import type { Client } from '../../../types/client'
+import type { Client } from '../types'
 
 interface MembershipBadgeProps {
   status: Client['membershipStatus']

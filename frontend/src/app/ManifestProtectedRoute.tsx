@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
-import { AppLayout } from '../components/layout/AppLayout'
 import { useAuth } from '../contexts/AuthContext'
+import { AppLayout } from '../shared/layout'
 import { useAccess } from '../shared/auth'
 import '../shared/ui/shared.css'
 

@@ -1,4 +1,4 @@
-import type { Client, WellbeingDomain } from '../../../types/client'
+import type { Client, WellbeingDomain } from '../types'
 import { InfoItem } from './InfoItem'
 
 export type ClientDetailTabId = 'basic' | 'identity' | 'personal' | 'ordination' | 'wellbeing' | 'cases'
