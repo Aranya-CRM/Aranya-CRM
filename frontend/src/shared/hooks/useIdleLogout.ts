@@ -65,7 +65,7 @@ export function useIdleLogout({
                 try {
                     channelRef.current.postMessage('active')
                 }catch{
-
+                    // 可能在某些隐私模式或浏览器中不支持 BroadcastChannel
                 }
             }
 
