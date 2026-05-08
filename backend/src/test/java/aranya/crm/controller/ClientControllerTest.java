@@ -3,9 +3,8 @@ package aranya.crm.controller;
 import aranya.crm.dto.ClientDetailResponse;
 import aranya.crm.dto.ClientSummaryResponse;
 import aranya.crm.dto.RelatedContactResponse;
-import aranya.crm.security.util.JwtUtil;
 import aranya.crm.service.ClientService;
-import aranya.crm.service.CustomUserDetailsService;
+import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,10 +52,7 @@ class ClientControllerTest {
     private ClientService clientService;
 
     @MockBean
-    private JwtUtil jwtUtil;
-
-    @MockBean
-    private CustomUserDetailsService customUserDetailsService;
+    private UserService userService;
 
     @Test
     @DisplayName("Authenticated user can list clients")

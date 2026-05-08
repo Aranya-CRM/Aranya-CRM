@@ -81,96 +81,96 @@ If `canRoute(item.routeId)` is false, the frontend hides that sidebar item and b
 
 ## Route Capabilities
 
-| id | frontend path |
-|---|---|
-| dashboard | /dashboard |
-| clients.list | /clients |
-| clients.create | /clients/new |
-| clients.detail | /clients/:id |
-| clients.edit | /clients/:id/edit |
-| cases.list | /cases |
-| cases.create | /cases/new |
-| cases.detail | /cases/:id |
-| reports.list | /reports |
-| reports.create | /reports/new |
-| users.list | /users |
+| id             | frontend path     |
+| -------------- | ----------------- |
+| dashboard      | /dashboard        |
+| clients.list   | /clients          |
+| clients.create | /clients/new      |
+| clients.detail | /clients/:id      |
+| clients.edit   | /clients/:id/edit |
+| cases.list     | /cases            |
+| cases.create   | /cases/new        |
+| cases.detail   | /cases/:id        |
+| reports.list   | /reports          |
+| reports.create | /reports/new      |
+| users.list     | /users            |
 
 ## Feature Capabilities
 
 ### Dashboard
 
-| id | meaning |
-|---|---|
+| id             | meaning              |
+| -------------- | -------------------- |
 | dashboard.view | May access dashboard |
 
 ### Client Profiles
 
-| id | meaning |
-|---|---|
-| clients.search | May search client profiles |
-| clients.view.basic | May view restricted client profile |
-| clients.view.full | May view full client profile |
-| clients.create | May create client profile |
-| clients.update | May edit client profile |
-| clients.delete | May delete client profile |
-| clients.contacts.link | May link related contacts |
+| id                    | meaning                            |
+| --------------------- | ---------------------------------- |
+| clients.search        | May search client profiles         |
+| clients.view.basic    | May view restricted client profile |
+| clients.view.full     | May view full client profile       |
+| clients.create        | May create client profile          |
+| clients.update        | May edit client profile            |
+| clients.delete        | May delete client profile          |
+| clients.contacts.link | May link related contacts          |
 
 ### Cases
 
-| id | meaning |
-|---|---|
-| cases.view | May view cases |
-| cases.notes.create | May add notes to cases |
-| cases.create | May create cases |
-| cases.status.update | May update case status |
-| cases.assignVolunteer | May assign volunteers |
-| cases.close | May close cases |
+| id                         | meaning                   |
+| -------------------------- | ------------------------- |
+| cases.view                 | May view cases            |
+| cases.notes.create         | May add notes to cases    |
+| cases.create               | May create cases          |
+| cases.status.update        | May update case status    |
+| cases.assignVolunteer      | May assign volunteers     |
+| cases.close                | May close cases           |
 | cases.documents.uploadEdit | May upload/edit documents |
-| cases.documents.delete | May delete documents |
-| cases.audit | May audit case records |
+| cases.documents.delete     | May delete documents      |
+| cases.audit                | May audit case records    |
 
 ### Reports
 
-| id | meaning |
-|---|---|
-| reports.create | May create reports |
-| reports.view.own | May view own reports |
-| reports.view.all | May view all reports |
-| reports.update.own | May edit own reports |
-| reports.update.any | May edit any report |
-| reports.delete | May delete reports |
+| id                     | meaning                     |
+| ---------------------- | --------------------------- |
+| reports.create         | May create reports          |
+| reports.view.own       | May view own reports        |
+| reports.view.all       | May view all reports        |
+| reports.update.own     | May edit own reports        |
+| reports.update.any     | May edit any report         |
+| reports.delete         | May delete reports          |
 | reports.approveArchive | May approve/archive reports |
 
 ### Users
 
-| id | meaning |
-|---|---|
-| users.invite | May invite users |
-| users.assignRoles | May assign access groups |
-| users.stats.view | May view user stats |
-| users.create | May create users |
-| users.update | May update users |
+| id                       | meaning                          |
+| ------------------------ | -------------------------------- |
+| users.invite             | May invite users                 |
+| users.assignRoles        | May assign access groups         |
+| users.stats.view         | May view user stats              |
+| users.create             | May create users                 |
+| users.update             | May update users                 |
 | users.activateDeactivate | May activate or deactivate users |
-| users.delete | May delete users |
+| users.delete             | May delete users                 |
 
 ### Alerts
 
-| id | meaning |
-|---|---|
+| id                   | meaning                   |
+| -------------------- | ------------------------- |
 | alerts.receiveUrgent | May receive urgent alerts |
 
 ## Dashboard Widget Capabilities
 
-| id | meaning |
-|---|---|
-| dashboard.myReports | Show current user's report widget |
-| dashboard.pendingTasks | Show current user's pending tasks widget |
-| dashboard.recentReports | Show recent reports widget |
-| dashboard.totalClients | Show total clients stat |
-| dashboard.activeCases | Show active cases stat |
-| dashboard.pendingReports | Show pending reports stat |
-| dashboard.urgentCases | Show urgent cases stat |
-| dashboard.upcomingAppointments | Show upcoming appointments widget |
+| id                             | meaning                                  |
+| ------------------------------ | ---------------------------------------- |
+| dashboard.myReports            | Show current user's report widget        |
+| dashboard.pendingTasks         | Show current user's pending tasks widget |
+| dashboard.recentReports        | Show recent reports widget               |
+| dashboard.totalClients         | Show total clients stat                  |
+| dashboard.activeCases          | Show active cases stat                   |
+| dashboard.pendingReports       | Show pending reports stat                |
+| dashboard.urgentCases          | Show urgent cases stat                   |
+| dashboard.upcomingAppointments | Show upcoming appointments widget        |
 
 ## Current Role-to-Capability Mapping
 

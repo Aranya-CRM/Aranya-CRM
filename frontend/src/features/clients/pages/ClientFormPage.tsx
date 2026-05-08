@@ -95,7 +95,8 @@ export function ClientFormPage() {
 
   useEffect(() => {
     if (client) {
-      const { id: _removed, ...rest } = client
+      const rest = { ...client }
+      delete (rest as Partial<Client>).id
       setForm(rest)
     }
   }, [client])
