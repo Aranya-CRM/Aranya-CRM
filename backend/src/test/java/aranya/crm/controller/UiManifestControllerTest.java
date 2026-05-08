@@ -1,6 +1,7 @@
 package aranya.crm.controller;
 
 import aranya.crm.service.UiManifestService;
+import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,13 +50,10 @@ class UiManifestControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private JwtUtil jwtUtil;
-
-    @MockBean
-    private CustomUserDetailsService customUserDetailsService;
-
-    @MockBean
     private UiManifestService uiManifestService;
+
+    @MockBean
+    private UserService userService;
 
     @Test
     @DisplayName("Manifest returns capability ids without role or layout fields")

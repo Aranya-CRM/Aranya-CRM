@@ -2,6 +2,67 @@ import { http } from '../../../shared/api'
 import { clientMockData } from '../../../mocks/client.mock'
 import type { Client } from '../types'
 
+type BackendClientSummary = {
+  id: number | string
+  abbr?: string | null
+  nameEn?: string | null
+  nameChn?: string | null
+  contact?: string | null
+  preferredCommunication?: string | null
+  preferredLanguage?: string | null
+  area?: string | null
+  buddhistTradition?: string | null
+  ordinationStatus?: string | null
+  membershipStatus?: string | null
+}
+
+type BackendClientDetail = BackendClientSummary & {
+  whatsappEnabled?: boolean | null
+  spokenLanguage?: string | null
+  addressText?: string | null
+  postalCode?: string | null
+  areaDistrict?: string | null
+  viharaType?: string | null
+  gender?: string | null
+  dateOfBirth?: string | null
+  maritalStatus?: string | null
+  nationality?: string | null
+  ethnicity?: string | null
+  dialectGroup?: string | null
+  dateJoined?: string | null
+  membershipRemarks?: string | null
+  wellbeingLivingConditions?: boolean | null
+  wellbeingMentalHealth?: boolean | null
+  wellbeingPhysicalHealth?: boolean | null
+  wellbeingFinancialStability?: boolean | null
+  wellbeingSocialSupport?: boolean | null
+  wellbeingLegalIssues?: boolean | null
+  wellbeingSpiritual?: boolean | null
+  wellbeingRemarks?: string | null
+  specialNeeds?: string | null
+  specialNeedsRemarks?: string | null
+  nextOfKinContact?: string | null
+  comments?: string | null
+}
+
+const emptyWellbeing = {
+  physicalHealth: false,
+  mentalHealth: false,
+  socialSupport: false,
+  financialStability: false,
+  livingConditions: false,
+  spiritualWellbeing: false,
+  legalIssues: false,
+  substanceUse: false,
+}
+
+const emptySpecialNeeds = {
+  physical: false,
+  hearing: false,
+  visual: false,
+  intellectual: false,
+}
+
 function getDataMode(): 'mock' | 'api' | 'auto' {
   const mode = (import.meta.env.VITE_DATA_MODE ?? 'auto').toLowerCase()
   if (mode === 'mock' || mode === 'api') return mode
@@ -13,8 +74,8 @@ export async function fetchClients(): Promise<Client[]> {
   if (mode === 'mock') return clientMockData
 
   try {
-    const res = await http.get<Client[]>('/v1/clients')
-    return res.data
+    const res = await http.get<BackendClientSummary[]>('/v1/clients')
+    return res.data.map(mapBackendClient)
   } catch {
     if (mode === 'auto') return clientMockData
     throw new Error('Failed to fetch clients')
@@ -26,8 +87,8 @@ export async function fetchClientById(id: string): Promise<Client | undefined> {
   if (mode === 'mock') return clientMockData.find((c) => c.id === id)
 
   try {
-    const res = await http.get<Client>(`/v1/clients/${id}`)
-    return res.data
+    const res = await http.get<BackendClientDetail>(`/v1/clients/${id}`)
+    return mapBackendClient(res.data)
   } catch {
     if (mode === 'auto') return clientMockData.find((c) => c.id === id)
     throw new Error('Failed to fetch client')
@@ -78,4 +139,146 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
     }
     throw new Error('Failed to update client')
   }
+}
+
+function mapBackendClient(source: BackendClientDetail): Client {
+  const dateOfBirth = text(source.dateOfBirth)
+  const dateOrdination = ''
+
+  return {
+    id: String(source.id),
+    abbr: text(source.abbr),
+    nameEn: text(source.nameEn),
+    nameChn: text(source.nameChn),
+    nricNameEn: '',
+    nricNameChn: '',
+    nricNo: '',
+    sex: mapSex(source.gender),
+    dateOfBirth,
+    age: calculateYearsSince(dateOfBirth),
+    maritalStatus: mapMaritalStatus(source.maritalStatus),
+    nationality: text(source.nationality),
+    ethnicity: text(source.ethnicity),
+    dialectGroup: text(source.dialectGroup),
+    contact: text(source.contact),
+    nextOfKin: text(source.nextOfKinContact),
+    preferredCommunication: mapPreferredCommunication(source.preferredCommunication),
+    ableToUseWhatsApp: Boolean(source.whatsappEnabled),
+    preferredLanguage: text(source.preferredLanguage),
+    spokenLanguage: text(source.spokenLanguage),
+    address: text(source.addressText),
+    postalCode: text(source.postalCode),
+    viharaType: text(source.viharaType),
+    area: text(source.areaDistrict ?? source.area),
+    membershipStatus: mapMembershipStatus(source.membershipStatus),
+    dateJoined: text(source.dateJoined),
+    membershipRemarks: text(source.membershipRemarks),
+    buddhistTradition: mapBuddhistTradition(source.buddhistTradition),
+    ordinationStatus: mapOrdinationStatus(source.ordinationStatus),
+    dateTonsure: '',
+    countryTonsure: '',
+    placeTonsure: '',
+    dateOrdination,
+    countryOrdination: '',
+    placeOrdination: '',
+    ordinationYears: calculateYearsSince(dateOrdination),
+    ordinationCertificate: 'Incomplete',
+    dateVerification: '',
+    wellbeingIssues: {
+      ...emptyWellbeing,
+      physicalHealth: Boolean(source.wellbeingPhysicalHealth),
+      mentalHealth: Boolean(source.wellbeingMentalHealth),
+      socialSupport: Boolean(source.wellbeingSocialSupport),
+      financialStability: Boolean(source.wellbeingFinancialStability),
+      livingConditions: Boolean(source.wellbeingLivingConditions),
+      spiritualWellbeing: Boolean(source.wellbeingSpiritual),
+      legalIssues: Boolean(source.wellbeingLegalIssues),
+    },
+    wellbeingRemarks: text(source.wellbeingRemarks),
+    specialNeeds: mapSpecialNeeds(source.specialNeeds),
+    specialNeedsRemarks: text(source.specialNeedsRemarks),
+    bankTransfer: false,
+    payNow: false,
+    comments: text(source.comments),
+  }
+}
+
+function text(value: string | number | null | undefined): string {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+function normalizeEnum(value: string | null | undefined): string {
+  return text(value).trim().replaceAll('_', ' ').toLowerCase()
+}
+
+function mapMembershipStatus(value: string | null | undefined): Client['membershipStatus'] {
+  const normalized = normalizeEnum(value)
+  if (normalized === 'inactive') return 'Inactive'
+  if (normalized === 'discharged') return 'Discharged'
+  if (normalized === 'withdrawn') return 'Withdrawn'
+  if (normalized === 'deceased') return 'Deceased'
+  return 'Active'
+}
+
+function mapPreferredCommunication(value: string | null | undefined): Client['preferredCommunication'] {
+  const normalized = normalizeEnum(value)
+  if (normalized.includes('audio')) return 'WhatsApp Audio'
+  if (normalized.includes('whatsapp')) return 'WhatsApp Msg'
+  if (normalized.includes('home')) return 'Home Visit'
+  return 'Phone Call'
+}
+
+function mapSex(value: string | null | undefined): Client['sex'] {
+  const normalized = normalizeEnum(value)
+  return normalized.startsWith('f') ? 'Female' : 'Male'
+}
+
+function mapMaritalStatus(value: string | null | undefined): Client['maritalStatus'] {
+  const normalized = normalizeEnum(value)
+  if (normalized === 'married') return 'Married'
+  if (normalized === 'divorced') return 'Divorced'
+  if (normalized === 'separated') return 'Separated'
+  if (normalized === 'widowed') return 'Widowed'
+  return 'Never married'
+}
+
+function mapBuddhistTradition(value: string | null | undefined): Client['buddhistTradition'] {
+  const normalized = normalizeEnum(value)
+  if (normalized === 'theravada') return 'Theravada'
+  if (normalized === 'vajrayana') return 'Vajrayana'
+  return 'Mahayana'
+}
+
+function mapOrdinationStatus(value: string | null | undefined): Client['ordinationStatus'] {
+  const normalized = normalizeEnum(value)
+  if (normalized === 'bhikkhuni') return 'Bhikkhuni'
+  if (normalized === 'samanera') return 'Samanera'
+  if (normalized === 'sikkhamana') return 'Sikkhamana'
+  if (normalized === 'sayalay') return 'Sayalay'
+  return 'Bhikkhu'
+}
+
+function mapSpecialNeeds(value: string | null | undefined): Client['specialNeeds'] {
+  const normalized = normalizeEnum(value)
+  return {
+    ...emptySpecialNeeds,
+    physical: normalized.includes('physical'),
+    hearing: normalized.includes('hearing'),
+    visual: normalized.includes('visual'),
+    intellectual: normalized.includes('intellectual'),
+  }
+}
+
+function calculateYearsSince(date: string): number {
+  if (!date) return 0
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return 0
+
+  const now = new Date()
+  let years = now.getFullYear() - parsed.getFullYear()
+  const hasNotReachedAnniversary =
+    now.getMonth() < parsed.getMonth() ||
+    (now.getMonth() === parsed.getMonth() && now.getDate() < parsed.getDate())
+  if (hasNotReachedAnniversary) years -= 1
+  return Math.max(years, 0)
 }

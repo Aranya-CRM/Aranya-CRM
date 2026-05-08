@@ -117,8 +117,9 @@ public class UserService {
             user.getUserRoles().add(ur);
         }
 
-        // TODO: send invitation email containing temp password / set-password link
-        log.info("Invited user email={}, tempPassword={} (TODO: email)", user.getEmail(), tempPassword);
+        // TODO: send invitation email containing temp password / set-password link.
+        // Never log the temporary password.
+        log.info("Invited user email={} (TODO: email)", user.getEmail());
 
         return toDto(user);
     }

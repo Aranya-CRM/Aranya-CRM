@@ -4,6 +4,8 @@ import { NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/nav
 import { useAuth } from '../../contexts/AuthContext'
 import { useAccess } from '../auth'
 import './AppLayout.css'
+import { useIdleLogout } from '../hooks/useIdleLogout'
+import { IdleWarningModal } from '../ui/feedback/IdleWarningModal'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -14,6 +16,18 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { canRoute } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const TIMEOUT_MS = 180 * 60 * 1000
+  const WARNING_MS = 2 * 60 * 1000
+
+  const { isWarning, warningSecondsLeft, stayLoggedIn, logoutNow } = useIdleLogout({
+    timeoutMs: TIMEOUT_MS,
+    warningMs: WARNING_MS,
+    onLogout: () => {
+      logout()
+      navigate('/login', { replace: true })
+    },
+  })
 
   const visibleItems = NAVIGATION_ITEMS.filter((item) => canRoute(item.routeId))
 
@@ -79,6 +93,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </main>
       </section>
+
+      <IdleWarningModal
+        open={isWarning}
+        secondsLeft={warningSecondsLeft}
+        totalSeconds={Math.ceil(WARNING_MS / 1000)}
+        onStay={stayLoggedIn}
+        onLogout={logoutNow}
+      />
     </div>
   )
 }
