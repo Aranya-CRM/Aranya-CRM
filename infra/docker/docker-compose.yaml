@@ -28,8 +28,6 @@ services:
       dockerfile: Dockerfile
     container_name: aranya_crm_backend_dev
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aranya_crm
