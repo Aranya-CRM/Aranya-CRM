@@ -179,9 +179,7 @@ Successful response:
 
 ```json
 {
-  "routes": ["dashboard", "users"],
-  "features": ["user.invite", "user.update_roles"],
-  "widgets": ["dashboard.active_cases"]
+  "routes": ["dashboard", "clients.list", "cases.list", "reports.list", "users.list"]
 }
 ```
 
@@ -189,14 +187,16 @@ Notes:
 
 - The response is built from local roles and permissions.
 - Permission rows are read from `permission`, `role_permission`, and `role`.
-- This endpoint is for frontend rendering and route gating. Backend controllers must still enforce authorization.
+- This endpoint is for sidebar visibility and route gating.
+- Page-level APIs return their own `data` and `actions`.
+- Backend controllers must still enforce authorization.
 
 ## 2.3 Dashboard
 
 ### Get Dashboard
 
 ```http
-GET /api/dashboard
+GET /api/v1/dashboard
 ```
 
 Protected endpoint.
@@ -209,62 +209,299 @@ Authorization: Bearer <firebase-id-token>
 
 Request body: none.
 
-Successful response:
+Query parameters: none.
+
+Successful response uses the shared page response contract:
 
 ```json
 {
-  "activeCases": [
-    {
-      "id": "case-001",
-      "title": {
-        "zh": "Emergency Housing Support",
-        "en": "Emergency Housing Support"
+  "page": {
+    "id": "dashboard"
+  },
+  "data": {},
+  "actions": []
+}
+```
+
+Rules:
+
+- `data` contains only dynamic data for the current dashboard page.
+- `actions` contains only dashboard-level actions the current user can execute.
+- If the current user cannot see a data block, the backend does not return that block.
+- The frontend renders a dashboard section only when the related data block exists.
+- The backend does not return static labels, layout, component names, table columns, colors, styles, or role names.
+- Business APIs must still enforce their own authorization.
+
+#### `data.summary`
+
+Optional.
+
+Contains dashboard stat card values.
+
+Example:
+
+```json
+{
+  "activeMonastics": {
+    "count": 6
+  },
+  "openCases": {
+    "count": 4
+  },
+  "urgentCases": {
+    "count": 2
+  },
+  "pendingReports": {
+    "count": 1
+  },
+  "myReports": {
+    "count": 3
+  }
+}
+```
+
+Visibility:
+
+| Field | Volunteer | Social Worker | Manager |
+| --- | --- | --- | --- |
+| `myReports` | yes | no | no |
+| `activeMonastics` | no | yes | yes |
+| `openCases` | no | yes | yes |
+| `urgentCases` | no | yes | yes |
+| `pendingReports` | no | yes | yes |
+
+Counting rules:
+
+| Field | Rule |
+| --- | --- |
+| `myReports.count` | Count reports created by the current user |
+| `activeMonastics.count` | Count active client profiles |
+| `openCases.count` | Count non-closed cases |
+| `urgentCases.count` | Count non-closed RED / ORANGE cases |
+| `pendingReports.count` | Count reports where `urgent = true AND status = 'SUBMITTED'` |
+
+#### `data.recentCases`
+
+Optional. Visible to Social Worker and Manager.
+
+Recommended limit: 5.
+
+Sort:
+
+```text
+openedAt DESC, id DESC
+```
+
+Item shape:
+
+```json
+{
+  "id": 103,
+  "caseNo": "ARANYA/2026/C/103",
+  "clientId": 1,
+  "clientNameZh": "释妙音",
+  "clientNameEn": "Ven. Pasanno",
+  "status": "OPEN",
+  "intensity": "RED",
+  "openedAt": "2026-03-01T09:00:00+08:00"
+}
+```
+
+#### `data.recentReports`
+
+Optional. Visible to Social Worker and Manager.
+
+Recommended limit: 5.
+
+Sort:
+
+```text
+createdAt DESC, id DESC
+```
+
+Item shape:
+
+```json
+{
+  "id": 21,
+  "clientId": 2,
+  "clientNameZh": "释德行",
+  "clientNameEn": "Ven. Bodhi",
+  "submittedById": 8,
+  "submittedByName": "Volunteer Lee",
+  "visitedAt": "2026-03-08",
+  "visitType": "TEMPLE_VISIT",
+  "status": "SUBMITTED",
+  "urgent": true,
+  "createdAt": "2026-03-08T12:00:00+08:00"
+}
+```
+
+#### `data.myRecentReports`
+
+Optional. Visible to Volunteer.
+
+Recommended limit: 5.
+
+Filter:
+
+```text
+createdBy = currentUser.id
+```
+
+Item shape is the same as `recentReports`.
+
+#### `data.urgentReports`
+
+Optional. Visible to Social Worker and Manager.
+
+Shape:
+
+```json
+{
+  "pendingCount": 1
+}
+```
+
+Rules:
+
+- If the current user cannot see urgent report alerts, omit `urgentReports`.
+- If the current user can see urgent report alerts but has no pending urgent reports, omit `urgentReports` or return `null`.
+
+#### `actions`
+
+Contains dashboard-level action ids.
+
+Example:
+
+```json
+[
+  "reports.create",
+  "cases.create",
+  "clients.create"
+]
+```
+
+Visibility:
+
+| Action | Volunteer | Social Worker | Manager |
+| --- | --- | --- | --- |
+| `reports.create` | yes | yes | yes |
+| `cases.create` | no | yes | yes |
+| `clients.create` | no | yes | yes |
+
+The frontend owns button text and placement.
+
+#### Social Worker / Manager Example
+
+```json
+{
+  "page": {
+    "id": "dashboard"
+  },
+  "data": {
+    "summary": {
+      "activeMonastics": {
+        "count": 6
       },
-      "client": {
-        "zh": "Monastic Sumedho",
-        "en": "Monastic Sumedho"
+      "openCases": {
+        "count": 4
       },
-      "status": {
-        "zh": "In Review",
-        "en": "In Review"
+      "urgentCases": {
+        "count": 2
+      },
+      "pendingReports": {
+        "count": 1
       }
-    }
-  ],
-  "attentionCases": [
-    {
-      "id": "attention-001",
-      "client": {
-        "zh": "Monastic Dhamma",
-        "en": "Monastic Dhamma"
-      },
-      "reason": {
-        "zh": "Awaiting volunteer assignment",
-        "en": "Awaiting volunteer assignment"
-      },
-      "daysOpen": 5
-    }
-  ],
-  "upcomingAppointments": [
-    {
-      "id": "appt-001",
-      "startsAt": "2026-04-10T10:00:00+08:00",
-      "client": {
-        "zh": "Monastic Sumedho",
-        "en": "Monastic Sumedho"
-      },
-      "purpose": {
-        "zh": "Home Visit Assessment",
-        "en": "Home Visit Assessment"
+    },
+    "recentCases": [
+      {
+        "id": 103,
+        "caseNo": "ARANYA/2026/C/103",
+        "clientId": 1,
+        "clientNameZh": "释妙音",
+        "clientNameEn": "Ven. Pasanno",
+        "status": "OPEN",
+        "intensity": "RED",
+        "openedAt": "2026-03-01T09:00:00+08:00"
       }
+    ],
+    "recentReports": [
+      {
+        "id": 21,
+        "clientId": 2,
+        "clientNameZh": "释德行",
+        "clientNameEn": "Ven. Bodhi",
+        "submittedById": 8,
+        "submittedByName": "Volunteer Lee",
+        "visitedAt": "2026-03-08",
+        "visitType": "TEMPLE_VISIT",
+        "status": "SUBMITTED",
+        "urgent": true,
+        "createdAt": "2026-03-08T12:00:00+08:00"
+      }
+    ],
+    "urgentReports": {
+      "pendingCount": 1
     }
+  },
+  "actions": [
+    "reports.create",
+    "cases.create",
+    "clients.create"
   ]
 }
 ```
 
+Manager uses the same dashboard data shape as Social Worker in the first version.
+
+#### Volunteer Example
+
+```json
+{
+  "page": {
+    "id": "dashboard"
+  },
+  "data": {
+    "summary": {
+      "myReports": {
+        "count": 3
+      }
+    },
+    "myRecentReports": [
+      {
+        "id": 21,
+        "clientId": 2,
+        "clientNameZh": "释德行",
+        "clientNameEn": "Ven. Bodhi",
+        "submittedById": 8,
+        "submittedByName": "Volunteer Lee",
+        "visitedAt": "2026-03-08",
+        "visitType": "TEMPLE_VISIT",
+        "status": "SUBMITTED",
+        "urgent": true,
+        "createdAt": "2026-03-08T12:00:00+08:00"
+      }
+    ]
+  },
+  "actions": [
+    "reports.create"
+  ]
+}
+```
+
+Response codes:
+
+| HTTP | Meaning |
+| --- | --- |
+| 200 | Dashboard data returned |
+| 401 | Authentication required or token invalid |
+| 403 | Authenticated user cannot access Dashboard |
+
 Notes:
 
-- Backend currently returns hard-coded demo data.
-- Frontend sorts `upcomingAppointments` by `startsAt` and keeps the first 5 items.
+- The request must not accept role, scope, or user id from the frontend.
+- The backend derives the current user from the authenticated request.
 
 ## 2.4 User Management
 
