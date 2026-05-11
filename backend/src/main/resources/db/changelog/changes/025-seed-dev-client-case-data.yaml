@@ -1,0 +1,424 @@
+databaseChangeLog:
+  - changeSet:
+      id: 025-seed-dev-client-case-data
+      author: ShiDu
+      context: dev, test
+      comment: "Seed sample clients and one matching case per client for local filter testing"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO client (
+                abbr,
+                name_en,
+                contact,
+                preferred_communication,
+                whatsapp_enabled,
+                preferred_language,
+                spoken_language,
+                address_text,
+                postal_code,
+                area_district,
+                vihara_type,
+                nric_name_en,
+                nric_no,
+                ordination_certificate_status,
+                date_of_verification,
+                gender,
+                date_of_birth,
+                marital_status,
+                nationality,
+                ethnicity,
+                dialect_group,
+                membership_status,
+                date_joined,
+                membership_remarks,
+                buddhist_tradition,
+                ordination_status,
+                date_of_tonsure,
+                country_of_tonsure,
+                place_of_tonsure,
+                date_of_ordination,
+                country_of_ordination,
+                place_of_ordination,
+                wellbeing_living_conditions,
+                wellbeing_mental_health,
+                wellbeing_physical_health,
+                wellbeing_financial_stability,
+                wellbeing_social_support,
+                wellbeing_legal_issues,
+                wellbeing_spiritual,
+                wellbeing_remarks,
+                special_needs,
+                special_needs_remarks,
+                bank_transfer_info,
+                pay_now_info,
+                next_of_kin_contact,
+                comments,
+                created_at
+              )
+              VALUES
+                (
+                  'HM001',
+                  'Venerable Hui Ming',
+                  '+65 9000 1001',
+                  'WhatsApp Msg',
+                  true,
+                  'Chinese',
+                  'Mandarin, English',
+                  '88 Bright Hill Road',
+                  '574117',
+                  'Bishan',
+                  'Monastery',
+                  'Hui Ming',
+                  'S0000001A',
+                  'Complete',
+                  '2025-01-10',
+                  'Male',
+                  '1968-05-12',
+                  'Never married',
+                  'Singaporean',
+                  'Chinese',
+                  'Hokkien',
+                  'Active',
+                  '2024-01-15',
+                  'Active member with regular welfare contact.',
+                  'Mahayana',
+                  'Bhikkhu',
+                  '1992-06-01',
+                  'Singapore',
+                  'Bright Hill Monastery',
+                  '1995-06-15',
+                  'Singapore',
+                  'Bright Hill Monastery',
+                  false,
+                  false,
+                  true,
+                  false,
+                  true,
+                  false,
+                  true,
+                  'Needs periodic medical follow-up and transport support.',
+                  'Physical',
+                  'Walking assistance for longer appointments.',
+                  'DBS savings account on file',
+                  'PayNow mobile +65 9000 1001',
+                  'Brother: +65 9000 2001',
+                  'Seed sample for Active, Mahayana, Bishan filters.',
+                  '2026-01-12 09:00:00'
+                ),
+                (
+                  'SN002',
+                  'Venerable Sona',
+                  '+65 9000 1002',
+                  'Phone Call',
+                  false,
+                  'English',
+                  'English, Sinhala',
+                  '12 Jalan Eunos',
+                  '419498',
+                  'Eunos',
+                  'Vihara',
+                  'Sona',
+                  'S0000002B',
+                  'Pending',
+                  '2025-03-18',
+                  'Male',
+                  '1974-09-21',
+                  'Never married',
+                  'Sri Lankan',
+                  'Sinhalese',
+                  'Sinhala',
+                  'Inactive',
+                  '2023-07-20',
+                  'Temporarily inactive while overseas.',
+                  'Theravada',
+                  'Bhikkhu',
+                  '2001-03-05',
+                  'Sri Lanka',
+                  'Kandy Temple',
+                  '2005-07-09',
+                  'Sri Lanka',
+                  'Kandy Temple',
+                  true,
+                  false,
+                  false,
+                  true,
+                  false,
+                  false,
+                  true,
+                  'Housing situation and remittance support under review.',
+                  'Hearing',
+                  'Prefers phone calls in quiet environments.',
+                  'OCBC account pending verification',
+                  'No PayNow',
+                  'Nephew: +65 9000 2002',
+                  'Seed sample for Inactive, Theravada, Eunos filters.',
+                  '2026-02-18 10:30:00'
+                ),
+                (
+                  'TY003',
+                  'Venerable Tenzin Yangchen',
+                  '+65 9000 1003',
+                  'WhatsApp Audio',
+                  true,
+                  'English',
+                  'English, Tibetan, Mandarin',
+                  '31 Lorong 24A Geylang',
+                  '398555',
+                  'Geylang',
+                  'Centre',
+                  'Tenzin Yangchen',
+                  'S0000003C',
+                  'Complete',
+                  '2024-11-26',
+                  'Female',
+                  '1981-12-03',
+                  'Never married',
+                  'Singapore PR',
+                  'Tibetan',
+                  'Tibetan',
+                  'Discharged',
+                  '2022-04-08',
+                  'Discharged after support plan completed.',
+                  'Vajrayana',
+                  'Bhikkhuni',
+                  '2008-09-12',
+                  'India',
+                  'Dharamshala Nunnery',
+                  '2012-10-21',
+                  'India',
+                  'Dharamshala Nunnery',
+                  false,
+                  true,
+                  false,
+                  false,
+                  true,
+                  false,
+                  true,
+                  'Counselling support completed; monitor only if reopened.',
+                  'Visual',
+                  'Large-print documents preferred.',
+                  'UOB account archived',
+                  'PayNow NRIC',
+                  'Cousin: +65 9000 2003',
+                  'Seed sample for Discharged, Vajrayana, closed case filters.',
+                  '2026-03-08 14:15:00'
+                ),
+                (
+                  'DL004',
+                  'Venerable Dhammika Lian',
+                  '+65 9000 1004',
+                  'Home Visit',
+                  true,
+                  'Chinese',
+                  'Mandarin, Teochew',
+                  '7 Hougang Avenue 3',
+                  '538840',
+                  'Hougang',
+                  'Monastery',
+                  'Dhammika Lian',
+                  'S0000004D',
+                  'Incomplete',
+                  '2026-04-02',
+                  'Female',
+                  '1959-02-17',
+                  'Widowed',
+                  'Malaysian',
+                  'Chinese',
+                  'Teochew',
+                  'Withdrawn',
+                  '2021-10-30',
+                  'Withdrawn from membership but kept for case history.',
+                  'Mahayana',
+                  'Sayalay',
+                  '1987-02-10',
+                  'Malaysia',
+                  'Penang Vihara',
+                  '1990-04-11',
+                  'Malaysia',
+                  'Penang Vihara',
+                  true,
+                  false,
+                  true,
+                  true,
+                  true,
+                  true,
+                  false,
+                  'Multiple practical support needs and legal document review.',
+                  'Physical,Hearing',
+                  'Home visit preferred due to mobility and hearing needs.',
+                  'Maybank account on file',
+                  'PayNow mobile +65 9000 1004',
+                  'Niece: +65 9000 2004',
+                  'Seed sample for Withdrawn, Mahayana, Hougang filters.',
+                  '2026-04-20 16:45:00'
+                )
+              ON CONFLICT (abbr) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO "case" (
+                case_code,
+                client_id,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                tradition,
+                opened_at,
+                closed_at,
+                created_by,
+                created_at,
+                comments,
+                remarks
+              )
+              SELECT
+                'CASE-2026-001',
+                c.id,
+                'Medical transport follow-up',
+                'Arrange transport for a specialist appointment and confirm volunteer availability.',
+                'HIGH',
+                'OPEN',
+                'RED',
+                c.buddhist_tradition,
+                '2026-01-20 09:30:00',
+                NULL,
+                u.id,
+                '2026-01-20 09:30:00',
+                'Urgent health-related case for dashboard and priority filters.',
+                'Call clinic two days before appointment.'
+              FROM client c
+              JOIN users u ON u.email = 'socialworker@test.com'
+              WHERE c.abbr = 'HM001'
+              ON CONFLICT (case_code) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO "case" (
+                case_code,
+                client_id,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                tradition,
+                opened_at,
+                closed_at,
+                created_by,
+                created_at,
+                comments,
+                remarks
+              )
+              SELECT
+                'CASE-2026-002',
+                c.id,
+                'Temporary housing review',
+                'Review current living arrangement and financial support requirements.',
+                'NORMAL',
+                'SUSPENDED',
+                'ORANGE',
+                c.buddhist_tradition,
+                '2026-02-24 11:00:00',
+                NULL,
+                u.id,
+                '2026-02-24 11:00:00',
+                'Suspended while waiting for updated overseas travel dates.',
+                'Reopen after client returns to Singapore.'
+              FROM client c
+              JOIN users u ON u.email = 'socialworker@test.com'
+              WHERE c.abbr = 'SN002'
+              ON CONFLICT (case_code) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO "case" (
+                case_code,
+                client_id,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                tradition,
+                opened_at,
+                closed_at,
+                created_by,
+                created_at,
+                comments,
+                remarks
+              )
+              SELECT
+                'CASE-2026-003',
+                c.id,
+                'Counselling closure review',
+                'Confirm counselling completion and archive the support plan.',
+                'LOW',
+                'CLOSED',
+                'BLACK',
+                c.buddhist_tradition,
+                '2026-03-12 14:00:00',
+                '2026-04-05 17:30:00',
+                u.id,
+                '2026-03-12 14:00:00',
+                'Closed case for status, date, and color-code filter testing.',
+                'No further action unless client requests follow-up.'
+              FROM client c
+              JOIN users u ON u.email = 'admin@test.com'
+              WHERE c.abbr = 'TY003'
+              ON CONFLICT (case_code) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO "case" (
+                case_code,
+                client_id,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                tradition,
+                opened_at,
+                closed_at,
+                created_by,
+                created_at,
+                comments,
+                remarks
+              )
+              SELECT
+                'CASE-2026-004',
+                c.id,
+                'Legal document assistance',
+                'Coordinate home visit and collect documents for legal aid referral.',
+                'HIGH',
+                'OPEN',
+                'YELLOW',
+                c.buddhist_tradition,
+                '2026-04-28 15:15:00',
+                NULL,
+                u.id,
+                '2026-04-28 15:15:00',
+                'Open practical-support case with legal issue flag on client profile.',
+                'Prepare consent form before home visit.'
+              FROM client c
+              JOIN users u ON u.email = 'socialworker@test.com'
+              WHERE c.abbr = 'DL004'
+              ON CONFLICT (case_code) DO NOTHING;
+
+      rollback:
+        - sql:
+            sql: >
+              DELETE FROM "case"
+              WHERE case_code IN (
+                'CASE-2026-001',
+                'CASE-2026-002',
+                'CASE-2026-003',
+                'CASE-2026-004'
+              );
+
+        - sql:
+            sql: >
+              DELETE FROM client
+              WHERE abbr IN ('HM001', 'SN002', 'TY003', 'DL004');
