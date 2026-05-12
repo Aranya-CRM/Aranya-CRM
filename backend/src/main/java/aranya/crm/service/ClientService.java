@@ -1,8 +1,8 @@
 package aranya.crm.service;
 
-import aranya.crm.dto.ClientDetailResponse;
-import aranya.crm.dto.ClientSummaryResponse;
-import aranya.crm.dto.RelatedContactResponse;
+import aranya.crm.dto.response.ClientDetailResponse;
+import aranya.crm.dto.response.ClientSummaryResponse;
+import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.RelatedContact;
 import aranya.crm.repository.ClientRepository;
