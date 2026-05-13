@@ -40,15 +40,15 @@ Requests and responses use JSON unless otherwise stated.
 Content-Type: application/json
 ```
 
-### Server-Driven UI Contract
+### Dashboard Data Contract
 
-Aranya CRM uses Server-Driven UI (SDUI) for role-aware page composition. SDUI APIs must use a shared design-system language so clients can render server-provided screens consistently.
+Aranya CRM Dashboard uses a lightweight server-driven data contract for role-aware page composition. The backend decides which Dashboard data blocks are visible to the current user, while the frontend owns layout, component choice, labels, colors, sizing, and Figma-specific rendering.
 
 Shared envelope:
 
 ```json
 {
-  "designSystem": { "name": "aranya-crm-sdui", "version": "1.0" },
+  "designSystem": { "name": "aranya-crm-dashboard", "version": "1.0" },
   "screen": { "id": "dashboard", "version": "2026-05-13" },
   "sections": [],
   "metadata": { "generatedAt": "2026-05-13T10:00:00+08:00" }
@@ -59,31 +59,26 @@ Shared primitives:
 
 | Primitive | Shape / Notes |
 | --- | --- |
-| Localized text | `{ "zh": "中文", "en": "English" }` |
-| Section | `id`, `type`, optional `title`, optional `items`, optional `actions` |
-| Action | `id`, `type`, `label`, `target`; v1 supports `navigate` only |
-| List item | `id`, `primaryText`, optional `secondaryText`, optional `badges`, optional `actions` |
-| Stat item | `id`, `label`, `value`, optional `description` |
+| Section | `id`, optional `stats`, optional `items`, optional `actions` |
+| Stat item | `id`, `value` |
+| Case item | `id`, `clientId`, `clientNameChn`, `clientNameEn`, `caseCode`, `statusCode`, `colorCode`, `openedAt` |
+| Report item | `id`, `clientId`, `clientNameChn`, `clientNameEn`, `reportType`, `dateOfVisit`, `createdAt`, `createdById`, `createdByName` |
+| Action | `id`, optional `targetId` |
 
-Dashboard v1 component types:
-
-```text
-stat_card_group
-list
-alert_banner
-quick_actions
-```
+Dashboard section ids are the shared language between backend and frontend. The frontend maps these ids to fixed UI blocks defined in the frontend/Figma design.
 
 Client behavior:
 
-- Render known `designSystem.version` and known component/action types.
+- Render known `screen.id` and known `sections[].id`.
+- Use frontend-defined labels, layout, colors, table columns, and action text.
 - Ignore unknown optional sections/actions safely.
 
 Backend behavior:
 
 - Return only sections/actions the current user may see or execute.
-- Return display-ready localized text where SDUI needs it.
-- Continue enforcing authorization in business APIs; SDUI is not a security boundary.
+- Return dynamic business data only: counts, ids, business codes, dates, names, status codes, and action ids.
+- Do not return frontend-owned UI fields such as component names, labels, colors, layout, table definitions, Figma structure, or role names.
+- Continue enforcing authorization in business APIs; Dashboard data visibility is not a security boundary.
 ### Authentication
 
 Protected endpoints require a Firebase ID token:
@@ -255,14 +250,15 @@ Request body: none.
 
 Query parameters: none for v1.
 
-Successful response uses the shared SDUI envelope.
+Successful response uses the shared Dashboard data envelope.
 
 Rules:
 
 - The frontend must not send role, scope, or user id.
 - The backend derives the current user from the authenticated request.
 - `sections` contains only Dashboard sections the current user may see.
-- All section `type` values must come from the shared SDUI design-system list.
+- `sections[].id` is the only section identifier the frontend needs for Dashboard rendering.
+- The backend must not return frontend-owned UI fields such as labels, localized copy, component type, layout, color, table definition, or role name.
 - If there is no data, return count values as `"0"` and list `items` as `[]`.
 - Example values below are illustrative only; they are not seed data and must not be hard-coded.
 
@@ -273,24 +269,22 @@ Dashboard permissions are defined in `Role-Permission-Overview.md`.
 | Role | Sections |
 | --- | --- |
 | Volunteer | `volunteer.report_stats`, `volunteer.my_recent_reports`, `volunteer.quick_actions` |
-| Social Worker | `sw.notice`, `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.urgent_report_alert`, `sw.quick_actions` |
-| Manager | Same as Social Worker in v1 |
+| Social Worker | `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.quick_actions` |
+| Manager | Same as Social Worker |
 
 A multi-role user receives the union of allowed sections. Duplicate sections should be returned once.
 
 #### Section Data Rules
 
-| Section | Type | Visible to | Data rule |
-| --- | --- | --- | --- |
-| `volunteer.report_stats` | `stat_card_group` | Volunteer | Count reports where `visit_report.created_by = currentUser.id` |
-| `volunteer.my_recent_reports` | `list` | Volunteer | Latest 5 reports where `visit_report.created_by = currentUser.id`, sorted by `created_at DESC, id DESC` |
-| `volunteer.quick_actions` | `quick_actions` | Volunteer | Include report creation action if user can create reports |
-| `sw.notice` | `alert_banner` | Social Worker, Manager | Informational role/context notice |
-| `sw.stats` | `stat_card_group` | Social Worker, Manager | Active monastics, open cases, urgent cases, pending reports |
-| `sw.recent_cases` | `list` | Social Worker, Manager | Latest 5 cases joined with client, sorted by `opened_at DESC, id DESC` |
-| `sw.recent_reports` | `list` | Social Worker, Manager | Latest 5 reports joined with client/user, sorted by `created_at DESC, id DESC` |
-| `sw.urgent_report_alert` | `alert_banner` | Social Worker, Manager | Show only when pending urgent report count is greater than 0 |
-| `sw.quick_actions` | `quick_actions` | Social Worker, Manager | Include case/client creation actions if user can execute them |
+| Section | Visible to | Data rule |
+| --- | --- | --- |
+| `volunteer.report_stats` | Volunteer | Count reports where `visit_report.created_by = currentUser.id` |
+| `volunteer.my_recent_reports` | Volunteer | Latest 5 reports where `visit_report.created_by = currentUser.id`, sorted by `created_at DESC, id DESC` |
+| `volunteer.quick_actions` | Volunteer | Include `submit_report` action if user can create reports |
+| `sw.stats` | Social Worker, Manager | Active monastics, open cases, urgent cases, pending reports |
+| `sw.recent_cases` | Social Worker, Manager | Latest 5 non-closed cases joined with client, sorted by `opened_at DESC, id DESC` |
+| `sw.recent_reports` | Social Worker, Manager | Latest 5 reports joined with client/user, sorted by `created_at DESC, id DESC` |
+| `sw.quick_actions` | Social Worker, Manager | Include `new_case` and `add_client` actions if user can execute them |
 
 Stat rules:
 
@@ -305,7 +299,7 @@ Stat rules:
 Report workflow schema gap:
 
 - `visit_report` currently lacks `status`, `urgent`, `resolved_at`, and `resolved_by`.
-- Until those fields exist, the backend may omit `sw.urgent_report_alert`, return pending report count as `"0"`, and omit urgent/status badges.
+- Until those fields exist, the backend returns pending report count as `"0"` and does not return an urgent report banner section.
 
 #### Example Response
 
@@ -313,42 +307,57 @@ This is one Social Worker / Manager example. Volunteer uses the same envelope bu
 
 ```json
 {
-  "designSystem": { "name": "aranya-crm-sdui", "version": "1.0" },
+  "designSystem": { "name": "aranya-crm-dashboard", "version": "1.0" },
   "screen": { "id": "dashboard", "version": "2026-05-13" },
   "sections": [
     {
       "id": "sw.stats",
-      "type": "stat_card_group",
-      "title": { "zh": "概览", "en": "Overview" },
-      "items": [
+      "stats": [
         {
           "id": "activeMonastics",
-          "label": { "zh": "在册僧人", "en": "Active Monastics" },
-          "value": "0",
-          "description": { "zh": "活跃会员", "en": "Active members" }
+          "value": "3"
         },
         {
           "id": "openCases",
-          "label": { "zh": "进行中个案", "en": "Open Cases" },
+          "value": "2"
+        },
+        {
+          "id": "urgentCases",
+          "value": "1"
+        },
+        {
+          "id": "pendingReports",
           "value": "0"
         }
       ]
     },
     {
       "id": "sw.recent_cases",
-      "type": "list",
-      "title": { "zh": "最近个案", "en": "Recent Cases" },
+      "items": [
+        {
+          "id": "20",
+          "clientId": "12",
+          "clientNameChn": "释慧明",
+          "clientNameEn": "Venerable Hui Ming",
+          "caseCode": "CASE-2026-001",
+          "statusCode": "OPEN",
+          "colorCode": "RED",
+          "openedAt": "2026-01-20T09:30"
+        }
+      ]
+    },
+    {
+      "id": "sw.recent_reports",
       "items": []
     },
     {
       "id": "sw.quick_actions",
-      "type": "quick_actions",
       "actions": [
         {
-          "id": "new_case",
-          "type": "navigate",
-          "label": { "zh": "新建个案", "en": "New Case" },
-          "target": { "route": "cases.create", "path": "/cases/new" }
+          "id": "new_case"
+        },
+        {
+          "id": "add_client"
         }
       ]
     }
@@ -361,7 +370,7 @@ Response codes:
 
 | HTTP | Meaning |
 | --- | --- |
-| 200 | Dashboard SDUI screen returned |
+| 200 | Dashboard data screen returned |
 | 401 | Authentication required or token invalid |
 | 403 | Authenticated user cannot access Dashboard |
 ## 2.4 User Management
