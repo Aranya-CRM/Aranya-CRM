@@ -40,6 +40,50 @@ Requests and responses use JSON unless otherwise stated.
 Content-Type: application/json
 ```
 
+### Server-Driven UI Contract
+
+Aranya CRM uses Server-Driven UI (SDUI) for role-aware page composition. SDUI APIs must use a shared design-system language so clients can render server-provided screens consistently.
+
+Shared envelope:
+
+```json
+{
+  "designSystem": { "name": "aranya-crm-sdui", "version": "1.0" },
+  "screen": { "id": "dashboard", "version": "2026-05-13" },
+  "sections": [],
+  "metadata": { "generatedAt": "2026-05-13T10:00:00+08:00" }
+}
+```
+
+Shared primitives:
+
+| Primitive | Shape / Notes |
+| --- | --- |
+| Localized text | `{ "zh": "中文", "en": "English" }` |
+| Section | `id`, `type`, optional `title`, optional `items`, optional `actions` |
+| Action | `id`, `type`, `label`, `target`; v1 supports `navigate` only |
+| List item | `id`, `primaryText`, optional `secondaryText`, optional `badges`, optional `actions` |
+| Stat item | `id`, `label`, `value`, optional `description` |
+
+Dashboard v1 component types:
+
+```text
+stat_card_group
+list
+alert_banner
+quick_actions
+```
+
+Client behavior:
+
+- Render known `designSystem.version` and known component/action types.
+- Ignore unknown optional sections/actions safely.
+
+Backend behavior:
+
+- Return only sections/actions the current user may see or execute.
+- Return display-ready localized text where SDUI needs it.
+- Continue enforcing authorization in business APIs; SDUI is not a security boundary.
 ### Authentication
 
 Protected endpoints require a Firebase ID token:
@@ -209,284 +253,107 @@ Authorization: Bearer <firebase-id-token>
 
 Request body: none.
 
-Query parameters: none.
+Query parameters: none for v1.
 
-Successful response uses the shared page response contract:
-
-```json
-{
-  "page": {
-    "id": "dashboard"
-  },
-  "data": {},
-  "actions": []
-}
-```
+Successful response uses the shared SDUI envelope.
 
 Rules:
 
-- `data` contains only dynamic data for the current dashboard page.
-- `actions` contains only dashboard-level actions the current user can execute.
-- If the current user cannot see a data block, the backend does not return that block.
-- The frontend renders a dashboard section only when the related data block exists.
-- The backend does not return static labels, layout, component names, table columns, colors, styles, or role names.
-- Business APIs must still enforce their own authorization.
+- The frontend must not send role, scope, or user id.
+- The backend derives the current user from the authenticated request.
+- `sections` contains only Dashboard sections the current user may see.
+- All section `type` values must come from the shared SDUI design-system list.
+- If there is no data, return count values as `"0"` and list `items` as `[]`.
+- Example values below are illustrative only; they are not seed data and must not be hard-coded.
 
-#### `data.summary`
+#### Role-Based Sections
 
-Optional.
+Dashboard permissions are defined in `Role-Permission-Overview.md`.
 
-Contains dashboard stat card values.
-
-Example:
-
-```json
-{
-  "activeMonastics": {
-    "count": 6
-  },
-  "openCases": {
-    "count": 4
-  },
-  "urgentCases": {
-    "count": 2
-  },
-  "pendingReports": {
-    "count": 1
-  },
-  "myReports": {
-    "count": 3
-  }
-}
-```
-
-Visibility:
-
-| Field | Volunteer | Social Worker | Manager |
-| --- | --- | --- | --- |
-| `myReports` | yes | no | no |
-| `activeMonastics` | no | yes | yes |
-| `openCases` | no | yes | yes |
-| `urgentCases` | no | yes | yes |
-| `pendingReports` | no | yes | yes |
-
-Counting rules:
-
-| Field | Rule |
+| Role | Sections |
 | --- | --- |
-| `myReports.count` | Count reports created by the current user |
-| `activeMonastics.count` | Count active client profiles |
-| `openCases.count` | Count non-closed cases |
-| `urgentCases.count` | Count non-closed RED / ORANGE cases |
-| `pendingReports.count` | Count reports where `urgent = true AND status = 'SUBMITTED'` |
+| Volunteer | `volunteer.report_stats`, `volunteer.my_recent_reports`, `volunteer.quick_actions` |
+| Social Worker | `sw.notice`, `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.urgent_report_alert`, `sw.quick_actions` |
+| Manager | Same as Social Worker in v1 |
 
-#### `data.recentCases`
+A multi-role user receives the union of allowed sections. Duplicate sections should be returned once.
 
-Optional. Visible to Social Worker and Manager.
+#### Section Data Rules
 
-Recommended limit: 5.
-
-Sort:
-
-```text
-openedAt DESC, id DESC
-```
-
-Item shape:
-
-```json
-{
-  "id": 103,
-  "caseNo": "ARANYA/2026/C/103",
-  "clientId": 1,
-  "clientNameZh": "释妙音",
-  "clientNameEn": "Ven. Pasanno",
-  "status": "OPEN",
-  "intensity": "RED",
-  "openedAt": "2026-03-01T09:00:00+08:00"
-}
-```
-
-#### `data.recentReports`
-
-Optional. Visible to Social Worker and Manager.
-
-Recommended limit: 5.
-
-Sort:
-
-```text
-createdAt DESC, id DESC
-```
-
-Item shape:
-
-```json
-{
-  "id": 21,
-  "clientId": 2,
-  "clientNameZh": "释德行",
-  "clientNameEn": "Ven. Bodhi",
-  "submittedById": 8,
-  "submittedByName": "Volunteer Lee",
-  "visitedAt": "2026-03-08",
-  "visitType": "TEMPLE_VISIT",
-  "status": "SUBMITTED",
-  "urgent": true,
-  "createdAt": "2026-03-08T12:00:00+08:00"
-}
-```
-
-#### `data.myRecentReports`
-
-Optional. Visible to Volunteer.
-
-Recommended limit: 5.
-
-Filter:
-
-```text
-createdBy = currentUser.id
-```
-
-Item shape is the same as `recentReports`.
-
-#### `data.urgentReports`
-
-Optional. Visible to Social Worker and Manager.
-
-Shape:
-
-```json
-{
-  "pendingCount": 1
-}
-```
-
-Rules:
-
-- If the current user cannot see urgent report alerts, omit `urgentReports`.
-- If the current user can see urgent report alerts but has no pending urgent reports, omit `urgentReports` or return `null`.
-
-#### `actions`
-
-Contains dashboard-level action ids.
-
-Example:
-
-```json
-[
-  "reports.create",
-  "cases.create",
-  "clients.create"
-]
-```
-
-Visibility:
-
-| Action | Volunteer | Social Worker | Manager |
+| Section | Type | Visible to | Data rule |
 | --- | --- | --- | --- |
-| `reports.create` | yes | yes | yes |
-| `cases.create` | no | yes | yes |
-| `clients.create` | no | yes | yes |
+| `volunteer.report_stats` | `stat_card_group` | Volunteer | Count reports where `visit_report.created_by = currentUser.id` |
+| `volunteer.my_recent_reports` | `list` | Volunteer | Latest 5 reports where `visit_report.created_by = currentUser.id`, sorted by `created_at DESC, id DESC` |
+| `volunteer.quick_actions` | `quick_actions` | Volunteer | Include report creation action if user can create reports |
+| `sw.notice` | `alert_banner` | Social Worker, Manager | Informational role/context notice |
+| `sw.stats` | `stat_card_group` | Social Worker, Manager | Active monastics, open cases, urgent cases, pending reports |
+| `sw.recent_cases` | `list` | Social Worker, Manager | Latest 5 cases joined with client, sorted by `opened_at DESC, id DESC` |
+| `sw.recent_reports` | `list` | Social Worker, Manager | Latest 5 reports joined with client/user, sorted by `created_at DESC, id DESC` |
+| `sw.urgent_report_alert` | `alert_banner` | Social Worker, Manager | Show only when pending urgent report count is greater than 0 |
+| `sw.quick_actions` | `quick_actions` | Social Worker, Manager | Include case/client creation actions if user can execute them |
 
-The frontend owns button text and placement.
+Stat rules:
 
-#### Social Worker / Manager Example
+| Stat item id | Rule |
+| --- | --- |
+| `myReportCount` | Count reports created by current user |
+| `activeMonastics` | Count clients where `membership_status = 'ACTIVE'` |
+| `openCases` | Count cases where `status <> 'CLOSED'` |
+| `urgentCases` | Count non-closed cases where `color_code IN ('RED', 'ORANGE')` |
+| `pendingReports` | Count reports where `urgent = true AND status = 'SUBMITTED'` |
+
+Report workflow schema gap:
+
+- `visit_report` currently lacks `status`, `urgent`, `resolved_at`, and `resolved_by`.
+- Until those fields exist, the backend may omit `sw.urgent_report_alert`, return pending report count as `"0"`, and omit urgent/status badges.
+
+#### Example Response
+
+This is one Social Worker / Manager example. Volunteer uses the same envelope but receives only volunteer sections.
 
 ```json
 {
-  "page": {
-    "id": "dashboard"
-  },
-  "data": {
-    "summary": {
-      "activeMonastics": {
-        "count": 6
-      },
-      "openCases": {
-        "count": 4
-      },
-      "urgentCases": {
-        "count": 2
-      },
-      "pendingReports": {
-        "count": 1
-      }
+  "designSystem": { "name": "aranya-crm-sdui", "version": "1.0" },
+  "screen": { "id": "dashboard", "version": "2026-05-13" },
+  "sections": [
+    {
+      "id": "sw.stats",
+      "type": "stat_card_group",
+      "title": { "zh": "概览", "en": "Overview" },
+      "items": [
+        {
+          "id": "activeMonastics",
+          "label": { "zh": "在册僧人", "en": "Active Monastics" },
+          "value": "0",
+          "description": { "zh": "活跃会员", "en": "Active members" }
+        },
+        {
+          "id": "openCases",
+          "label": { "zh": "进行中个案", "en": "Open Cases" },
+          "value": "0"
+        }
+      ]
     },
-    "recentCases": [
-      {
-        "id": 103,
-        "caseNo": "ARANYA/2026/C/103",
-        "clientId": 1,
-        "clientNameZh": "释妙音",
-        "clientNameEn": "Ven. Pasanno",
-        "status": "OPEN",
-        "intensity": "RED",
-        "openedAt": "2026-03-01T09:00:00+08:00"
-      }
-    ],
-    "recentReports": [
-      {
-        "id": 21,
-        "clientId": 2,
-        "clientNameZh": "释德行",
-        "clientNameEn": "Ven. Bodhi",
-        "submittedById": 8,
-        "submittedByName": "Volunteer Lee",
-        "visitedAt": "2026-03-08",
-        "visitType": "TEMPLE_VISIT",
-        "status": "SUBMITTED",
-        "urgent": true,
-        "createdAt": "2026-03-08T12:00:00+08:00"
-      }
-    ],
-    "urgentReports": {
-      "pendingCount": 1
+    {
+      "id": "sw.recent_cases",
+      "type": "list",
+      "title": { "zh": "最近个案", "en": "Recent Cases" },
+      "items": []
+    },
+    {
+      "id": "sw.quick_actions",
+      "type": "quick_actions",
+      "actions": [
+        {
+          "id": "new_case",
+          "type": "navigate",
+          "label": { "zh": "新建个案", "en": "New Case" },
+          "target": { "route": "cases.create", "path": "/cases/new" }
+        }
+      ]
     }
-  },
-  "actions": [
-    "reports.create",
-    "cases.create",
-    "clients.create"
-  ]
-}
-```
-
-Manager uses the same dashboard data shape as Social Worker in the first version.
-
-#### Volunteer Example
-
-```json
-{
-  "page": {
-    "id": "dashboard"
-  },
-  "data": {
-    "summary": {
-      "myReports": {
-        "count": 3
-      }
-    },
-    "myRecentReports": [
-      {
-        "id": 21,
-        "clientId": 2,
-        "clientNameZh": "释德行",
-        "clientNameEn": "Ven. Bodhi",
-        "submittedById": 8,
-        "submittedByName": "Volunteer Lee",
-        "visitedAt": "2026-03-08",
-        "visitType": "TEMPLE_VISIT",
-        "status": "SUBMITTED",
-        "urgent": true,
-        "createdAt": "2026-03-08T12:00:00+08:00"
-      }
-    ]
-  },
-  "actions": [
-    "reports.create"
-  ]
+  ],
+  "metadata": { "generatedAt": "2026-05-13T10:00:00+08:00" }
 }
 ```
 
@@ -494,15 +361,9 @@ Response codes:
 
 | HTTP | Meaning |
 | --- | --- |
-| 200 | Dashboard data returned |
+| 200 | Dashboard SDUI screen returned |
 | 401 | Authentication required or token invalid |
 | 403 | Authenticated user cannot access Dashboard |
-
-Notes:
-
-- The request must not accept role, scope, or user id from the frontend.
-- The backend derives the current user from the authenticated request.
-
 ## 2.4 User Management
 
 All endpoints in this section require local role `MANAGER`.
