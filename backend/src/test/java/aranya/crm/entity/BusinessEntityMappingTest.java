@@ -20,7 +20,7 @@ class BusinessEntityMappingTest {
                 Map.entry(Invitation.class, "invitation"),
                 Map.entry(EmailNotificationLog.class, "email_notification_log"),
                 Map.entry(RelatedContact.class, "related_contact"),
-                Map.entry(ClientCase.class, "case"),
+                Map.entry(ClientCase.class, "\"case\""),
                 Map.entry(ServiceCategory.class, "service_category"),
                 Map.entry(ServiceType.class, "service_type"),
                 Map.entry(CaseAssignment.class, "case_assignment"),
