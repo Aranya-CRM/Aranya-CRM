@@ -1,8 +1,8 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.ClientDetailResponse;
-import aranya.crm.dto.ClientSummaryResponse;
-import aranya.crm.dto.RelatedContactResponse;
+import aranya.crm.dto.response.ClientDetailResponse;
+import aranya.crm.dto.response.ClientSummaryResponse;
+import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.service.ClientService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
