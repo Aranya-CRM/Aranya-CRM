@@ -1,7 +1,7 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.ClientDetailResponse;
+import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.service.ClientService;
 import aranya.crm.service.UserService;
