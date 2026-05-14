@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "case")
+@Table(name = "\"case\"")
 public class ClientCase {
 
     @Id
