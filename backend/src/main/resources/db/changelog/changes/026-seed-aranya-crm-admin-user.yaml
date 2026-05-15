@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 026-seed-aranya-crm-admin-user
+      author: Codex
+      comment: "Seed initial CRM users with roles"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO users (firebase_uid, username, full_name, email, email_verified, status)
+              VALUES
+                (
+                  'e1d6ofsq0sdoku7FUDqHlWMxTm93',
+                  'aranya_crm_admin',
+                  'Aranya CRM',
+                  'aranya.crm.admin@gmail.com',
+                  true,
+                  'ACTIVE'
+                ),
+                (
+                  'dev-volunteer-firebase-uid',
+                  'volunteer',
+                  'Volunteer User',
+                  'volunteer@test.com',
+                  true,
+                  'ACTIVE'
+                ),
+                (
+                  'dev-social-worker-firebase-uid',
+                  'social_worker',
+                  'Social Worker User',
+                  'socialworker@test.com',
+                  true,
+                  'ACTIVE'
+                )
+              ON CONFLICT DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO user_role (user_id, role_id, assigned_at, assigned_by)
+              SELECT u.id, r.id, NOW(), NULL
+              FROM users u
+              JOIN role r ON
+                (u.email = 'aranya.crm.admin@gmail.com' AND r.name = 'MANAGER')
+                OR (u.email = 'volunteer@test.com' AND r.name = 'VOLUNTEER')
+                OR (u.email = 'socialworker@test.com' AND r.name = 'SOCIAL_WORKER')
+              WHERE u.email IN (
+                'aranya.crm.admin@gmail.com',
+                'volunteer@test.com',
+                'socialworker@test.com'
+              )
+              ON CONFLICT (user_id, role_id) DO NOTHING;
