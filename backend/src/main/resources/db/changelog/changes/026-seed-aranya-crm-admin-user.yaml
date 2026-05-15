@@ -17,7 +17,7 @@ databaseChangeLog:
                   'ACTIVE'
                 ),
                 (
-                  'dev-volunteer-firebase-uid',
+                  'jMcy4wdmJVVY5VQlSv2QZ1rAIhg1',
                   'volunteer',
                   'Volunteer User',
                   'volunteer@test.com',
@@ -25,7 +25,7 @@ databaseChangeLog:
                   'ACTIVE'
                 ),
                 (
-                  'dev-social-worker-firebase-uid',
+                  'l4jsMBVfeehmserQ70itLXei9bA2',
                   'social_worker',
                   'Social Worker User',
                   'socialworker@test.com',
