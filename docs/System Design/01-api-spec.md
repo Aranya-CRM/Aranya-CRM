@@ -1,19 +1,50 @@
 # Aranya CRM API Specification
 
-This document describes the API contract currently used by the frontend and backend.
+This document summarizes the API and backend service surface implemented in the current branch.
 
-Current status:
+Last updated: 2026-05-15
 
-- Authentication is handled by Firebase Auth on the frontend.
-- The backend does not expose email/password login, refresh-token, logout, or custom 2FA endpoints.
-- The backend verifies Firebase ID tokens on protected API requests.
-- TOTP MFA is enforced by the backend through Firebase token claims.
-- Dashboard and user-management endpoints exist.
-- Clients, cases, and reports are still frontend-designed APIs and are not fully implemented by the backend.
+## 1. Backend Summary
 
-## 1. Conventions
+Backend stack:
 
-### Base URL
+- Spring Boot 3.4
+- Spring Security, stateless Firebase ID token authentication
+- Firebase Admin SDK token verification
+- Spring Data JPA
+- PostgreSQL
+- Liquibase migrations
+- springdoc OpenAPI / Swagger UI
+
+Implemented backend services:
+
+| Service | Responsibility | Status |
+| --- | --- | --- |
+| `UserService` | Current-user profile, local user listing, invite stub, role updates, status updates, soft delete, Firebase profile sync | Implemented |
+| `UiManifestService` | Builds route/feature/widget capability lists from local role-permission records | Implemented |
+| `DashboardService` | Builds role-aware dashboard sections from clients, cases, and visit reports | Implemented |
+| `ClientService` | Lists clients, filters by search/status, returns client details and related contacts | Implemented, read-only |
+| `CaseService` | Provides active/urgent case counts and recent case data for dashboard | Internal service only |
+
+Implemented HTTP API groups:
+
+| Area | Endpoints |
+| --- | --- |
+| Auth profile | `GET /api/v1/auth/me` |
+| UI manifest | `GET /api/v1/ui/manifest` |
+| Dashboard | `GET /api/v1/dashboard` |
+| Users | `GET /api/v1/users`, `POST /api/v1/users/invite`, `PATCH /api/v1/users/{id}/roles`, `PATCH /api/v1/users/{id}/status`, `DELETE /api/v1/users/{id}` |
+| Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}` |
+
+Not implemented as backend HTTP APIs yet:
+
+- `POST /api/v1/clients`
+- `PUT /api/v1/clients/{id}`
+- `/api/v1/cases/**`
+- `/api/v1/reports/**`
+- Backend email/password login, refresh-token, logout, registration, or custom 2FA endpoints
+
+## 2. Base URLs
 
 Local backend:
 
@@ -21,65 +52,19 @@ Local backend:
 http://localhost:8080
 ```
 
-Frontend service base URL:
+Docker frontend reverse proxy:
 
 ```text
-/api
+/api -> http://backend:8080
 ```
 
-Example mapping:
+Default frontend API base URL:
 
-- frontend call: `http.get('/v1/auth/me')`
-- backend route: `GET /api/v1/auth/me`
-
-### Content Type
-
-Requests and responses use JSON unless otherwise stated.
-
-```http
-Content-Type: application/json
+```text
+VITE_API_BASE_URL=/api
 ```
 
-### Dashboard Data Contract
-
-Aranya CRM Dashboard uses a lightweight server-driven data contract for role-aware page composition. The backend decides which Dashboard data blocks are visible to the current user, while the frontend owns layout, component choice, labels, colors, sizing, and Figma-specific rendering.
-
-Shared envelope:
-
-```json
-{
-  "designSystem": { "name": "aranya-crm-dashboard", "version": "1.0" },
-  "screen": { "id": "dashboard", "version": "2026-05-13" },
-  "sections": [],
-  "metadata": { "generatedAt": "2026-05-13T10:00:00+08:00" }
-}
-```
-
-Shared primitives:
-
-| Primitive | Shape / Notes |
-| --- | --- |
-| Section | `id`, optional `stats`, optional `items`, optional `actions` |
-| Stat item | `id`, `value` |
-| Case item | `id`, `clientId`, `clientNameChn`, `clientNameEn`, `caseCode`, `statusCode`, `colorCode`, `openedAt` |
-| Report item | `id`, `clientId`, `clientNameChn`, `clientNameEn`, `reportType`, `dateOfVisit`, `createdAt`, `createdById`, `createdByName` |
-| Action | `id`, optional `targetId` |
-
-Dashboard section ids are the shared language between backend and frontend. The frontend maps these ids to fixed UI blocks defined in the frontend/Figma design.
-
-Client behavior:
-
-- Render known `screen.id` and known `sections[].id`.
-- Use frontend-defined labels, layout, colors, table columns, and action text.
-- Ignore unknown optional sections/actions safely.
-
-Backend behavior:
-
-- Return only sections/actions the current user may see or execute.
-- Return dynamic business data only: counts, ids, business codes, dates, names, status codes, and action ids.
-- Do not return frontend-owned UI fields such as component names, labels, colors, layout, table definitions, Figma structure, or role names.
-- Continue enforcing authorization in business APIs; Dashboard data visibility is not a security boundary.
-### Authentication
+## 3. Authentication And Authorization
 
 Protected endpoints require a Firebase ID token:
 
@@ -87,342 +72,269 @@ Protected endpoints require a Firebase ID token:
 Authorization: Bearer <firebase-id-token>
 ```
 
-The token must satisfy the backend filter requirements:
+The backend accepts the request only when all conditions pass:
 
-- token is valid according to Firebase Admin SDK
-- `email_verified` is true
-- Firebase token claim `firebase.sign_in_second_factor` is `totp`
-- Firebase UID exists in the local `users.firebase_uid` column
-- local user status is `ACTIVE`
+- The token is valid according to Firebase Admin SDK.
+- Firebase token claim `firebase.sign_in_second_factor` is `totp`.
+- Firebase email is verified.
+- A local `users.firebase_uid` row exists for the Firebase UID.
+- The local user status is `ACTIVE`.
 
-The backend loads the local `User` and user roles after token verification. Roles are not part of Firebase authentication itself; they are local authorization data.
+Failure responses from the Firebase filter:
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `401` | `INVALID_TOKEN` | Firebase token is invalid or expired |
+| `401` | `EMAIL_NOT_VERIFIED` | Firebase email is not verified |
+| `428` | `MFA_NOT_ENROLLED` | TOTP MFA was not completed |
+| `403` | `USER_NOT_REGISTERED` | Firebase UID is not linked to a local user |
+| `403` | `USER_DISABLED` | Local user status is not `ACTIVE` |
 
 Public endpoints:
 
 - `GET /api/health`
-- `GET /actuator/health`
 - `/api/public/**`
-- OpenAPI / Swagger routes
+- `/actuator/health`
+- `/v3/api-docs/**`
+- `/swagger-ui/**`
+- `/swagger-ui.html`
 - `/error`
 
-All other endpoints require authentication under the current backend security configuration.
+All other endpoints require authentication unless method-level authorization is stricter.
 
-### Firebase Login Flow
+Local role names are converted to Spring Security authorities as:
 
-The frontend uses Firebase Client SDK for:
-
-- email/password sign-in
-- Google sign-in
-- email verification
-- TOTP MFA enrollment
-- TOTP MFA challenge
-- sign-out
-
-After Firebase sign-in is complete, the frontend calls:
-
-```http
-GET /api/v1/auth/me
-GET /api/v1/ui/manifest
+```text
+ROLE_<ROLE_NAME>
 ```
 
-The shared Axios client in `frontend/src/services/http.ts` attaches the Firebase ID token to API requests.
+Current seeded business roles:
 
-### Error Shape
+- `MANAGER`
+- `SOCIAL_WORKER`
+- `VOLUNTEER`
 
-Firebase authentication filter errors use:
+## 4. Error Shape
+
+Firebase filter errors use:
 
 ```json
 {
-  "code": "INVALID_TOKEN",
-  "message": "Invalid or expired Firebase token",
-  "timestamp": "2026-05-06T16:00:00+08:00",
-  "path": "/api/v1/auth/me"
+  "code": "MFA_NOT_ENROLLED",
+  "message": "TOTP MFA enrollment is required to access this resource",
+  "path": "/api/v1/auth/me",
+  "timestamp": "2026-05-15T12:00:00+08:00"
 }
 ```
 
-Common authentication error codes:
+Security entry-point responses for missing auth and method authorization are JSON responses with the relevant HTTP status, but the current implementation does not write a response body there.
 
-- `INVALID_TOKEN` with HTTP 401
-- `EMAIL_NOT_VERIFIED` with HTTP 401
-- `MFA_NOT_ENROLLED` with HTTP 428
-- `USER_NOT_REGISTERED` with HTTP 403
-- `USER_DISABLED` with HTTP 403
+## 5. Auth API
 
-Access denied responses may return HTTP 403 for authenticated users without required Spring Security roles.
+### GET `/api/v1/auth/me`
 
-## 2. Implemented APIs
+Returns the current authenticated local user profile.
 
-## 2.1 Authentication
+Authorization:
 
-### Get Current User
+- Authenticated Firebase user
+- No role requirement
 
-```http
-GET /api/v1/auth/me
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <firebase-id-token>
-```
-
-Successful response:
+Response:
 
 ```json
 {
   "id": 4,
-  "email": "user@example.com",
-  "fullName": "Example User"
+  "email": "aranya.crm.admin@gmail.com",
+  "fullName": "Aranya CRM"
 }
 ```
 
 Notes:
 
-- This endpoint is the backend authentication smoke test.
-- It only returns the basic local profile.
+- This endpoint intentionally does not expose roles or capabilities.
 - Role/capability data is returned by `GET /api/v1/ui/manifest`.
-- If the user signed in to Firebase but has not completed TOTP MFA, the backend returns HTTP 428.
+- `UserService.syncFromFirebase` may update `emailVerified` and `fullName` from the Firebase token during authentication.
 
-### Backend Login Endpoints
+## 6. UI Manifest API
 
-The backend intentionally does not provide these endpoints now:
+### GET `/api/v1/ui/manifest`
 
-```http
-POST /api/v1/auth/login
-POST /api/v1/auth/refresh
-POST /api/v1/auth/logout
-POST /api/v1/auth/2fa/*
-```
+Returns current-user capabilities for frontend route gating and conditional UI actions.
 
-Use Firebase Client SDK instead. Backend sessions are stateless and based only on the Firebase ID token sent with each request.
+Authorization:
 
-## 2.2 UI Manifest
+- Authenticated Firebase user
 
-### Get UI Manifest
-
-```http
-GET /api/v1/ui/manifest
-```
-
-Protected endpoint.
-
-Headers:
-
-```http
-Authorization: Bearer <firebase-id-token>
-```
-
-Successful response:
+Response:
 
 ```json
 {
-  "routes": ["dashboard", "clients.list", "cases.list", "reports.list", "users.list"]
+  "routes": [
+    "dashboard",
+    "clients.list",
+    "users.list"
+  ],
+  "features": [
+    "users.invite",
+    "users.assignRoles"
+  ],
+  "widgets": [
+    "dashboard.stats"
+  ]
 }
 ```
 
-Notes:
+Contract:
 
-- The response is built from local roles and permissions.
-- Permission rows are read from `permission`, `role_permission`, and `role`.
-- This endpoint is for sidebar visibility and route gating.
-- Page-level APIs return their own `data` and `actions`.
-- Backend controllers must still enforce authorization.
+- The backend returns only capability ids.
+- The frontend owns labels, layout, component choices, route definitions, field names, table columns, colors, and localized copy.
+- The UI manifest is not a security boundary. Business APIs must still enforce authorization.
 
-## 2.3 Dashboard
+Backend source:
 
-### Get Dashboard
+- `UiManifestService`
+- `permission`
+- `role_permission`
+- `role`
 
-```http
-GET /api/v1/dashboard
-```
+## 7. Dashboard API
 
-Protected endpoint.
+### GET `/api/v1/dashboard`
 
-Headers:
+Returns role-aware dashboard data sections.
 
-```http
-Authorization: Bearer <firebase-id-token>
-```
+Authorization:
 
-Request body: none.
+- Authenticated Firebase user
 
-Query parameters: none for v1.
-
-Successful response uses the shared Dashboard data envelope.
-
-Rules:
-
-- The frontend must not send role, scope, or user id.
-- The backend derives the current user from the authenticated request.
-- `sections` contains only Dashboard sections the current user may see.
-- `sections[].id` is the only section identifier the frontend needs for Dashboard rendering.
-- The backend must not return frontend-owned UI fields such as labels, localized copy, component type, layout, color, table definition, or role name.
-- If there is no data, return count values as `"0"` and list `items` as `[]`.
-- Example values below are illustrative only; they are not seed data and must not be hard-coded.
-
-#### Role-Based Sections
-
-Dashboard permissions are defined in `Role-Permission-Overview.md`.
-
-| Role | Sections |
-| --- | --- |
-| Volunteer | `volunteer.report_stats`, `volunteer.my_recent_reports`, `volunteer.quick_actions` |
-| Social Worker | `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.quick_actions` |
-| Manager | Same as Social Worker |
-
-A multi-role user receives the union of allowed sections. Duplicate sections should be returned once.
-
-#### Section Data Rules
-
-| Section | Visible to | Data rule |
-| --- | --- | --- |
-| `volunteer.report_stats` | Volunteer | Count reports where `visit_report.created_by = currentUser.id` |
-| `volunteer.my_recent_reports` | Volunteer | Latest 5 reports where `visit_report.created_by = currentUser.id`, sorted by `created_at DESC, id DESC` |
-| `volunteer.quick_actions` | Volunteer | Include `submit_report` action if user can create reports |
-| `sw.stats` | Social Worker, Manager | Active monastics, open cases, urgent cases, pending reports |
-| `sw.recent_cases` | Social Worker, Manager | Latest 5 non-closed cases joined with client, sorted by `opened_at DESC, id DESC` |
-| `sw.recent_reports` | Social Worker, Manager | Latest 5 reports joined with client/user, sorted by `created_at DESC, id DESC` |
-| `sw.quick_actions` | Social Worker, Manager | Include `new_case` and `add_client` actions if user can execute them |
-
-Stat rules:
-
-| Stat item id | Rule |
-| --- | --- |
-| `myReportCount` | Count reports created by current user |
-| `activeMonastics` | Count clients where `membership_status = 'ACTIVE'` |
-| `openCases` | Count cases where `status <> 'CLOSED'` |
-| `urgentCases` | Count non-closed cases where `color_code IN ('RED', 'ORANGE')` |
-| `pendingReports` | Count reports where `urgent = true AND status = 'SUBMITTED'` |
-
-Report workflow schema gap:
-
-- `visit_report` currently lacks `status`, `urgent`, `resolved_at`, and `resolved_by`.
-- Until those fields exist, the backend returns pending report count as `"0"` and does not return an urgent report banner section.
-
-#### Example Response
-
-This is one Social Worker / Manager example. Volunteer uses the same envelope but receives only volunteer sections.
+Response shape:
 
 ```json
 {
-  "designSystem": { "name": "aranya-crm-dashboard", "version": "1.0" },
-  "screen": { "id": "dashboard", "version": "2026-05-13" },
+  "designSystem": {
+    "name": "aranya-crm-dashboard",
+    "version": "1.0"
+  },
+  "screen": {
+    "id": "dashboard",
+    "version": "2026-05-13"
+  },
   "sections": [
     {
       "id": "sw.stats",
       "stats": [
-        {
-          "id": "activeMonastics",
-          "value": "3"
-        },
-        {
-          "id": "openCases",
-          "value": "2"
-        },
-        {
-          "id": "urgentCases",
-          "value": "1"
-        },
-        {
-          "id": "pendingReports",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "id": "sw.recent_cases",
-      "items": [
-        {
-          "id": "20",
-          "clientId": "12",
-          "clientNameChn": "释慧明",
-          "clientNameEn": "Venerable Hui Ming",
-          "caseCode": "CASE-2026-001",
-          "statusCode": "OPEN",
-          "colorCode": "RED",
-          "openedAt": "2026-01-20T09:30"
-        }
-      ]
-    },
-    {
-      "id": "sw.recent_reports",
-      "items": []
-    },
-    {
-      "id": "sw.quick_actions",
-      "actions": [
-        {
-          "id": "new_case"
-        },
-        {
-          "id": "add_client"
-        }
+        { "id": "activeMonastics", "value": "12" },
+        { "id": "openCases", "value": "4" },
+        { "id": "urgentCases", "value": "1" },
+        { "id": "pendingReports", "value": "0" }
       ]
     }
   ],
-  "metadata": { "generatedAt": "2026-05-13T10:00:00+08:00" }
+  "metadata": {
+    "generatedAt": "2026-05-15T12:00:00+08:00"
+  }
 }
 ```
 
-Response codes:
+Section ids currently returned:
 
-| HTTP | Meaning |
+| Role | Section ids |
 | --- | --- |
-| 200 | Dashboard data screen returned |
-| 401 | Authentication required or token invalid |
-| 403 | Authenticated user cannot access Dashboard |
-## 2.4 User Management
+| `VOLUNTEER` | `volunteer.report_stats`, `volunteer.my_recent_reports`, `volunteer.quick_actions` |
+| `SOCIAL_WORKER` | `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.quick_actions` |
+| `MANAGER` | `sw.stats`, `sw.recent_cases`, `sw.recent_reports`, `sw.quick_actions` |
 
-All endpoints in this section require local role `MANAGER`.
+Stat ids:
 
-The backend maps local role names to Spring Security authorities as `ROLE_<NAME>`.
+- `myReportCount`
+- `activeMonastics`
+- `openCases`
+- `urgentCases`
+- `pendingReports`
 
-### List Users
+Action ids:
 
-```http
-GET /api/v1/users
+- `submit_report`
+- `new_case`
+- `add_client`
+
+Item fields may include:
+
+```json
+{
+  "id": "1",
+  "clientId": "10",
+  "clientNameChn": "Chinese name",
+  "clientNameEn": "English name",
+  "caseCode": "CASE-2026-001",
+  "statusCode": "OPEN",
+  "colorCode": "RED",
+  "openedAt": "2026-01-20T09:30",
+  "reportType": "HOME_VISIT",
+  "dateOfVisit": "2026-01-20",
+  "createdAt": "2026-01-20T09:30",
+  "createdById": "3",
+  "createdByName": "Social Worker User"
+}
 ```
 
-Protected endpoint. Requires `ROLE_MANAGER`.
+Notes:
 
-Successful response:
+- Dashboard returns data ids and values only. It does not return frontend-owned labels or layout instructions.
+- `pendingReports` is currently returned as `"0"` because report review workflow fields are not implemented.
+
+## 8. User Management API
+
+All endpoints in this section require:
+
+- Authenticated Firebase user
+- `ROLE_MANAGER`
+
+### GET `/api/v1/users`
+
+Lists local users with their local roles.
+
+Response:
 
 ```json
 [
   {
     "id": 4,
     "username": "aranya_crm_admin",
-    "email": "user@example.com",
-    "fullName": "Example User",
+    "email": "aranya.crm.admin@gmail.com",
+    "fullName": "Aranya CRM",
     "status": "ACTIVE",
     "roles": ["MANAGER"]
   }
 ]
 ```
 
-### Invite User
+### POST `/api/v1/users/invite`
 
-```http
-POST /api/v1/users/invite
-```
+Creates a local user and assigns local roles.
 
-Protected endpoint. Requires `ROLE_MANAGER`.
-
-Request body:
+Request:
 
 ```json
 {
   "username": "new_user",
   "fullName": "New User",
   "email": "new.user@example.com",
-  "phone": "+65 0000 0000",
+  "phone": "12345678",
   "roles": ["VOLUNTEER"]
 }
 ```
 
-Successful response:
+Validation:
+
+- `username`: required, max 50
+- `fullName`: required, max 100
+- `email`: required, valid email, max 100
+- `phone`: optional, max 20
+- `roles`: required, non-empty
+
+Response:
 
 ```json
 {
@@ -435,22 +347,18 @@ Successful response:
 }
 ```
 
-Important limitation:
+Current limitation:
 
-- This endpoint currently creates only the local database user.
-- It does not create a Firebase Auth user.
-- It does not set `firebase_uid`.
-- The created user cannot pass Firebase-backed backend authentication until a Firebase Auth user exists and the local row is linked by UID.
+- This endpoint creates only the local database user.
+- The current `users.firebase_uid` column is non-null in the database schema, while `UserService.invite` does not set `firebaseUid`. Until that is fixed, this endpoint may fail at persistence time.
+- It does not create a Firebase Auth user and does not send an email invitation yet.
+- The generated temporary password is internal only and is not returned.
 
-### Update User Roles
+### PATCH `/api/v1/users/{id}/roles`
 
-```http
-PATCH /api/v1/users/{id}/roles
-```
+Replaces all local roles for a user.
 
-Protected endpoint. Requires `ROLE_MANAGER`.
-
-Request body:
+Request:
 
 ```json
 {
@@ -458,241 +366,199 @@ Request body:
 }
 ```
 
-Successful response uses the same `UserSummaryDto` shape as list users.
+Validation:
 
-### Update User Status
+- `roles`: required, non-empty
+- Each role must exist in the local `role` table
 
-```http
-PATCH /api/v1/users/{id}/status
-```
-
-Protected endpoint. Requires `ROLE_MANAGER`.
-
-Request body:
+Response:
 
 ```json
 {
-  "status": "ACTIVE"
+  "id": 5,
+  "username": "new_user",
+  "email": "new.user@example.com",
+  "fullName": "New User",
+  "status": "ACTIVE",
+  "roles": ["MANAGER", "SOCIAL_WORKER"]
 }
 ```
 
-Allowed status values:
+### PATCH `/api/v1/users/{id}/status`
 
-- `ACTIVE`
-- `INACTIVE`
+Updates local user status.
 
-Successful response uses the same `UserSummaryDto` shape as list users.
+Request:
 
-### Delete User
-
-```http
-DELETE /api/v1/users/{id}
+```json
+{
+  "status": "INACTIVE"
+}
 ```
 
-Protected endpoint. Requires `ROLE_MANAGER`.
+Validation:
 
-Successful response:
+- `status` must be `ACTIVE` or `INACTIVE`
+
+Response:
+
+```json
+{
+  "id": 5,
+  "username": "new_user",
+  "email": "new.user@example.com",
+  "fullName": "New User",
+  "status": "INACTIVE",
+  "roles": ["VOLUNTEER"]
+}
+```
+
+### DELETE `/api/v1/users/{id}`
+
+Soft-deletes a user by setting local status to `INACTIVE`.
+
+Response:
 
 ```http
 204 No Content
 ```
 
-Notes:
+## 9. Client API
 
-- This is a soft delete: the local user is marked `INACTIVE`.
+The current backend implements read-only client APIs.
 
-## 3. Frontend-Designed APIs Not Yet Implemented By Backend
+Authorization:
 
-The frontend has service modules for the following endpoints. They currently work through mock or auto-fallback modes when the backend endpoint is unavailable.
+- Authenticated Firebase user
 
-Environment variable:
+### GET `/api/v1/clients`
 
-```text
-VITE_DATA_MODE=mock | api | auto
+Lists clients.
+
+Query parameters:
+
+| Name | Required | Meaning |
+| --- | --- | --- |
+| `q` | No | Search query. Trimmed before use. |
+| `membershipStatus` | No | Membership status filter. Trimmed before use, compared case-insensitively in repository methods. |
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "abbr": "ABC",
+    "nameEn": "Client English Name",
+    "nameChn": "Client Chinese Name",
+    "contact": "91234567",
+    "preferredCommunication": "WHATSAPP",
+    "preferredLanguage": "EN",
+    "area": "Central",
+    "buddhistTradition": "Theravada",
+    "ordinationStatus": "Ordained",
+    "membershipStatus": "ACTIVE"
+  }
+]
 ```
 
-Current default behavior is `auto`.
+### GET `/api/v1/clients/{id}`
 
-## 3.1 Clients
+Returns client details and related contacts.
 
-Frontend service file:
+Response:
 
-```text
-frontend/src/services/client.api.ts
-```
-
-Planned endpoints:
-
-```http
-GET /api/v1/clients
-GET /api/v1/clients/{id}
-POST /api/v1/clients
-PUT /api/v1/clients/{id}
-```
-
-Current frontend `Client` shape:
-
-```ts
-interface Client {
-  id: string
-  abbr: string
-  nameEn: string
-  nameChn: string
-  nricNameEn: string
-  nricNameChn: string
-  nricNo: string
-  sex: 'Male' | 'Female'
-  dateOfBirth: string
-  age: number
-  maritalStatus: 'Never married' | 'Married' | 'Divorced' | 'Separated' | 'Widowed'
-  nationality: string
-  ethnicity: string
-  dialectGroup: string
-  contact: string
-  nextOfKin: string
-  preferredCommunication: 'WhatsApp Msg' | 'WhatsApp Audio' | 'Phone Call' | 'Home Visit'
-  ableToUseWhatsApp: boolean
-  preferredLanguage: string
-  spokenLanguage: string
-  address: string
-  postalCode: string
-  viharaType: string
-  area: string
-  membershipStatus: 'Active' | 'Inactive' | 'Discharged' | 'Withdrawn' | 'Deceased'
-  dateJoined: string
-  membershipRemarks: string
-  buddhistTradition: 'Mahayana' | 'Theravada' | 'Vajrayana'
-  ordinationStatus: 'Bhikkhu' | 'Bhikkhuni' | 'Samanera' | 'Sikkhamana' | 'Sayalay'
-  dateTonsure: string
-  countryTonsure: string
-  placeTonsure: string
-  dateOrdination: string
-  countryOrdination: string
-  placeOrdination: string
-  ordinationYears: number
-  ordinationCertificate: 'Completed' | 'Incomplete'
-  dateVerification: string
-  wellbeingIssues: Record<string, boolean>
-  wellbeingRemarks: string
-  specialNeeds: Record<string, boolean>
-  specialNeedsRemarks: string
-  bankTransfer: boolean
-  payNow: boolean
-  comments: string
+```json
+{
+  "id": 1,
+  "abbr": "ABC",
+  "nameEn": "Client English Name",
+  "nameChn": "Client Chinese Name",
+  "contact": "91234567",
+  "preferredCommunication": "WHATSAPP",
+  "whatsappEnabled": true,
+  "preferredLanguage": "EN",
+  "spokenLanguage": "English",
+  "addressText": "Address",
+  "postalCode": "123456",
+  "areaDistrict": "Central",
+  "viharaType": "Temple",
+  "gender": "FEMALE",
+  "dateOfBirth": "1980-01-01",
+  "maritalStatus": "SINGLE",
+  "nationality": "Singaporean",
+  "ethnicity": "Chinese",
+  "dialectGroup": "Hokkien",
+  "membershipStatus": "ACTIVE",
+  "dateJoined": "2026-01-01",
+  "membershipRemarks": "Remarks",
+  "buddhistTradition": "Theravada",
+  "ordinationStatus": "Ordained",
+  "wellbeingLivingConditions": true,
+  "wellbeingMentalHealth": false,
+  "wellbeingPhysicalHealth": false,
+  "wellbeingFinancialStability": true,
+  "wellbeingSocialSupport": true,
+  "wellbeingLegalIssues": false,
+  "wellbeingSpiritual": true,
+  "wellbeingRemarks": "Wellbeing remarks",
+  "specialNeeds": "None",
+  "specialNeedsRemarks": "Special needs remarks",
+  "nextOfKinContact": "91230000",
+  "comments": "Comments",
+  "createdAt": "2026-01-01T09:00:00",
+  "relatedContacts": [
+    {
+      "id": 1,
+      "name": "Related Contact",
+      "relationshipType": "NEXT_OF_KIN",
+      "phone": "91230000",
+      "email": "contact@example.com",
+      "addressText": "Address",
+      "primary": true,
+      "notes": "Notes"
+    }
+  ]
 }
 ```
 
-## 3.2 Cases
+Notes:
 
-Frontend service file:
+- Related contacts are ordered by primary contact first, then creation time ascending.
+- Missing client ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
 
-```text
-frontend/src/services/case.api.ts
-```
+## 10. APIs Not Yet Implemented
 
-Planned endpoints:
+The frontend contains service modules for clients, cases, reports, and auth support. The backend currently does not expose the following planned endpoints:
 
 ```http
+POST /api/v1/clients
+PUT /api/v1/clients/{id}
+
 GET /api/v1/cases
 GET /api/v1/cases/{id}
 POST /api/v1/cases
 GET /api/v1/cases/{caseId}/notes
 POST /api/v1/cases/{caseId}/notes
 GET /api/v1/cases/{caseId}/status-history
-```
 
-Current frontend `Case` shape:
-
-```ts
-type CaseStatus = 'OPEN' | 'SUSPENDED' | 'CLOSED'
-type CaseColorCode = 'RED' | 'ORANGE' | 'YELLOW' | 'GREEN' | 'GREY' | 'BLACK'
-
-interface Case {
-  id: string
-  caseNo: string
-  dateOpened: string
-  closedAt?: string
-  clientId: string
-  clientNameEn: string
-  clientNameChn: string
-  tradition: string
-  socialWorker: string
-  status: CaseStatus
-  colorCode: CaseColorCode
-  comments: string
-  remarks: string
-  services: Record<string, boolean>
-}
-```
-
-## 3.3 Reports
-
-Frontend service file:
-
-```text
-frontend/src/services/report.api.ts
-```
-
-Planned endpoints:
-
-```http
 GET /api/v1/reports
 GET /api/v1/reports?submittedById={userId}
 POST /api/v1/reports
 ```
 
-Current frontend `EngagementReport` shape:
+The current backend also intentionally does not expose:
 
-```ts
-interface EngagementReport {
-  id: string
-  timestamp: string
-  dateOfVisit: string
-  timeOfVisit: string
-  durationOfVisit: string
-  staffName: string
-  location: string
-  programmeName: string
-  clientId: string
-  clientName: string
-  typeOfVisit: string
-  purposeOfVisit: string
-  whatWasDone: string
-  environmentObservations: string
-  sanghaObservations: string
-  otherObservations: string
-  personalReflections: string
-  recommendations: string
-  mattersToHighlight: string
-  submittedById: string
-}
+```http
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+POST /api/v1/auth/2fa/*
 ```
 
-## 4. Role And Permission Direction
+Firebase Authentication and MFA enrollment/challenge are handled by the frontend through Firebase.
 
-Current local role names include:
-
-```text
-MANAGER
-SOCIAL_WORKER
-VOLUNTEER
-```
-
-Authorization style:
-
-```java
-@PreAuthorize("hasRole('MANAGER')")
-@PreAuthorize("hasAnyRole('MANAGER', 'SOCIAL_WORKER')")
-```
-
-Notes:
-
-- Firebase proves identity and MFA completion.
-- The local database controls CRM roles, permissions, and account status.
-- `/api/v1/auth/me` intentionally does not expose roles.
-- `/api/v1/ui/manifest` exposes UI capabilities derived from local roles.
-
-## 5. OpenAPI UI
+## 11. OpenAPI UI
 
 When the backend is running, Swagger UI should be available at:
 
