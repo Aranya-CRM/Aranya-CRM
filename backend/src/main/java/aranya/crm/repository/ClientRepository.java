@@ -18,6 +18,8 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
     List<Client> findByMembershipStatusIgnoreCaseOrderByCreatedAtDesc(String membershipStatus);
 
+    long countByMembershipStatusIgnoreCase(String membershipStatus);
+
     @Query("""
             SELECT c FROM Client c
             WHERE (LOWER(c.abbr) LIKE LOWER(CONCAT('%', :q, '%'))

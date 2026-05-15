@@ -81,7 +81,7 @@ databaseChangeLog:
   - changeSet:
       id: 024-3-seed-permissions
       author: ShiDu
-      validCheckSum: ANY
+      validCheckSum: ANY'
       comment: "Seed route, feature, and widget capability codes"
       changes:
         - sql:

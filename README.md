@@ -5,7 +5,7 @@ This is a CRM system for Aranya orgnization
 
 For onboarding, local setup, Docker usage, architecture notes, and ongoing development guidance, start here:
 
-- [Developer Guide](docs/developer-guide.md)
+- [Developer Guide](docs/System%20Design/developer-guide.md)
 
 ## Local PostgreSQL (Docker Compose)
 

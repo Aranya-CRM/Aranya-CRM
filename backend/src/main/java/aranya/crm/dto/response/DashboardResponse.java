@@ -1,52 +1,92 @@
 package aranya.crm.dto.response;
 
-import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
-/*TODO:
-*  目前还是临时数据,还需要修改*/
 @Data
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DashboardResponse {
-    private List<ActiveCase> activeCases;
-    private List<AttentionCase> attentionCases;
-    private List<UpcomingAppointment> upcomingAppointments;
+    private DesignSystem designSystem;
+    private Screen screen;
+    private List<Section> sections;
+    private Metadata metadata;
 
     @Data
     @Builder
-    @AllArgsConstructor
-    public static class LocalizedText {
-        private String zh;
-        private String en;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class DesignSystem {
+        private String name;
+        private String version;
     }
 
     @Data
     @Builder
-    public static class ActiveCase {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Screen {
         private String id;
-        private LocalizedText title;
-        private LocalizedText client;
-        private LocalizedText status;
+        private String version;
     }
 
     @Data
     @Builder
-    public static class AttentionCase {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Section {
         private String id;
-        private LocalizedText client;
-        private LocalizedText reason;
-        private int daysOpen;
+        private List<Stat> stats;
+        private List<Item> items;
+        private List<Action> actions;
     }
 
     @Data
     @Builder
-    public static class UpcomingAppointment {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Stat {
         private String id;
-        private String startsAt;
-        private LocalizedText client;
-        private LocalizedText purpose;
+        private String value;
+    }
+
+    @Data
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Item {
+        private String id;
+        private String clientId;
+        private String clientNameChn;
+        private String clientNameEn;
+        private String caseCode;
+        private String statusCode;
+        private String colorCode;
+        private String openedAt;
+        private String reportType;
+        private String dateOfVisit;
+        private String createdAt;
+        private String createdById;
+        private String createdByName;
+    }
+
+    @Data
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Action {
+        private String id;
+        private String targetId;
+    }
+
+    @Data
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Metadata {
+        private String generatedAt;
+
+        public static Metadata now() {
+            return Metadata.builder()
+                    .generatedAt(OffsetDateTime.now().toString())
+                    .build();
+        }
     }
 }

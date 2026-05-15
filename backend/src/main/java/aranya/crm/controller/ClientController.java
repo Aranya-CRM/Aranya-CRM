@@ -1,7 +1,7 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.ClientDetailResponse;
-import aranya.crm.dto.ClientSummaryResponse;
+import aranya.crm.dto.response.ClientDetailResponse;
+import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

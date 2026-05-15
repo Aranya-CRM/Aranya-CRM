@@ -1,8 +1,8 @@
 package aranya.crm.controller;
 
-import aranya.crm.dto.ClientDetailResponse;
-import aranya.crm.dto.ClientSummaryResponse;
-import aranya.crm.dto.RelatedContactResponse;
+import aranya.crm.dto.response.ClientDetailResponse;
+import aranya.crm.dto.response.ClientSummaryResponse;
+import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.service.ClientService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -19,6 +18,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -48,10 +48,10 @@ class ClientControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ClientService clientService;
 
-    @MockBean
+    @MockitoBean
     private UserService userService;
 
     @Test

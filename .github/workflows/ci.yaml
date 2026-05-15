@@ -32,7 +32,7 @@ jobs:
 
           tracked_files="$(
             git ls-files |
-              grep -Ei '(^|/)(\.env(\..*)?|.*service-account.*\.json|.*serviceAccount.*\.json|.*google-application-credentials.*\.json|.*\.pem|.*\.key|.*\.p8|.*\.p12|.*\.jks|.*\.keystore)$' || true
+              grep -Ei '(^|/)(\.env($|\.(local|development|test|production|staging)$)|.*service-account.*\.json|.*serviceAccount.*\.json|.*google-application-credentials.*\.json|.*\.pem|.*\.key|.*\.p8|.*\.p12|.*\.jks|.*\.keystore)$' || true
           )"
 
           if [ -n "$tracked_files" ]; then
