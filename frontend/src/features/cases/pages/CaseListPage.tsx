@@ -11,45 +11,6 @@ import { useCases } from '../hooks'
 import type { Case, CaseColorCode } from '../types'
 import './cases.css'
 
-const CASE_DISPLAY_OVERRIDES: Record<string, Partial<CaseListRow>> = {
-  'case-001': {
-    caseNo: 'ARANYA/2026/C/100',
-    clientNameChn: '释慧明',
-    clientNameEn: 'Sumedho',
-    socialWorker: 'Sarah (SW)',
-    status: 'WEEKLY',
-  },
-  'case-002': {
-    caseNo: 'ARANYA/2026/C/101',
-    clientNameChn: '释觉慧',
-    clientNameEn: 'Ajahn Chah',
-    socialWorker: 'Sarah (SW)',
-    status: 'MONTHLY',
-  },
-  'case-003': {
-    caseNo: 'ARANYA/2026/C/102',
-    clientNameChn: '释德行',
-    clientNameEn: 'Bodhi',
-    socialWorker: 'Sarah (SW)',
-    status: 'IN_REVIEW',
-  },
-  'case-004': {
-    caseNo: 'ARANYA/2026/C/103',
-    clientNameChn: '释妙音',
-    clientNameEn: 'Pasanno',
-    socialWorker: 'Sarah (SW)',
-    status: 'OPEN',
-  },
-  'case-005': {
-    caseNo: 'ARANYA/2025/C/090',
-    clientNameChn: '空白师父',
-    clientNameEn: 'Kong Bai',
-    socialWorker: 'Sarah (SW)',
-    status: 'CLOSED',
-    colorCode: 'GREY',
-  },
-}
-
 const COLOR_ORDER: Record<CaseColorCode, number> = {
   RED: 1,
   ORANGE: 2,
@@ -76,7 +37,7 @@ export function CaseListPage() {
   }, [cases])
 
   const statuses = useMemo(() => unique(rows.map((item) => item.status)), [rows])
-  const caseworkers = useMemo(() => unique(rows.map((item) => item.socialWorker)), [rows])
+  const caseworkers = useMemo(() => unique(rows.map((item) => item.socialWorker).filter(Boolean)), [rows])
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -134,8 +95,6 @@ export function CaseListPage() {
 }
 
 function toCaseListRow(item: Case): CaseListRow {
-  const override = CASE_DISPLAY_OVERRIDES[item.id] ?? {}
-
   return {
     id: item.id,
     caseNo: item.caseNo.replaceAll('_', '/'),
@@ -146,7 +105,6 @@ function toCaseListRow(item: Case): CaseListRow {
     socialWorker: item.socialWorker,
     status: item.status,
     colorCode: item.colorCode,
-    ...override,
   }
 }
 

@@ -1,0 +1,138 @@
+databaseChangeLog:
+  - changeSet:
+      id: 027-seed-dev-case-data
+      author: ShiDu
+      context: dev, test
+      comment: "Seed sample cases for the dev clients after Firebase users are available"
+      changes:
+        - sql:
+            sql: >
+              WITH actor AS (
+                SELECT id
+                FROM users
+                ORDER BY
+                  CASE
+                    WHEN email = 'socialworker@test.com' THEN 0
+                    WHEN email = 'aranya.crm.admin@gmail.com' THEN 1
+                    ELSE 2
+                  END,
+                  id
+                LIMIT 1
+              )
+              INSERT INTO "case" (
+                case_code,
+                client_id,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                tradition,
+                opened_at,
+                closed_at,
+                created_by,
+                created_at,
+                comments,
+                remarks
+              )
+              SELECT
+                seeded.case_code,
+                c.id,
+                seeded.title,
+                seeded.description,
+                seeded.priority,
+                seeded.status,
+                seeded.color_code,
+                c.buddhist_tradition,
+                seeded.opened_at,
+                seeded.closed_at,
+                actor.id,
+                seeded.created_at,
+                seeded.comments,
+                seeded.remarks
+              FROM (
+                VALUES
+                  (
+                    'CASE-2026-001',
+                    'HM001',
+                    'Medical transport follow-up',
+                    'Arrange transport for a specialist appointment and confirm volunteer availability.',
+                    'HIGH',
+                    'OPEN',
+                    'RED',
+                    '2026-01-20 09:30:00'::timestamp,
+                    NULL::timestamp,
+                    '2026-01-20 09:30:00'::timestamp,
+                    'Urgent health-related case for dashboard and priority filters.',
+                    'Call clinic two days before appointment.'
+                  ),
+                  (
+                    'CASE-2026-002',
+                    'SN002',
+                    'Temporary housing review',
+                    'Review current living arrangement and financial support requirements.',
+                    'NORMAL',
+                    'SUSPENDED',
+                    'ORANGE',
+                    '2026-02-24 11:00:00'::timestamp,
+                    NULL::timestamp,
+                    '2026-02-24 11:00:00'::timestamp,
+                    'Suspended while waiting for updated overseas travel dates.',
+                    'Reopen after client returns to Singapore.'
+                  ),
+                  (
+                    'CASE-2026-003',
+                    'TY003',
+                    'Counselling closure review',
+                    'Confirm counselling completion and archive the support plan.',
+                    'LOW',
+                    'CLOSED',
+                    'BLACK',
+                    '2026-03-12 14:00:00'::timestamp,
+                    '2026-04-05 17:30:00'::timestamp,
+                    '2026-03-12 14:00:00'::timestamp,
+                    'Closed case for status, date, and color-code filter testing.',
+                    'No further action unless client requests follow-up.'
+                  ),
+                  (
+                    'CASE-2026-004',
+                    'DL004',
+                    'Legal document assistance',
+                    'Coordinate home visit and collect documents for legal aid referral.',
+                    'HIGH',
+                    'OPEN',
+                    'YELLOW',
+                    '2026-04-28 15:15:00'::timestamp,
+                    NULL::timestamp,
+                    '2026-04-28 15:15:00'::timestamp,
+                    'Open practical-support case with legal issue flag on client profile.',
+                    'Prepare consent form before home visit.'
+                  )
+              ) AS seeded(
+                case_code,
+                client_abbr,
+                title,
+                description,
+                priority,
+                status,
+                color_code,
+                opened_at,
+                closed_at,
+                created_at,
+                comments,
+                remarks
+              )
+              JOIN client c ON c.abbr = seeded.client_abbr
+              CROSS JOIN actor
+              ON CONFLICT (case_code) DO NOTHING;
+
+      rollback:
+        - sql:
+            sql: >
+              DELETE FROM "case"
+              WHERE case_code IN (
+                'CASE-2026-001',
+                'CASE-2026-002',
+                'CASE-2026-003',
+                'CASE-2026-004'
+              );
