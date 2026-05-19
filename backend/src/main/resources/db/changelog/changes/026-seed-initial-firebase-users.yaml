@@ -1,8 +1,8 @@
 databaseChangeLog:
   - changeSet:
-      id: 026-seed-aranya-crm-admin-user
+      id: 026-seed-initial-firebase-users
       author: Codex
-      comment: "Seed initial CRM users with roles"
+      comment: "Seed initial Firebase-linked users and role assignments"
       changes:
         - sql:
             sql: >
@@ -32,7 +32,13 @@ databaseChangeLog:
                   true,
                   'ACTIVE'
                 )
-              ON CONFLICT DO NOTHING;
+              ON CONFLICT (email) DO UPDATE SET
+                firebase_uid = EXCLUDED.firebase_uid,
+                username = EXCLUDED.username,
+                full_name = EXCLUDED.full_name,
+                email_verified = EXCLUDED.email_verified,
+                status = EXCLUDED.status,
+                updated_at = NOW();
 
         - sql:
             sql: >
