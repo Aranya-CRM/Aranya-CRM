@@ -1,0 +1,264 @@
+.case-page {
+  width: 100%;
+}
+
+.case-page .page-header {
+  align-items: flex-start;
+}
+
+.case-page .page-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.case-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-audit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid #6d28d9;
+  border-radius: 6px;
+  background: #6d28d9;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.btn-audit:hover {
+  background: #5b21b6;
+}
+
+.case-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.case-search-input,
+.case-filter-select {
+  height: 36px;
+  border: 1px solid #d7dce5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #243047;
+  font-size: 13px;
+  outline: none;
+}
+
+.case-search-input {
+  width: 260px;
+  padding: 0 12px;
+}
+
+.case-search-input::placeholder {
+  color: #8a94a6;
+}
+
+.case-filter-select {
+  min-width: 150px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.caseworker-select {
+  min-width: 190px;
+}
+
+.case-list-card {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.case-table {
+  width: 100%;
+  min-width: 1080px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.case-table thead tr {
+  height: 56px;
+  background: #fbfcfe;
+}
+
+.case-table th {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef1f5;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+.case-table tbody tr {
+  height: 62px;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.case-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.case-table tbody tr:hover {
+  background: #fbfcfe;
+}
+
+.case-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.case-th-zh,
+.case-th-en,
+.case-cell-main,
+.case-cell-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-th-zh {
+  color: #8a94a6;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.case-th-en {
+  margin-top: 2px;
+  color: #a7b0c0;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.case-cell-main {
+  color: #18233a;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.case-cell-sub {
+  margin-top: 3px;
+  color: #8a94a6;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.case-row-closed .case-cell-main,
+.case-row-closed .case-cell-sub,
+.case-row-closed .case-action-link {
+  color: #98a2b3;
+}
+
+.case-intensity-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.case-intensity-red { background: #dc3545; }
+.case-intensity-orange { background: #f97316; }
+.case-intensity-yellow { background: #fbbf24; }
+.case-intensity-green { background: #22a849; }
+.case-intensity-grey,
+.case-intensity-black { background: #8a949b; }
+
+.case-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.case-status-open {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.case-status-weekly {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.case-status-monthly {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.case-status-in-review {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.case-status-suspended {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.case-status-closed {
+  background: #eeeeee;
+  color: #a3a3a3;
+}
+
+.case-action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.case-action-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #18233a;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.case-action-link:hover {
+  color: #6d28d9;
+}
+
+.case-col-intensity { width: 9%; }
+.case-col-no { width: 18%; }
+.case-col-client { width: 17%; }
+.case-col-tradition { width: 11%; }
+.case-col-worker { width: 12%; }
+.case-col-status { width: 12%; }
+.case-col-opened { width: 11%; }
+.case-col-actions { width: 10%; }
+
+@media (max-width: 0) {
+  .case-page {
+    max-width: none;
+  }
+
+  .case-page .page-header {
+    flex-direction: column;
+  }
+
+  .case-header-actions {
+    justify-content: flex-start;
+  }
+}
