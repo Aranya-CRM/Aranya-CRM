@@ -1,60 +1,75 @@
-import type { DashboardData } from '../features/dashboard/types'
+import type { DashboardResponse } from '../features/dashboard/types'
 
-export const dashboardMockData: DashboardData = {
-  activeCases: [
+export const dashboardMockData: DashboardResponse = {
+  designSystem: {
+    name: 'aranya-crm-dashboard',
+    version: '1.0',
+  },
+  screen: {
+    id: 'dashboard',
+    version: '2026-05-13',
+  },
+  sections: [
     {
-      id: 'case-001',
-      title: { zh: '紧急住房支持', en: 'Emergency Housing Support' },
-      client: { zh: '释慧明', en: 'Monastic Sumedho' },
-      status: { zh: '审核中', en: 'In Review' },
+      id: 'sw.stats',
+      stats: [
+        { id: 'activeMonastics', value: '6' },
+        { id: 'openCases', value: '4' },
+        { id: 'urgentCases', value: '2' },
+        { id: 'pendingReports', value: '1' },
+      ],
     },
     {
-      id: 'case-002',
-      title: { zh: '医疗交通', en: 'Medical Transportation' },
-      client: { zh: '释觉慧', en: 'Monastic Ajahn Chah' },
-      status: { zh: '每周跟进', en: 'Weekly' },
+      id: 'sw.recent_cases',
+      items: [
+        {
+          id: 'case-001',
+          clientId: 'client-001',
+          clientNameChn: '释妙音',
+          clientNameEn: 'Ven. Pasanno',
+          caseCode: 'ARANYA/2026/C/103',
+          statusCode: 'OPEN',
+          colorCode: 'RED',
+          openedAt: '2026-03-12T10:00:00+08:00',
+        },
+        {
+          id: 'case-002',
+          clientId: 'client-002',
+          clientNameChn: '释慧明',
+          clientNameEn: 'Ven. Sumedho',
+          caseCode: 'ARANYA/2026/C/100',
+          statusCode: 'WEEKLY',
+          colorCode: 'ORANGE',
+          openedAt: '2026-03-10T10:00:00+08:00',
+        },
+      ],
     },
     {
-      id: 'case-003',
-      title: { zh: '食品援助计划', en: 'Food Assistance Program' },
-      client: { zh: '释德行', en: 'Monastic Bodhi' },
-      status: { zh: '开放中', en: 'Open' },
+      id: 'sw.recent_reports',
+      items: [
+        {
+          id: 'report-001',
+          clientId: 'client-003',
+          clientNameChn: '释德行',
+          clientNameEn: 'Ven. Bodhi',
+          reportType: 'Temple Visit',
+          dateOfVisit: '2026-03-08',
+          createdAt: '2026-03-08T18:00:00+08:00',
+          createdById: 'user-001',
+          createdByName: 'Volunteer Lee',
+        },
+      ],
+    },
+    {
+      id: 'sw.quick_actions',
+      actions: [
+        { id: 'new_case' },
+        { id: 'add_client' },
+      ],
     },
   ],
-  attentionCases: [
-    {
-      id: 'attention-001',
-      client: { zh: '释妙音', en: 'Monastic Pasanno' },
-      reason: { zh: '等待志愿者分配', en: 'Awaiting volunteer assignment' },
-      daysOpen: 5,
-    },
-    {
-      id: 'attention-002',
-      client: { zh: '释瑟空', en: 'Monastic Thanissaro' },
-      reason: { zh: '需要跟进', en: 'Follow-up required' },
-      daysOpen: 3,
-    },
-  ],
-  upcomingAppointments: [
-    {
-      id: 'appt-001',
-      startsAt: '2026-03-28T10:00:00+08:00',
-      client: { zh: '释慧明', en: 'Monastic Sumedho' },
-      purpose: { zh: '家访评估', en: 'Home Visit Assessment' },
-    },
-    {
-      id: 'appt-002',
-      startsAt: '2026-03-29T14:00:00+08:00',
-      client: { zh: '释德行', en: 'Monastic Bodhi' },
-      purpose: { zh: '跟进电话', en: 'Follow-up Call' },
-    },
-    {
-      id: 'appt-003',
-      startsAt: '2026-04-01T09:00:00+08:00',
-      client: { zh: '释觉慧', en: 'Monastic Ajahn Chah' },
-      purpose: { zh: '医疗交通协调', en: 'Medical Transport Coordination' },
-    },
-  ],
+  metadata: {
+    generatedAt: '2026-05-19T00:00:00+08:00',
+  },
 }
-
 
