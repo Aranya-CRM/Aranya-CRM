@@ -23,6 +23,11 @@ type BackendClientDetail = BackendClientSummary & {
   postalCode?: string | null
   areaDistrict?: string | null
   viharaType?: string | null
+  nricNameEn?: string | null
+  nricNameChn?: string | null
+  nricNo?: string | null
+  ordinationCertificateStatus?: string | null
+  dateOfVerification?: string | null
   gender?: string | null
   dateOfBirth?: string | null
   maritalStatus?: string | null
@@ -32,6 +37,12 @@ type BackendClientDetail = BackendClientSummary & {
   dateJoined?: string | null
   membershipRemarks?: string | null
   wellbeingLivingConditions?: boolean | null
+  dateOfTonsure?: string | null
+  countryOfTonsure?: string | null
+  placeOfTonsure?: string | null
+  dateOfOrdination?: string | null
+  countryOfOrdination?: string | null
+  placeOfOrdination?: string | null
   wellbeingMentalHealth?: boolean | null
   wellbeingPhysicalHealth?: boolean | null
   wellbeingFinancialStability?: boolean | null
@@ -41,6 +52,8 @@ type BackendClientDetail = BackendClientSummary & {
   wellbeingRemarks?: string | null
   specialNeeds?: string | null
   specialNeedsRemarks?: string | null
+  bankTransferInfo?: string | null
+  payNowInfo?: string | null
   nextOfKinContact?: string | null
   comments?: string | null
 }
@@ -71,26 +84,26 @@ function getDataMode(): 'mock' | 'api' | 'auto' {
 
 export async function fetchClients(): Promise<Client[]> {
   const mode = getDataMode()
-  if (mode === 'mock') return clientMockData
+  if (mode === 'mock') return clientMockData.map(withActiveMembership)
 
   try {
     const res = await http.get<BackendClientSummary[]>('/v1/clients')
     return res.data.map(mapBackendClient)
   } catch {
-    if (mode === 'auto') return clientMockData
+    if (mode === 'auto') return clientMockData.map(withActiveMembership)
     throw new Error('Failed to fetch clients')
   }
 }
 
 export async function fetchClientById(id: string): Promise<Client | undefined> {
   const mode = getDataMode()
-  if (mode === 'mock') return clientMockData.find((c) => c.id === id)
+  if (mode === 'mock') return normalizeOptionalClient(clientMockData.find((c) => c.id === id))
 
   try {
     const res = await http.get<BackendClientDetail>(`/v1/clients/${id}`)
     return mapBackendClient(res.data)
   } catch {
-    if (mode === 'auto') return clientMockData.find((c) => c.id === id)
+    if (mode === 'auto') return normalizeOptionalClient(clientMockData.find((c) => c.id === id))
     throw new Error('Failed to fetch client')
   }
 }
@@ -143,16 +156,16 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
 
 function mapBackendClient(source: BackendClientDetail): Client {
   const dateOfBirth = text(source.dateOfBirth)
-  const dateOrdination = ''
+  const dateOrdination = text(source.dateOfOrdination)
 
   return {
     id: String(source.id),
     abbr: text(source.abbr),
     nameEn: text(source.nameEn),
     nameChn: text(source.nameChn),
-    nricNameEn: '',
-    nricNameChn: '',
-    nricNo: '',
+    nricNameEn: text(source.nricNameEn),
+    nricNameChn: text(source.nricNameChn),
+    nricNo: text(source.nricNo),
     sex: mapSex(source.gender),
     dateOfBirth,
     age: calculateYearsSince(dateOfBirth),
@@ -170,20 +183,20 @@ function mapBackendClient(source: BackendClientDetail): Client {
     postalCode: text(source.postalCode),
     viharaType: text(source.viharaType),
     area: text(source.areaDistrict ?? source.area),
-    membershipStatus: mapMembershipStatus(source.membershipStatus),
+    membershipStatus: 'Active',
     dateJoined: text(source.dateJoined),
     membershipRemarks: text(source.membershipRemarks),
     buddhistTradition: mapBuddhistTradition(source.buddhistTradition),
     ordinationStatus: mapOrdinationStatus(source.ordinationStatus),
-    dateTonsure: '',
-    countryTonsure: '',
-    placeTonsure: '',
+    dateTonsure: text(source.dateOfTonsure),
+    countryTonsure: text(source.countryOfTonsure),
+    placeTonsure: text(source.placeOfTonsure),
     dateOrdination,
-    countryOrdination: '',
-    placeOrdination: '',
+    countryOrdination: text(source.countryOfOrdination),
+    placeOrdination: text(source.placeOfOrdination),
     ordinationYears: calculateYearsSince(dateOrdination),
-    ordinationCertificate: 'Incomplete',
-    dateVerification: '',
+    ordinationCertificate: mapOrdinationCertificate(source.ordinationCertificateStatus),
+    dateVerification: text(source.dateOfVerification),
     wellbeingIssues: {
       ...emptyWellbeing,
       physicalHealth: Boolean(source.wellbeingPhysicalHealth),
@@ -197,8 +210,8 @@ function mapBackendClient(source: BackendClientDetail): Client {
     wellbeingRemarks: text(source.wellbeingRemarks),
     specialNeeds: mapSpecialNeeds(source.specialNeeds),
     specialNeedsRemarks: text(source.specialNeedsRemarks),
-    bankTransfer: false,
-    payNow: false,
+    bankTransfer: Boolean(text(source.bankTransferInfo)),
+    payNow: Boolean(text(source.payNowInfo)),
     comments: text(source.comments),
   }
 }
@@ -209,15 +222,6 @@ function text(value: string | number | null | undefined): string {
 
 function normalizeEnum(value: string | null | undefined): string {
   return text(value).trim().replaceAll('_', ' ').toLowerCase()
-}
-
-function mapMembershipStatus(value: string | null | undefined): Client['membershipStatus'] {
-  const normalized = normalizeEnum(value)
-  if (normalized === 'inactive') return 'Inactive'
-  if (normalized === 'discharged') return 'Discharged'
-  if (normalized === 'withdrawn') return 'Withdrawn'
-  if (normalized === 'deceased') return 'Deceased'
-  return 'Active'
 }
 
 function mapPreferredCommunication(value: string | null | undefined): Client['preferredCommunication'] {
@@ -256,6 +260,20 @@ function mapOrdinationStatus(value: string | null | undefined): Client['ordinati
   if (normalized === 'sikkhamana') return 'Sikkhamana'
   if (normalized === 'sayalay') return 'Sayalay'
   return 'Bhikkhu'
+}
+
+function withActiveMembership(client: Client): Client {
+  return { ...client, membershipStatus: 'Active' }
+}
+
+function normalizeOptionalClient(client: Client | undefined): Client | undefined {
+  return client ? withActiveMembership(client) : undefined
+}
+
+function mapOrdinationCertificate(value: string | null | undefined): Client['ordinationCertificate'] {
+  const normalized = normalizeEnum(value)
+  if (normalized === 'completed' || normalized === 'complete') return 'Completed'
+  return 'Incomplete'
 }
 
 function mapSpecialNeeds(value: string | null | undefined): Client['specialNeeds'] {

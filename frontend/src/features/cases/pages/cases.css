@@ -7,9 +7,15 @@
 }
 
 .case-page .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
+  line-height: 1.25;
   letter-spacing: 0;
+}
+
+.case-page .page-subtitle {
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .case-header-actions {

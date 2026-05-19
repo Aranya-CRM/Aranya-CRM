@@ -4,23 +4,17 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { EmptyState } from '../../../shared/ui'
 import { MembershipBadge } from '../components'
-import { useClients, useCreateClient } from '../hooks'
+import { useClient, useClients, useCreateClient } from '../hooks'
 import type { Client } from '../types'
 import './clients.css'
-
-const MEMBERSHIP_STATUSES: Array<Client['membershipStatus']> = [
-  'Active',
-  'Inactive',
-  'Discharged',
-  'Withdrawn',
-  'Deceased',
-]
 
 const TRADITIONS: Array<Client['buddhistTradition']> = [
   'Theravada',
   'Mahayana',
   'Vajrayana',
 ]
+
+const MEMBERSHIP_STATUSES: Array<Client['membershipStatus']> = ['Active']
 
 const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Bhikkhu',
@@ -76,15 +70,20 @@ export function ClientListPage() {
         client.nameChn.includes(q) ||
         client.nameEn.toLowerCase().includes(q) ||
         client.abbr.toLowerCase().includes(q)
-      const matchStatus = filterStatus === 'all' || client.membershipStatus === filterStatus
       const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
-      return matchSearch && matchStatus && matchTradition
+      return matchSearch && matchTradition
     })
-  }, [clients, search, filterStatus, filterTradition])
+  }, [clients, search, filterTradition])
 
   const selectedClient = useMemo(() => {
     return filtered.find((client) => client.id === selectedClientId) ?? filtered[0]
   }, [filtered, selectedClientId])
+  const {
+    data: selectedClientDetail,
+    isLoading: isDetailLoading,
+    isError: isDetailError,
+  } = useClient(selectedClient?.id)
+  const profileClient = selectedClientDetail ?? selectedClient
 
   useEffect(() => {
     if (!selectedClient || selectedClient.id === selectedClientId) return
@@ -191,16 +190,26 @@ export function ClientListPage() {
       </aside>
 
       <main className="client-profile-surface">
-        {selectedClient ? (
+        {profileClient ? (
+          <>
+            {isDetailLoading ? (
+              <div className="client-profile-loading">加载完整档案中 · Loading full profile...</div>
+            ) : null}
+            {isDetailError ? (
+              <div className="client-profile-loading client-profile-warning">
+                完整档案加载失败，当前显示列表摘要。 / Full profile failed to load. Showing list summary.
+              </div>
+            ) : null}
           <ClientProfilePanel
-            client={selectedClient}
+            client={profileClient}
             canUpdateClient={canUpdateClient}
             canDeleteClient={canDeleteClient}
             canViewDetailedProfile={canViewDetailedProfile}
             showDeleteConfirm={showDeleteConfirm}
             onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
-            onEdit={() => navigate(`/clients/${selectedClient.id}/edit`)}
+            onEdit={() => navigate(`/clients/${profileClient.id}/edit`)}
           />
+          </>
         ) : (
           <EmptyState message="请选择一个僧人档案 / Select a client profile" />
         )}
