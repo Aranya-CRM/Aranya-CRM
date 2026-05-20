@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from 'react'
-import type { Case, CaseNote, CaseServices, CaseTask } from '../types'
+import type { AuditLogEntry, Case, CaseFlag, CaseNote, CaseServices, CaseTask } from '../types'
 import { CASE_COLOR_LABELS, CASE_SERVICE_LABELS } from '../types'
+import { CaseAuditTab } from './CaseAuditTab'
 import { CaseIntensityDot } from './CaseIntensityDot'
 import { CaseStatusBadge } from './CaseStatusBadge'
 
@@ -17,6 +18,8 @@ interface TabDef {
 interface CaseDetailTabsProps {
   caseData: Case
   notes: CaseNote[]
+  auditLog: AuditLogEntry[]
+  flags: CaseFlag[]
   isManager: boolean
 }
 
@@ -24,7 +27,7 @@ function activeServiceCount(services: CaseServices): number {
   return Object.values(services).filter(Boolean).length
 }
 
-export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsProps) {
+export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: CaseDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   const serviceCount = activeServiceCount(caseData.services)
@@ -67,7 +70,9 @@ export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsPro
         {activeTab === 'documents' ? <PlaceholderTab zh="文件" en="Documents" /> : null}
         {activeTab === 'reports'   ? <PlaceholderTab zh="探访报告" en="Visit Reports" /> : null}
         {activeTab === 'history'   ? <PlaceholderTab zh="状态历史" en="Status History" /> : null}
-        {activeTab === 'audit' && isManager ? <PlaceholderTab zh="审计日志" en="Audit Log" /> : null}
+        {activeTab === 'audit' && isManager ? (
+          <CaseAuditTab caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} />
+        ) : null}
       </div>
     </>
   )

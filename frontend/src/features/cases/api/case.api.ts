@@ -1,6 +1,6 @@
 import { http } from '../../../shared/api'
-import { caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import type { Case, CaseColorCode, CaseNote, CaseStatus, CaseStatusChange } from '../types'
+import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
+import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseStatus, CaseStatusChange } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -120,6 +120,15 @@ export async function fetchCaseStatusHistory(caseId: string): Promise<CaseStatus
     if (mode === 'auto') return caseStatusChangeMockData.filter((c) => c.caseId === caseId)
     throw new Error('Failed to fetch case status history')
   }
+}
+
+export async function fetchCaseAuditLog(caseId: string): Promise<AuditLogEntry[]> {
+  const entries = caseAuditLogMockData.filter((e) => e.caseId === caseId)
+  return [...entries].sort((a, b) => b.at.localeCompare(a.at))
+}
+
+export async function fetchCaseFlags(caseId: string): Promise<CaseFlag[]> {
+  return caseFlagMockData.filter((f) => f.caseId === caseId)
 }
 
 function mapBackendCase(source: BackendCase): Case {

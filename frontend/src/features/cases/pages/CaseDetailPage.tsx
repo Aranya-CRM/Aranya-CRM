@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { BackButton } from '../../../shared/ui'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
-import { useCase, useCaseNotes } from '../hooks'
+import { useCaseAuditLog, useCaseFlags, useCase, useCaseNotes } from '../hooks'
 import './cases.css'
 
 export function CaseDetailPage() {
@@ -12,6 +12,8 @@ export function CaseDetailPage() {
 
   const { data: caseData, isLoading } = useCase(id)
   const { data: notes = [] } = useCaseNotes(id)
+  const { data: auditLog = [] } = useCaseAuditLog(id)
+  const { data: flags = [] } = useCaseFlags(id)
 
   const isManager = canFeature('cases.audit')
 
@@ -51,7 +53,7 @@ export function CaseDetailPage() {
 
       <div className="case-detail-card">
         <CaseDetailHeader caseData={caseData} isManager={isManager} />
-        <CaseDetailTabs caseData={caseData} notes={notes} isManager={isManager} />
+        <CaseDetailTabs caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} isManager={isManager} />
       </div>
     </div>
   )
