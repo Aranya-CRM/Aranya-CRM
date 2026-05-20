@@ -11,6 +11,7 @@ type BackendClientSummary = {
   preferredCommunication?: string | null
   preferredLanguage?: string | null
   area?: string | null
+  areaDistrict?: string | null
   buddhistTradition?: string | null
   ordinationStatus?: string | null
 }
@@ -20,7 +21,6 @@ type BackendClientDetail = BackendClientSummary & {
   spokenLanguage?: string | null
   addressText?: string | null
   postalCode?: string | null
-  areaDistrict?: string | null
   viharaType?: string | null
   nricNameEn?: string | null
   nricNameChn?: string | null
@@ -63,9 +63,8 @@ const emptyWellbeing = {
   socialSupport: false,
   financialStability: false,
   livingConditions: false,
-  spiritualWellbeing: false,
+  spiritual: false,
   legalIssues: false,
-  substanceUse: false,
 }
 
 const emptySpecialNeeds = {
@@ -96,13 +95,13 @@ export async function fetchClients(): Promise<Client[]> {
 
 export async function fetchClientById(id: string): Promise<Client | undefined> {
   const mode = getDataMode()
-  if (mode === 'mock') return normalizeOptionalClient(clientMockData.find((c) => c.id === id))
+  if (mode === 'mock') return clientMockData.find((c) => c.id === id)
 
   try {
     const res = await http.get<BackendClientDetail>(`/v1/clients/${id}`)
     return mapBackendClient(res.data)
   } catch {
-    if (mode === 'auto') return normalizeOptionalClient(clientMockData.find((c) => c.id === id))
+    if (mode === 'auto') return clientMockData.find((c) => c.id === id)
     throw new Error('Failed to fetch client')
   }
 }
@@ -139,7 +138,7 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 
   try {
-    const res = await http.put<Client>(`/v1/clients/${id}`, data)
+    const res = await http.patch<Client>(`/v1/clients/${id}`, data)
     return res.data
   } catch {
     if (mode === 'auto') {
@@ -155,7 +154,7 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
 
 function mapBackendClient(source: BackendClientDetail): Client {
   const dateOfBirth = text(source.dateOfBirth)
-  const dateOrdination = text(source.dateOfOrdination)
+  const dateOfOrdination = text(source.dateOfOrdination)
 
   return {
     id: String(source.id),
@@ -165,7 +164,7 @@ function mapBackendClient(source: BackendClientDetail): Client {
     nricNameEn: text(source.nricNameEn),
     nricNameChn: text(source.nricNameChn),
     nricNo: text(source.nricNo),
-    sex: mapSex(source.gender),
+    gender: mapGender(source.gender),
     dateOfBirth,
     age: calculateYearsSince(dateOfBirth),
     maritalStatus: mapMaritalStatus(source.maritalStatus),
@@ -173,28 +172,28 @@ function mapBackendClient(source: BackendClientDetail): Client {
     ethnicity: text(source.ethnicity),
     dialectGroup: text(source.dialectGroup),
     contact: text(source.contact),
-    nextOfKin: text(source.nextOfKinContact),
+    nextOfKinContact: text(source.nextOfKinContact),
     preferredCommunication: mapPreferredCommunication(source.preferredCommunication),
-    ableToUseWhatsApp: Boolean(source.whatsappEnabled),
+    whatsappEnabled: Boolean(source.whatsappEnabled),
     preferredLanguage: text(source.preferredLanguage),
     spokenLanguage: text(source.spokenLanguage),
-    address: text(source.addressText),
+    addressText: text(source.addressText),
     postalCode: text(source.postalCode),
     viharaType: text(source.viharaType),
-    area: text(source.areaDistrict ?? source.area),
+    areaDistrict: text(source.areaDistrict ?? source.area),
     dateJoined: text(source.dateJoined),
     membershipRemarks: text(source.membershipRemarks),
     buddhistTradition: mapBuddhistTradition(source.buddhistTradition),
     ordinationStatus: mapOrdinationStatus(source.ordinationStatus),
-    dateTonsure: text(source.dateOfTonsure),
-    countryTonsure: text(source.countryOfTonsure),
-    placeTonsure: text(source.placeOfTonsure),
-    dateOrdination,
-    countryOrdination: text(source.countryOfOrdination),
-    placeOrdination: text(source.placeOfOrdination),
-    ordinationYears: calculateYearsSince(dateOrdination),
+    dateOfTonsure: text(source.dateOfTonsure),
+    countryOfTonsure: text(source.countryOfTonsure),
+    placeOfTonsure: text(source.placeOfTonsure),
+    dateOfOrdination,
+    countryOfOrdination: text(source.countryOfOrdination),
+    placeOfOrdination: text(source.placeOfOrdination),
+    ordinationYears: calculateYearsSince(dateOfOrdination),
     ordinationCertificate: mapOrdinationCertificate(source.ordinationCertificateStatus),
-    dateVerification: text(source.dateOfVerification),
+    dateOfVerification: text(source.dateOfVerification),
     wellbeingIssues: {
       ...emptyWellbeing,
       physicalHealth: Boolean(source.wellbeingPhysicalHealth),
@@ -202,14 +201,14 @@ function mapBackendClient(source: BackendClientDetail): Client {
       socialSupport: Boolean(source.wellbeingSocialSupport),
       financialStability: Boolean(source.wellbeingFinancialStability),
       livingConditions: Boolean(source.wellbeingLivingConditions),
-      spiritualWellbeing: Boolean(source.wellbeingSpiritual),
+      spiritual: Boolean(source.wellbeingSpiritual),
       legalIssues: Boolean(source.wellbeingLegalIssues),
     },
     wellbeingRemarks: text(source.wellbeingRemarks),
     specialNeeds: mapSpecialNeeds(source.specialNeeds),
     specialNeedsRemarks: text(source.specialNeedsRemarks),
-    bankTransfer: Boolean(text(source.bankTransferInfo)),
-    payNow: Boolean(text(source.payNowInfo)),
+    bankTransferInfo: text(source.bankTransferInfo),
+    payNowInfo: text(source.payNowInfo),
     comments: text(source.comments),
   }
 }
@@ -230,7 +229,7 @@ function mapPreferredCommunication(value: string | null | undefined): Client['pr
   return 'Phone Call'
 }
 
-function mapSex(value: string | null | undefined): Client['sex'] {
+function mapGender(value: string | null | undefined): Client['gender'] {
   const normalized = normalizeEnum(value)
   return normalized.startsWith('f') ? 'Female' : 'Male'
 }
@@ -258,10 +257,6 @@ function mapOrdinationStatus(value: string | null | undefined): Client['ordinati
   if (normalized === 'sikkhamana') return 'Sikkhamana'
   if (normalized === 'sayalay') return 'Sayalay'
   return 'Bhikkhu'
-}
-
-function normalizeOptionalClient(client: Client | undefined): Client | undefined {
-  return client
 }
 
 function mapOrdinationCertificate(value: string | null | undefined): Client['ordinationCertificate'] {

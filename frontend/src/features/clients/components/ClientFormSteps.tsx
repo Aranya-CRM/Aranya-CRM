@@ -153,16 +153,16 @@ function BasicInfoStep({ form, updateField }: StepProps) {
       <div className="form-group">
         <label className="form-label">WhatsApp 使用能力</label>
         <CheckboxRow
-          checked={form.ableToUseWhatsApp}
-          label="可以使用 WhatsApp / Able to use WhatsApp"
-          onChange={(checked) => updateField('ableToUseWhatsApp', checked)}
+          checked={form.whatsappEnabled}
+          label="可以使用 WhatsApp / WhatsApp Enabled"
+          onChange={(checked) => updateField('whatsappEnabled', checked)}
         />
       </div>
       <TextField label="首选语言 / Preferred Language" value={form.preferredLanguage} onChange={(value) => updateField('preferredLanguage', value)} />
       <TextField label="口语 / Spoken Languages" value={form.spokenLanguage} onChange={(value) => updateField('spokenLanguage', value)} />
-      <TextField label="地址 / Address" value={form.address} onChange={(value) => updateField('address', value)} fullWidth />
+      <TextField label="地址 / Address" value={form.addressText} onChange={(value) => updateField('addressText', value)} fullWidth />
       <TextField label="邮编 / Postal Code" value={form.postalCode} onChange={(value) => updateField('postalCode', value)} />
-      <TextField label="区域 / Area" value={form.area} onChange={(value) => updateField('area', value)} />
+      <TextField label="区域 / Area / District" value={form.areaDistrict} onChange={(value) => updateField('areaDistrict', value)} />
     </div>
   )
 }
@@ -179,7 +179,7 @@ function IdentityStep({ form, updateField }: StepProps) {
         options={['Completed', 'Incomplete']}
         onChange={(value) => updateField('ordinationCertificate', value as Client['ordinationCertificate'])}
       />
-      <TextField label="验证日期 / Date of Verification" type="date" value={form.dateVerification} onChange={(value) => updateField('dateVerification', value)} />
+      <TextField label="验证日期 / Date of Verification" type="date" value={form.dateOfVerification} onChange={(value) => updateField('dateOfVerification', value)} />
     </div>
   )
 }
@@ -188,10 +188,10 @@ function PersonalStep({ form, updateField }: StepProps) {
   return (
     <div className="form-grid">
       <SelectField
-        label="性别 / Sex"
-        value={form.sex}
+        label="性别 / Gender"
+        value={form.gender}
         options={['Male', 'Female']}
-        onChange={(value) => updateField('sex', value as Client['sex'])}
+        onChange={(value) => updateField('gender', value as Client['gender'])}
       />
       <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={(value) => updateField('dateOfBirth', value)} />
       <TextField label="年龄 / Age" type="number" value={String(form.age)} onChange={(value) => updateField('age', Number(value))} />
@@ -205,7 +205,7 @@ function PersonalStep({ form, updateField }: StepProps) {
       <TextField label="族裔 / Ethnicity" value={form.ethnicity} onChange={(value) => updateField('ethnicity', value)} />
       <TextField label="方言 / Dialect Group" value={form.dialectGroup} onChange={(value) => updateField('dialectGroup', value)} />
       <TextField label="精舍类型 / Vihara Type" value={form.viharaType} onChange={(value) => updateField('viharaType', value)} />
-      <TextField label="近亲 / Next of Kin" value={form.nextOfKin} onChange={(value) => updateField('nextOfKin', value)} fullWidth />
+      <TextField label="近亲联系人 / Next of Kin Contact" value={form.nextOfKinContact} onChange={(value) => updateField('nextOfKinContact', value)} fullWidth />
       <TextField label="加入日期 / Date Joined" type="date" value={form.dateJoined} onChange={(value) => updateField('dateJoined', value)} />
       <TextareaField label="会员备注 / Membership Remarks" value={form.membershipRemarks} onChange={(value) => updateField('membershipRemarks', value)} fullWidth />
     </div>
@@ -227,12 +227,12 @@ function OrdinationStep({ form, updateField }: StepProps) {
         options={['Bhikkhu', 'Bhikkhuni', 'Samanera', 'Sikkhamana', 'Sayalay']}
         onChange={(value) => updateField('ordinationStatus', value as Client['ordinationStatus'])}
       />
-      <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateTonsure} onChange={(value) => updateField('dateTonsure', value)} />
-      <TextField label="剃度国家 / Country of Tonsure" value={form.countryTonsure} onChange={(value) => updateField('countryTonsure', value)} />
-      <TextField label="剃度地点 / Place of Tonsure" value={form.placeTonsure} onChange={(value) => updateField('placeTonsure', value)} fullWidth />
-      <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOrdination} onChange={(value) => updateField('dateOrdination', value)} />
-      <TextField label="受戒国家 / Country of Ordination" value={form.countryOrdination} onChange={(value) => updateField('countryOrdination', value)} />
-      <TextField label="受戒地点 / Place of Ordination" value={form.placeOrdination} onChange={(value) => updateField('placeOrdination', value)} fullWidth />
+      <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateOfTonsure} onChange={(value) => updateField('dateOfTonsure', value)} />
+      <TextField label="剃度国家 / Country of Tonsure" value={form.countryOfTonsure} onChange={(value) => updateField('countryOfTonsure', value)} />
+      <TextField label="剃度地点 / Place of Tonsure" value={form.placeOfTonsure} onChange={(value) => updateField('placeOfTonsure', value)} fullWidth />
+      <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOfOrdination} onChange={(value) => updateField('dateOfOrdination', value)} />
+      <TextField label="受戒国家 / Country of Ordination" value={form.countryOfOrdination} onChange={(value) => updateField('countryOfOrdination', value)} />
+      <TextField label="受戒地点 / Place of Ordination" value={form.placeOfOrdination} onChange={(value) => updateField('placeOfOrdination', value)} fullWidth />
       <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} onChange={(value) => updateField('ordinationYears', Number(value))} />
     </div>
   )
@@ -240,6 +240,16 @@ function OrdinationStep({ form, updateField }: StepProps) {
 
 interface WellbeingStepProps extends StepProps {
   toggleWellbeing: (key: WellbeingDomain) => void
+}
+
+const WELLBEING_LABELS: Record<WellbeingDomain, string> = {
+  physicalHealth: 'Physical Health / 身体健康',
+  mentalHealth: 'Mental Health / 心理健康',
+  socialSupport: 'Social Support / 社会支持',
+  financialStability: 'Financial Stability / 经济稳定',
+  livingConditions: 'Living Conditions / 居住条件',
+  spiritual: 'Spiritual Wellbeing / 灵性健康',
+  legalIssues: 'Legal Issues / 法律问题',
 }
 
 function WellbeingStep({ form, updateField, toggleWellbeing }: WellbeingStepProps) {
@@ -251,7 +261,7 @@ function WellbeingStep({ form, updateField, toggleWellbeing }: WellbeingStepProp
           <div key={key} className="form-group">
             <CheckboxRow
               checked={form.wellbeingIssues[key]}
-              label={formatCamelCase(key)}
+              label={WELLBEING_LABELS[key]}
               onChange={() => toggleWellbeing(key)}
             />
           </div>
@@ -297,12 +307,16 @@ function NeedsAndNotesStep({ form, updateField, toggleSpecialNeed }: NeedsAndNot
 
       <div className="info-section-title">财务信息 / Financial</div>
       <div className="form-grid">
-        <div className="form-group">
-          <CheckboxRow checked={form.bankTransfer} label="银行转账 / Bank Transfer" onChange={(checked) => updateField('bankTransfer', checked)} />
-        </div>
-        <div className="form-group">
-          <CheckboxRow checked={form.payNow} label="PayNow" onChange={(checked) => updateField('payNow', checked)} />
-        </div>
+        <TextField
+          label="银行转账账户 / Bank Transfer Account"
+          value={form.bankTransferInfo}
+          onChange={(value) => updateField('bankTransferInfo', value)}
+        />
+        <TextField
+          label="PayNow 号码 / PayNow Number"
+          value={form.payNowInfo}
+          onChange={(value) => updateField('payNowInfo', value)}
+        />
       </div>
 
       <TextareaField
@@ -314,10 +328,6 @@ function NeedsAndNotesStep({ form, updateField, toggleSpecialNeed }: NeedsAndNot
       />
     </div>
   )
-}
-
-function formatCamelCase(value: string): string {
-  return value.replace(/([A-Z])/g, ' $1').trim()
 }
 
 function capitalize(value: string): string {
