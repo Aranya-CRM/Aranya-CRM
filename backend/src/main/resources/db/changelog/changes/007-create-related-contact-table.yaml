@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 007
+      id: 007-create-related-contact-table
       author: ShiDu
       changes:
         - createTable:

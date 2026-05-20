@@ -33,7 +33,6 @@ export interface Client {
   postalCode: string
   viharaType: string
   area: string
-  membershipStatus: 'Active' | 'Inactive' | 'Discharged' | 'Withdrawn' | 'Deceased'
   dateJoined: string
   membershipRemarks: string
   // Ordination
@@ -72,7 +71,6 @@ export type ClientBasicInfo = Pick<
   | 'area'
   | 'buddhistTradition'
   | 'ordinationStatus'
-  | 'membershipStatus'
 >
 
 export interface RelatedContact {

@@ -206,12 +206,6 @@ function PersonalStep({ form, updateField }: StepProps) {
       <TextField label="方言 / Dialect Group" value={form.dialectGroup} onChange={(value) => updateField('dialectGroup', value)} />
       <TextField label="精舍类型 / Vihara Type" value={form.viharaType} onChange={(value) => updateField('viharaType', value)} />
       <TextField label="近亲 / Next of Kin" value={form.nextOfKin} onChange={(value) => updateField('nextOfKin', value)} fullWidth />
-      <SelectField
-        label="会员状态 / Membership Status"
-        value={form.membershipStatus}
-        options={['Active', 'Inactive', 'Discharged', 'Withdrawn', 'Deceased']}
-        onChange={(value) => updateField('membershipStatus', value as Client['membershipStatus'])}
-      />
       <TextField label="加入日期 / Date Joined" type="date" value={form.dateJoined} onChange={(value) => updateField('dateJoined', value)} />
       <TextareaField label="会员备注 / Membership Remarks" value={form.membershipRemarks} onChange={(value) => updateField('membershipRemarks', value)} fullWidth />
     </div>

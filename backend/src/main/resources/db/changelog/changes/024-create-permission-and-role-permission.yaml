@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 024-1-create-permission-table
+      id: 024-create-permission-table
       author: ShiDu
       comment: "Create permission table for fine-grained route, feature, and widget capabilities"
       changes:

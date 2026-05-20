@@ -315,6 +315,63 @@
   line-height: 1.4;
 }
 
+.client-profile-edit {
+  padding-bottom: 0;
+}
+
+.client-profile-edit .client-profile-section {
+  padding-top: 26px;
+}
+
+.client-profile-edit .client-profile-grid {
+  gap: 18px 28px;
+}
+
+.client-profile-edit .form-group {
+  min-width: 0;
+}
+
+.client-profile-edit .form-label {
+  color: #40506a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.client-profile-edit .form-input,
+.client-profile-edit .form-select,
+.client-profile-edit .form-textarea {
+  width: 100%;
+  border-color: #d7dce5;
+  background: #ffffff;
+}
+
+.client-profile-edit .form-textarea {
+  min-height: 88px;
+}
+
+.client-profile-edit .form-checkbox-row {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid #d7dce5;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.client-edit-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 30px -28px 0;
+  padding: 14px 28px;
+  border-top: 1px solid #dfe4ec;
+  background: rgba(248, 249, 251, 0.96);
+  backdrop-filter: blur(8px);
+}
+
 .client-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -518,52 +575,11 @@
   background: #f5f5f5;
 }
 
-.membership-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.5;
-  border: 1px solid;
-}
-
-.membership-active {
-  background: #e8f5e8;
-  color: #2d6a2d;
-  border-color: #c0dcc0;
-}
-
-.membership-inactive {
-  background: #f0f0f0;
-  color: #888888;
-  border-color: #dddddd;
-}
-
-.membership-discharged {
-  background: #fff3e0;
-  color: #b36b00;
-  border-color: #ffe0b2;
-}
-
-.membership-withdrawn {
-  background: #fce4ec;
-  color: #c62828;
-  border-color: #f8bbd0;
-}
-
-.membership-deceased {
-  background: #e0e0e0;
-  color: #616161;
-  border-color: #cccccc;
-}
-
 .col-abbr { width: 8%; }
 .col-name { width: 22%; }
 .col-tradition { width: 12%; }
 .col-ordination { width: 12%; }
 .col-area { width: 14%; }
-.col-membership { width: 12%; }
 .col-client-actions { width: 20%; }
 
 .empty-state {

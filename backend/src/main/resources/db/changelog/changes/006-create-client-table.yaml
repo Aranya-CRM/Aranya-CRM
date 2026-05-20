@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 006
+      id: 006-create-client-table
       author: ShiDu
       comment: "Create client table - stores Sangha (monk/nun) profile data mapped from Excel 72-column master contact list"
       changes:

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { EmptyState } from '../../../shared/ui'
-import { MembershipBadge } from '../components'
-import { useClient, useClients, useCreateClient } from '../hooks'
+import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
+import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
+import { useClient, useClients, useCreateClient, useUpdateClient } from '../hooks'
 import type { Client } from '../types'
 import './clients.css'
 
@@ -13,8 +14,6 @@ const TRADITIONS: Array<Client['buddhistTradition']> = [
   'Mahayana',
   'Vajrayana',
 ]
-
-const MEMBERSHIP_STATUSES: Array<Client['membershipStatus']> = ['Active']
 
 const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Bhikkhu',
@@ -44,17 +43,20 @@ const initialNewClientForm: NewClientForm = {
 
 export function ClientListPage() {
   const { canFeature } = useAccess()
+  const location = useLocation()
   const navigate = useNavigate()
   const { id: routeClientId } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: clients = [], isLoading } = useClients()
   const createClient = useCreateClient()
+  const updateClient = useUpdateClient()
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
+  const [editingClientId, setEditingClientId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<ClientFormData | null>(null)
 
   const selectedClientId = searchParams.get('client') ?? routeClientId
   const canCreateClient = canFeature('clients.create')
@@ -84,11 +86,24 @@ export function ClientListPage() {
     isError: isDetailError,
   } = useClient(selectedClient?.id)
   const profileClient = selectedClientDetail ?? selectedClient
+  const routeWantsEdit = location.pathname.endsWith('/edit')
 
   useEffect(() => {
     if (!selectedClient || selectedClient.id === selectedClientId) return
     setSearchParams({ client: selectedClient.id }, { replace: true })
   }, [selectedClient, selectedClientId, setSearchParams])
+
+  useEffect(() => {
+    setEditingClientId(null)
+    setEditForm(null)
+  }, [selectedClient?.id])
+
+  useEffect(() => {
+    if (!routeWantsEdit || !profileClient || !canUpdateClient || editingClientId === profileClient.id) return
+    setShowDeleteConfirm(false)
+    setEditingClientId(profileClient.id)
+    setEditForm(clientToFormData(profileClient))
+  }, [canUpdateClient, editingClientId, profileClient, routeWantsEdit])
 
   function selectClient(clientId: string) {
     setShowDeleteConfirm(false)
@@ -112,6 +127,64 @@ export function ClientListPage() {
     setShowCreateModal(false)
     setNewClientForm(initialNewClientForm)
   }
+
+  function beginEditClient(client: Client) {
+    setShowDeleteConfirm(false)
+    setEditingClientId(client.id)
+    setEditForm(clientToFormData(client))
+  }
+
+  function cancelEditClient() {
+    setEditingClientId(null)
+    setEditForm(null)
+    if (routeWantsEdit && profileClient) {
+      navigate(`/clients/${profileClient.id}`, { replace: true })
+    }
+  }
+
+  function updateEditField<K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) {
+    setEditForm((current) => (current ? { ...current, [key]: value } : current))
+  }
+
+  function toggleEditWellbeing(key: keyof Client['wellbeingIssues']) {
+    setEditForm((current) => (
+      current
+        ? {
+            ...current,
+            wellbeingIssues: {
+              ...current.wellbeingIssues,
+              [key]: !current.wellbeingIssues[key],
+            },
+          }
+        : current
+    ))
+  }
+
+  function toggleEditSpecialNeed(key: keyof Client['specialNeeds']) {
+    setEditForm((current) => (
+      current
+        ? {
+            ...current,
+            specialNeeds: {
+              ...current.specialNeeds,
+              [key]: !current.specialNeeds[key],
+            },
+          }
+        : current
+    ))
+  }
+
+  async function saveEditClient() {
+    if (!editingClientId || !editForm) return
+    await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client> })
+    setEditingClientId(null)
+    setEditForm(null)
+    if (routeWantsEdit) {
+      navigate(`/clients/${editingClientId}`, { replace: true })
+    }
+  }
+
+  const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
 
   return (
     <div className="client-workspace">
@@ -141,17 +214,6 @@ export function ClientListPage() {
               <option value="all">传承 · All</option>
               {TRADITIONS.map((tradition) => (
                 <option key={tradition} value={tradition}>{tradition}</option>
-              ))}
-            </select>
-            <select
-              className="filter-select"
-              value={filterStatus}
-              onChange={(event) => setFilterStatus(event.target.value)}
-              aria-label="Filter by status"
-            >
-              <option value="all">状态 · All</option>
-              {MEMBERSHIP_STATUSES.map((status) => (
-                <option key={status} value={status}>{status}</option>
               ))}
             </select>
           </div>
@@ -200,15 +262,30 @@ export function ClientListPage() {
                 完整档案加载失败，当前显示列表摘要。 / Full profile failed to load. Showing list summary.
               </div>
             ) : null}
-          <ClientProfilePanel
-            client={profileClient}
-            canUpdateClient={canUpdateClient}
-            canDeleteClient={canDeleteClient}
-            canViewDetailedProfile={canViewDetailedProfile}
-            showDeleteConfirm={showDeleteConfirm}
-            onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
-            onEdit={() => navigate(`/clients/${profileClient.id}/edit`)}
-          />
+            {isEditingProfile && editForm ? (
+              <ClientProfileEditPanel
+                client={profileClient}
+                form={editForm}
+                canViewDetailedProfile={canViewDetailedProfile}
+                saving={updateClient.isPending}
+                error={updateClient.error instanceof Error ? updateClient.error.message : undefined}
+                onCancel={cancelEditClient}
+                onSave={saveEditClient}
+                onFieldChange={updateEditField}
+                onToggleWellbeing={toggleEditWellbeing}
+                onToggleSpecialNeed={toggleEditSpecialNeed}
+              />
+            ) : (
+              <ClientProfilePanel
+                client={profileClient}
+                canUpdateClient={canUpdateClient}
+                canDeleteClient={canDeleteClient}
+                canViewDetailedProfile={canViewDetailedProfile}
+                showDeleteConfirm={showDeleteConfirm}
+                onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
+                onEdit={() => beginEditClient(profileClient)}
+              />
+            )}
           </>
         ) : (
           <EmptyState message="请选择一个僧人档案 / Select a client profile" />
@@ -227,6 +304,15 @@ export function ClientListPage() {
       ) : null}
     </div>
   )
+}
+
+function clientToFormData(client: Client): ClientFormData {
+  const { id: _id, ...form } = client
+  return {
+    ...form,
+    wellbeingIssues: { ...form.wellbeingIssues },
+    specialNeeds: { ...form.specialNeeds },
+  }
 }
 
 interface NewClientModalProps {
@@ -372,7 +458,6 @@ function ClientProfilePanel({
           <div className="client-profile-title-row">
             <h1>{client.nameChn} / {client.nameEn}</h1>
             <span className="abbr-tag">{client.abbr}</span>
-            <MembershipBadge status={client.membershipStatus} />
           </div>
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.area}</p>
         </div>
@@ -449,7 +534,6 @@ function ClientProfilePanel({
           </ProfileSection>
 
           <ProfileSection title="会员与备注 / Membership">
-            <InfoCell label="会员状态" subLabel="Membership Status" value={client.membershipStatus} />
             <InfoCell label="加入日期" subLabel="Date Joined" value={client.dateJoined} />
             <InfoCell label="会员备注" subLabel="Membership Remarks" value={client.membershipRemarks || '-'} />
             <InfoCell label="整体备注" subLabel="Comments" value={client.comments || '-'} wide />
@@ -460,6 +544,192 @@ function ClientProfilePanel({
           当前账户只能查看基础档案。如需完整资料，请联系 Manager。 / This account can view basic profile information only.
         </div>
       )}
+    </article>
+  )
+}
+
+interface ClientProfileEditPanelProps {
+  client: Client
+  form: ClientFormData
+  canViewDetailedProfile: boolean
+  saving: boolean
+  error?: string
+  onCancel: () => void
+  onSave: () => void
+  onFieldChange: ClientFormFieldUpdater
+  onToggleWellbeing: (key: keyof Client['wellbeingIssues']) => void
+  onToggleSpecialNeed: (key: keyof Client['specialNeeds']) => void
+}
+
+function ClientProfileEditPanel({
+  client,
+  form,
+  canViewDetailedProfile,
+  saving,
+  error,
+  onCancel,
+  onSave,
+  onFieldChange,
+  onToggleWellbeing,
+  onToggleSpecialNeed,
+}: ClientProfileEditPanelProps) {
+  return (
+    <article className="client-profile client-profile-edit">
+      <header className="client-profile-header">
+        <div>
+          <div className="client-profile-title-row">
+            <h1>{client.nameChn} / {client.nameEn}</h1>
+            <span className="abbr-tag">{client.abbr}</span>
+          </div>
+          <p>编辑档案 · Edit Profile</p>
+        </div>
+        <div className="client-profile-actions">
+          <button className="btn-secondary" type="button" disabled={saving} onClick={onCancel}>
+            取消 · Cancel
+          </button>
+          <button className="btn-primary" type="button" disabled={saving} onClick={onSave}>
+            {saving ? '保存中... · Saving...' : '保存修改 · Save Changes'}
+          </button>
+        </div>
+      </header>
+
+      {error ? <div className="client-profile-loading client-profile-warning">{error}</div> : null}
+
+      <ProfileSection title="基本信息 / Basic Info">
+        <TextField label="法名（中） / Chinese Dharma Name *" value={form.nameChn} onChange={(value) => onFieldChange('nameChn', value)} />
+        <TextField label="法名（英） / English Dharma Name *" value={form.nameEn} onChange={(value) => onFieldChange('nameEn', value)} />
+        <TextField label="缩写 / Abbreviation *" value={form.abbr} onChange={(value) => onFieldChange('abbr', value.toUpperCase())} />
+        <TextField label="联系电话 / Contact" value={form.contact} onChange={(value) => onFieldChange('contact', value)} />
+        <SelectField
+          label="首选沟通方式 / Preferred Communication"
+          value={form.preferredCommunication}
+          options={['WhatsApp Msg', 'WhatsApp Audio', 'Phone Call', 'Home Visit']}
+          onChange={(value) => onFieldChange('preferredCommunication', value as Client['preferredCommunication'])}
+        />
+        <div className="form-group">
+          <label className="form-label">WhatsApp 使用能力</label>
+          <CheckboxRow
+            checked={form.ableToUseWhatsApp}
+            label="可以使用 WhatsApp / Able to use WhatsApp"
+            onChange={(checked) => onFieldChange('ableToUseWhatsApp', checked)}
+          />
+        </div>
+        <TextField label="首选语言 / Preferred Language" value={form.preferredLanguage} onChange={(value) => onFieldChange('preferredLanguage', value)} />
+        <TextField label="使用语言 / Spoken Language" value={form.spokenLanguage} onChange={(value) => onFieldChange('spokenLanguage', value)} />
+        <TextField label="地址 / Address" value={form.address} onChange={(value) => onFieldChange('address', value)} fullWidth />
+        <TextField label="邮政编码 / Postal Code" value={form.postalCode} onChange={(value) => onFieldChange('postalCode', value)} />
+        <TextField label="地区 / Area / District" value={form.area} onChange={(value) => onFieldChange('area', value)} />
+        <TextField label="居住类型 / Vihara Type" value={form.viharaType} onChange={(value) => onFieldChange('viharaType', value)} />
+      </ProfileSection>
+
+      {canViewDetailedProfile ? (
+        <>
+          <ProfileSection title="身份文件 / Identity (IC)">
+            <TextField label="NRIC 英文姓名 / NRIC Full Name (English)" value={form.nricNameEn} onChange={(value) => onFieldChange('nricNameEn', value)} />
+            <TextField label="NRIC 中文姓名 / NRIC Full Name (Chinese)" value={form.nricNameChn} onChange={(value) => onFieldChange('nricNameChn', value)} />
+            <TextField label="NRIC 号码 / NRIC Number" value={form.nricNo} onChange={(value) => onFieldChange('nricNo', value)} />
+            <SelectField
+              label="受戒证书 / Ordination Certificate"
+              value={form.ordinationCertificate}
+              options={['Completed', 'Incomplete']}
+              onChange={(value) => onFieldChange('ordinationCertificate', value as Client['ordinationCertificate'])}
+            />
+            <TextField label="核实日期 / Date of Verification" type="date" value={form.dateVerification} onChange={(value) => onFieldChange('dateVerification', value)} />
+          </ProfileSection>
+
+          <ProfileSection title="个人信息 / Personal">
+            <SelectField
+              label="性别 / Sex"
+              value={form.sex}
+              options={['Male', 'Female']}
+              onChange={(value) => onFieldChange('sex', value as Client['sex'])}
+            />
+            <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={(value) => onFieldChange('dateOfBirth', value)} />
+            <TextField label="年龄 / Age" type="number" value={String(form.age)} onChange={(value) => onFieldChange('age', Number(value))} />
+            <SelectField
+              label="婚姻状况 / Marital Status"
+              value={form.maritalStatus}
+              options={['Never married', 'Married', 'Divorced', 'Separated', 'Widowed']}
+              onChange={(value) => onFieldChange('maritalStatus', value as Client['maritalStatus'])}
+            />
+            <TextField label="国籍 / Nationality" value={form.nationality} onChange={(value) => onFieldChange('nationality', value)} />
+            <TextField label="族群 / Ethnicity" value={form.ethnicity} onChange={(value) => onFieldChange('ethnicity', value)} />
+            <TextField label="方言群 / Dialect Group" value={form.dialectGroup} onChange={(value) => onFieldChange('dialectGroup', value)} />
+            <TextField label="紧急联系人 / Next of Kin Contact" value={form.nextOfKin} onChange={(value) => onFieldChange('nextOfKin', value)} fullWidth />
+          </ProfileSection>
+
+          <ProfileSection title="出家资料 / Ordination">
+            <SelectField
+              label="佛教传承 / Buddhist Tradition"
+              value={form.buddhistTradition}
+              options={TRADITIONS}
+              onChange={(value) => onFieldChange('buddhistTradition', value as Client['buddhistTradition'])}
+            />
+            <SelectField
+              label="戒别 / Ordination Status"
+              value={form.ordinationStatus}
+              options={ORDINATION_STATUSES}
+              onChange={(value) => onFieldChange('ordinationStatus', value as Client['ordinationStatus'])}
+            />
+            <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateTonsure} onChange={(value) => onFieldChange('dateTonsure', value)} />
+            <TextField label="剃度国家 / Country of Tonsure" value={form.countryTonsure} onChange={(value) => onFieldChange('countryTonsure', value)} />
+            <TextField label="剃度地点 / Place of Tonsure" value={form.placeTonsure} onChange={(value) => onFieldChange('placeTonsure', value)} fullWidth />
+            <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOrdination} onChange={(value) => onFieldChange('dateOrdination', value)} />
+            <TextField label="受戒国家 / Country of Ordination" value={form.countryOrdination} onChange={(value) => onFieldChange('countryOrdination', value)} />
+            <TextField label="受戒地点 / Place of Ordination" value={form.placeOrdination} onChange={(value) => onFieldChange('placeOrdination', value)} fullWidth />
+            <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} onChange={(value) => onFieldChange('ordinationYears', Number(value))} />
+          </ProfileSection>
+
+          <ProfileSection title="会员与备注 / Membership">
+            <TextField label="加入日期 / Date Joined" type="date" value={form.dateJoined} onChange={(value) => onFieldChange('dateJoined', value)} />
+            <TextareaField label="会员备注 / Membership Remarks" value={form.membershipRemarks} onChange={(value) => onFieldChange('membershipRemarks', value)} fullWidth />
+            <TextareaField label="整体备注 / Comments" value={form.comments} onChange={(value) => onFieldChange('comments', value)} fullWidth />
+          </ProfileSection>
+
+          <ProfileSection title="健康评估 / Wellbeing">
+            {(Object.keys(form.wellbeingIssues) as Array<keyof Client['wellbeingIssues']>).map((key) => (
+              <div key={key} className="form-group">
+                <CheckboxRow
+                  checked={form.wellbeingIssues[key]}
+                  label={formatCamelCase(key)}
+                  onChange={() => onToggleWellbeing(key)}
+                />
+              </div>
+            ))}
+            <TextareaField label="健康备注 / Wellbeing Remarks" value={form.wellbeingRemarks} onChange={(value) => onFieldChange('wellbeingRemarks', value)} fullWidth />
+          </ProfileSection>
+
+          <ProfileSection title="特殊需求与财务 / Needs & Financial">
+            {(Object.keys(form.specialNeeds) as Array<keyof Client['specialNeeds']>).map((key) => (
+              <div key={key} className="form-group">
+                <CheckboxRow
+                  checked={form.specialNeeds[key]}
+                  label={capitalize(key)}
+                  onChange={() => onToggleSpecialNeed(key)}
+                />
+              </div>
+            ))}
+            <div className="form-group">
+              <label className="form-label">银行转账 / Bank Transfer</label>
+              <CheckboxRow checked={form.bankTransfer} label="Bank Transfer" onChange={(checked) => onFieldChange('bankTransfer', checked)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">PayNow</label>
+              <CheckboxRow checked={form.payNow} label="PayNow" onChange={(checked) => onFieldChange('payNow', checked)} />
+            </div>
+            <TextareaField label="特殊需求备注 / Special Needs Remarks" value={form.specialNeedsRemarks} onChange={(value) => onFieldChange('specialNeedsRemarks', value)} fullWidth />
+          </ProfileSection>
+        </>
+      ) : null}
+
+      <footer className="client-edit-footer">
+        <button className="btn-secondary" type="button" disabled={saving} onClick={onCancel}>
+          取消 · Cancel
+        </button>
+        <button className="btn-primary" type="button" disabled={saving} onClick={onSave}>
+          {saving ? '保存中... · Saving...' : '保存修改 · Save Changes'}
+        </button>
+      </footer>
     </article>
   )
 }
@@ -520,7 +790,6 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
     postalCode: '',
     viharaType: '',
     area: form.area.trim(),
-    membershipStatus: 'Active',
     dateJoined: today,
     membershipRemarks: '',
     buddhistTradition: form.buddhistTradition,
@@ -556,4 +825,12 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
     payNow: false,
     comments: '',
   }
+}
+
+function formatCamelCase(value: string): string {
+  return value.replace(/([A-Z])/g, ' $1').trim()
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }

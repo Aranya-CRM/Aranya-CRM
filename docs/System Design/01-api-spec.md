@@ -2,7 +2,7 @@
 
 This document summarizes the API and backend service surface implemented in the current branch.
 
-Last updated: 2026-05-15
+Last updated: 2026-05-19
 
 ## 1. Backend Summary
 
@@ -24,7 +24,7 @@ Implemented backend services:
 | `UiManifestService` | Builds route/feature/widget capability lists from local role-permission records | Implemented |
 | `DashboardService` | Builds role-aware dashboard sections from clients, cases, and visit reports | Implemented |
 | `ClientService` | Lists clients, filters by search/status, returns client details and related contacts | Implemented, read-only |
-| `CaseService` | Provides active/urgent case counts and recent case data for dashboard | Internal service only |
+| `CaseService` | Lists cases, filters by search/status, returns case details, and provides active/urgent case data for dashboard | Implemented, read-only |
 
 Implemented HTTP API groups:
 
@@ -35,12 +35,16 @@ Implemented HTTP API groups:
 | Dashboard | `GET /api/v1/dashboard` |
 | Users | `GET /api/v1/users`, `POST /api/v1/users/invite`, `PATCH /api/v1/users/{id}/roles`, `PATCH /api/v1/users/{id}/status`, `DELETE /api/v1/users/{id}` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}` |
+| Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
 
 Not implemented as backend HTTP APIs yet:
 
 - `POST /api/v1/clients`
 - `PUT /api/v1/clients/{id}`
-- `/api/v1/cases/**`
+- `POST /api/v1/cases`
+- `GET /api/v1/cases/{caseId}/notes`
+- `POST /api/v1/cases/{caseId}/notes`
+- `GET /api/v1/cases/{caseId}/status-history`
 - `/api/v1/reports/**`
 - Backend email/password login, refresh-token, logout, registration, or custom 2FA endpoints
 
@@ -483,6 +487,11 @@ Response:
   "postalCode": "123456",
   "areaDistrict": "Central",
   "viharaType": "Temple",
+  "nricNameEn": "Client English Name",
+  "nricNameChn": "Client Chinese Name",
+  "nricNo": "S1234567A",
+  "ordinationCertificateStatus": "Complete",
+  "dateOfVerification": "2026-01-01",
   "gender": "FEMALE",
   "dateOfBirth": "1980-01-01",
   "maritalStatus": "SINGLE",
@@ -494,6 +503,12 @@ Response:
   "membershipRemarks": "Remarks",
   "buddhistTradition": "Theravada",
   "ordinationStatus": "Ordained",
+  "dateOfTonsure": "2000-01-01",
+  "countryOfTonsure": "Singapore",
+  "placeOfTonsure": "Temple",
+  "dateOfOrdination": "2003-01-01",
+  "countryOfOrdination": "Singapore",
+  "placeOfOrdination": "Temple",
   "wellbeingLivingConditions": true,
   "wellbeingMentalHealth": false,
   "wellbeingPhysicalHealth": false,
@@ -504,6 +519,8 @@ Response:
   "wellbeingRemarks": "Wellbeing remarks",
   "specialNeeds": "None",
   "specialNeedsRemarks": "Special needs remarks",
+  "bankTransferInfo": "Bank transfer details",
+  "payNowInfo": "PayNow details",
   "nextOfKinContact": "91230000",
   "comments": "Comments",
   "createdAt": "2026-01-01T09:00:00",
@@ -526,8 +543,71 @@ Notes:
 
 - Related contacts are ordered by primary contact first, then creation time ascending.
 - Missing client ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
+- The frontend currently treats all client membership status values as `Active` and does not expose membership-status filtering in the client profile page.
 
-## 10. APIs Not Yet Implemented
+## 10. Case API
+
+The current backend implements read-only case APIs.
+
+Authorization:
+
+- Authenticated Firebase user
+
+Current access behavior:
+
+- `GET /api/v1/cases` returns all cases visible to any authenticated user.
+- Manager-only all-case visibility and social-worker assignment filtering are not enforced yet.
+- Future authorization should allow `MANAGER` to see all cases and restrict `SOCIAL_WORKER` to assigned or otherwise authorized cases.
+
+### GET `/api/v1/cases`
+
+Lists cases.
+
+Query parameters:
+
+| Name | Required | Meaning |
+| --- | --- | --- |
+| `q` | No | Search query. Matches case code, title, client English name, or client Chinese name. |
+| `status` | No | Case status filter. Compared case-insensitively. |
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "caseCode": "CASE-2026-001",
+    "title": "Medical transport follow-up",
+    "description": "Arrange transport for a specialist appointment and confirm volunteer availability.",
+    "priority": "HIGH",
+    "status": "OPEN",
+    "colorCode": "RED",
+    "tradition": "Mahayana",
+    "openedAt": "2026-01-20T09:30:00",
+    "closedAt": null,
+    "clientId": 1,
+    "clientNameEn": "Venerable Hui Ming",
+    "clientNameChn": "",
+    "createdById": 3,
+    "createdByName": "Social Worker",
+    "comments": "Urgent health-related case for dashboard and priority filters.",
+    "remarks": "Call clinic two days before appointment."
+  }
+]
+```
+
+### GET `/api/v1/cases/{id}`
+
+Returns one case by database id.
+
+Response shape is the same as one item from `GET /api/v1/cases`.
+
+Notes:
+
+- Missing case ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
+- Case notes and status history remain frontend fallback/mock behavior until their backend APIs are implemented.
+
+## 11. APIs Not Yet Implemented
 
 The frontend contains service modules for clients, cases, reports, and auth support. The backend currently does not expose the following planned endpoints:
 
@@ -535,8 +615,6 @@ The frontend contains service modules for clients, cases, reports, and auth supp
 POST /api/v1/clients
 PUT /api/v1/clients/{id}
 
-GET /api/v1/cases
-GET /api/v1/cases/{id}
 POST /api/v1/cases
 GET /api/v1/cases/{caseId}/notes
 POST /api/v1/cases/{caseId}/notes
@@ -558,7 +636,7 @@ POST /api/v1/auth/2fa/*
 
 Firebase Authentication and MFA enrollment/challenge are handled by the frontend through Firebase.
 
-## 11. OpenAPI UI
+## 12. OpenAPI UI
 
 When the backend is running, Swagger UI should be available at:
 

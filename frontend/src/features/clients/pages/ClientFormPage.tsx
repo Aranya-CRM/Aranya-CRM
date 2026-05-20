@@ -56,7 +56,6 @@ function emptyClient(): ClientFormData {
     postalCode: '',
     viharaType: '',
     area: '',
-    membershipStatus: 'Active',
     dateJoined: '',
     membershipRemarks: '',
     buddhistTradition: 'Theravada',

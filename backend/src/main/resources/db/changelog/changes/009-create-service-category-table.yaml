@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 009
+      id: 009-create-service-category-table
       author: ShiDu
       changes:
         - createTable:

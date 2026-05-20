@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 001
+      id: 001-create-role-table
       author: ShiDu
       comment: "Create role table - stores system roles for RBAC"
       changes:

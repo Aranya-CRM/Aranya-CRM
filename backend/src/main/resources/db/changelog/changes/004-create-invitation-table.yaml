@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 004
+      id: 004-create-invitation-table
       author: ShiDu
       comment: "Create invitation table - manages user invitation workflow"
       changes:

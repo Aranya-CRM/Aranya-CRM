@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 008
+      id: 008-create-case-table
       author: ShiDu
       changes:
         - createTable:

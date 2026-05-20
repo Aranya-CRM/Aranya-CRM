@@ -11,4 +11,3 @@ export {
 export { ClientTable } from './ClientTable'
 export { ClientToolbar } from './ClientToolbar'
 export { InfoItem } from './InfoItem'
-export { MembershipBadge } from './MembershipBadge'
