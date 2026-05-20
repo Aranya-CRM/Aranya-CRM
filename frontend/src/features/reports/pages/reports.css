@@ -14,43 +14,6 @@
   margin-top: 18px;
 }
 
-.btn-primary,
-.btn-secondary {
-  min-height: 40px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1;
-  padding: 0 18px;
-}
-
-.btn-primary {
-  border: 1px solid #111827;
-  background: #111827;
-  color: #ffffff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #000000;
-}
-
-.btn-secondary {
-  border: 1px solid #d0d5dd;
-  background: #ffffff;
-  color: #344054;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: #98a2b3;
-  color: #111827;
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
 
 .report-table {
   width: 100%;
