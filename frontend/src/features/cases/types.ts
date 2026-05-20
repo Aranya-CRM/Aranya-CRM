@@ -105,3 +105,44 @@ export interface CaseStatusChange {
   changedAt: string
   reason: string
 }
+
+export type AuditLogAction =
+  | 'CASE_CREATED'
+  | 'CASE_CLOSED'
+  | 'CASE_REOPENED'
+  | 'STATUS_CHANGED'
+  | 'INTENSITY_CHANGED'
+  | 'NOTE_ADDED'
+  | 'TASK_COMPLETED'
+  | 'TASK_ADDED'
+  | 'CASEWORKER_ASSIGNED'
+  | 'VOLUNTEER_ASSIGNED'
+  | 'SERVICE_UPDATED'
+  | 'CASE_FLAGGED'
+  | 'FLAG_RESOLVED'
+
+export interface AuditLogEntry {
+  id: string
+  caseId: string
+  action: AuditLogAction
+  actor: string
+  at: string
+  detail?: string
+  meta?: Record<string, string>
+}
+
+export type FlagSeverity = 'LOW' | 'MEDIUM' | 'HIGH'
+export type FlagStatus = 'OPEN' | 'RESOLVED'
+
+export interface CaseFlag {
+  id: string
+  caseId: string
+  severity: FlagSeverity
+  status: FlagStatus
+  reason: string
+  flaggedBy: string
+  flaggedAt: string
+  resolvedBy?: string
+  resolvedAt?: string
+  resolution?: string
+}

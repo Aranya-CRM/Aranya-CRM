@@ -33,7 +33,7 @@ export function CaseToolbar({
   return (
     <div className="case-toolbar">
       <input
-        className="case-search-input"
+        className="search-input"
         type="text"
         placeholder="搜索个案或僧人 · Search..."
         value={search}

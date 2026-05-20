@@ -1,3 +1,4 @@
+export { CaseAuditTab } from './CaseAuditTab'
 export { CaseDetailHeader } from './CaseDetailHeader'
 export { CaseDetailTabs } from './CaseDetailTabs'
 export { CaseIntensityDot } from './CaseIntensityDot'

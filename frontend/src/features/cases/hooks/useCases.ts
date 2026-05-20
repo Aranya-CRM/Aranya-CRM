@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, fetchCaseById, fetchCaseNotes, fetchCases } from '../api/case.api'
+import { createCase, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases } from '../api/case.api'
 import type { Case } from '../types'
 
 export const caseQueryKeys = {
@@ -29,6 +29,22 @@ export function useCaseNotes(caseId: string | undefined) {
   return useQuery({
     queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'notes'] : ['cases', 'notes'],
     queryFn: () => fetchCaseNotes(caseId!),
+    enabled: Boolean(caseId),
+  })
+}
+
+export function useCaseAuditLog(caseId: string | undefined) {
+  return useQuery({
+    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'audit-log'] : ['cases', 'audit-log'],
+    queryFn: () => fetchCaseAuditLog(caseId!),
+    enabled: Boolean(caseId),
+  })
+}
+
+export function useCaseFlags(caseId: string | undefined) {
+  return useQuery({
+    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'flags'] : ['cases', 'flags'],
+    queryFn: () => fetchCaseFlags(caseId!),
     enabled: Boolean(caseId),
   })
 }
