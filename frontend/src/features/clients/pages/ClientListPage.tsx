@@ -307,7 +307,7 @@ export function ClientListPage() {
 }
 
 function clientToFormData(client: Client): ClientFormData {
-  const { id, ...form } = client
+  const { id: _id, ...form } = client
   return {
     ...form,
     wellbeingIssues: { ...form.wellbeingIssues },
