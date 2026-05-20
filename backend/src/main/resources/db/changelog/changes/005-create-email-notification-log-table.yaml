@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 005
+      id: 005-create-email-notification-log-table
       author: ShiDu
       comment: "Create email_notification_log table - audit trail for all outbound emails"
       changes:

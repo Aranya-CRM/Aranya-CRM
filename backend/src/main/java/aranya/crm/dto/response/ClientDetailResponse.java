@@ -25,6 +25,11 @@ public class ClientDetailResponse {
     private String postalCode;
     private String areaDistrict;
     private String viharaType;
+    private String nricNameEn;
+    private String nricNameChn;
+    private String nricNo;
+    private String ordinationCertificateStatus;
+    private LocalDate dateOfVerification;
     private String gender;
     private LocalDate dateOfBirth;
     private String maritalStatus;
@@ -36,6 +41,12 @@ public class ClientDetailResponse {
     private String membershipRemarks;
     private String buddhistTradition;
     private String ordinationStatus;
+    private LocalDate dateOfTonsure;
+    private String countryOfTonsure;
+    private String placeOfTonsure;
+    private LocalDate dateOfOrdination;
+    private String countryOfOrdination;
+    private String placeOfOrdination;
     private boolean wellbeingLivingConditions;
     private boolean wellbeingMentalHealth;
     private boolean wellbeingPhysicalHealth;
@@ -46,6 +57,8 @@ public class ClientDetailResponse {
     private String wellbeingRemarks;
     private String specialNeeds;
     private String specialNeedsRemarks;
+    private String bankTransferInfo;
+    private String payNowInfo;
     private String nextOfKinContact;
     private String comments;
     private LocalDateTime createdAt;

@@ -4,7 +4,6 @@ import { useAccess } from '../../../shared/auth'
 import { BackButton, PageHeader } from '../../../shared/ui'
 import {
   ClientDetailTabs,
-  MembershipBadge,
   type ClientDetailTabId,
 } from '../components'
 import { useClient } from '../hooks'
@@ -43,10 +42,9 @@ export function ClientDetailPage() {
         <div className="detail-name">
           <h2>{client.nameChn} / {client.nameEn}</h2>
           <span className="abbr-tag">{client.abbr}</span>
-          <MembershipBadge status={client.membershipStatus} />
         </div>
         {canUpdateClient ? (
-          <button className="btn-primary" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
+          <button className="btn-edit" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
             编辑 / Edit
           </button>
         ) : null}

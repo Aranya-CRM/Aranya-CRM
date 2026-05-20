@@ -1,6 +1,5 @@
 import { NAVIGATION_BY_ID } from '../../app/navigation'
 import type { AppRouteConfig } from '../../app/router'
-import { ClientDetailPage } from './pages/ClientDetailPage'
 import { ClientFormPage } from './pages/ClientFormPage'
 import { ClientListPage } from './pages/ClientListPage'
 
@@ -18,11 +17,11 @@ export const clientRoutes: AppRouteConfig[] = [
   {
     path: '/clients/:id',
     routeId: 'clients.detail',
-    element: <ClientDetailPage />,
+    element: <ClientListPage />,
   },
   {
     path: '/clients/:id/edit',
     routeId: 'clients.edit',
-    element: <ClientFormPage />,
+    element: <ClientListPage />,
   },
 ]

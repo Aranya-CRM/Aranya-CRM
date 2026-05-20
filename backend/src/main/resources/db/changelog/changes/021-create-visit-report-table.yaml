@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 021
+      id: 021-create-visit-report-table
       author: ShiDu
       comment: "Create visit_report table"
       changes:

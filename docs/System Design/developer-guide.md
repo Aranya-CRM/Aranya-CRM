@@ -16,9 +16,10 @@ Current implementation status:
 - Frontend supports email/password login, Google login, email verification, and TOTP MFA.
 - Backend verifies Firebase ID tokens and enforces completed TOTP MFA.
 - Backend uses the local database for CRM users, roles, permissions, and account status.
-- Dashboard API exists but currently returns demo data.
+- Dashboard API reads current client, case, and report summary data.
 - User-management APIs exist for managers, with limitations noted below.
-- Client, case, and report pages exist in the frontend and still rely partly on mock/fallback behavior.
+- Client and case read APIs exist. Client and case frontend services still keep mock fallback behavior for local development.
+- Report pages exist in the frontend and still rely on mock/fallback behavior.
 
 ## 2. Repository Layout
 
@@ -137,12 +138,16 @@ Implemented backend endpoints:
 
 - `GET /api/v1/auth/me`
 - `GET /api/v1/ui/manifest`
-- `GET /api/dashboard`
+- `GET /api/v1/dashboard`
 - `GET /api/v1/users`
 - `POST /api/v1/users/invite`
 - `PATCH /api/v1/users/{id}/roles`
 - `PATCH /api/v1/users/{id}/status`
 - `DELETE /api/v1/users/{id}`
+- `GET /api/v1/clients`
+- `GET /api/v1/clients/{id}`
+- `GET /api/v1/cases`
+- `GET /api/v1/cases/{id}`
 
 Frontend pages:
 
@@ -156,8 +161,9 @@ Important limitations:
 
 - Backend does not expose custom login, refresh-token, logout, or custom 2FA APIs.
 - User invite currently creates only a local database user. It does not create a Firebase Auth user or assign `firebase_uid`.
-- The dashboard endpoint returns hard-coded demo data.
-- Client/case/report backend APIs are not complete yet.
+- Client create/update APIs are not complete yet.
+- Case create, notes, and status-history APIs are not complete yet.
+- Report backend APIs are not complete yet.
 
 ## 6. Environment And Secret Files
 
@@ -471,6 +477,13 @@ Current behavior:
 - `api`: always call backend
 - `auto`: try API first or fall back to mock depending on the service implementation
 
+Current client/case data notes:
+
+- Client list/detail reads from `/api/v1/clients` and `/api/v1/clients/{id}` when API mode is available.
+- Client membership status is currently presented in the frontend as `Active` for all client profiles, and the client profile page does not expose membership-status filtering.
+- Case list/detail reads from `/api/v1/cases` and `/api/v1/cases/{id}` when API mode is available.
+- Case notes and status history still fall back to mock data until backend endpoints are added.
+
 ## 11. Backend Architecture Notes
 
 ### Security
@@ -559,6 +572,12 @@ The local `users` table must be linked to Firebase Auth by UID. A Firebase user 
 
 Seed data in dev migrations may create local users and roles, but real Firebase Auth users still need to exist separately.
 
+Current dev seed notes:
+
+- `025-seed-dev-client-case-data.yaml` seeds sample clients for local client filtering and display.
+- `027-seed-dev-case-data.yaml` reliably seeds four sample cases linked to the clients from `025`.
+- `027` chooses an existing `created_by` actor, preferring `socialworker@test.com`, then `aranya.crm.admin@gmail.com`, then any existing user. This avoids the earlier issue where a missing `admin@test.com` caused case inserts to select zero rows.
+
 ## 13. Development Workflows
 
 ## 13.1 Adding a Firebase-authenticated backend endpoint
@@ -593,6 +612,34 @@ Rules:
 - Let Liquibase apply changes automatically on backend startup.
 
 Do not store service account data, Firebase secrets, plaintext passwords, or private keys in migrations or seed data.
+
+## 13.4 Updating Docker images after code changes
+
+When frontend or backend runtime code changes, rebuild and restart the corresponding Docker service before handing off the change.
+
+Frontend-only changes:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml up -d --build frontend
+```
+
+Backend-only changes:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml up -d --build backend
+```
+
+Full-stack or shared contract changes:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml up -d --build
+```
+
+Confirm status after rebuilding:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml ps
+```
 
 ## 14. Docker Notes
 
@@ -649,8 +696,9 @@ Backend container configuration:
 
 - User invite does not create or link Firebase Auth users yet.
 - Some legacy JWT/custom 2FA config and DTO/test artifacts may still exist while the Firebase migration is being cleaned up.
-- Dashboard backend data is still demo data.
-- Client/case/report backend APIs are incomplete.
+- Client write APIs are incomplete.
+- Case write, notes, and status-history APIs are incomplete.
+- Report backend APIs are incomplete.
 - Role and permission UI is moving toward `/api/v1/ui/manifest`; individual backend endpoints must still enforce authorization.
 - Service account JSON is required locally but must never be committed or baked into images.
 - Firebase TOTP MFA must be enabled at the Firebase/Identity Platform project level, otherwise enrollment returns `auth/operation-not-allowed`.
@@ -661,7 +709,9 @@ Backend container configuration:
 - Add a proper admin flow to create Firebase Auth users and link local `users.firebase_uid`.
 - Add `.env.example` files for frontend and backend.
 - Add integration tests for `FirebaseAuthFilter` behavior.
-- Add real backend endpoints for clients, cases, and reports.
+- Add client write APIs.
+- Add case write, notes, status-history, and assignment-aware authorization APIs.
+- Add report backend APIs.
 - Expand route wiring so all frontend pages are consistently reachable.
 - Add account settings for re-enrolling or removing TOTP factors through Firebase.
 
