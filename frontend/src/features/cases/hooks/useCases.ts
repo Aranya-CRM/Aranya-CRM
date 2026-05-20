@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, fetchCaseById, fetchCases } from '../api/case.api'
+import { createCase, fetchCaseById, fetchCaseNotes, fetchCases } from '../api/case.api'
 import type { Case } from '../types'
 
 export const caseQueryKeys = {
@@ -22,6 +22,14 @@ export function useCase(id: string | undefined) {
     queryKey: id ? caseQueryKeys.detail(id) : caseQueryKeys.details(),
     queryFn: () => fetchCaseById(id!),
     enabled: Boolean(id),
+  })
+}
+
+export function useCaseNotes(caseId: string | undefined) {
+  return useQuery({
+    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'notes'] : ['cases', 'notes'],
+    queryFn: () => fetchCaseNotes(caseId!),
+    enabled: Boolean(caseId),
   })
 }
 

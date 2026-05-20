@@ -466,7 +466,7 @@ function ClientProfilePanel({
             链接联系人 · Link Contacts
           </button>
           {canUpdateClient ? (
-            <button className="btn-primary" type="button" onClick={onEdit}>
+            <button className="btn-edit" type="button" onClick={onEdit}>
               编辑档案 · Edit Profile
             </button>
           ) : null}

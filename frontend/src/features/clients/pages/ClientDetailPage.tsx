@@ -44,7 +44,7 @@ export function ClientDetailPage() {
           <span className="abbr-tag">{client.abbr}</span>
         </div>
         {canUpdateClient ? (
-          <button className="btn-primary" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
+          <button className="btn-edit" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
             编辑 / Edit
           </button>
         ) : null}
