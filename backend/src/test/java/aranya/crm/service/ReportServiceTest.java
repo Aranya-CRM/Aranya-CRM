@@ -173,6 +173,27 @@ class ReportServiceTest {
                 .hasMessage("Client not found: 99");
     }
 
+    @Test
+    @DisplayName("deleteReport removes an existing report")
+    void deleteReport_removesExistingReport() {
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), user(9L, "YiKai Kong"));
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        reportService.deleteReport(1L);
+
+        verify(visitReportRepository).delete(report);
+    }
+
+    @Test
+    @DisplayName("deleteReport throws when report does not exist")
+    void deleteReport_throwsWhenReportDoesNotExist() {
+        when(visitReportRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> reportService.deleteReport(404L))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Report not found: 404");
+    }
+
     private static CreateReportRequest createRequest() {
         CreateReportRequest request = new CreateReportRequest();
         request.setClientId(5L);

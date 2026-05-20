@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { fetchReportById } from '../api/report.api'
+import { deleteReport, fetchReportById } from '../api/report.api'
 import type { ReportDetail } from '../types'
 import './reports.css'
 
@@ -65,6 +65,7 @@ export function ReportDetailPage() {
   const navigate = useNavigate()
   const [report, setReport] = useState<ReportDetail>()
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>()
 
   useEffect(() => {
@@ -108,6 +109,24 @@ export function ReportDetailPage() {
     return `RPT-${String(report.id).padStart(4, '0')}`
   }, [report])
 
+  async function handleDelete() {
+    if (!report) return
+
+    const confirmed = window.confirm(`确认删除报告 RPT-${String(report.id).padStart(4, '0')}？ / Delete this report?`)
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    setErrorMessage(undefined)
+
+    try {
+      await deleteReport(report.id)
+      navigate('/reports')
+    } catch {
+      setErrorMessage('探访报告删除失败，请稍后重试。 / Failed to delete report.')
+      setIsDeleting(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="report-page">
@@ -136,6 +155,49 @@ export function ReportDetailPage() {
         descriptionZh={`提交人：${displayText(report.createdByName ?? report.staffName, 'Unknown')}`}
         descriptionEn={`Created at ${formatDate(report.createdAt ?? report.reportTimestamp)}`}
       />
+
+      {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
+
+      <SectionCard className="report-action-card" ariaLabel="Report actions" bodyPadding>
+        <div className="report-action-header">
+          <div>
+            <h2>探访报告</h2>
+            <p>
+              Observation Report · Submitted by: {displayText(report.createdByName ?? report.staffName, 'Unknown')} · {formatDate(report.dateOfVisit)}
+            </p>
+          </div>
+          <div className="report-status-stack">
+            <span className="report-status-submitted">Submitted</span>
+            <span className="report-status-urgent">⚠ 紧急 · Urgent</span>
+          </div>
+        </div>
+
+        <div className="report-detail-actions">
+          <button className="report-action-danger" type="button" onClick={() => window.alert('Mock only: resolve flag is not implemented yet.')}>
+            处理标记 · Resolve Flag
+          </button>
+          <button className="report-action-success" type="button" onClick={() => window.alert('Mock only: approve is not implemented yet.')}>
+            审批 · Approve
+          </button>
+          <button className="report-action-secondary" type="button" onClick={() => window.alert('Mock only: archive is not implemented yet.')}>
+            归档 · Archive
+          </button>
+          <button className="report-action-delete" type="button" disabled={isDeleting} onClick={() => void handleDelete()}>
+            {isDeleting ? '删除中...' : '删除 · Delete'}
+          </button>
+        </div>
+
+        <div className="report-urgent-mock-banner">
+          <span>
+            🚨 此报告由 {displayText(report.createdByName ?? report.staffName, 'Unknown')} 标记为紧急。
+            <br />
+            This report was marked URGENT by {displayText(report.createdByName ?? report.staffName, 'Unknown')}.
+          </span>
+          <button type="button" onClick={() => window.alert('Mock only: mark resolved is not implemented yet.')}>
+            ✓ 标记为已处理 · Mark Resolved
+          </button>
+        </div>
+      </SectionCard>
 
       <SectionCard className="report-detail-card" ariaLabel="Report summary" bodyPadding>
         <div className="report-detail-grid">
