@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 010
+      id: 010-create-service-type-table
       author: ShiDu
       changes:
         - createTable:

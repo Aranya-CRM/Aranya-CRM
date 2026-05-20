@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 002
+      id: 002-create-user-table
       author: ShiDu
       comment: "Create users table - stores system user accounts"
       changes:

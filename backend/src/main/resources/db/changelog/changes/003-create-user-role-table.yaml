@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 003
+      id: 003-create-user-role-table
       author: ShiDu
       comment: "Create user_role table - maps users to roles for RBAC"
       changes:

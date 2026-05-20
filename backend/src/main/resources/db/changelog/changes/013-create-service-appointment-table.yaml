@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 013
+      id: 013-create-service-appointment-table
       author: ShiDu
       changes:
         - createTable:

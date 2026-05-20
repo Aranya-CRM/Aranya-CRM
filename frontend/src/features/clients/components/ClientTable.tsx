@@ -1,6 +1,5 @@
 import type { Client } from '../types'
 import { EmptyTableRow, SectionCard, TableShell } from '../../../shared/ui'
-import { MembershipBadge } from './MembershipBadge'
 
 interface ClientTableProps {
   clients: Client[]
@@ -27,7 +26,6 @@ export function ClientTable({
             <col className="col-tradition" />
             <col className="col-ordination" />
             <col className="col-area" />
-            <col className="col-membership" />
             <col className="col-client-actions" />
           </colgroup>
           <thead>
@@ -37,15 +35,14 @@ export function ClientTable({
               <th><span className="th-zh">传承</span><span className="th-en">Tradition</span></th>
               <th><span className="th-zh">戒别</span><span className="th-en">Ordination</span></th>
               <th><span className="th-zh">区域</span><span className="th-en">Area</span></th>
-              <th><span className="th-zh">状态</span><span className="th-en">Status</span></th>
               <th><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <EmptyTableRow colSpan={7} message="加载中... / Loading..." />
+              <EmptyTableRow colSpan={6} message="加载中... / Loading..." />
             ) : clients.length === 0 ? (
-              <EmptyTableRow colSpan={7} message="暂无数据 / No clients found" />
+              <EmptyTableRow colSpan={6} message="暂无数据 / No clients found" />
             ) : (
               clients.map((client) => (
                 <tr key={client.id}>
@@ -57,7 +54,6 @@ export function ClientTable({
                   <td><span className="cell-zh">{client.buddhistTradition}</span></td>
                   <td><span className="cell-zh">{client.ordinationStatus}</span></td>
                   <td><span className="cell-zh">{client.area}</span></td>
-                  <td><MembershipBadge status={client.membershipStatus} /></td>
                   <td>
                     <div className="table-action-group">
                       <button className="action-link" type="button" onClick={() => onView(client.id)}>

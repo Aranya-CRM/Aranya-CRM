@@ -22,6 +22,6 @@ export const clientRoutes: AppRouteConfig[] = [
   {
     path: '/clients/:id/edit',
     routeId: 'clients.edit',
-    element: <ClientFormPage />,
+    element: <ClientListPage />,
   },
 ]

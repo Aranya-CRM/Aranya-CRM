@@ -92,7 +92,6 @@ function BasicTab({ client }: { client: Client }) {
         <InfoItem label="区域 / Area" value={client.area} />
         <InfoItem label="佛教传承 / Buddhist Tradition" value={client.buddhistTradition} />
         <InfoItem label="戒别 / Ordination Status" value={client.ordinationStatus} />
-        <InfoItem label="会员状态 / Membership Status" value={client.membershipStatus} />
       </div>
     </div>
   )

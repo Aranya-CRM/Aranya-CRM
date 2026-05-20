@@ -3,21 +3,11 @@ import { Can } from '../../../shared/auth'
 
 interface ClientToolbarProps {
   search: string
-  filterStatus: string
   filterTradition: string
   onSearchChange: (value: string) => void
-  onStatusChange: (value: string) => void
   onTraditionChange: (value: string) => void
   onCreate: () => void
 }
-
-const MEMBERSHIP_STATUSES: Array<Client['membershipStatus']> = [
-  'Active',
-  'Inactive',
-  'Discharged',
-  'Withdrawn',
-  'Deceased',
-]
 
 const TRADITIONS: Array<Client['buddhistTradition']> = [
   'Theravada',
@@ -27,10 +17,8 @@ const TRADITIONS: Array<Client['buddhistTradition']> = [
 
 export function ClientToolbar({
   search,
-  filterStatus,
   filterTradition,
   onSearchChange,
-  onStatusChange,
   onTraditionChange,
   onCreate,
 }: ClientToolbarProps) {
@@ -43,16 +31,6 @@ export function ClientToolbar({
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
       />
-      <select
-        className="filter-select"
-        value={filterStatus}
-        onChange={(event) => onStatusChange(event.target.value)}
-      >
-        <option value="all">全部状态 / All Status</option>
-        {MEMBERSHIP_STATUSES.map((status) => (
-          <option key={status} value={status}>{status}</option>
-        ))}
-      </select>
       <select
         className="filter-select"
         value={filterTradition}

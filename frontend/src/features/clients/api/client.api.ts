@@ -13,7 +13,6 @@ type BackendClientSummary = {
   area?: string | null
   buddhistTradition?: string | null
   ordinationStatus?: string | null
-  membershipStatus?: string | null
 }
 
 type BackendClientDetail = BackendClientSummary & {
@@ -84,13 +83,13 @@ function getDataMode(): 'mock' | 'api' | 'auto' {
 
 export async function fetchClients(): Promise<Client[]> {
   const mode = getDataMode()
-  if (mode === 'mock') return clientMockData.map(withActiveMembership)
+  if (mode === 'mock') return clientMockData
 
   try {
     const res = await http.get<BackendClientSummary[]>('/v1/clients')
     return res.data.map(mapBackendClient)
   } catch {
-    if (mode === 'auto') return clientMockData.map(withActiveMembership)
+    if (mode === 'auto') return clientMockData
     throw new Error('Failed to fetch clients')
   }
 }
@@ -183,7 +182,6 @@ function mapBackendClient(source: BackendClientDetail): Client {
     postalCode: text(source.postalCode),
     viharaType: text(source.viharaType),
     area: text(source.areaDistrict ?? source.area),
-    membershipStatus: 'Active',
     dateJoined: text(source.dateJoined),
     membershipRemarks: text(source.membershipRemarks),
     buddhistTradition: mapBuddhistTradition(source.buddhistTradition),
@@ -262,12 +260,8 @@ function mapOrdinationStatus(value: string | null | undefined): Client['ordinati
   return 'Bhikkhu'
 }
 
-function withActiveMembership(client: Client): Client {
-  return { ...client, membershipStatus: 'Active' }
-}
-
 function normalizeOptionalClient(client: Client | undefined): Client | undefined {
-  return client ? withActiveMembership(client) : undefined
+  return client
 }
 
 function mapOrdinationCertificate(value: string | null | undefined): Client['ordinationCertificate'] {

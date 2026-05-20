@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 011
+      id: 011-create-case-assignment-table
       author: ShiDu
       changes:
         - createTable:

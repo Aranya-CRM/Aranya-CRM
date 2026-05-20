@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 014
+      id: 014-create-document-table
       author: ShiDu
       changes:
         - createTable:
