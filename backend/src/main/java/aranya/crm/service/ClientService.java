@@ -1,5 +1,6 @@
 package aranya.crm.service;
 
+import aranya.crm.dto.request.UpdateClientRequest;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +42,67 @@ public class ClientService {
         return clients.stream()
                 .map(this::toClientSummaryResponse)
                 .toList();
+    }
+
+    @Transactional
+    public ClientDetailResponse updateClient(Long clientId, UpdateClientRequest req) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+
+        set(req.getNameEn(),                    client::setNameEn);
+        set(req.getNameChn(),                   client::setNameChn);
+        set(req.getAbbr(),                      client::setAbbr);
+        set(req.getContact(),                   client::setContact);
+        set(req.getPreferredCommunication(),    client::setPreferredCommunication);
+        set(req.getWhatsappEnabled(),           client::setWhatsappEnabled);
+        set(req.getPreferredLanguage(),         client::setPreferredLanguage);
+        set(req.getSpokenLanguage(),            client::setSpokenLanguage);
+        set(req.getAddressText(),               client::setAddressText);
+        set(req.getPostalCode(),                client::setPostalCode);
+        set(req.getAreaDistrict(),              client::setAreaDistrict);
+        set(req.getViharaType(),                client::setViharaType);
+        set(req.getNricNameEn(),                client::setNricNameEn);
+        set(req.getNricNameChn(),               client::setNricNameChn);
+        set(req.getNricNo(),                    client::setNricNo);
+        set(req.getOrdinationCertificateStatus(), client::setOrdinationCertificateStatus);
+        set(req.getDateOfVerification(),        client::setDateOfVerification);
+        set(req.getGender(),                    client::setGender);
+        set(req.getDateOfBirth(),               client::setDateOfBirth);
+        set(req.getMaritalStatus(),             client::setMaritalStatus);
+        set(req.getNationality(),               client::setNationality);
+        set(req.getEthnicity(),                 client::setEthnicity);
+        set(req.getDialectGroup(),              client::setDialectGroup);
+        set(req.getDateJoined(),                client::setDateJoined);
+        set(req.getMembershipRemarks(),         client::setMembershipRemarks);
+        set(req.getBuddhistTradition(),         client::setBuddhistTradition);
+        set(req.getOrdinationStatus(),          client::setOrdinationStatus);
+        set(req.getDateOfTonsure(),             client::setDateOfTonsure);
+        set(req.getCountryOfTonsure(),          client::setCountryOfTonsure);
+        set(req.getPlaceOfTonsure(),            client::setPlaceOfTonsure);
+        set(req.getDateOfOrdination(),          client::setDateOfOrdination);
+        set(req.getCountryOfOrdination(),       client::setCountryOfOrdination);
+        set(req.getPlaceOfOrdination(),         client::setPlaceOfOrdination);
+        set(req.getWellbeingPhysicalHealth(),   client::setWellbeingPhysicalHealth);
+        set(req.getWellbeingMentalHealth(),     client::setWellbeingMentalHealth);
+        set(req.getWellbeingSocialSupport(),    client::setWellbeingSocialSupport);
+        set(req.getWellbeingFinancialStability(), client::setWellbeingFinancialStability);
+        set(req.getWellbeingLivingConditions(), client::setWellbeingLivingConditions);
+        set(req.getWellbeingSpiritual(),        client::setWellbeingSpiritual);
+        set(req.getWellbeingLegalIssues(),      client::setWellbeingLegalIssues);
+        set(req.getWellbeingRemarks(),          client::setWellbeingRemarks);
+        set(req.getSpecialNeeds(),              client::setSpecialNeeds);
+        set(req.getSpecialNeedsRemarks(),       client::setSpecialNeedsRemarks);
+        set(req.getBankTransferInfo(),          client::setBankTransferInfo);
+        set(req.getPayNowInfo(),                client::setPayNowInfo);
+        set(req.getNextOfKinContact(),          client::setNextOfKinContact);
+        set(req.getComments(),                  client::setComments);
+
+        clientRepository.save(client);
+        return getClientDetail(clientId);
+    }
+
+    private static <T> void set(T value, Consumer<T> setter) {
+        if (value != null) setter.accept(value);
     }
 
     public ClientDetailResponse getClientDetail(Long clientId) {

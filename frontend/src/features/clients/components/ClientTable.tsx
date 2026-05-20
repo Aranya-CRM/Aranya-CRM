@@ -53,7 +53,7 @@ export function ClientTable({
                   </td>
                   <td><span className="cell-zh">{client.buddhistTradition}</span></td>
                   <td><span className="cell-zh">{client.ordinationStatus}</span></td>
-                  <td><span className="cell-zh">{client.area}</span></td>
+                  <td><span className="cell-zh">{client.areaDistrict}</span></td>
                   <td>
                     <div className="table-action-group">
                       <button className="action-link" type="button" onClick={() => onView(client.id)}>

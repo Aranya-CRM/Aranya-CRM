@@ -4,9 +4,8 @@ export type WellbeingDomain =
   | 'socialSupport'
   | 'financialStability'
   | 'livingConditions'
-  | 'spiritualWellbeing'
+  | 'spiritual'
   | 'legalIssues'
-  | 'substanceUse'
 
 export interface Client {
   id: string
@@ -16,7 +15,7 @@ export interface Client {
   nricNameEn: string
   nricNameChn: string
   nricNo: string
-  sex: 'Male' | 'Female'
+  gender: 'Male' | 'Female'
   dateOfBirth: string
   age: number
   maritalStatus: 'Never married' | 'Married' | 'Divorced' | 'Separated' | 'Widowed'
@@ -24,37 +23,37 @@ export interface Client {
   ethnicity: string
   dialectGroup: string
   contact: string
-  nextOfKin: string
+  nextOfKinContact: string
   preferredCommunication: 'WhatsApp Msg' | 'WhatsApp Audio' | 'Phone Call' | 'Home Visit'
-  ableToUseWhatsApp: boolean
+  whatsappEnabled: boolean
   preferredLanguage: string
   spokenLanguage: string
-  address: string
+  addressText: string
   postalCode: string
   viharaType: string
-  area: string
+  areaDistrict: string
   dateJoined: string
   membershipRemarks: string
   // Ordination
   buddhistTradition: 'Mahayana' | 'Theravada' | 'Vajrayana'
   ordinationStatus: 'Bhikkhu' | 'Bhikkhuni' | 'Samanera' | 'Sikkhamana' | 'Sayalay'
-  dateTonsure: string
-  countryTonsure: string
-  placeTonsure: string
-  dateOrdination: string
-  countryOrdination: string
-  placeOrdination: string
+  dateOfTonsure: string
+  countryOfTonsure: string
+  placeOfTonsure: string
+  dateOfOrdination: string
+  countryOfOrdination: string
+  placeOfOrdination: string
   ordinationYears: number
   ordinationCertificate: 'Completed' | 'Incomplete'
-  dateVerification: string
+  dateOfVerification: string
   // Wellbeing
   wellbeingIssues: Record<WellbeingDomain, boolean>
   wellbeingRemarks: string
   specialNeeds: Record<'physical' | 'hearing' | 'visual' | 'intellectual', boolean>
   specialNeedsRemarks: string
   // Financial
-  bankTransfer: boolean
-  payNow: boolean
+  bankTransferInfo: string
+  payNowInfo: string
   comments: string
 }
 
@@ -68,7 +67,7 @@ export type ClientBasicInfo = Pick<
   | 'contact'
   | 'preferredCommunication'
   | 'preferredLanguage'
-  | 'area'
+  | 'areaDistrict'
   | 'buddhistTradition'
   | 'ordinationStatus'
 >
