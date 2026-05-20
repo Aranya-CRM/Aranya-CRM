@@ -206,7 +206,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
               className="report-row"
               key={item.id}
               type="button"
-              onClick={() => navigate('/reports')}
+              onClick={() => navigate(`/reports/${item.id}`)}
             >
               <span className="row-main">
                 <span className="row-title">{displayName(item)}</span>
