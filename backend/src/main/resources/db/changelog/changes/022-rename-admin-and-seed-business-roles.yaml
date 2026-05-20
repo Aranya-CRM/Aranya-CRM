@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 022-rename-admin-to-manager
+      id: 022-1-rename-admin-to-manager
       author: ShiDu
       context: dev, test
       comment: "Rename existing ADMIN role (seeded in dev/test by 018) to MANAGER"
