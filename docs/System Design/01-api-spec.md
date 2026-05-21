@@ -2,7 +2,7 @@
 
 This document summarizes the API and backend service surface implemented in the current branch.
 
-Last updated: 2026-05-19
+Last updated: 2026-05-21
 
 ## 1. Backend Summary
 
@@ -23,7 +23,7 @@ Implemented backend services:
 | `UserService` | Current-user profile, local user listing, invite stub, role updates, status updates, soft delete, Firebase profile sync | Implemented |
 | `UiManifestService` | Builds route/feature/widget capability lists from local role-permission records | Implemented |
 | `DashboardService` | Builds role-aware dashboard sections from clients, cases, and visit reports | Implemented |
-| `ClientService` | Lists clients, filters by search/status, returns client details and related contacts | Implemented, read-only |
+| `ClientService` | Lists clients, filters by search/status, returns client details and related contacts; creates and updates clients | Implemented |
 | `CaseService` | Lists cases, filters by search/status, returns case details, and provides active/urgent case data for dashboard | Implemented, read-only |
 
 Implemented HTTP API groups:
@@ -34,13 +34,11 @@ Implemented HTTP API groups:
 | UI manifest | `GET /api/v1/ui/manifest` |
 | Dashboard | `GET /api/v1/dashboard` |
 | Users | `GET /api/v1/users`, `POST /api/v1/users/invite`, `PATCH /api/v1/users/{id}/roles`, `PATCH /api/v1/users/{id}/status`, `DELETE /api/v1/users/{id}` |
-| Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}` |
+| Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
 
 Not implemented as backend HTTP APIs yet:
 
-- `POST /api/v1/clients`
-- `PUT /api/v1/clients/{id}`
 - `POST /api/v1/cases`
 - `GET /api/v1/cases/{caseId}/notes`
 - `POST /api/v1/cases/{caseId}/notes`
@@ -429,11 +427,14 @@ Response:
 
 ## 9. Client API
 
-The current backend implements read-only client APIs.
-
 Authorization:
 
-- Authenticated Firebase user
+| Endpoint | Required role |
+| --- | --- |
+| `GET /api/v1/clients` | Authenticated user |
+| `GET /api/v1/clients/{id}` | Authenticated user |
+| `POST /api/v1/clients` | `ROLE_MANAGER` |
+| `PATCH /api/v1/clients/{id}` | `ROLE_MANAGER` |
 
 ### GET `/api/v1/clients`
 
@@ -545,6 +546,89 @@ Notes:
 - Missing client ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
 - The frontend currently treats all client membership status values as `Active` and does not expose membership-status filtering in the client profile page.
 
+### POST `/api/v1/clients`
+
+Creates a new client and atomically creates an initial `ClientCase` in the same transaction.
+
+Authorization: `ROLE_MANAGER`
+
+Request:
+
+```json
+{
+  "nameEn": "Venerable Hui Ming",
+  "nameChn": "慧明法师",
+  "abbr": "HM",
+  "buddhistTradition": "Theravada",
+  "ordinationStatus": "Ordained",
+  "areaDistrict": "Central",
+  "preferredLanguage": "EN",
+  "contact": "91234567",
+  "colorCode": "GREEN"
+}
+```
+
+Validation:
+
+| Field | Required | Constraints |
+| --- | --- | --- |
+| `nameEn` | Yes | Max 150 |
+| `abbr` | Yes | Max 20 |
+| `nameChn` | No | Max 100 |
+| `buddhistTradition` | No | Max 50 |
+| `ordinationStatus` | No | Max 30 |
+| `areaDistrict` | No | Max 100 |
+| `preferredLanguage` | No | Max 50 |
+| `contact` | No | Max 20 |
+| `colorCode` | No | Max 20; used as the initial case color — `GREEN`, `YELLOW`, `ORANGE`, `RED` |
+
+Response: `201 Created` with `Location: /api/v1/clients/{id}` header; body is the full `ClientDetailResponse`.
+
+Notes:
+
+- The initial case title is set to `{nameEn} - Initial Case`.
+- `caseCode` is auto-generated in format `ASDFL/{YEAR}/C/{NNN}` (3-digit zero-padded, e.g. `ASDFL/2026/C/001`). The sequence resets at the start of each calendar year.
+- The authenticated manager is recorded as `createdBy` on the initial case.
+
+### PATCH `/api/v1/clients/{id}`
+
+Partially updates an existing client profile.
+
+Authorization: `ROLE_MANAGER`
+
+All fields are optional. Only non-null fields in the request body are applied — absent and explicit `null` fields leave the existing value unchanged.
+
+Request fields mirror the full `ClientDetailResponse` profile (all `String`, `Boolean`, and `LocalDate` fields on the `Client` entity are patchable). Key fields include:
+
+```json
+{
+  "nameEn": "Updated Name",
+  "nameChn": "更新名字",
+  "abbr": "UN",
+  "contact": "91234567",
+  "preferredCommunication": "WHATSAPP",
+  "whatsappEnabled": true,
+  "preferredLanguage": "EN",
+  "spokenLanguage": "English",
+  "addressText": "123 Example Street",
+  "postalCode": "123456",
+  "areaDistrict": "Central",
+  "gender": "FEMALE",
+  "dateOfBirth": "1980-01-01",
+  "buddhistTradition": "Theravada",
+  "ordinationStatus": "Ordained",
+  "wellbeingPhysicalHealth": true,
+  "membershipRemarks": "Remarks"
+}
+```
+
+Response: `200 OK` with the full updated `ClientDetailResponse`.
+
+Notes:
+
+- Uses `@DynamicUpdate` on the entity; only changed columns are written to the database.
+- Missing client id results in an `EntityNotFoundException`.
+
 ## 10. Case API
 
 The current backend implements read-only case APIs.
@@ -612,9 +696,6 @@ Notes:
 The frontend contains service modules for clients, cases, reports, and auth support. The backend currently does not expose the following planned endpoints:
 
 ```http
-POST /api/v1/clients
-PUT /api/v1/clients/{id}
-
 POST /api/v1/cases
 GET /api/v1/cases/{caseId}/notes
 POST /api/v1/cases/{caseId}/notes
@@ -636,7 +717,41 @@ POST /api/v1/auth/2fa/*
 
 Firebase Authentication and MFA enrollment/challenge are handled by the frontend through Firebase.
 
-## 12. OpenAPI UI
+## 12. Observability
+
+### Spring Boot Admin
+
+Runtime monitoring UI for the backend JVM, health indicators, log levels, and HTTP traces.
+
+| URL | Service |
+| --- | --- |
+| `http://localhost:9090` | Spring Boot Admin (Docker or local admin-server) |
+
+The backend registers itself with the admin server at startup using `SPRING_BOOT_ADMIN_URL`. All actuator endpoints are exposed (`management.endpoints.web.exposure.include: "*"`).
+
+### SonarQube (Docker profile)
+
+Code quality and coverage reporting. Activated via `--profile sonar`:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml --profile sonar up -d sonar-postgres sonarqube
+```
+
+Then run the scanner:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml --profile sonar run --rm sonar-scanner
+```
+
+| URL | Service |
+| --- | --- |
+| `http://localhost:9000` | SonarQube UI |
+
+Requires `SONAR_TOKEN` to be set before running the scanner (generate via SonarQube UI → My Account → Security → Tokens).
+
+Coverage data is produced by JaCoCo (`prepare-agent` + `report` on the `verify` phase) and read by the `sonar-maven-plugin`.
+
+## 13. OpenAPI UI
 
 When the backend is running, Swagger UI should be available at:
 
