@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
-import { fetchReports } from '../api/report.api'
+import { deleteReport, fetchReports } from '../api/report.api'
 import type { ReportSummary } from '../types'
 import './reports.css'
 
@@ -43,6 +43,7 @@ export function ReportListPage() {
   const [errorMessage, setErrorMessage] = useState<string>()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [deletingId, setDeletingId] = useState<number>()
 
   useEffect(() => {
     let active = true
@@ -91,6 +92,23 @@ export function ReportListPage() {
       return matchesType && matchesSearch
     })
   }, [reports, search, typeFilter])
+
+  async function handleDelete(report: ReportSummary) {
+    const confirmed = window.confirm(`确认删除报告 RPT-${String(report.id).padStart(4, '0')}？ / Delete this report?`)
+    if (!confirmed) return
+
+    setDeletingId(report.id)
+    setErrorMessage(undefined)
+
+    try {
+      await deleteReport(report.id)
+      setReports((current) => current.filter((item) => item.id !== report.id))
+    } catch {
+      setErrorMessage('探访报告删除失败，请稍后重试。 / Failed to delete report.')
+    } finally {
+      setDeletingId(undefined)
+    }
+  }
 
   return (
     <div className="report-page">
@@ -182,13 +200,23 @@ export function ReportListPage() {
                       <span className="cell-main">{formatDate(report.createdAt ?? report.reportTimestamp)}</span>
                     </td>
                     <td>
-                      <button
-                        className="report-view-link"
-                        type="button"
-                        onClick={() => navigate(`/reports/${report.id}`)}
-                      >
-                        查看 · View
-                      </button>
+                      <div className="report-row-actions">
+                        <button
+                          className="report-view-link"
+                          type="button"
+                          onClick={() => navigate(`/reports/${report.id}`)}
+                        >
+                          查看 · View
+                        </button>
+                        <button
+                          className="report-delete-link"
+                          type="button"
+                          disabled={deletingId === report.id}
+                          onClick={() => void handleDelete(report)}
+                        >
+                          删除 · Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

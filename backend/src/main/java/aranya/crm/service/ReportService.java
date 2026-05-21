@@ -68,6 +68,14 @@ public class ReportService {
         return toReportDetailResponse(visitReportRepository.save(report));
     }
 
+    @Transactional
+    public void deleteReport(Long reportId) {
+        VisitReport report = visitReportRepository.findById(reportId)
+                .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
+
+        visitReportRepository.delete(report);
+    }
+
     private ReportSummaryResponse toReportSummaryResponse(VisitReport report) {
         Client client = report.getClient();
         User createdBy = report.getCreatedBy();
