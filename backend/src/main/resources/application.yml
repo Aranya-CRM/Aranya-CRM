@@ -37,7 +37,23 @@ spring:
     enabled: true
     change-log: classpath:/db/changelog/db.changelog-master.yaml
 
+  boot:
+    admin:
+      client:
+        url: ${SPRING_BOOT_ADMIN_URL:http://localhost:9090}
+        instance:
+          name: aranya-crm-backend
+
 firebase:
   service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account-dev.json}
   project-id: ${FIREBASE_PROJECT_ID:aranya-crm-dev}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
 

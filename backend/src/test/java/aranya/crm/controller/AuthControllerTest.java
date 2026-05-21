@@ -43,7 +43,10 @@ class AuthControllerTest {
             http.csrf(AbstractHttpConfigurer::disable)
                     .formLogin(AbstractHttpConfigurer::disable)
                     .httpBasic(AbstractHttpConfigurer::disable)
-                    .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+                    .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+                    .exceptionHandling(ex -> ex
+                            .authenticationEntryPoint((req, res, e) ->
+                                    res.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED)));
             return http.build();
         }
     }
