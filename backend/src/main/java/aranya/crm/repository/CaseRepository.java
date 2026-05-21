@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface CaseRepository extends JpaRepository<ClientCase, Long> {
 
@@ -59,4 +60,9 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
     );
 
     long countByStatusNotAndColorCodeIn(String status, Collection<String> colorCodes);
+
+    @Query("SELECT cc.caseCode FROM ClientCase cc " +
+           "WHERE cc.caseCode LIKE CONCAT('ASDFL/', :year, '/C/%') " +
+           "ORDER BY cc.id DESC LIMIT 1")
+    Optional<String> findLatestCaseCodeByYear(@Param("year") String year);
 }

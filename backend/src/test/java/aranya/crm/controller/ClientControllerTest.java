@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -24,8 +25,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -121,6 +127,125 @@ class ClientControllerTest {
     @DisplayName("Anonymous user cannot get client detail")
     void getClientDetail_returns403_forAnonymousUser() throws Exception {
         mockMvc.perform(get("/api/v1/clients/10"))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── createClient ────────────────────────────────────────────────────────
+
+    private static final String VALID_CREATE_BODY = """
+            {"nameEn":"John Smith","abbr":"JS","buddhistTradition":"Mahayana"}
+            """;
+
+    @Test
+    @DisplayName("Manager can create a client — 201 with Location header")
+    @WithMockUser(roles = "MANAGER")
+    void createClient_returns201_forManager() throws Exception {
+        when(clientService.createClient(any(), any())).thenReturn(
+                ClientDetailResponse.builder()
+                        .id(20L)
+                        .abbr("JS")
+                        .nameEn("John Smith")
+                        .membershipStatus("ACTIVE")
+                        .createdAt(LocalDateTime.of(2026, 5, 21, 10, 0))
+                        .relatedContacts(List.of())
+                        .build()
+        );
+
+        mockMvc.perform(post("/api/v1/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_CREATE_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/v1/clients/20")))
+                .andExpect(jsonPath("$.id").value(20))
+                .andExpect(jsonPath("$.abbr").value("JS"));
+    }
+
+    @Test
+    @DisplayName("Social Worker cannot create a client — 403")
+    @WithMockUser(roles = "SOCIAL_WORKER")
+    void createClient_returns403_forSocialWorker() throws Exception {
+        mockMvc.perform(post("/api/v1/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_CREATE_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Volunteer cannot create a client — 403")
+    @WithMockUser(roles = "VOLUNTEER")
+    void createClient_returns403_forVolunteer() throws Exception {
+        mockMvc.perform(post("/api/v1/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_CREATE_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Anonymous user cannot create a client — 403")
+    void createClient_returns403_forAnonymousUser() throws Exception {
+        mockMvc.perform(post("/api/v1/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_CREATE_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Missing required fields returns 400")
+    @WithMockUser(roles = "MANAGER")
+    void createClient_returns400_whenRequiredFieldsMissing() throws Exception {
+        mockMvc.perform(post("/api/v1/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── updateClient ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Manager can update a client — 200")
+    @WithMockUser(roles = "MANAGER")
+    void updateClient_returns200_forManager() throws Exception {
+        when(clientService.updateClient(eq(10L), any())).thenReturn(
+                ClientDetailResponse.builder()
+                        .id(10L)
+                        .abbr("C001")
+                        .nameEn("Updated Name")
+                        .membershipStatus("ACTIVE")
+                        .createdAt(LocalDateTime.of(2026, 5, 7, 9, 30))
+                        .relatedContacts(List.of())
+                        .build()
+        );
+
+        mockMvc.perform(patch("/api/v1/clients/10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nameEn":"Updated Name"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.nameEn").value("Updated Name"));
+    }
+
+    @Test
+    @DisplayName("Volunteer cannot update a client — 403")
+    @WithMockUser(roles = "VOLUNTEER")
+    void updateClient_returns403_forVolunteer() throws Exception {
+        mockMvc.perform(patch("/api/v1/clients/10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nameEn":"Updated Name"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Anonymous user cannot update a client — 403")
+    void updateClient_returns403_forAnonymousUser() throws Exception {
+        mockMvc.perform(patch("/api/v1/clients/10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nameEn":"Updated Name"}
+                                """))
                 .andExpect(status().isForbidden());
     }
 }
