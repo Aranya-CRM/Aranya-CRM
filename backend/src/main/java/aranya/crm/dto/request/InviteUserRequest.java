@@ -28,5 +28,6 @@ public class InviteUserRequest {
     private String phone;
 
     @NotEmpty
+    @Size(min = 1, max = 1, message = "exactly one role must be selected")
     private List<String> roles;
 }

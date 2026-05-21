@@ -17,22 +17,17 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class UserService {
-
-    private static final String TEMP_PASSWORD_ALPHABET =
-            "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final int TEMP_PASSWORD_LENGTH = 12;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -41,6 +36,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserSummaryDto> listUsers() {
         return userRepository.findAllWithRoles().stream()
+                .filter(user -> !"DELETED".equals(user.getStatus()))
                 .map(this::toDto)
                 .toList();
     }
@@ -92,16 +88,17 @@ public class UserService {
     }
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {
+        validateSingleRole(request.getRoles());
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DataIntegrityViolationException("Email already in use: " + request.getEmail());
         }
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DataIntegrityViolationException("Username already in use: " + request.getUsername());
         }
-        Set<Role> roles = resolveRoles(request.getRoles());
+        Role role = resolveRole(request.getRoles().get(0));
 
-        String tempPassword = generateTempPassword();
         User user = new User();
+        user.setFirebaseUid("pending:" + UUID.randomUUID());
         user.setUsername(request.getUsername());
         user.setFullName(request.getFullName());
         user.setEmail(request.getEmail());
@@ -109,13 +106,11 @@ public class UserService {
         user.setStatus("ACTIVE");
         userRepository.save(user);
 
-        for (Role role : roles) {
-            UserRole ur = new UserRole();
-            ur.setUser(user);
-            ur.setRole(role);
-            ur.setAssignedBy(invitedBy);
-            user.getUserRoles().add(ur);
-        }
+        UserRole ur = new UserRole();
+        ur.setUser(user);
+        ur.setRole(role);
+        ur.setAssignedBy(invitedBy);
+        user.getUserRoles().add(ur);
 
         // TODO: send invitation email containing temp password / set-password link.
         // Never log the temporary password.
@@ -125,22 +120,21 @@ public class UserService {
     }
 
     public UserSummaryDto updateRoles(Long userId, List<String> roleNames, Long assignedBy) {
+        validateSingleRole(roleNames);
         User user = userRepository.findByIdWithRoles(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
-        Set<Role> roles = resolveRoles(roleNames);
+        Role role = resolveRole(roleNames.get(0));
 
         // 先把旧的 UserRole 全部删掉再插入新的 — 显式 flush 避免唯一约束冲突
         userRoleRepository.deleteByUserId(userId);
         userRoleRepository.flush();
         user.getUserRoles().clear();
 
-        for (Role role : roles) {
-            UserRole ur = new UserRole();
-            ur.setUser(user);
-            ur.setRole(role);
-            ur.setAssignedBy(assignedBy);
-            user.getUserRoles().add(ur);
-        }
+        UserRole ur = new UserRole();
+        ur.setUser(user);
+        ur.setRole(role);
+        ur.setAssignedBy(assignedBy);
+        user.getUserRoles().add(ur);
         log.info("Updated roles for userId={} -> {}", userId, roleNames);
         return toDto(user);
     }
@@ -156,19 +150,21 @@ public class UserService {
     public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
-        // Soft delete: 标记 INACTIVE 而不是真删，保留审计痕迹
-        user.setStatus("INACTIVE");
+        // Soft delete: 标记 DELETED 并从管理列表隐藏，保留审计痕迹。
+        user.setStatus("DELETED");
         log.info("Soft-deleted userId={}", userId);
     }
 
-    private Set<Role> resolveRoles(List<String> roleNames) {
-        Set<Role> roles = new HashSet<>();
-        for (String name : roleNames) {
-            Role role = roleRepository.findByName(name)
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + name));
-            roles.add(role);
+    private void validateSingleRole(List<String> roleNames) {
+        Set<String> uniqueRoleNames = new HashSet<>(roleNames);
+        if (uniqueRoleNames.size() != 1) {
+            throw new IllegalArgumentException("Exactly one role must be selected");
         }
-        return roles;
+    }
+
+    private Role resolveRole(String roleName) {
+        return roleRepository.findByName(roleName)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + roleName));
     }
 
     private UserSummaryDto toDto(User user) {
@@ -185,11 +181,4 @@ public class UserService {
                 .build();
     }
 
-    private String generateTempPassword() {
-        StringBuilder sb = new StringBuilder(TEMP_PASSWORD_LENGTH);
-        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
-            sb.append(TEMP_PASSWORD_ALPHABET.charAt(RANDOM.nextInt(TEMP_PASSWORD_ALPHABET.length())));
-        }
-        return sb.toString();
-    }
 }

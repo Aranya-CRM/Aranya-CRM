@@ -9,6 +9,7 @@ import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -57,13 +59,20 @@ public class UserController {
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserSummaryDto> updateStatus(
+            @CurrentUser User currentUser,
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserStatusRequest request) {
+        if (currentUser != null && currentUser.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Managers cannot deactivate their own account");
+        }
         return ResponseEntity.ok(userService.updateStatus(id, request.getStatus()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentUser User currentUser, @PathVariable Long id) {
+        if (currentUser != null && currentUser.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Managers cannot remove their own account");
+        }
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
