@@ -1,10 +1,15 @@
 package aranya.crm.service;
 
+import aranya.crm.dto.request.CreateClientRequest;
+import aranya.crm.dto.request.UpdateClientRequest;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.RelatedContact;
+import aranya.crm.entity.User;
+import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.RelatedContactRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -12,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +27,7 @@ import java.util.List;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final CaseRepository caseRepository;
     private final RelatedContactRepository relatedContactRepository;
 
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
@@ -40,6 +48,104 @@ public class ClientService {
         return clients.stream()
                 .map(this::toClientSummaryResponse)
                 .toList();
+    }
+
+    @Transactional
+    public ClientDetailResponse createClient(CreateClientRequest req, User createdBy) {
+        Client client = new Client();
+        client.setNameEn(req.getNameEn());
+        client.setNameChn(req.getNameChn());
+        client.setAbbr(req.getAbbr());
+        client.setBuddhistTradition(req.getBuddhistTradition());
+        client.setOrdinationStatus(req.getOrdinationStatus());
+        client.setAreaDistrict(req.getAreaDistrict());
+        client.setPreferredLanguage(req.getPreferredLanguage());
+        client.setContact(req.getContact());
+        clientRepository.save(client);
+
+        // 同步新增case,一个client对应一个长期维护的case
+        ClientCase clientCase = new ClientCase();
+        clientCase.setClient(client);
+        clientCase.setCreatedBy(createdBy);
+        clientCase.setCaseCode(generateCaseCode());
+        clientCase.setTitle(client.getNameEn() + " - Initial Case");
+        clientCase.setColorCode(req.getColorCode());
+        clientCase.setTradition(req.getBuddhistTradition());
+        caseRepository.save(clientCase);
+
+        return getClientDetail(client.getId());
+    }
+
+    private String generateCaseCode() {
+        String year = String.valueOf(LocalDate.now().getYear());
+        return caseRepository.findLatestCaseCodeByYear(year)
+                .map(latest -> {
+                    String[] parts = latest.split("/");
+                    int next = Integer.parseInt(parts[parts.length - 1]) + 1;
+                    return String.format("ASDFL/%s/C/%03d", year, next);
+                })
+                .orElse(String.format("ASDFL/%s/C/001", year));
+    }
+
+    @Transactional
+    public ClientDetailResponse updateClient(Long clientId, UpdateClientRequest req) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+
+        set(req.getNameEn(),                    client::setNameEn);
+        set(req.getNameChn(),                   client::setNameChn);
+        set(req.getAbbr(),                      client::setAbbr);
+        set(req.getContact(),                   client::setContact);
+        set(req.getPreferredCommunication(),    client::setPreferredCommunication);
+        set(req.getWhatsappEnabled(),           client::setWhatsappEnabled);
+        set(req.getPreferredLanguage(),         client::setPreferredLanguage);
+        set(req.getSpokenLanguage(),            client::setSpokenLanguage);
+        set(req.getAddressText(),               client::setAddressText);
+        set(req.getPostalCode(),                client::setPostalCode);
+        set(req.getAreaDistrict(),              client::setAreaDistrict);
+        set(req.getViharaType(),                client::setViharaType);
+        set(req.getNricNameEn(),                client::setNricNameEn);
+        set(req.getNricNameChn(),               client::setNricNameChn);
+        set(req.getNricNo(),                    client::setNricNo);
+        set(req.getOrdinationCertificateStatus(), client::setOrdinationCertificateStatus);
+        set(req.getDateOfVerification(),        client::setDateOfVerification);
+        set(req.getGender(),                    client::setGender);
+        set(req.getDateOfBirth(),               client::setDateOfBirth);
+        set(req.getMaritalStatus(),             client::setMaritalStatus);
+        set(req.getNationality(),               client::setNationality);
+        set(req.getEthnicity(),                 client::setEthnicity);
+        set(req.getDialectGroup(),              client::setDialectGroup);
+        set(req.getDateJoined(),                client::setDateJoined);
+        set(req.getMembershipRemarks(),         client::setMembershipRemarks);
+        set(req.getBuddhistTradition(),         client::setBuddhistTradition);
+        set(req.getOrdinationStatus(),          client::setOrdinationStatus);
+        set(req.getDateOfTonsure(),             client::setDateOfTonsure);
+        set(req.getCountryOfTonsure(),          client::setCountryOfTonsure);
+        set(req.getPlaceOfTonsure(),            client::setPlaceOfTonsure);
+        set(req.getDateOfOrdination(),          client::setDateOfOrdination);
+        set(req.getCountryOfOrdination(),       client::setCountryOfOrdination);
+        set(req.getPlaceOfOrdination(),         client::setPlaceOfOrdination);
+        set(req.getWellbeingPhysicalHealth(),   client::setWellbeingPhysicalHealth);
+        set(req.getWellbeingMentalHealth(),     client::setWellbeingMentalHealth);
+        set(req.getWellbeingSocialSupport(),    client::setWellbeingSocialSupport);
+        set(req.getWellbeingFinancialStability(), client::setWellbeingFinancialStability);
+        set(req.getWellbeingLivingConditions(), client::setWellbeingLivingConditions);
+        set(req.getWellbeingSpiritual(),        client::setWellbeingSpiritual);
+        set(req.getWellbeingLegalIssues(),      client::setWellbeingLegalIssues);
+        set(req.getWellbeingRemarks(),          client::setWellbeingRemarks);
+        set(req.getSpecialNeeds(),              client::setSpecialNeeds);
+        set(req.getSpecialNeedsRemarks(),       client::setSpecialNeedsRemarks);
+        set(req.getBankTransferInfo(),          client::setBankTransferInfo);
+        set(req.getPayNowInfo(),                client::setPayNowInfo);
+        set(req.getNextOfKinContact(),          client::setNextOfKinContact);
+        set(req.getComments(),                  client::setComments);
+
+        clientRepository.save(client);
+        return getClientDetail(clientId);
+    }
+
+    private static <T> void set(T value, Consumer<T> setter) {
+        if (value != null) setter.accept(value);
     }
 
     public ClientDetailResponse getClientDetail(Long clientId) {

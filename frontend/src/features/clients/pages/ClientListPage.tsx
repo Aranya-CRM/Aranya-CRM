@@ -6,7 +6,7 @@ import { EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
 import { useClient, useClients, useCreateClient, useUpdateClient } from '../hooks'
-import type { Client } from '../types'
+import type { Client, WellbeingDomain } from '../types'
 import './clients.css'
 
 const TRADITIONS: Array<Client['buddhistTradition']> = [
@@ -23,13 +23,23 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Sayalay',
 ]
 
+const WELLBEING_LABELS: Record<WellbeingDomain, string> = {
+  physicalHealth: 'Physical Health / 身体健康',
+  mentalHealth: 'Mental Health / 心理健康',
+  socialSupport: 'Social Support / 社会支持',
+  financialStability: 'Financial Stability / 经济稳定',
+  livingConditions: 'Living Conditions / 居住条件',
+  spiritual: 'Spiritual Wellbeing / 灵性健康',
+  legalIssues: 'Legal Issues / 法律问题',
+}
+
 interface NewClientForm {
   nameChn: string
   nameEn: string
   abbr: string
   buddhistTradition: Client['buddhistTradition']
   ordinationStatus: Client['ordinationStatus']
-  area: string
+  areaDistrict: string
 }
 
 const initialNewClientForm: NewClientForm = {
@@ -38,7 +48,7 @@ const initialNewClientForm: NewClientForm = {
   abbr: '',
   buddhistTradition: 'Mahayana',
   ordinationStatus: 'Bhikkhu',
-  area: '',
+  areaDistrict: '',
 }
 
 export function ClientListPage() {
@@ -243,7 +253,7 @@ export function ClientListPage() {
                 </div>
                 <div className="client-directory-en">{client.nameEn}</div>
                 <div className="client-directory-meta">
-                  {client.buddhistTradition} · {client.area}
+                  {client.buddhistTradition} · {client.areaDistrict}
                 </div>
               </button>
             ))
@@ -402,8 +412,8 @@ function NewClientModal({
           <ModalField label="地区 / Area / District">
             <input
               className="form-input"
-              value={form.area}
-              onChange={(event) => onFieldChange('area', event.target.value)}
+              value={form.areaDistrict}
+              onChange={(event) => onFieldChange('areaDistrict', event.target.value)}
             />
           </ModalField>
         </div>
@@ -459,7 +469,7 @@ function ClientProfilePanel({
             <h1>{client.nameChn} / {client.nameEn}</h1>
             <span className="abbr-tag">{client.abbr}</span>
           </div>
-          <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.area}</p>
+          <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
           <button className="btn-secondary" type="button">
@@ -493,12 +503,12 @@ function ClientProfilePanel({
         <InfoCell label="缩写" subLabel="Abbreviation" value={client.abbr} />
         <InfoCell label="联系电话" subLabel="Contact" value={client.contact} />
         <InfoCell label="首选沟通方式" subLabel="Preferred Communication" value={client.preferredCommunication} />
-        <InfoCell label="WhatsApp" subLabel="WhatsApp Enabled" value={client.ableToUseWhatsApp ? '是 · Yes' : '否 · No'} />
+        <InfoCell label="WhatsApp" subLabel="WhatsApp Enabled" value={client.whatsappEnabled ? '是 · Yes' : '否 · No'} />
         <InfoCell label="首选语言" subLabel="Preferred Language" value={client.preferredLanguage} />
         <InfoCell label="使用语言" subLabel="Spoken Language" value={client.spokenLanguage} />
-        <InfoCell label="地址" subLabel="Address" value={client.address} />
+        <InfoCell label="地址" subLabel="Address" value={client.addressText} />
         <InfoCell label="邮政编码" subLabel="Postal Code" value={client.postalCode} />
-        <InfoCell label="地区" subLabel="Area / District" value={client.area} />
+        <InfoCell label="地区" subLabel="Area / District" value={client.areaDistrict} />
         <InfoCell label="居住类型" subLabel="Vihara Type" value={client.viharaType} />
       </ProfileSection>
 
@@ -509,27 +519,27 @@ function ClientProfilePanel({
             <InfoCell label="NRIC 中文姓名" subLabel="NRIC Full Name (Chinese)" value={client.nricNameChn} />
             <InfoCell label="NRIC 号码" subLabel="NRIC Number" value={client.nricNo} />
             <InfoCell label="受戒证书" subLabel="Ordination Certificate" value={client.ordinationCertificate} />
-            <InfoCell label="核实日期" subLabel="Date of Verification" value={client.dateVerification} />
+            <InfoCell label="核实日期" subLabel="Date of Verification" value={client.dateOfVerification} />
           </ProfileSection>
 
           <ProfileSection title="个人信息 / Personal">
-            <InfoCell label="性别" subLabel="Sex" value={client.sex} />
+            <InfoCell label="性别" subLabel="Gender" value={client.gender} />
             <InfoCell label="出生日期" subLabel="Date of Birth" value={client.dateOfBirth} />
             <InfoCell label="年龄" subLabel="Age" value={`${client.age} 岁`} />
             <InfoCell label="婚姻状况" subLabel="Marital Status" value={client.maritalStatus} />
             <InfoCell label="国籍" subLabel="Nationality" value={client.nationality} />
             <InfoCell label="族群" subLabel="Ethnicity" value={client.ethnicity} />
             <InfoCell label="方言群" subLabel="Dialect Group" value={client.dialectGroup} />
-            <InfoCell label="紧急联系人" subLabel="Next of Kin Contact" value={client.nextOfKin} />
+            <InfoCell label="紧急联系人" subLabel="Next of Kin Contact" value={client.nextOfKinContact} />
           </ProfileSection>
 
           <ProfileSection title="出家资料 / Ordination">
             <InfoCell label="佛教传承" subLabel="Buddhist Tradition" value={client.buddhistTradition} />
             <InfoCell label="戒别" subLabel="Ordination Status" value={client.ordinationStatus} />
-            <InfoCell label="剃度日期" subLabel="Date of Tonsure" value={client.dateTonsure} />
-            <InfoCell label="剃度地点" subLabel="Place of Tonsure" value={`${client.placeTonsure}, ${client.countryTonsure}`} />
-            <InfoCell label="受戒日期" subLabel="Date of Ordination" value={client.dateOrdination} />
-            <InfoCell label="受戒地点" subLabel="Place of Ordination" value={`${client.placeOrdination}, ${client.countryOrdination}`} />
+            <InfoCell label="剃度日期" subLabel="Date of Tonsure" value={client.dateOfTonsure} />
+            <InfoCell label="剃度地点" subLabel="Place of Tonsure" value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
+            <InfoCell label="受戒日期" subLabel="Date of Ordination" value={client.dateOfOrdination} />
+            <InfoCell label="受戒地点" subLabel="Place of Ordination" value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
             <InfoCell label="戒龄" subLabel="Ordination Years" value={`${client.ordinationYears} years`} />
           </ProfileSection>
 
@@ -609,16 +619,16 @@ function ClientProfileEditPanel({
         <div className="form-group">
           <label className="form-label">WhatsApp 使用能力</label>
           <CheckboxRow
-            checked={form.ableToUseWhatsApp}
-            label="可以使用 WhatsApp / Able to use WhatsApp"
-            onChange={(checked) => onFieldChange('ableToUseWhatsApp', checked)}
+            checked={form.whatsappEnabled}
+            label="可以使用 WhatsApp / WhatsApp Enabled"
+            onChange={(checked) => onFieldChange('whatsappEnabled', checked)}
           />
         </div>
         <TextField label="首选语言 / Preferred Language" value={form.preferredLanguage} onChange={(value) => onFieldChange('preferredLanguage', value)} />
         <TextField label="使用语言 / Spoken Language" value={form.spokenLanguage} onChange={(value) => onFieldChange('spokenLanguage', value)} />
-        <TextField label="地址 / Address" value={form.address} onChange={(value) => onFieldChange('address', value)} fullWidth />
+        <TextField label="地址 / Address" value={form.addressText} onChange={(value) => onFieldChange('addressText', value)} fullWidth />
         <TextField label="邮政编码 / Postal Code" value={form.postalCode} onChange={(value) => onFieldChange('postalCode', value)} />
-        <TextField label="地区 / Area / District" value={form.area} onChange={(value) => onFieldChange('area', value)} />
+        <TextField label="地区 / Area / District" value={form.areaDistrict} onChange={(value) => onFieldChange('areaDistrict', value)} />
         <TextField label="居住类型 / Vihara Type" value={form.viharaType} onChange={(value) => onFieldChange('viharaType', value)} />
       </ProfileSection>
 
@@ -634,15 +644,15 @@ function ClientProfileEditPanel({
               options={['Completed', 'Incomplete']}
               onChange={(value) => onFieldChange('ordinationCertificate', value as Client['ordinationCertificate'])}
             />
-            <TextField label="核实日期 / Date of Verification" type="date" value={form.dateVerification} onChange={(value) => onFieldChange('dateVerification', value)} />
+            <TextField label="核实日期 / Date of Verification" type="date" value={form.dateOfVerification} onChange={(value) => onFieldChange('dateOfVerification', value)} />
           </ProfileSection>
 
           <ProfileSection title="个人信息 / Personal">
             <SelectField
-              label="性别 / Sex"
-              value={form.sex}
+              label="性别 / Gender"
+              value={form.gender}
               options={['Male', 'Female']}
-              onChange={(value) => onFieldChange('sex', value as Client['sex'])}
+              onChange={(value) => onFieldChange('gender', value as Client['gender'])}
             />
             <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={(value) => onFieldChange('dateOfBirth', value)} />
             <TextField label="年龄 / Age" type="number" value={String(form.age)} onChange={(value) => onFieldChange('age', Number(value))} />
@@ -655,7 +665,7 @@ function ClientProfileEditPanel({
             <TextField label="国籍 / Nationality" value={form.nationality} onChange={(value) => onFieldChange('nationality', value)} />
             <TextField label="族群 / Ethnicity" value={form.ethnicity} onChange={(value) => onFieldChange('ethnicity', value)} />
             <TextField label="方言群 / Dialect Group" value={form.dialectGroup} onChange={(value) => onFieldChange('dialectGroup', value)} />
-            <TextField label="紧急联系人 / Next of Kin Contact" value={form.nextOfKin} onChange={(value) => onFieldChange('nextOfKin', value)} fullWidth />
+            <TextField label="紧急联系人 / Next of Kin Contact" value={form.nextOfKinContact} onChange={(value) => onFieldChange('nextOfKinContact', value)} fullWidth />
           </ProfileSection>
 
           <ProfileSection title="出家资料 / Ordination">
@@ -671,12 +681,12 @@ function ClientProfileEditPanel({
               options={ORDINATION_STATUSES}
               onChange={(value) => onFieldChange('ordinationStatus', value as Client['ordinationStatus'])}
             />
-            <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateTonsure} onChange={(value) => onFieldChange('dateTonsure', value)} />
-            <TextField label="剃度国家 / Country of Tonsure" value={form.countryTonsure} onChange={(value) => onFieldChange('countryTonsure', value)} />
-            <TextField label="剃度地点 / Place of Tonsure" value={form.placeTonsure} onChange={(value) => onFieldChange('placeTonsure', value)} fullWidth />
-            <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOrdination} onChange={(value) => onFieldChange('dateOrdination', value)} />
-            <TextField label="受戒国家 / Country of Ordination" value={form.countryOrdination} onChange={(value) => onFieldChange('countryOrdination', value)} />
-            <TextField label="受戒地点 / Place of Ordination" value={form.placeOrdination} onChange={(value) => onFieldChange('placeOrdination', value)} fullWidth />
+            <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateOfTonsure} onChange={(value) => onFieldChange('dateOfTonsure', value)} />
+            <TextField label="剃度国家 / Country of Tonsure" value={form.countryOfTonsure} onChange={(value) => onFieldChange('countryOfTonsure', value)} />
+            <TextField label="剃度地点 / Place of Tonsure" value={form.placeOfTonsure} onChange={(value) => onFieldChange('placeOfTonsure', value)} fullWidth />
+            <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOfOrdination} onChange={(value) => onFieldChange('dateOfOrdination', value)} />
+            <TextField label="受戒国家 / Country of Ordination" value={form.countryOfOrdination} onChange={(value) => onFieldChange('countryOfOrdination', value)} />
+            <TextField label="受戒地点 / Place of Ordination" value={form.placeOfOrdination} onChange={(value) => onFieldChange('placeOfOrdination', value)} fullWidth />
             <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} onChange={(value) => onFieldChange('ordinationYears', Number(value))} />
           </ProfileSection>
 
@@ -691,7 +701,7 @@ function ClientProfileEditPanel({
               <div key={key} className="form-group">
                 <CheckboxRow
                   checked={form.wellbeingIssues[key]}
-                  label={formatCamelCase(key)}
+                  label={WELLBEING_LABELS[key]}
                   onChange={() => onToggleWellbeing(key)}
                 />
               </div>
@@ -709,14 +719,8 @@ function ClientProfileEditPanel({
                 />
               </div>
             ))}
-            <div className="form-group">
-              <label className="form-label">银行转账 / Bank Transfer</label>
-              <CheckboxRow checked={form.bankTransfer} label="Bank Transfer" onChange={(checked) => onFieldChange('bankTransfer', checked)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">PayNow</label>
-              <CheckboxRow checked={form.payNow} label="PayNow" onChange={(checked) => onFieldChange('payNow', checked)} />
-            </div>
+            <TextField label="银行转账账户 / Bank Transfer Account" value={form.bankTransferInfo} onChange={(value) => onFieldChange('bankTransferInfo', value)} />
+            <TextField label="PayNow 号码 / PayNow Number" value={form.payNowInfo} onChange={(value) => onFieldChange('payNowInfo', value)} />
             <TextareaField label="特殊需求备注 / Special Needs Remarks" value={form.specialNeedsRemarks} onChange={(value) => onFieldChange('specialNeedsRemarks', value)} fullWidth />
           </ProfileSection>
         </>
@@ -773,7 +777,7 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
     nricNameEn: '',
     nricNameChn: '',
     nricNo: '',
-    sex: 'Male',
+    gender: 'Male',
     dateOfBirth: '',
     age: 0,
     maritalStatus: 'Never married',
@@ -781,37 +785,36 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
     ethnicity: '',
     dialectGroup: '',
     contact: '',
-    nextOfKin: '',
+    nextOfKinContact: '',
     preferredCommunication: 'Phone Call',
-    ableToUseWhatsApp: false,
+    whatsappEnabled: false,
     preferredLanguage: '',
     spokenLanguage: '',
-    address: '',
+    addressText: '',
     postalCode: '',
     viharaType: '',
-    area: form.area.trim(),
+    areaDistrict: form.areaDistrict.trim(),
     dateJoined: today,
     membershipRemarks: '',
     buddhistTradition: form.buddhistTradition,
     ordinationStatus: form.ordinationStatus,
-    dateTonsure: '',
-    countryTonsure: '',
-    placeTonsure: '',
-    dateOrdination: '',
-    countryOrdination: '',
-    placeOrdination: '',
+    dateOfTonsure: '',
+    countryOfTonsure: '',
+    placeOfTonsure: '',
+    dateOfOrdination: '',
+    countryOfOrdination: '',
+    placeOfOrdination: '',
     ordinationYears: 0,
     ordinationCertificate: 'Incomplete',
-    dateVerification: '',
+    dateOfVerification: '',
     wellbeingIssues: {
       physicalHealth: false,
       mentalHealth: false,
       socialSupport: false,
       financialStability: false,
       livingConditions: false,
-      spiritualWellbeing: false,
+      spiritual: false,
       legalIssues: false,
-      substanceUse: false,
     },
     wellbeingRemarks: '',
     specialNeeds: {
@@ -821,14 +824,10 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
       intellectual: false,
     },
     specialNeedsRemarks: '',
-    bankTransfer: false,
-    payNow: false,
+    bankTransferInfo: '',
+    payNowInfo: '',
     comments: '',
   }
-}
-
-function formatCamelCase(value: string): string {
-  return value.replace(/([A-Z])/g, ' $1').trim()
 }
 
 function capitalize(value: string): string {

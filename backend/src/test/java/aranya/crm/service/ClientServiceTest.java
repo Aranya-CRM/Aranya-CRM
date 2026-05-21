@@ -1,9 +1,14 @@
 package aranya.crm.service;
 
+import aranya.crm.dto.request.CreateClientRequest;
+import aranya.crm.dto.request.UpdateClientRequest;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.RelatedContact;
+import aranya.crm.entity.User;
+import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.RelatedContactRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,14 +25,20 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class ClientServiceTest {
 
     @Mock
     private ClientRepository clientRepository;
+
+    @Mock
+    private CaseRepository caseRepository;
 
     @Mock
     private RelatedContactRepository relatedContactRepository;
@@ -122,5 +133,153 @@ class ClientServiceTest {
         assertThatThrownBy(() -> clientService.getClientDetail(99L))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Client not found: 99");
+    }
+
+    // ── listClients missing branches ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("listClients with query only calls searchClients without status")
+    void listClients_withQueryOnly_callsSearchClientsWithoutStatus() {
+        when(clientRepository.searchClients("tan")).thenReturn(List.of());
+
+        clientService.listClients("tan", null);
+
+        verify(clientRepository).searchClients("tan");
+    }
+
+    @Test
+    @DisplayName("listClients with status only calls findByMembershipStatus")
+    void listClients_withStatusOnly_callsFindByMembershipStatus() {
+        when(clientRepository.findByMembershipStatusIgnoreCaseOrderByCreatedAtDesc("ACTIVE"))
+                .thenReturn(List.of());
+
+        clientService.listClients(null, "ACTIVE");
+
+        verify(clientRepository).findByMembershipStatusIgnoreCaseOrderByCreatedAtDesc("ACTIVE");
+    }
+
+    // ── createClient ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createClient generates caseCode 001 when no existing case this year")
+    void createClient_generatesCaseCode001_whenNoExistingCaseThisYear() {
+        String year = String.valueOf(java.time.LocalDate.now().getYear());
+        when(caseRepository.findLatestCaseCodeByYear(year)).thenReturn(Optional.empty());
+        when(clientRepository.save(any())).thenAnswer(inv -> {
+            Client c = inv.getArgument(0);
+            c.setId(10L);
+            return c;
+        });
+        when(clientRepository.findById(10L)).thenReturn(Optional.of(buildClient(10L, "John Smith", "JS")));
+        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(10L)).thenReturn(List.of());
+
+        clientService.createClient(buildCreateRequest("John Smith", "JS"), new User());
+
+        ArgumentCaptor<ClientCase> caseCaptor = ArgumentCaptor.forClass(ClientCase.class);
+        verify(caseRepository).save(caseCaptor.capture());
+        assertThat(caseCaptor.getValue().getCaseCode()).isEqualTo("ASDFL/" + year + "/C/001");
+    }
+
+    @Test
+    @DisplayName("createClient increments caseCode from last existing case this year")
+    void createClient_incrementsCaseCode_whenExistingCasesExist() {
+        String year = String.valueOf(java.time.LocalDate.now().getYear());
+        when(caseRepository.findLatestCaseCodeByYear(year))
+                .thenReturn(Optional.of("ASDFL/" + year + "/C/003"));
+        when(clientRepository.save(any())).thenAnswer(inv -> {
+            Client c = inv.getArgument(0);
+            c.setId(20L);
+            return c;
+        });
+        when(clientRepository.findById(20L)).thenReturn(Optional.of(buildClient(20L, "Jane Doe", "JD")));
+        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(20L)).thenReturn(List.of());
+
+        clientService.createClient(buildCreateRequest("Jane Doe", "JD"), new User());
+
+        ArgumentCaptor<ClientCase> caseCaptor = ArgumentCaptor.forClass(ClientCase.class);
+        verify(caseRepository).save(caseCaptor.capture());
+        assertThat(caseCaptor.getValue().getCaseCode()).isEqualTo("ASDFL/" + year + "/C/004");
+    }
+
+    @Test
+    @DisplayName("createClient maps request fields to client and returns detail response")
+    void createClient_mapsFieldsCorrectly() {
+        String year = String.valueOf(java.time.LocalDate.now().getYear());
+        when(caseRepository.findLatestCaseCodeByYear(year)).thenReturn(Optional.empty());
+        when(clientRepository.save(any())).thenAnswer(inv -> {
+            Client c = inv.getArgument(0);
+            c.setId(30L);
+            return c;
+        });
+
+        Client savedClient = buildClient(30L, "Ven. Nyanatiloka", "VN");
+        savedClient.setBuddhistTradition("Theravada");
+        savedClient.setContact("91234567");
+        when(clientRepository.findById(30L)).thenReturn(Optional.of(savedClient));
+        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(30L)).thenReturn(List.of());
+
+        CreateClientRequest req = new CreateClientRequest();
+        req.setNameEn("Ven. Nyanatiloka");
+        req.setAbbr("VN");
+        req.setBuddhistTradition("Theravada");
+        req.setContact("91234567");
+
+        ClientDetailResponse response = clientService.createClient(req, new User());
+
+        assertThat(response.getId()).isEqualTo(30L);
+        assertThat(response.getNameEn()).isEqualTo("Ven. Nyanatiloka");
+        assertThat(response.getBuddhistTradition()).isEqualTo("Theravada");
+        assertThat(response.getContact()).isEqualTo("91234567");
+    }
+
+    // ── updateClient ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateClient applies non-null fields and skips null fields (PATCH semantics)")
+    void updateClient_appliesNonNullFields_andSkipsNullFields() {
+        Client client = buildClient(10L, "Old Name", "C001");
+        client.setNameChn("旧名字");
+        when(clientRepository.findById(10L)).thenReturn(Optional.of(client));
+        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(10L)).thenReturn(List.of());
+
+        UpdateClientRequest req = new UpdateClientRequest();
+        req.setNameEn("New Name");
+        // nameChn not set → null → should be skipped
+
+        ClientDetailResponse response = clientService.updateClient(10L, req);
+
+        assertThat(client.getNameEn()).isEqualTo("New Name");
+        assertThat(client.getNameChn()).isEqualTo("旧名字");
+        assertThat(response.getNameEn()).isEqualTo("New Name");
+        verify(clientRepository).save(client);
+    }
+
+    @Test
+    @DisplayName("updateClient throws when client does not exist")
+    void updateClient_throwsWhenClientDoesNotExist() {
+        when(clientRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> clientService.updateClient(99L, new UpdateClientRequest()))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Client not found: 99");
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private CreateClientRequest buildCreateRequest(String nameEn, String abbr) {
+        CreateClientRequest req = new CreateClientRequest();
+        req.setNameEn(nameEn);
+        req.setAbbr(abbr);
+        return req;
+    }
+
+    private Client buildClient(Long id, String nameEn, String abbr) {
+        Client c = new Client();
+        c.setId(id);
+        c.setNameEn(nameEn);
+        c.setAbbr(abbr);
+        c.setMembershipStatus("ACTIVE");
+        c.setCreatedAt(LocalDateTime.of(2026, 5, 21, 10, 0));
+        return c;
     }
 }

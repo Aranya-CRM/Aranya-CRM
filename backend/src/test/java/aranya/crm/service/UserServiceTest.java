@@ -50,8 +50,9 @@ class UserServiceTest {
     void listUsers_mapsUsersAndRoleNames() {
         User manager = user(1L, "manager", "manager@test.com", "Manager User", "ACTIVE");
         manager.getUserRoles().add(userRole(manager, role("MANAGER"), 99L));
+        User removed = user(3L, "removed", "removed@test.com", "Removed User", "DELETED");
 
-        when(userRepository.findAllWithRoles()).thenReturn(List.of(manager));
+        when(userRepository.findAllWithRoles()).thenReturn(List.of(manager, removed));
 
         List<UserSummaryDto> result = userService.listUsers();
 
@@ -75,16 +76,14 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("invite creates an active user and assigns requested roles")
+    @DisplayName("invite creates an active pending-Firebase user and assigns one requested role")
     void invite_createsActiveUserAndAssignsRequestedRoles() {
-        InviteUserRequest request = inviteRequest(List.of("MANAGER", "SOCIAL_WORKER"));
+        InviteUserRequest request = inviteRequest(List.of("MANAGER"));
         Role manager = role("MANAGER");
-        Role socialWorker = role("SOCIAL_WORKER");
 
         when(userRepository.existsByEmail("new.user@test.com")).thenReturn(false);
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(roleRepository.findByName("MANAGER")).thenReturn(Optional.of(manager));
-        when(roleRepository.findByName("SOCIAL_WORKER")).thenReturn(Optional.of(socialWorker));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User saved = invocation.getArgument(0);
             saved.setId(10L);
@@ -102,15 +101,26 @@ class UserServiceTest {
         assertThat(savedUser.getEmail()).isEqualTo("new.user@test.com");
         assertThat(savedUser.getPhone()).isEqualTo("91234567");
         assertThat(savedUser.getStatus()).isEqualTo("ACTIVE");
-        assertThat(savedUser.getUserRoles()).hasSize(2);
+        assertThat(savedUser.getFirebaseUid()).startsWith("pending:");
+        assertThat(savedUser.getUserRoles()).hasSize(1);
         assertThat(savedUser.getUserRoles())
                 .extracting(userRole -> userRole.getRole().getName())
-                .containsExactlyInAnyOrder("MANAGER", "SOCIAL_WORKER");
+                .containsExactly("MANAGER");
         assertThat(savedUser.getUserRoles())
                 .allSatisfy(userRole -> assertThat(userRole.getAssignedBy()).isEqualTo(99L));
 
         assertThat(result.getId()).isEqualTo(10L);
-        assertThat(result.getRoles()).containsExactlyInAnyOrder("MANAGER", "SOCIAL_WORKER");
+        assertThat(result.getRoles()).containsExactly("MANAGER");
+    }
+
+    @Test
+    @DisplayName("invite rejects multiple roles")
+    void invite_rejectsMultipleRoles() {
+        InviteUserRequest request = inviteRequest(List.of("MANAGER", "VOLUNTEER"));
+
+        assertThatThrownBy(() -> userService.invite(request, 99L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Exactly one role must be selected");
     }
 
     @Test
@@ -128,21 +138,30 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("updateRoles replaces existing roles and returns new role names")
+    @DisplayName("updateRoles replaces existing role and returns one role name")
     void updateRoles_replacesExistingRolesAndReturnsNewRoleNames() {
         User user = user(10L, "newuser", "new.user@test.com", "New User", "ACTIVE");
         user.getUserRoles().add(userRole(user, role("VOLUNTEER"), 1L));
 
         when(userRepository.findByIdWithRoles(10L)).thenReturn(Optional.of(user));
         when(roleRepository.findByName("MANAGER")).thenReturn(Optional.of(role("MANAGER")));
-        when(roleRepository.findByName("SOCIAL_WORKER")).thenReturn(Optional.of(role("SOCIAL_WORKER")));
 
-        UserSummaryDto result = userService.updateRoles(10L, List.of("MANAGER", "SOCIAL_WORKER"), 99L);
+        UserSummaryDto result = userService.updateRoles(10L, List.of("MANAGER"), 99L);
 
         verify(userRoleRepository).deleteByUserId(10L);
         verify(userRoleRepository).flush();
-        assertThat(user.getUserRoles()).hasSize(2);
-        assertThat(result.getRoles()).containsExactlyInAnyOrder("MANAGER", "SOCIAL_WORKER");
+        assertThat(user.getUserRoles()).hasSize(1);
+        assertThat(result.getRoles()).containsExactly("MANAGER");
+    }
+
+    @Test
+    @DisplayName("updateRoles rejects multiple roles")
+    void updateRoles_rejectsMultipleRoles() {
+        assertThatThrownBy(() -> userService.updateRoles(10L, List.of("MANAGER", "VOLUNTEER"), 99L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Exactly one role must be selected");
+
+        verifyNoInteractions(userRoleRepository);
     }
 
     @Test
@@ -168,14 +187,14 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("deleteUser soft deletes by marking user inactive")
-    void deleteUser_softDeletesByMarkingUserInactive() {
+    @DisplayName("deleteUser soft deletes by marking user deleted")
+    void deleteUser_softDeletesByMarkingUserDeleted() {
         User user = user(10L, "newuser", "new.user@test.com", "New User", "ACTIVE");
         when(userRepository.findById(10L)).thenReturn(Optional.of(user));
 
         userService.deleteUser(10L);
 
-        assertThat(user.getStatus()).isEqualTo("INACTIVE");
+        assertThat(user.getStatus()).isEqualTo("DELETED");
     }
 
     private InviteUserRequest inviteRequest(List<String> roles) {
