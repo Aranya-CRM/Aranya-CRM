@@ -90,6 +90,51 @@ class DashboardControllerTest {
     }
 
     @Test
+    @DisplayName("Volunteer can get dashboard — 200")
+    @WithMockUser(roles = "VOLUNTEER")
+    void getDashboard_returns200_forVolunteer() throws Exception {
+        when(dashboardService.getDashboard(any())).thenReturn(
+                DashboardResponse.builder()
+                        .designSystem(DashboardResponse.DesignSystem.builder()
+                                .name("aranya-crm-dashboard").version("1.0").build())
+                        .screen(DashboardResponse.Screen.builder()
+                                .id("dashboard").version("2026-05-13").build())
+                        .sections(List.of())
+                        .metadata(DashboardResponse.Metadata.now())
+                        .build()
+        );
+
+        mockMvc.perform(get("/api/v1/dashboard"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Manager can get dashboard — 200")
+    @WithMockUser(roles = "MANAGER")
+    void getDashboard_returns200_forManager() throws Exception {
+        when(dashboardService.getDashboard(any())).thenReturn(
+                DashboardResponse.builder()
+                        .designSystem(DashboardResponse.DesignSystem.builder()
+                                .name("aranya-crm-dashboard").version("1.0").build())
+                        .screen(DashboardResponse.Screen.builder()
+                                .id("dashboard").version("2026-05-13").build())
+                        .sections(List.of())
+                        .metadata(DashboardResponse.Metadata.now())
+                        .build()
+        );
+
+        mockMvc.perform(get("/api/v1/dashboard"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Anonymous user cannot get dashboard — 403")
+    void getDashboard_returns403_forAnonymous() throws Exception {
+        mockMvc.perform(get("/api/v1/dashboard"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Old dashboard route is not exposed")
     @WithMockUser(roles = "SOCIAL_WORKER")
     void oldDashboardRoute_isNotExposed() throws Exception {

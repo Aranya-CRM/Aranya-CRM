@@ -251,6 +251,7 @@ class ClientServiceTest {
         assertThat(client.getNameEn()).isEqualTo("New Name");
         assertThat(client.getNameChn()).isEqualTo("旧名字");
         assertThat(response.getNameEn()).isEqualTo("New Name");
+        assertThat(response.getNameChn()).isEqualTo("旧名字");
         verify(clientRepository).save(client);
     }
 

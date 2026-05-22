@@ -13,7 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -164,6 +164,58 @@ class CaseServiceTest {
         CaseDetailResponse response = caseService.getCaseDetail(12L);
 
         assertThat(response.getTradition()).isEqualTo("Mahayana");
+    }
+
+    // ── getActiveCases / countActiveCases ────────────────────────────────────
+
+    @Test
+    @DisplayName("getActiveCases delegates to repository with CLOSED exclusion and page limit")
+    void getActiveCases_returnsNonClosedCases() {
+        ClientCase openCase = buildCase(1L, "ASDFL/2026/C/001", "OPEN", "GREEN");
+        when(caseRepository.findByStatusNotOrderByOpenedAtDescIdDesc(eq("CLOSED"), any(Pageable.class)))
+                .thenReturn(List.of(openCase));
+
+        List<ClientCase> result = caseService.getActiveCases(5);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo("OPEN");
+        verify(caseRepository).findByStatusNotOrderByOpenedAtDescIdDesc(eq("CLOSED"), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("countActiveCases returns repository count of non-closed cases")
+    void countActiveCases_returnsCount() {
+        when(caseRepository.countByStatusNot("CLOSED")).thenReturn(7L);
+
+        assertThat(caseService.countActiveCases()).isEqualTo(7L);
+        verify(caseRepository).countByStatusNot("CLOSED");
+    }
+
+    // ── getUrgentCases / countUrgentCases ─────────────────────────────────────
+
+    @Test
+    @DisplayName("getUrgentCases returns non-closed RED and ORANGE cases")
+    void getUrgentCases_returnsUrgentColorCases() {
+        ClientCase urgentCase = buildCase(2L, "ASDFL/2026/C/002", "OPEN", "RED");
+        when(caseRepository.findByStatusNotAndColorCodeInOrderByOpenedAtDescIdDesc(
+                eq("CLOSED"), any(), any(Pageable.class)))
+                .thenReturn(List.of(urgentCase));
+
+        List<ClientCase> result = caseService.getUrgentCases(3);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getColorCode()).isEqualTo("RED");
+        verify(caseRepository).findByStatusNotAndColorCodeInOrderByOpenedAtDescIdDesc(
+                eq("CLOSED"), any(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("countUrgentCases returns repository count of urgent cases")
+    void countUrgentCases_returnsCount() {
+        when(caseRepository.countByStatusNotAndColorCodeIn(eq("CLOSED"), any())).thenReturn(2L);
+
+        assertThat(caseService.countUrgentCases()).isEqualTo(2L);
+        verify(caseRepository).countByStatusNotAndColorCodeIn(eq("CLOSED"), any());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
