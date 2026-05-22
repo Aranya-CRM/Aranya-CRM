@@ -1,8 +1,11 @@
 package aranya.crm.controller;
 
+import aranya.crm.config.WebMvcConfig;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
+import aranya.crm.entity.User;
+import aranya.crm.security.annotation.CurrentUserArgumentResolver;
 import aranya.crm.service.ClientService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -13,10 +16,12 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -28,6 +33,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,7 +42,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = ClientController.class)
-@Import(ClientControllerTest.TestSecurityConfig.class)
+@Import({
+        ClientControllerTest.TestSecurityConfig.class,
+        WebMvcConfig.class,
+        CurrentUserArgumentResolver.class
+})
 class ClientControllerTest {
 
     @TestConfiguration
@@ -138,7 +148,6 @@ class ClientControllerTest {
 
     @Test
     @DisplayName("Manager can create a client — 201 with Location header")
-    @WithMockUser(roles = "MANAGER")
     void createClient_returns201_forManager() throws Exception {
         when(clientService.createClient(any(), any())).thenReturn(
                 ClientDetailResponse.builder()
@@ -153,7 +162,8 @@ class ClientControllerTest {
 
         mockMvc.perform(post("/api/v1/clients")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_CREATE_BODY))
+                        .content(VALID_CREATE_BODY)
+                        .with(authentication(managerAuth(1L))))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/v1/clients/20")))
                 .andExpect(jsonPath("$.id").value(20))
@@ -239,6 +249,18 @@ class ClientControllerTest {
     }
 
     @Test
+    @DisplayName("Social Worker cannot update a client — 403")
+    @WithMockUser(roles = "SOCIAL_WORKER")
+    void updateClient_returns403_forSocialWorker() throws Exception {
+        mockMvc.perform(patch("/api/v1/clients/10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nameEn":"Updated Name"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Anonymous user cannot update a client — 403")
     void updateClient_returns403_forAnonymousUser() throws Exception {
         mockMvc.perform(patch("/api/v1/clients/10")
@@ -247,5 +269,18 @@ class ClientControllerTest {
                                 {"nameEn":"Updated Name"}
                                 """))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private static UsernamePasswordAuthenticationToken managerAuth(Long id) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername("manager");
+        user.setEmail("manager@test.com");
+        user.setFullName("Manager User");
+        user.setStatus("ACTIVE");
+        return new UsernamePasswordAuthenticationToken(
+                user, null, List.of(new SimpleGrantedAuthority("ROLE_MANAGER")));
     }
 }
