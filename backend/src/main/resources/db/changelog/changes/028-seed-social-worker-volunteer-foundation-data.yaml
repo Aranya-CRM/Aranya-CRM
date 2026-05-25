@@ -1,0 +1,162 @@
+databaseChangeLog:
+  - changeSet:
+      id: 028-seed-social-worker-volunteer-foundation-data
+      author: Codex
+      context: dev, test
+      comment: "Seed role-view foundation data for Social Worker and Volunteer frontend development"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO client (
+                abbr,
+                name_en,
+                name_chn,
+                contact,
+                preferred_communication,
+                whatsapp_enabled,
+                preferred_language,
+                spoken_language,
+                membership_status,
+                date_joined,
+                buddhist_tradition,
+                comments,
+                created_at
+              )
+              VALUES (
+                'NF005',
+                'Venerable No Case Foundation',
+                '释无案',
+                '+65 9000 1005',
+                'Phone Call',
+                false,
+                'English',
+                'English, Mandarin',
+                'Active',
+                '2026-05-01',
+                'Mahayana',
+                'Foundation seed member without a case for 0-or-1 case UI testing.',
+                '2026-05-01 09:00:00'
+              )
+              ON CONFLICT (abbr) DO NOTHING;
+
+        - sql:
+            sql: >
+              INSERT INTO case_assignment (
+                case_id,
+                user_id,
+                is_primary,
+                assignment_role,
+                status,
+                assigned_at,
+                assigned_by
+              )
+              SELECT c.id, sw.id, true, 'SOCIAL_WORKER', 'ACTIVE', NOW(), manager.id
+              FROM "case" c
+              JOIN users sw ON sw.email = 'socialworker@test.com'
+              LEFT JOIN users manager ON manager.email = 'aranya.crm.admin@gmail.com'
+              WHERE c.case_code IN ('CASE-2026-001', 'CASE-2026-004')
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM case_assignment ca
+                  WHERE ca.case_id = c.id
+                    AND ca.user_id = sw.id
+                    AND ca.assignment_role = 'SOCIAL_WORKER'
+                    AND ca.status = 'ACTIVE'
+                );
+
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id,
+                created_by,
+                staff_name,
+                report_timestamp,
+                date_of_visit,
+                time_of_visit,
+                duration_of_visit,
+                location,
+                programme_name,
+                type_of_visit,
+                purpose_of_visit,
+                what_was_done,
+                environment_observations,
+                sangha_observations,
+                other_observations,
+                personal_reflections,
+                recommendations,
+                matters_to_highlight,
+                created_at,
+                updated_at
+              )
+              SELECT
+                client.id,
+                volunteer.id,
+                'Volunteer User',
+                '2026-05-20 16:00:00',
+                '2026-05-20',
+                '14:30',
+                '1 hour',
+                'Bright Hill Road',
+                'Volunteer Welfare Visit',
+                'Volunteer Report',
+                'Routine check-in after transport support.',
+                'Submitted visit report and confirmed the member reached the appointment safely.',
+                'Environment stable during the visit.',
+                'Member was calm and appreciative.',
+                'No additional concerns raised.',
+                'Volunteer report should appear as a case note for follow-up.',
+                'Social Worker to confirm next transport date.',
+                'No urgent issue.',
+                '2026-05-20 16:00:00',
+                '2026-05-20 16:00:00'
+              FROM client
+              JOIN users volunteer ON volunteer.email = 'volunteer@test.com'
+              WHERE client.abbr = 'HM001'
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM visit_report vr
+                  WHERE vr.client_id = client.id
+                    AND vr.created_by = volunteer.id
+                    AND vr.date_of_visit = '2026-05-20'
+                    AND vr.programme_name = 'Volunteer Welfare Visit'
+                );
+
+        - sql:
+            sql: >
+              INSERT INTO case_note (
+                case_id,
+                note_type,
+                content,
+                visibility,
+                created_by,
+                created_at,
+                updated_at
+              )
+              SELECT
+                c.id,
+                'REPORT',
+                'Report submitted
+              Programme: Volunteer Welfare Visit
+              Visit type: Volunteer Report
+              Location: Bright Hill Road
+              Purpose: Routine check-in after transport support.
+              What was done: Submitted visit report and confirmed the member reached the appointment safely.
+              Observations: Member was calm and appreciative.
+              Recommendations: Social Worker to confirm next transport date.
+              Matters to highlight: No urgent issue.',
+                'INTERNAL',
+                volunteer.id,
+                '2026-05-20 16:00:00',
+                '2026-05-20 16:00:00'
+              FROM "case" c
+              JOIN client ON client.id = c.client_id
+              JOIN users volunteer ON volunteer.email = 'volunteer@test.com'
+              WHERE client.abbr = 'HM001'
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM case_note cn
+                  WHERE cn.case_id = c.id
+                    AND cn.created_by = volunteer.id
+                    AND cn.note_type = 'REPORT'
+                    AND cn.created_at = '2026-05-20 16:00:00'
+                );

@@ -3,9 +3,13 @@ package aranya.crm.service;
 import aranya.crm.dto.request.CreateReportRequest;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
+import aranya.crm.entity.CaseNote;
 import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
+import aranya.crm.repository.CaseNoteRepository;
+import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.VisitReportRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,6 +27,8 @@ public class ReportService {
 
     private final ClientRepository clientRepository;
     private final VisitReportRepository visitReportRepository;
+    private final CaseRepository caseRepository;
+    private final CaseNoteRepository caseNoteRepository;
 
     public List<ReportSummaryResponse> listReports() {
         return visitReportRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
@@ -65,7 +71,10 @@ public class ReportService {
         report.setMattersToHighlight(normalizeText(request.getMattersToHighlight()));
         report.setUpdatedAt(LocalDateTime.now());
 
-        return toReportDetailResponse(visitReportRepository.save(report));
+        VisitReport savedReport = visitReportRepository.save(report);
+        createLinkedCaseNoteIfPresent(client, savedReport, createdBy);
+
+        return toReportDetailResponse(savedReport);
     }
 
     @Transactional
@@ -136,5 +145,37 @@ public class ReportService {
             return null;
         }
         return value.trim();
+    }
+
+    private void createLinkedCaseNoteIfPresent(Client client, VisitReport report, User createdBy) {
+        caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId())
+                .ifPresent(clientCase -> {
+                    CaseNote note = new CaseNote();
+                    note.setClientCase(clientCase);
+                    note.setNoteType("REPORT");
+                    note.setVisibility("INTERNAL");
+                    note.setCreatedBy(createdBy);
+                    note.setContent(buildCaseNoteContent(report));
+                    caseNoteRepository.save(note);
+                });
+    }
+
+    private String buildCaseNoteContent(VisitReport report) {
+        StringBuilder content = new StringBuilder("Report submitted");
+        appendLine(content, "Programme", report.getProgrammeName());
+        appendLine(content, "Visit type", report.getTypeOfVisit());
+        appendLine(content, "Location", report.getLocation());
+        appendLine(content, "Purpose", report.getPurposeOfVisit());
+        appendLine(content, "What was done", report.getWhatWasDone());
+        appendLine(content, "Observations", report.getSanghaObservations());
+        appendLine(content, "Recommendations", report.getRecommendations());
+        appendLine(content, "Matters to highlight", report.getMattersToHighlight());
+        return content.toString();
+    }
+
+    private void appendLine(StringBuilder content, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            content.append(System.lineSeparator()).append(label).append(": ").append(value);
+        }
     }
 }
