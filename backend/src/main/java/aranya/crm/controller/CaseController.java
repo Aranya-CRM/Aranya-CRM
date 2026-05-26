@@ -1,7 +1,9 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.response.CaseDetailResponse;
+import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
+import aranya.crm.service.CaseNoteService;
 import aranya.crm.service.CaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.List;
 public class CaseController {
 
     private final CaseService caseService;
+    private final CaseNoteService caseNoteService;
 
     @GetMapping
     public ResponseEntity<List<CaseSummaryResponse>> listCases(
@@ -33,5 +36,10 @@ public class CaseController {
     @GetMapping("/{id}")
     public ResponseEntity<CaseDetailResponse> getCaseDetail(@PathVariable Long id) {
         return ResponseEntity.ok(caseService.getCaseDetail(id));
+    }
+
+    @GetMapping("/{id}/notes")
+    public ResponseEntity<List<CaseNoteResponse>> listCaseNotes(@PathVariable Long id) {
+        return ResponseEntity.ok(caseNoteService.listCaseNotes(id));
     }
 }
