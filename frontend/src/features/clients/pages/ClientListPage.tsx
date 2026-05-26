@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { EmptyState } from '../../../shared/ui'
@@ -23,14 +24,14 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Sayalay',
 ]
 
-const WELLBEING_LABELS: Record<WellbeingDomain, string> = {
-  physicalHealth: 'Physical Health / 身体健康',
-  mentalHealth: 'Mental Health / 心理健康',
-  socialSupport: 'Social Support / 社会支持',
-  financialStability: 'Financial Stability / 经济稳定',
-  livingConditions: 'Living Conditions / 居住条件',
-  spiritual: 'Spiritual Wellbeing / 灵性健康',
-  legalIssues: 'Legal Issues / 法律问题',
+const WELLBEING_KEYS: Record<WellbeingDomain, string> = {
+  physicalHealth:     'clients.wellbeing.physicalHealth',
+  mentalHealth:       'clients.wellbeing.mentalHealth',
+  socialSupport:      'clients.wellbeing.socialSupport',
+  financialStability: 'clients.wellbeing.financialStability',
+  livingConditions:   'clients.wellbeing.livingConditions',
+  spiritual:          'clients.wellbeing.spiritual',
+  legalIssues:        'clients.wellbeing.legalIssues',
 }
 
 interface NewClientForm {
@@ -52,6 +53,7 @@ const initialNewClientForm: NewClientForm = {
 }
 
 export function ClientListPage() {
+  const { t } = useTranslation()
   const { canFeature } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
@@ -201,8 +203,7 @@ export function ClientListPage() {
       <aside className="client-directory" aria-label="Client profiles">
         <div className="client-directory-header">
           <div>
-            <h2>僧人档案</h2>
-            <span>Client Profiles</span>
+            <h2>{t('clients.pageTitle')}</h2>
           </div>
         </div>
 
@@ -210,7 +211,7 @@ export function ClientListPage() {
           <input
             className="search-input client-directory-search"
             type="text"
-            placeholder="搜索法名或缩写 · Search..."
+            placeholder={t('clients.search')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -221,7 +222,7 @@ export function ClientListPage() {
               onChange={(event) => setFilterTradition(event.target.value)}
               aria-label="Filter by tradition"
             >
-              <option value="all">传承 · All</option>
+              <option value="all">{t('clients.filterAll')}</option>
               {TRADITIONS.map((tradition) => (
                 <option key={tradition} value={tradition}>{tradition}</option>
               ))}
@@ -229,16 +230,16 @@ export function ClientListPage() {
           </div>
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
-              + 新增僧人 · New Monastic
+              + {t('clients.addBtn')}
             </button>
           ) : null}
         </div>
 
         <div className="client-directory-list">
           {isLoading ? (
-            <div className="client-directory-status">加载中 · Loading...</div>
+            <div className="client-directory-status">{t('clients.loading')}</div>
           ) : filtered.length === 0 ? (
-            <div className="client-directory-status">暂无匹配档案 · No clients found</div>
+            <div className="client-directory-status">{t('clients.empty')}</div>
           ) : (
             filtered.map((client) => (
               <button
@@ -265,11 +266,11 @@ export function ClientListPage() {
         {profileClient ? (
           <>
             {isDetailLoading ? (
-              <div className="client-profile-loading">加载完整档案中 · Loading full profile...</div>
+              <div className="client-profile-loading">{t('clients.profileLoading')}</div>
             ) : null}
             {isDetailError ? (
               <div className="client-profile-loading client-profile-warning">
-                完整档案加载失败，当前显示列表摘要。 / Full profile failed to load. Showing list summary.
+                {t('clients.profileError')}
               </div>
             ) : null}
             {isEditingProfile && editForm ? (
@@ -298,7 +299,7 @@ export function ClientListPage() {
             )}
           </>
         ) : (
-          <EmptyState message="请选择一个僧人档案 / Select a client profile" />
+          <EmptyState message={t('clients.selectPrompt')} />
         )}
       </main>
 
@@ -342,6 +343,8 @@ function NewClientModal({
   onSubmit,
   onFieldChange,
 }: NewClientModalProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="client-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <form
@@ -352,8 +355,7 @@ function NewClientModal({
       >
         <header className="client-create-modal-header">
           <div>
-            <h2 id="new-client-title">新增僧人</h2>
-            <span>Add New Monastic</span>
+            <h2 id="new-client-title">{t('clients.modal.title')}</h2>
           </div>
           <button className="client-modal-close" type="button" aria-label="Close" onClick={onClose}>
             x
@@ -361,7 +363,7 @@ function NewClientModal({
         </header>
 
         <div className="client-create-modal-body">
-          <ModalField label="法名（中） / Chinese Dharma Name *">
+          <ModalField label={`${t('clients.modal.nameChn')} *`}>
             <input
               className="form-input"
               required
@@ -369,7 +371,7 @@ function NewClientModal({
               onChange={(event) => onFieldChange('nameChn', event.target.value)}
             />
           </ModalField>
-          <ModalField label="法名（英） / English Dharma Name *">
+          <ModalField label={`${t('clients.modal.nameEn')} *`}>
             <input
               className="form-input"
               required
@@ -377,7 +379,7 @@ function NewClientModal({
               onChange={(event) => onFieldChange('nameEn', event.target.value)}
             />
           </ModalField>
-          <ModalField label="缩写 / Abbreviation *">
+          <ModalField label={`${t('clients.modal.abbr')} *`}>
             <input
               className="form-input"
               required
@@ -386,7 +388,7 @@ function NewClientModal({
               onChange={(event) => onFieldChange('abbr', event.target.value.toUpperCase())}
             />
           </ModalField>
-          <ModalField label="传承 / Tradition *">
+          <ModalField label={`${t('clients.modal.tradition')} *`}>
             <select
               className="form-select"
               required
@@ -398,7 +400,7 @@ function NewClientModal({
               ))}
             </select>
           </ModalField>
-          <ModalField label="出家身份 / Ordination Status">
+          <ModalField label={t('clients.modal.ordinationStatus')}>
             <select
               className="form-select"
               value={form.ordinationStatus}
@@ -409,7 +411,7 @@ function NewClientModal({
               ))}
             </select>
           </ModalField>
-          <ModalField label="地区 / Area / District">
+          <ModalField label={t('clients.modal.areaDistrict')}>
             <input
               className="form-input"
               value={form.areaDistrict}
@@ -422,10 +424,10 @@ function NewClientModal({
 
         <footer className="client-create-modal-footer">
           <button className="btn-secondary" type="button" disabled={submitting} onClick={onClose}>
-            取消 · Cancel
+            {t('clients.modal.cancel')}
           </button>
           <button className="btn-primary" type="submit" disabled={submitting}>
-            {submitting ? '创建中 · Creating...' : '创建 · Create Monastic ->'}
+            {submitting ? t('clients.modal.creating') : t('clients.modal.create')}
           </button>
         </footer>
       </form>
@@ -461,6 +463,8 @@ function ClientProfilePanel({
   onToggleDeleteConfirm,
   onEdit,
 }: ClientProfilePanelProps) {
+  const { t } = useTranslation()
+
   return (
     <article className="client-profile">
       <header className="client-profile-header">
@@ -473,16 +477,16 @@ function ClientProfilePanel({
         </div>
         <div className="client-profile-actions">
           <button className="btn-secondary" type="button">
-            链接联系人 · Link Contacts
+            {t('clients.profile.linkContacts')}
           </button>
           {canUpdateClient ? (
             <button className="btn-edit" type="button" onClick={onEdit}>
-              编辑档案 · Edit Profile
+              {t('clients.profile.editProfile')}
             </button>
           ) : null}
           {canDeleteClient ? (
             <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
-              删除档案 · Delete
+              {t('clients.profile.delete')}
             </button>
           ) : null}
         </div>
@@ -490,68 +494,68 @@ function ClientProfilePanel({
 
       {showDeleteConfirm ? (
         <div className="client-danger-banner">
-          <span>Manager 操作：删除档案会把记录从活跃列表移除。当前版本仅显示确认入口，等待后端删除/归档 API 接入。</span>
+          <span>{t('clients.profile.dangerBanner')}</span>
           <button className="btn-secondary btn-compact" type="button" onClick={onToggleDeleteConfirm}>
-            取消 · Cancel
+            {t('clients.profile.cancel')}
           </button>
         </div>
       ) : null}
 
-      <ProfileSection title="基本信息 / Basic Info">
-        <InfoCell label="法名（中）" subLabel="Chinese Dharma Name" value={client.nameChn} />
-        <InfoCell label="法名（英）" subLabel="English Dharma Name" value={client.nameEn} />
-        <InfoCell label="缩写" subLabel="Abbreviation" value={client.abbr} />
-        <InfoCell label="联系电话" subLabel="Contact" value={client.contact} />
-        <InfoCell label="首选沟通方式" subLabel="Preferred Communication" value={client.preferredCommunication} />
-        <InfoCell label="WhatsApp" subLabel="WhatsApp Enabled" value={client.whatsappEnabled ? '是 · Yes' : '否 · No'} />
-        <InfoCell label="首选语言" subLabel="Preferred Language" value={client.preferredLanguage} />
-        <InfoCell label="使用语言" subLabel="Spoken Language" value={client.spokenLanguage} />
-        <InfoCell label="地址" subLabel="Address" value={client.addressText} />
-        <InfoCell label="邮政编码" subLabel="Postal Code" value={client.postalCode} />
-        <InfoCell label="地区" subLabel="Area / District" value={client.areaDistrict} />
-        <InfoCell label="居住类型" subLabel="Vihara Type" value={client.viharaType} />
+      <ProfileSection title={t('clients.profile.section.basicInfo')}>
+        <InfoCell label={t('clients.profile.field.nameChn')} subLabel={t('clients.profile.field.nameChnSub')} value={client.nameChn} />
+        <InfoCell label={t('clients.profile.field.nameEn')} subLabel={t('clients.profile.field.nameEnSub')} value={client.nameEn} />
+        <InfoCell label={t('clients.profile.field.abbr')} subLabel={t('clients.profile.field.abbrSub')} value={client.abbr} />
+        <InfoCell label={t('clients.profile.field.contact')} subLabel={t('clients.profile.field.contactSub')} value={client.contact} />
+        <InfoCell label={t('clients.profile.field.preferredComm')} subLabel={t('clients.profile.field.preferredCommSub')} value={client.preferredCommunication} />
+        <InfoCell label="WhatsApp" subLabel={t('clients.profile.field.whatsappSub')} value={client.whatsappEnabled ? t('clients.profile.field.whatsappYes') : t('clients.profile.field.whatsappNo')} />
+        <InfoCell label={t('clients.profile.field.prefLang')} subLabel={t('clients.profile.field.prefLangSub')} value={client.preferredLanguage} />
+        <InfoCell label={t('clients.profile.field.spokenLang')} subLabel={t('clients.profile.field.spokenLangSub')} value={client.spokenLanguage} />
+        <InfoCell label={t('clients.profile.field.address')} subLabel={t('clients.profile.field.addressSub')} value={client.addressText} />
+        <InfoCell label={t('clients.profile.field.postalCode')} subLabel={t('clients.profile.field.postalCodeSub')} value={client.postalCode} />
+        <InfoCell label={t('clients.profile.field.areaDistrict')} subLabel={t('clients.profile.field.areaDistrictSub')} value={client.areaDistrict} />
+        <InfoCell label={t('clients.profile.field.viharaType')} subLabel={t('clients.profile.field.viharaTypeSub')} value={client.viharaType} />
       </ProfileSection>
 
       {canViewDetailedProfile ? (
         <>
-          <ProfileSection title="身份文件 / Identity (IC)">
-            <InfoCell label="NRIC 英文姓名" subLabel="NRIC Full Name (English)" value={client.nricNameEn} />
-            <InfoCell label="NRIC 中文姓名" subLabel="NRIC Full Name (Chinese)" value={client.nricNameChn} />
-            <InfoCell label="NRIC 号码" subLabel="NRIC Number" value={client.nricNo} />
-            <InfoCell label="受戒证书" subLabel="Ordination Certificate" value={client.ordinationCertificate} />
-            <InfoCell label="核实日期" subLabel="Date of Verification" value={client.dateOfVerification} />
+          <ProfileSection title={t('clients.profile.section.identity')}>
+            <InfoCell label={t('clients.profile.field.nricNameEn')} subLabel={t('clients.profile.field.nricNameEnSub')} value={client.nricNameEn} />
+            <InfoCell label={t('clients.profile.field.nricNameChn')} subLabel={t('clients.profile.field.nricNameChnSub')} value={client.nricNameChn} />
+            <InfoCell label={t('clients.profile.field.nricNo')} subLabel={t('clients.profile.field.nricNoSub')} value={client.nricNo} />
+            <InfoCell label={t('clients.profile.field.ordinationCert')} subLabel={t('clients.profile.field.ordinationCertSub')} value={client.ordinationCertificate} />
+            <InfoCell label={t('clients.profile.field.dateVerification')} subLabel={t('clients.profile.field.dateVerificationSub')} value={client.dateOfVerification} />
           </ProfileSection>
 
-          <ProfileSection title="个人信息 / Personal">
-            <InfoCell label="性别" subLabel="Gender" value={client.gender} />
-            <InfoCell label="出生日期" subLabel="Date of Birth" value={client.dateOfBirth} />
-            <InfoCell label="年龄" subLabel="Age" value={`${client.age} 岁`} />
-            <InfoCell label="婚姻状况" subLabel="Marital Status" value={client.maritalStatus} />
-            <InfoCell label="国籍" subLabel="Nationality" value={client.nationality} />
-            <InfoCell label="族群" subLabel="Ethnicity" value={client.ethnicity} />
-            <InfoCell label="方言群" subLabel="Dialect Group" value={client.dialectGroup} />
-            <InfoCell label="紧急联系人" subLabel="Next of Kin Contact" value={client.nextOfKinContact} />
+          <ProfileSection title={t('clients.profile.section.personal')}>
+            <InfoCell label={t('clients.profile.field.gender')} subLabel={t('clients.profile.field.genderSub')} value={client.gender} />
+            <InfoCell label={t('clients.profile.field.dob')} subLabel={t('clients.profile.field.dobSub')} value={client.dateOfBirth} />
+            <InfoCell label={t('clients.profile.field.age')} subLabel={t('clients.profile.field.ageSub')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} />
+            <InfoCell label={t('clients.profile.field.maritalStatus')} subLabel={t('clients.profile.field.maritalStatusSub')} value={client.maritalStatus} />
+            <InfoCell label={t('clients.profile.field.nationality')} subLabel={t('clients.profile.field.nationalitySub')} value={client.nationality} />
+            <InfoCell label={t('clients.profile.field.ethnicity')} subLabel={t('clients.profile.field.ethnicitySub')} value={client.ethnicity} />
+            <InfoCell label={t('clients.profile.field.dialectGroup')} subLabel={t('clients.profile.field.dialectGroupSub')} value={client.dialectGroup} />
+            <InfoCell label={t('clients.profile.field.nextOfKin')} subLabel={t('clients.profile.field.nextOfKinSub')} value={client.nextOfKinContact} />
           </ProfileSection>
 
-          <ProfileSection title="出家资料 / Ordination">
-            <InfoCell label="佛教传承" subLabel="Buddhist Tradition" value={client.buddhistTradition} />
-            <InfoCell label="戒别" subLabel="Ordination Status" value={client.ordinationStatus} />
-            <InfoCell label="剃度日期" subLabel="Date of Tonsure" value={client.dateOfTonsure} />
-            <InfoCell label="剃度地点" subLabel="Place of Tonsure" value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
-            <InfoCell label="受戒日期" subLabel="Date of Ordination" value={client.dateOfOrdination} />
-            <InfoCell label="受戒地点" subLabel="Place of Ordination" value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
-            <InfoCell label="戒龄" subLabel="Ordination Years" value={`${client.ordinationYears} years`} />
+          <ProfileSection title={t('clients.profile.section.ordination')}>
+            <InfoCell label={t('clients.profile.field.buddhistTradition')} subLabel={t('clients.profile.field.buddhistTraditionSub')} value={client.buddhistTradition} />
+            <InfoCell label={t('clients.profile.field.ordinationStatus')} subLabel={t('clients.profile.field.ordinationStatusSub')} value={client.ordinationStatus} />
+            <InfoCell label={t('clients.profile.field.dateTonsure')} subLabel={t('clients.profile.field.dateTonsureSub')} value={client.dateOfTonsure} />
+            <InfoCell label={t('clients.profile.field.placeTonsure')} subLabel={t('clients.profile.field.placeTonsureSub')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
+            <InfoCell label={t('clients.profile.field.dateOrdination')} subLabel={t('clients.profile.field.dateOrdinationSub')} value={client.dateOfOrdination} />
+            <InfoCell label={t('clients.profile.field.placeOrdination')} subLabel={t('clients.profile.field.placeOrdinationSub')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
+            <InfoCell label={t('clients.profile.field.ordinationYears')} subLabel={t('clients.profile.field.ordinationYearsSub')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} />
           </ProfileSection>
 
-          <ProfileSection title="会员与备注 / Membership">
-            <InfoCell label="加入日期" subLabel="Date Joined" value={client.dateJoined} />
-            <InfoCell label="会员备注" subLabel="Membership Remarks" value={client.membershipRemarks || '-'} />
-            <InfoCell label="整体备注" subLabel="Comments" value={client.comments || '-'} wide />
+          <ProfileSection title={t('clients.profile.section.membership')}>
+            <InfoCell label={t('clients.profile.field.dateJoined')} subLabel={t('clients.profile.field.dateJoinedSub')} value={client.dateJoined} />
+            <InfoCell label={t('clients.profile.field.membershipRemarks')} subLabel={t('clients.profile.field.membershipRemarksSub')} value={client.membershipRemarks || '-'} />
+            <InfoCell label={t('clients.profile.field.comments')} subLabel={t('clients.profile.field.commentsSub')} value={client.comments || '-'} wide />
           </ProfileSection>
         </>
       ) : (
         <div className="volunteer-notice">
-          当前账户只能查看基础档案。如需完整资料，请联系 Manager。 / This account can view basic profile information only.
+          {t('clients.profile.volunteerNotice')}
         </div>
       )}
     </article>
@@ -583,6 +587,8 @@ function ClientProfileEditPanel({
   onToggleWellbeing,
   onToggleSpecialNeed,
 }: ClientProfileEditPanelProps) {
+  const { t } = useTranslation()
+
   return (
     <article className="client-profile client-profile-edit">
       <header className="client-profile-header">
@@ -591,125 +597,125 @@ function ClientProfileEditPanel({
             <h1>{client.nameChn} / {client.nameEn}</h1>
             <span className="abbr-tag">{client.abbr}</span>
           </div>
-          <p>编辑档案 · Edit Profile</p>
+          <p>{t('clients.profile.editTitle')}</p>
         </div>
         <div className="client-profile-actions">
           <button className="btn-secondary" type="button" disabled={saving} onClick={onCancel}>
-            取消 · Cancel
+            {t('clients.profile.cancel')}
           </button>
           <button className="btn-primary" type="button" disabled={saving} onClick={onSave}>
-            {saving ? '保存中... · Saving...' : '保存修改 · Save Changes'}
+            {saving ? t('clients.profile.saving') : t('clients.profile.save')}
           </button>
         </div>
       </header>
 
       {error ? <div className="client-profile-loading client-profile-warning">{error}</div> : null}
 
-      <ProfileSection title="基本信息 / Basic Info">
-        <TextField label="法名（中） / Chinese Dharma Name *" value={form.nameChn} onChange={(value) => onFieldChange('nameChn', value)} />
-        <TextField label="法名（英） / English Dharma Name *" value={form.nameEn} onChange={(value) => onFieldChange('nameEn', value)} />
-        <TextField label="缩写 / Abbreviation *" value={form.abbr} onChange={(value) => onFieldChange('abbr', value.toUpperCase())} />
-        <TextField label="联系电话 / Contact" value={form.contact} onChange={(value) => onFieldChange('contact', value)} />
+      <ProfileSection title={t('clients.profile.section.basicInfo')}>
+        <TextField label={`${t('clients.profile.field.nameChn')} *`} value={form.nameChn} onChange={(value) => onFieldChange('nameChn', value)} />
+        <TextField label={`${t('clients.profile.field.nameEn')} *`} value={form.nameEn} onChange={(value) => onFieldChange('nameEn', value)} />
+        <TextField label={`${t('clients.profile.field.abbr')} *`} value={form.abbr} onChange={(value) => onFieldChange('abbr', value.toUpperCase())} />
+        <TextField label={t('clients.profile.field.contact')} value={form.contact} onChange={(value) => onFieldChange('contact', value)} />
         <SelectField
-          label="首选沟通方式 / Preferred Communication"
+          label={t('clients.profile.field.preferredComm')}
           value={form.preferredCommunication}
           options={['WhatsApp Msg', 'WhatsApp Audio', 'Phone Call', 'Home Visit']}
           onChange={(value) => onFieldChange('preferredCommunication', value as Client['preferredCommunication'])}
         />
         <div className="form-group">
-          <label className="form-label">WhatsApp 使用能力</label>
+          <label className="form-label">{t('clients.profile.field.whatsapp')}</label>
           <CheckboxRow
             checked={form.whatsappEnabled}
-            label="可以使用 WhatsApp / WhatsApp Enabled"
+            label={t('clients.profile.field.whatsappEnabled')}
             onChange={(checked) => onFieldChange('whatsappEnabled', checked)}
           />
         </div>
-        <TextField label="首选语言 / Preferred Language" value={form.preferredLanguage} onChange={(value) => onFieldChange('preferredLanguage', value)} />
-        <TextField label="使用语言 / Spoken Language" value={form.spokenLanguage} onChange={(value) => onFieldChange('spokenLanguage', value)} />
-        <TextField label="地址 / Address" value={form.addressText} onChange={(value) => onFieldChange('addressText', value)} fullWidth />
-        <TextField label="邮政编码 / Postal Code" value={form.postalCode} onChange={(value) => onFieldChange('postalCode', value)} />
-        <TextField label="地区 / Area / District" value={form.areaDistrict} onChange={(value) => onFieldChange('areaDistrict', value)} />
-        <TextField label="居住类型 / Vihara Type" value={form.viharaType} onChange={(value) => onFieldChange('viharaType', value)} />
+        <TextField label={t('clients.profile.field.prefLang')} value={form.preferredLanguage} onChange={(value) => onFieldChange('preferredLanguage', value)} />
+        <TextField label={t('clients.profile.field.spokenLang')} value={form.spokenLanguage} onChange={(value) => onFieldChange('spokenLanguage', value)} />
+        <TextField label={t('clients.profile.field.address')} value={form.addressText} onChange={(value) => onFieldChange('addressText', value)} fullWidth />
+        <TextField label={t('clients.profile.field.postalCode')} value={form.postalCode} onChange={(value) => onFieldChange('postalCode', value)} />
+        <TextField label={t('clients.profile.field.areaDistrict')} value={form.areaDistrict} onChange={(value) => onFieldChange('areaDistrict', value)} />
+        <TextField label={t('clients.profile.field.viharaType')} value={form.viharaType} onChange={(value) => onFieldChange('viharaType', value)} />
       </ProfileSection>
 
       {canViewDetailedProfile ? (
         <>
-          <ProfileSection title="身份文件 / Identity (IC)">
-            <TextField label="NRIC 英文姓名 / NRIC Full Name (English)" value={form.nricNameEn} onChange={(value) => onFieldChange('nricNameEn', value)} />
-            <TextField label="NRIC 中文姓名 / NRIC Full Name (Chinese)" value={form.nricNameChn} onChange={(value) => onFieldChange('nricNameChn', value)} />
-            <TextField label="NRIC 号码 / NRIC Number" value={form.nricNo} onChange={(value) => onFieldChange('nricNo', value)} />
+          <ProfileSection title={t('clients.profile.section.identity')}>
+            <TextField label={t('clients.profile.field.nricNameEn')} value={form.nricNameEn} onChange={(value) => onFieldChange('nricNameEn', value)} />
+            <TextField label={t('clients.profile.field.nricNameChn')} value={form.nricNameChn} onChange={(value) => onFieldChange('nricNameChn', value)} />
+            <TextField label={t('clients.profile.field.nricNo')} value={form.nricNo} onChange={(value) => onFieldChange('nricNo', value)} />
             <SelectField
-              label="受戒证书 / Ordination Certificate"
+              label={t('clients.profile.field.ordinationCert')}
               value={form.ordinationCertificate}
               options={['Completed', 'Incomplete']}
               onChange={(value) => onFieldChange('ordinationCertificate', value as Client['ordinationCertificate'])}
             />
-            <TextField label="核实日期 / Date of Verification" type="date" value={form.dateOfVerification} onChange={(value) => onFieldChange('dateOfVerification', value)} />
+            <TextField label={t('clients.profile.field.dateVerification')} type="date" value={form.dateOfVerification} onChange={(value) => onFieldChange('dateOfVerification', value)} />
           </ProfileSection>
 
-          <ProfileSection title="个人信息 / Personal">
+          <ProfileSection title={t('clients.profile.section.personal')}>
             <SelectField
-              label="性别 / Gender"
+              label={t('clients.profile.field.gender')}
               value={form.gender}
               options={['Male', 'Female']}
               onChange={(value) => onFieldChange('gender', value as Client['gender'])}
             />
-            <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={(value) => onFieldChange('dateOfBirth', value)} />
-            <TextField label="年龄 / Age" type="number" value={String(form.age)} onChange={(value) => onFieldChange('age', Number(value))} />
+            <TextField label={t('clients.profile.field.dob')} type="date" value={form.dateOfBirth} onChange={(value) => onFieldChange('dateOfBirth', value)} />
+            <TextField label={t('clients.profile.field.age')} type="number" value={String(form.age)} onChange={(value) => onFieldChange('age', Number(value))} />
             <SelectField
-              label="婚姻状况 / Marital Status"
+              label={t('clients.profile.field.maritalStatus')}
               value={form.maritalStatus}
               options={['Never married', 'Married', 'Divorced', 'Separated', 'Widowed']}
               onChange={(value) => onFieldChange('maritalStatus', value as Client['maritalStatus'])}
             />
-            <TextField label="国籍 / Nationality" value={form.nationality} onChange={(value) => onFieldChange('nationality', value)} />
-            <TextField label="族群 / Ethnicity" value={form.ethnicity} onChange={(value) => onFieldChange('ethnicity', value)} />
-            <TextField label="方言群 / Dialect Group" value={form.dialectGroup} onChange={(value) => onFieldChange('dialectGroup', value)} />
-            <TextField label="紧急联系人 / Next of Kin Contact" value={form.nextOfKinContact} onChange={(value) => onFieldChange('nextOfKinContact', value)} fullWidth />
+            <TextField label={t('clients.profile.field.nationality')} value={form.nationality} onChange={(value) => onFieldChange('nationality', value)} />
+            <TextField label={t('clients.profile.field.ethnicity')} value={form.ethnicity} onChange={(value) => onFieldChange('ethnicity', value)} />
+            <TextField label={t('clients.profile.field.dialectGroup')} value={form.dialectGroup} onChange={(value) => onFieldChange('dialectGroup', value)} />
+            <TextField label={t('clients.profile.field.nextOfKin')} value={form.nextOfKinContact} onChange={(value) => onFieldChange('nextOfKinContact', value)} fullWidth />
           </ProfileSection>
 
-          <ProfileSection title="出家资料 / Ordination">
+          <ProfileSection title={t('clients.profile.section.ordination')}>
             <SelectField
-              label="佛教传承 / Buddhist Tradition"
+              label={t('clients.profile.field.buddhistTradition')}
               value={form.buddhistTradition}
               options={TRADITIONS}
               onChange={(value) => onFieldChange('buddhistTradition', value as Client['buddhistTradition'])}
             />
             <SelectField
-              label="戒别 / Ordination Status"
+              label={t('clients.profile.field.ordinationStatus')}
               value={form.ordinationStatus}
               options={ORDINATION_STATUSES}
               onChange={(value) => onFieldChange('ordinationStatus', value as Client['ordinationStatus'])}
             />
-            <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateOfTonsure} onChange={(value) => onFieldChange('dateOfTonsure', value)} />
-            <TextField label="剃度国家 / Country of Tonsure" value={form.countryOfTonsure} onChange={(value) => onFieldChange('countryOfTonsure', value)} />
-            <TextField label="剃度地点 / Place of Tonsure" value={form.placeOfTonsure} onChange={(value) => onFieldChange('placeOfTonsure', value)} fullWidth />
-            <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOfOrdination} onChange={(value) => onFieldChange('dateOfOrdination', value)} />
-            <TextField label="受戒国家 / Country of Ordination" value={form.countryOfOrdination} onChange={(value) => onFieldChange('countryOfOrdination', value)} />
-            <TextField label="受戒地点 / Place of Ordination" value={form.placeOfOrdination} onChange={(value) => onFieldChange('placeOfOrdination', value)} fullWidth />
-            <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} onChange={(value) => onFieldChange('ordinationYears', Number(value))} />
+            <TextField label={t('clients.profile.field.dateTonsure')} type="date" value={form.dateOfTonsure} onChange={(value) => onFieldChange('dateOfTonsure', value)} />
+            <TextField label={t('clients.profile.field.countryTonsure')} value={form.countryOfTonsure} onChange={(value) => onFieldChange('countryOfTonsure', value)} />
+            <TextField label={t('clients.profile.field.placeTonsure')} value={form.placeOfTonsure} onChange={(value) => onFieldChange('placeOfTonsure', value)} fullWidth />
+            <TextField label={t('clients.profile.field.dateOrdination')} type="date" value={form.dateOfOrdination} onChange={(value) => onFieldChange('dateOfOrdination', value)} />
+            <TextField label={t('clients.profile.field.countryOrdination')} value={form.countryOfOrdination} onChange={(value) => onFieldChange('countryOfOrdination', value)} />
+            <TextField label={t('clients.profile.field.placeOrdination')} value={form.placeOfOrdination} onChange={(value) => onFieldChange('placeOfOrdination', value)} fullWidth />
+            <TextField label={t('clients.profile.field.ordinationYears')} type="number" value={String(form.ordinationYears)} onChange={(value) => onFieldChange('ordinationYears', Number(value))} />
           </ProfileSection>
 
-          <ProfileSection title="会员与备注 / Membership">
-            <TextField label="加入日期 / Date Joined" type="date" value={form.dateJoined} onChange={(value) => onFieldChange('dateJoined', value)} />
-            <TextareaField label="会员备注 / Membership Remarks" value={form.membershipRemarks} onChange={(value) => onFieldChange('membershipRemarks', value)} fullWidth />
-            <TextareaField label="整体备注 / Comments" value={form.comments} onChange={(value) => onFieldChange('comments', value)} fullWidth />
+          <ProfileSection title={t('clients.profile.section.membership')}>
+            <TextField label={t('clients.profile.field.dateJoined')} type="date" value={form.dateJoined} onChange={(value) => onFieldChange('dateJoined', value)} />
+            <TextareaField label={t('clients.profile.field.membershipRemarks')} value={form.membershipRemarks} onChange={(value) => onFieldChange('membershipRemarks', value)} fullWidth />
+            <TextareaField label={t('clients.profile.field.comments')} value={form.comments} onChange={(value) => onFieldChange('comments', value)} fullWidth />
           </ProfileSection>
 
-          <ProfileSection title="健康评估 / Wellbeing">
+          <ProfileSection title={t('clients.profile.section.wellbeing')}>
             {(Object.keys(form.wellbeingIssues) as Array<keyof Client['wellbeingIssues']>).map((key) => (
               <div key={key} className="form-group">
                 <CheckboxRow
                   checked={form.wellbeingIssues[key]}
-                  label={WELLBEING_LABELS[key]}
+                  label={t(WELLBEING_KEYS[key])}
                   onChange={() => onToggleWellbeing(key)}
                 />
               </div>
             ))}
-            <TextareaField label="健康备注 / Wellbeing Remarks" value={form.wellbeingRemarks} onChange={(value) => onFieldChange('wellbeingRemarks', value)} fullWidth />
+            <TextareaField label={t('clients.profile.field.wellbeingRemarks')} value={form.wellbeingRemarks} onChange={(value) => onFieldChange('wellbeingRemarks', value)} fullWidth />
           </ProfileSection>
 
-          <ProfileSection title="特殊需求与财务 / Needs & Financial">
+          <ProfileSection title={t('clients.profile.section.needs')}>
             {(Object.keys(form.specialNeeds) as Array<keyof Client['specialNeeds']>).map((key) => (
               <div key={key} className="form-group">
                 <CheckboxRow
@@ -719,19 +725,19 @@ function ClientProfileEditPanel({
                 />
               </div>
             ))}
-            <TextField label="银行转账账户 / Bank Transfer Account" value={form.bankTransferInfo} onChange={(value) => onFieldChange('bankTransferInfo', value)} />
-            <TextField label="PayNow 号码 / PayNow Number" value={form.payNowInfo} onChange={(value) => onFieldChange('payNowInfo', value)} />
-            <TextareaField label="特殊需求备注 / Special Needs Remarks" value={form.specialNeedsRemarks} onChange={(value) => onFieldChange('specialNeedsRemarks', value)} fullWidth />
+            <TextField label={t('clients.profile.field.bankTransfer')} value={form.bankTransferInfo} onChange={(value) => onFieldChange('bankTransferInfo', value)} />
+            <TextField label={t('clients.profile.field.payNow')} value={form.payNowInfo} onChange={(value) => onFieldChange('payNowInfo', value)} />
+            <TextareaField label={t('clients.profile.field.specialNeedsRemarks')} value={form.specialNeedsRemarks} onChange={(value) => onFieldChange('specialNeedsRemarks', value)} fullWidth />
           </ProfileSection>
         </>
       ) : null}
 
       <footer className="client-edit-footer">
         <button className="btn-secondary" type="button" disabled={saving} onClick={onCancel}>
-          取消 · Cancel
+          {t('clients.profile.cancel')}
         </button>
         <button className="btn-primary" type="button" disabled={saving} onClick={onSave}>
-          {saving ? '保存中... · Saving...' : '保存修改 · Save Changes'}
+          {saving ? t('clients.profile.saving') : t('clients.profile.save')}
         </button>
       </footer>
     </article>

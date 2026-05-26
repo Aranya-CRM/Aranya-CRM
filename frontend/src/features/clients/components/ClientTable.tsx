@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Client } from '../types'
 import { EmptyTableRow, SectionCard, TableShell } from '../../../shared/ui'
 
@@ -16,6 +17,8 @@ export function ClientTable({
   onView,
   onEdit,
 }: ClientTableProps) {
+  const { t } = useTranslation()
+
   return (
     <SectionCard className="client-list-card">
       <TableShell>
@@ -26,26 +29,30 @@ export function ClientTable({
             <col className="col-tradition" />
             <col className="col-ordination" />
             <col className="col-area" />
-            <col className="col-client-actions" />
+            {canUpdateClient ? <col className="col-client-actions" /> : null}
           </colgroup>
           <thead>
             <tr>
-              <th><span className="th-zh">缩写</span><span className="th-en">Abbr</span></th>
-              <th><span className="th-zh">法名</span><span className="th-en">Name</span></th>
-              <th><span className="th-zh">传承</span><span className="th-en">Tradition</span></th>
-              <th><span className="th-zh">戒别</span><span className="th-en">Ordination</span></th>
-              <th><span className="th-zh">区域</span><span className="th-en">Area</span></th>
-              <th><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
+              <th>{t('clients.profile.field.abbr')}</th>
+              <th>{t('clients.profile.field.nameChn')}</th>
+              <th>{t('clients.profile.field.buddhistTradition')}</th>
+              <th>{t('clients.profile.field.ordinationStatus')}</th>
+              <th>{t('clients.profile.field.areaDistrict')}</th>
+              {canUpdateClient ? <th>{t('common.actions')}</th> : null}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <EmptyTableRow colSpan={6} message="加载中... / Loading..." />
+              <EmptyTableRow colSpan={canUpdateClient ? 6 : 5} message={t('clients.loading')} />
             ) : clients.length === 0 ? (
-              <EmptyTableRow colSpan={6} message="暂无数据 / No clients found" />
+              <EmptyTableRow colSpan={canUpdateClient ? 6 : 5} message={t('clients.empty')} />
             ) : (
               clients.map((client) => (
-                <tr key={client.id}>
+                <tr
+                  key={client.id}
+                  className="client-row-clickable"
+                  onClick={() => onView(client.id)}
+                >
                   <td><span className="cell-zh">{client.abbr}</span></td>
                   <td>
                     <span className="cell-zh">{client.nameChn}</span>
@@ -54,20 +61,19 @@ export function ClientTable({
                   <td><span className="cell-zh">{client.buddhistTradition}</span></td>
                   <td><span className="cell-zh">{client.ordinationStatus}</span></td>
                   <td><span className="cell-zh">{client.areaDistrict}</span></td>
-                  <td>
-                    <div className="table-action-group">
-                      <button className="action-link" type="button" onClick={() => onView(client.id)}>
-                        <span className="cell-zh">{canUpdateClient ? '查看档案' : '查看信息'}</span>
-                        <span className="cell-en">{canUpdateClient ? 'View Profile' : 'View Info'}</span>
-                      </button>
-                      {canUpdateClient ? (
-                        <button className="action-link" type="button" onClick={() => onEdit(client.id)}>
-                          <span className="cell-zh">编辑</span>
-                          <span className="cell-en">Edit</span>
+                  {canUpdateClient ? (
+                    <td>
+                      <div className="table-action-group">
+                        <button
+                          className="action-link"
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onEdit(client.id) }}
+                        >
+                          {t('clients.profile.editProfile')}
                         </button>
-                      ) : null}
-                    </div>
-                  </td>
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { fetchClients } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
@@ -53,9 +54,10 @@ const initialForm: ReportFormState = {
   mattersToHighlight: '',
 }
 
-function clientLabel(client: Client): string {
-  if (client.nameChn && client.nameEn) return `${client.nameChn} / ${client.nameEn}`
-  return client.nameChn || client.nameEn || client.abbr || `Client ${client.id}`
+function clientLabel(client: Client, isZh: boolean): string {
+  const primary = isZh ? client.nameChn : client.nameEn
+  const secondary = isZh ? client.nameEn : client.nameChn
+  return primary || secondary || client.abbr || `Client ${client.id}`
 }
 
 function compactPayload(form: ReportFormState): CreateReportPayload {
@@ -79,6 +81,8 @@ function compactPayload(form: ReportFormState): CreateReportPayload {
 }
 
 export function ReportFormPage() {
+  const { t, i18n } = useTranslation()
+  const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
   const [clients, setClients] = useState<Client[]>([])
   const [form, setForm] = useState<ReportFormState>(initialForm)
@@ -98,7 +102,7 @@ export function ReportFormPage() {
         }
       } catch {
         if (active) {
-          setErrorMessage('僧人列表加载失败，请稍后重试。 / Failed to load monastics.')
+          setErrorMessage(t('reports.form.loadError'))
         }
       } finally {
         if (active) {
@@ -112,11 +116,11 @@ export function ReportFormPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [t])
 
   const sortedClients = useMemo(
-    () => [...clients].sort((a, b) => clientLabel(a).localeCompare(clientLabel(b))),
-    [clients],
+    () => [...clients].sort((a, b) => clientLabel(a, isZh).localeCompare(clientLabel(b, isZh))),
+    [clients, isZh],
   )
 
   function updateField<K extends keyof ReportFormState>(key: K, value: ReportFormState[K]) {
@@ -127,7 +131,7 @@ export function ReportFormPage() {
     event.preventDefault()
 
     if (!form.clientId || !form.dateOfVisit) {
-      setErrorMessage('请选择僧人并填写探访日期。 / Monastic and visit date are required.')
+      setErrorMessage(t('reports.form.required'))
       return
     }
 
@@ -138,7 +142,7 @@ export function ReportFormPage() {
       const created = await createReport(compactPayload(form))
       navigate(`/reports/${created.id}`)
     } catch {
-      setErrorMessage('探访报告提交失败，请稍后重试。 / Failed to submit report.')
+      setErrorMessage(t('reports.form.submitError'))
     } finally {
       setIsSubmitting(false)
     }
@@ -146,13 +150,11 @@ export function ReportFormPage() {
 
   return (
     <div className="report-page">
-      <BackButton onClick={() => navigate('/reports')}>← 返回探访报告 / Back to Reports</BackButton>
+      <BackButton onClick={() => navigate('/reports')} />
 
       <PageHeader
-        titleZh="提交探访报告"
-        titleEn="Submit Observation Report"
-        descriptionZh="报告者将自动使用当前登录账户。"
-        descriptionEn="Reporter is auto-filled from the signed-in user."
+        title={t('reports.form.title')}
+        description={t('reports.form.description')}
       />
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
@@ -160,28 +162,28 @@ export function ReportFormPage() {
       <form onSubmit={handleSubmit}>
         <SectionCard
           className="report-form-card"
-          titleZh="基本信息 / Basic Info"
+          title={t('reports.form.sectionBasic')}
           ariaLabel="Report basic information"
           bodyPadding
         >
           <div className="report-form-grid">
             <label className="report-form-field">
-              <span>僧人 / Monastic <strong>*</strong></span>
+              <span>{t('reports.form.monastic')} <strong>*</strong></span>
               <select
                 className="report-form-control"
                 value={form.clientId}
                 disabled={isLoadingClients}
                 onChange={(event) => updateField('clientId', event.target.value)}
               >
-                <option value="">{isLoadingClients ? '加载中 / Loading...' : '-- 选择僧人 / Select Monastic --'}</option>
+                <option value="">{isLoadingClients ? t('reports.form.loadingMonastics') : t('reports.form.selectMonastic')}</option>
                 {sortedClients.map((client) => (
-                  <option key={client.id} value={client.id}>{clientLabel(client)}</option>
+                  <option key={client.id} value={client.id}>{clientLabel(client, isZh)}</option>
                 ))}
               </select>
             </label>
 
             <label className="report-form-field">
-              <span>探访日期 / Date of Visit <strong>*</strong></span>
+              <span>{t('reports.form.dateOfVisit')} <strong>*</strong></span>
               <input
                 className="report-form-control"
                 type="date"
@@ -191,7 +193,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>探访时间 / Time of Visit</span>
+              <span>{t('reports.form.timeOfVisit')}</span>
               <input
                 className="report-form-control"
                 type="text"
@@ -202,7 +204,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>探访时长 / Duration of Visit</span>
+              <span>{t('reports.form.duration')}</span>
               <input
                 className="report-form-control"
                 type="text"
@@ -213,7 +215,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>地点 / Location</span>
+              <span>{t('reports.form.location')}</span>
               <input
                 className="report-form-control"
                 type="text"
@@ -223,20 +225,20 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>探访类型 / Type of Visit</span>
+              <span>{t('reports.form.visitType')}</span>
               <select
                 className="report-form-control"
                 value={form.typeOfVisit}
                 onChange={(event) => updateField('typeOfVisit', event.target.value)}
               >
                 {VISIT_TYPES.map((type) => (
-                  <option key={type || 'empty'} value={type}>{type || '-- 选择 / Select --'}</option>
+                  <option key={type || 'empty'} value={type}>{type || t('reports.form.selectType')}</option>
                 ))}
               </select>
             </label>
 
             <label className="report-form-field">
-              <span>活动名称 / Programme Name</span>
+              <span>{t('reports.form.programme')}</span>
               <input
                 className="report-form-control"
                 type="text"
@@ -246,7 +248,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>探访目的 / Purpose of Visit</span>
+              <span>{t('reports.form.purpose')}</span>
               <input
                 className="report-form-control"
                 type="text"
@@ -259,13 +261,13 @@ export function ReportFormPage() {
 
         <SectionCard
           className="report-form-card"
-          titleZh="观察记录 / Observations"
+          title={t('reports.form.sectionObs')}
           ariaLabel="Report observations"
           bodyPadding
         >
           <div className="report-form-grid">
             <label className="report-form-field full-width">
-              <span>做了什么？ / What was done?</span>
+              <span>{t('reports.form.whatWasDone')}</span>
               <textarea
                 className="report-form-control report-form-textarea large"
                 value={form.whatWasDone}
@@ -274,7 +276,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>环境观察 / Environment Observations</span>
+              <span>{t('reports.form.envObs')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.environmentObservations}
@@ -283,7 +285,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>僧人观察 / Sangha Observations</span>
+              <span>{t('reports.form.sanghaObs')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.sanghaObservations}
@@ -292,7 +294,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field full-width">
-              <span>其他观察 / Other Observations</span>
+              <span>{t('reports.form.otherObs')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.otherObservations}
@@ -304,13 +306,13 @@ export function ReportFormPage() {
 
         <SectionCard
           className="report-form-card"
-          titleZh="反思与建议 / Reflections & Recommendations"
+          title={t('reports.form.sectionReflections')}
           ariaLabel="Report recommendations"
           bodyPadding
         >
           <div className="report-form-grid">
             <label className="report-form-field full-width">
-              <span>个人反思 / Personal Reflections</span>
+              <span>{t('reports.form.personalReflections')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.personalReflections}
@@ -319,7 +321,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>下次探访建议 / Recommendations for Next Visit</span>
+              <span>{t('reports.form.recommendations')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.recommendations}
@@ -328,7 +330,7 @@ export function ReportFormPage() {
             </label>
 
             <label className="report-form-field">
-              <span>需向团队负责人汇报的事项 / Matters to Highlight</span>
+              <span>{t('reports.form.highlights')}</span>
               <textarea
                 className="report-form-control report-form-textarea"
                 value={form.mattersToHighlight}
@@ -340,10 +342,10 @@ export function ReportFormPage() {
 
         <div className="report-form-footer">
           <button className="btn-secondary" type="button" disabled={isSubmitting} onClick={() => navigate('/reports')}>
-            取消 · Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn-primary" type="submit" disabled={isSubmitting || isLoadingClients}>
-            {isSubmitting ? '提交中...' : '提交报告 · Submit Report →'}
+            {isSubmitting ? t('reports.form.submitting') : t('reports.form.submit')}
           </button>
         </div>
       </form>

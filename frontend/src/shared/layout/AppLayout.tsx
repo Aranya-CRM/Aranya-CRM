@@ -1,8 +1,10 @@
 import { type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { useAccess } from '../auth'
+import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import './AppLayout.css'
 import { useIdleLogout } from '../hooks/useIdleLogout'
 import { IdleWarningModal } from '../ui/feedback/IdleWarningModal'
@@ -12,6 +14,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { t } = useTranslation()
   const { user, logout } = useAuth()
   const { canRoute } = useAccess()
   const location = useLocation()
@@ -39,8 +42,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <h1 className="brand-title">阿兰若个案管理系统</h1>
-          <div className="brand-subtitle">Aranya CRM</div>
+          <h1 className="brand-title">{t('layout.brandTitle')}</h1>
+          <div className="brand-subtitle">{t('layout.brandSubtitle')}</div>
         </div>
 
         <nav className="nav" aria-label="Sidebar Navigation">
@@ -61,21 +64,22 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <span className="nav-icon" aria-hidden="true">
                   {item.icon}
                 </span>
-                <span className="nav-label">
-                  <span className="nav-zh">{item.zhLabel}</span>
-                  <span className="nav-en">{item.enLabel}</span>
-                </span>
+                <span className="nav-label">{t(item.labelKey)}</span>
               </a>
             )
           })}
         </nav>
+
+        <div className="sidebar-footer">
+          <LanguageSwitcher />
+        </div>
       </aside>
 
       <section className="main">
         <header className="topbar">
           <div>
-            <div className="topbar-title">阿兰若CRM管理系统</div>
-            <div className="topbar-subtitle">Aranya CRM Admin System</div>
+            <div className="topbar-title">{t('layout.topbarTitle')}</div>
+            <div className="topbar-subtitle">{t('layout.topbarSubtitle')}</div>
           </div>
           <div className="topbar-right">
             <div className="topbar-user">
@@ -83,7 +87,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 {user?.fullName ?? 'User'}
               </span>
             </div>
-            <button className="logout-btn" type="button" onClick={logout} title="登出 / Logout">
+            <button className="logout-btn" type="button" onClick={logout} title={t('layout.logout')}>
               <LogoutIcon />
             </button>
           </div>

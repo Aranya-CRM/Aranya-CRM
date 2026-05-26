@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { BackButton, PageHeader } from '../../../shared/ui'
@@ -10,6 +11,7 @@ import { useClient } from '../hooks'
 import './clients.css'
 
 export function ClientDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { canFeature } = useAccess()
   const navigate = useNavigate()
@@ -20,15 +22,15 @@ export function ClientDetailPage() {
   const canUpdateClient = canFeature('clients.update')
 
   if (isLoading) {
-    return <PageHeader titleZh="加载中..." titleEn="Loading..." />
+    return <PageHeader title={t('common.loading')} />
   }
 
   if (!client) {
     return (
       <>
-        <PageHeader titleZh="未找到" titleEn="Client Not Found" />
+        <PageHeader title={t('clients.notFound')} />
         <button className="btn-secondary" type="button" style={{ marginTop: 16 }} onClick={() => navigate('/clients')}>
-          返回列表 / Back to List
+          {t('clients.backToList')}
         </button>
       </>
     )
@@ -36,7 +38,7 @@ export function ClientDetailPage() {
 
   return (
     <>
-      <BackButton onClick={() => navigate('/clients')}>← 返回列表 / Back to List</BackButton>
+      <BackButton onClick={() => navigate('/clients')} />
 
       <div className="detail-title-row">
         <div className="detail-name">
@@ -45,7 +47,7 @@ export function ClientDetailPage() {
         </div>
         {canUpdateClient ? (
           <button className="btn-edit" type="button" onClick={() => navigate(`/clients/${client.id}/edit`)}>
-            编辑 / Edit
+            {t('clients.profile.editProfile')}
           </button>
         ) : null}
       </div>
@@ -59,7 +61,7 @@ export function ClientDetailPage() {
 
       {!canViewDetailedProfile ? (
         <div className="volunteer-notice">
-          如需查看完整档案，请联系负责人员。 / For full profile access, please contact the responsible staff.
+          {t('clients.profile.volunteerNotice')}
         </div>
       ) : null}
     </>
