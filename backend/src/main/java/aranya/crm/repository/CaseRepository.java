@@ -21,6 +21,9 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
     List<ClientCase> findAllByOrderByOpenedAtDescIdDesc();
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
+    Optional<ClientCase> findFirstByClientIdOrderByOpenedAtDescIdDesc(Long clientId);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
     List<ClientCase> findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc(String status);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})

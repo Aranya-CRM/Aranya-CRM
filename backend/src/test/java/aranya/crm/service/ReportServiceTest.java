@@ -3,9 +3,13 @@ package aranya.crm.service;
 import aranya.crm.dto.request.CreateReportRequest;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
+import aranya.crm.entity.CaseNote;
 import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
+import aranya.crm.repository.CaseNoteRepository;
+import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.VisitReportRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,6 +40,12 @@ class ReportServiceTest {
 
     @Mock
     private VisitReportRepository visitReportRepository;
+
+    @Mock
+    private CaseRepository caseRepository;
+
+    @Mock
+    private CaseNoteRepository caseNoteRepository;
 
     @InjectMocks
     private ReportService reportService;
@@ -105,6 +115,7 @@ class ReportServiceTest {
         CreateReportRequest request = createRequest();
 
         when(clientRepository.findById(5L)).thenReturn(Optional.of(client));
+        when(caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(5L)).thenReturn(Optional.empty());
         when(visitReportRepository.save(any(VisitReport.class))).thenAnswer(invocation -> {
             VisitReport saved = invocation.getArgument(0);
             saved.setId(88L);
@@ -148,6 +159,7 @@ class ReportServiceTest {
         request.setTypeOfVisit("  Temple Visit  ");
 
         when(clientRepository.findById(5L)).thenReturn(Optional.of(client));
+        when(caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(5L)).thenReturn(Optional.empty());
         when(visitReportRepository.save(any(VisitReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         reportService.createReport(request, creator);
@@ -158,6 +170,37 @@ class ReportServiceTest {
         assertThat(saved.getStaffName()).isEqualTo("Volunteer Lee");
         assertThat(saved.getLocation()).isNull();
         assertThat(saved.getTypeOfVisit()).isEqualTo("Temple Visit");
+    }
+
+    @Test
+    @DisplayName("createReport creates a case note when the member has a case")
+    void createReport_createsCaseNoteWhenMemberHasCase() {
+        Client client = client(5L, "Venerable Dev Test", "测试法师");
+        ClientCase clientCase = clientCase(12L, client, "CASE-2026-012");
+        User creator = user(9L, "Volunteer User");
+        CreateReportRequest request = createRequest();
+
+        when(clientRepository.findById(5L)).thenReturn(Optional.of(client));
+        when(caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(5L)).thenReturn(Optional.of(clientCase));
+        when(visitReportRepository.save(any(VisitReport.class))).thenAnswer(invocation -> {
+            VisitReport saved = invocation.getArgument(0);
+            saved.setId(88L);
+            saved.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 30));
+            return saved;
+        });
+
+        reportService.createReport(request, creator);
+
+        ArgumentCaptor<CaseNote> noteCaptor = ArgumentCaptor.forClass(CaseNote.class);
+        verify(caseNoteRepository).save(noteCaptor.capture());
+        CaseNote note = noteCaptor.getValue();
+        assertThat(note.getClientCase()).isSameAs(clientCase);
+        assertThat(note.getCreatedBy()).isSameAs(creator);
+        assertThat(note.getNoteType()).isEqualTo("REPORT");
+        assertThat(note.getVisibility()).isEqualTo("INTERNAL");
+        assertThat(note.getContent()).contains("Monthly Care Visit");
+        assertThat(note.getContent()).contains("Completed welfare check");
+        assertThat(note.getContent()).contains("Follow up next month");
     }
 
     @Test
@@ -250,5 +293,17 @@ class ReportServiceTest {
         user.setFullName(fullName);
         user.setStatus("ACTIVE");
         return user;
+    }
+
+    private static ClientCase clientCase(Long id, Client client, String caseCode) {
+        ClientCase clientCase = new ClientCase();
+        clientCase.setId(id);
+        clientCase.setClient(client);
+        clientCase.setCaseCode(caseCode);
+        clientCase.setTitle("Case " + caseCode);
+        clientCase.setCreatedBy(user(1L, "Manager User"));
+        clientCase.setOpenedAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+        clientCase.setCreatedAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+        return clientCase;
     }
 }
