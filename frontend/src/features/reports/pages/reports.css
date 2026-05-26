@@ -39,8 +39,12 @@
   min-height: 64px;
 }
 
+.report-table tbody tr.report-row-clickable {
+  cursor: pointer;
+}
+
 .report-table tbody tr:hover {
-  background: #fbfcfd;
+  background: #f3f0ff;
 }
 
 .th-zh,

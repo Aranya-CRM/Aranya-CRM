@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { FirebaseError } from 'firebase/app'
 import type { MultiFactorResolver, TotpSecret, User } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
+import i18n from '../../../i18n'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   completeTotpSignIn,
@@ -23,20 +24,22 @@ export type LoginStep =
   | 'totp-enrollment'
 
 function normalizeFirebaseError(error: unknown): string {
+  const t = i18n.t.bind(i18n)
+
   if (error instanceof FirebaseError) {
     switch (error.code) {
       case 'auth/invalid-credential':
       case 'auth/wrong-password':
       case 'auth/user-not-found':
-        return '邮箱或密码不正确。 / Invalid email or password.'
+        return t('auth.error.invalidCredential')
       case 'auth/popup-closed-by-user':
-        return 'Google 登录窗口已关闭。 / Google sign-in was cancelled.'
+        return t('auth.error.popupClosed')
       case 'auth/too-many-requests':
-        return '尝试次数过多，请稍后再试。 / Too many attempts. Please try again later.'
+        return t('auth.error.tooManyRequests')
       case 'auth/invalid-verification-code':
-        return '验证码不正确，请重新输入。 / Invalid authentication code.'
+        return t('auth.error.invalidCode')
       default:
-        return `${error.message} / Authentication failed.`
+        return error.message
     }
   }
 
@@ -44,7 +47,7 @@ function normalizeFirebaseError(error: unknown): string {
     return error.message
   }
 
-  return '登录失败，请稍后再试。 / Unable to sign in. Please try again.'
+  return t('auth.error.generic')
 }
 
 export function useFirebaseLoginFlow() {
@@ -138,7 +141,7 @@ export function useFirebaseLoginFlow() {
     event.preventDefault()
 
     if (!mfaResolver) {
-      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      setErrorMessage(i18n.t('auth.error.stateExpired'))
       resetLoginState()
       return
     }
@@ -161,7 +164,7 @@ export function useFirebaseLoginFlow() {
 
     const user = firebaseAuth.currentUser
     if (!user || !totpSecret) {
-      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      setErrorMessage(i18n.t('auth.error.stateExpired'))
       resetLoginState()
       return
     }
@@ -173,7 +176,7 @@ export function useFirebaseLoginFlow() {
       await finishTotpEnrollment(user, totpSecret, setupCode)
       await logoutFirebase()
       resetLoginState()
-      setNoticeMessage('认证器已绑定，请重新登录并输入验证码。 / Authenticator linked. Please sign in again.')
+      setNoticeMessage(i18n.t('auth.error.authenticatorLinked'))
     } catch (error) {
       setErrorMessage(normalizeFirebaseError(error))
     } finally {
@@ -185,7 +188,7 @@ export function useFirebaseLoginFlow() {
     const user = firebaseAuth.currentUser
 
     if (!user) {
-      setErrorMessage('登录状态已失效，请重新登录。 / Sign-in state expired. Please try again.')
+      setErrorMessage(i18n.t('auth.error.stateExpired'))
       resetLoginState()
       return
     }
@@ -195,7 +198,7 @@ export function useFirebaseLoginFlow() {
 
     try {
       await sendVerificationEmail(user)
-      setNoticeMessage('验证邮件已发送。 / Verification email sent.')
+      setNoticeMessage(i18n.t('auth.error.verificationSent'))
     } catch (error) {
       setErrorMessage(normalizeFirebaseError(error))
     } finally {

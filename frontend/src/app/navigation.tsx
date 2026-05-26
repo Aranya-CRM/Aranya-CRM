@@ -68,8 +68,7 @@ export interface NavigationItem {
   id: string
   routeId: string
   path: string
-  zhLabel: string
-  enLabel: string
+  labelKey: string
   icon: ReactNode
 }
 
@@ -78,40 +77,35 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     id: 'dashboard',
     routeId: 'dashboard',
     path: '/dashboard',
-    zhLabel: '工作台',
-    enLabel: 'Dashboard',
+    labelKey: 'nav.dashboard',
     icon: <DashboardIcon />,
   },
   {
     id: 'clients',
     routeId: 'clients.list',
     path: '/clients',
-    zhLabel: '僧人档案',
-    enLabel: 'Clients',
+    labelKey: 'nav.clients',
     icon: <ClientsIcon />,
   },
   {
     id: 'cases',
     routeId: 'cases.list',
     path: '/cases',
-    zhLabel: '个案管理',
-    enLabel: 'Cases',
+    labelKey: 'nav.cases',
     icon: <CasesIcon />,
   },
   {
     id: 'reports',
     routeId: 'reports.list',
     path: '/reports',
-    zhLabel: '探访报告',
-    enLabel: 'Reports',
+    labelKey: 'nav.reports',
     icon: <ReportsIcon />,
   },
   {
     id: 'users',
     routeId: 'users.list',
     path: '/users',
-    zhLabel: '用户管理',
-    enLabel: 'Users',
+    labelKey: 'nav.users',
     icon: <UsersIcon />,
   },
 ]

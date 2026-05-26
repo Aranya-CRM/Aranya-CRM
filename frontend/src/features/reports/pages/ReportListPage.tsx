@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
 import { deleteReport, fetchReports } from '../api/report.api'
@@ -14,12 +15,12 @@ function formatDate(value: string | null | undefined): string {
   return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
 }
 
-function displayName(report: ReportSummary): string {
+function displayName(report: ReportSummary, isZh: boolean): string {
   const zh = report.clientNameChn?.trim()
   const en = report.clientNameEn?.trim()
 
-  if (zh && en) return `${zh} / ${en}`
-  return zh || en || '未命名僧人 / Unnamed monastic'
+  if (isZh) return zh || en || ''
+  return en || zh || ''
 }
 
 function displayText(value: string | null | undefined, fallback = '-'): string {
@@ -37,6 +38,8 @@ function uniqueTypes(reports: ReportSummary[]): string[] {
 }
 
 export function ReportListPage() {
+  const { t, i18n } = useTranslation()
+  const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -59,7 +62,7 @@ export function ReportListPage() {
         }
       } catch {
         if (active) {
-          setErrorMessage('探访报告加载失败，请稍后重试。 / Failed to load reports.')
+          setErrorMessage(t('reports.list.loadError'))
         }
       } finally {
         if (active) {
@@ -73,7 +76,7 @@ export function ReportListPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [t])
 
   const reportTypes = useMemo(() => uniqueTypes(reports), [reports])
   const filteredReports = useMemo(() => {
@@ -84,17 +87,17 @@ export function ReportListPage() {
       const matchesSearch =
         !q ||
         String(report.id).includes(q) ||
-        displayName(report).toLowerCase().includes(q) ||
+        displayName(report, isZh).toLowerCase().includes(q) ||
         displayText(report.createdByName).toLowerCase().includes(q) ||
         displayText(report.staffName).toLowerCase().includes(q) ||
         displayText(report.location).toLowerCase().includes(q)
 
       return matchesType && matchesSearch
     })
-  }, [reports, search, typeFilter])
+  }, [reports, search, typeFilter, isZh])
 
   async function handleDelete(report: ReportSummary) {
-    const confirmed = window.confirm(`确认删除报告 RPT-${String(report.id).padStart(4, '0')}？ / Delete this report?`)
+    const confirmed = window.confirm(t('reports.list.confirmDelete', { id: String(report.id).padStart(4, '0') }))
     if (!confirmed) return
 
     setDeletingId(report.id)
@@ -104,7 +107,7 @@ export function ReportListPage() {
       await deleteReport(report.id)
       setReports((current) => current.filter((item) => item.id !== report.id))
     } catch {
-      setErrorMessage('探访报告删除失败，请稍后重试。 / Failed to delete report.')
+      setErrorMessage(t('reports.list.deleteError'))
     } finally {
       setDeletingId(undefined)
     }
@@ -113,11 +116,11 @@ export function ReportListPage() {
   return (
     <div className="report-page">
       <PageHeader
-        titleZh="探访报告"
-        titleEn={`Reports · ${filteredReports.length} 份报告`}
+        title={t('reports.list.title')}
+        subtitle={t('reports.list.count', { count: filteredReports.length })}
         actions={(
           <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
-            + 新增报告 · New Report
+            {t('reports.list.newBtn')}
           </button>
         )}
       />
@@ -128,7 +131,7 @@ export function ReportListPage() {
         <input
           className="search-input"
           type="text"
-          placeholder="搜索僧人、提交人、地点 · Search reports..."
+          placeholder={t('reports.list.search')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -138,7 +141,7 @@ export function ReportListPage() {
           aria-label="Filter by visit type"
           onChange={(event) => setTypeFilter(event.target.value)}
         >
-          <option value="all">探访类型 · All Types</option>
+          <option value="all">{t('reports.list.allTypes')}</option>
           {reportTypes.map((type) => (
             <option key={type} value={type}>{type}</option>
           ))}
@@ -159,32 +162,32 @@ export function ReportListPage() {
             </colgroup>
             <thead>
               <tr>
-                <th><span className="th-zh">报告编号</span><span className="th-en">Report ID</span></th>
-                <th><span className="th-zh">僧人</span><span className="th-en">Client</span></th>
-                <th><span className="th-zh">提交人</span><span className="th-en">Created By</span></th>
-                <th><span className="th-zh">探访日期</span><span className="th-en">Visit Date</span></th>
-                <th><span className="th-zh">探访类型</span><span className="th-en">Visit Type</span></th>
-                <th><span className="th-zh">提交时间</span><span className="th-en">Created At</span></th>
-                <th><span className="th-zh">操作</span><span className="th-en">Actions</span></th>
+                <th>{t('reports.list.colId')}</th>
+                <th>{t('reports.list.colClient')}</th>
+                <th>{t('reports.list.colCreatedBy')}</th>
+                <th>{t('reports.list.colVisitDate')}</th>
+                <th>{t('reports.list.colVisitType')}</th>
+                <th>{t('reports.list.colCreatedAt')}</th>
+                <th>{t('reports.list.colActions')}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="report-table-state">加载中 · Loading...</td>
+                  <td colSpan={7} className="report-table-state">{t('reports.list.loading')}</td>
                 </tr>
               ) : filteredReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="report-table-state">暂无探访报告 · No reports found</td>
+                  <td colSpan={7} className="report-table-state">{t('reports.list.empty')}</td>
                 </tr>
               ) : (
                 filteredReports.map((report) => (
-                  <tr key={report.id}>
+                  <tr key={report.id} className="report-row-clickable" onClick={() => navigate(`/reports/${report.id}`)}>
                     <td>
                       <span className="report-id">RPT-{String(report.id).padStart(4, '0')}</span>
                     </td>
                     <td>
-                      <span className="cell-strong">{displayName(report)}</span>
+                      <span className="cell-strong">{displayName(report, isZh) || t('reports.unnamedMonastic')}</span>
                     </td>
                     <td>
                       <span className="cell-main">{displayText(report.createdByName ?? report.staffName, 'Unknown')}</span>
@@ -202,19 +205,12 @@ export function ReportListPage() {
                     <td>
                       <div className="report-row-actions">
                         <button
-                          className="report-view-link"
-                          type="button"
-                          onClick={() => navigate(`/reports/${report.id}`)}
-                        >
-                          查看 · View
-                        </button>
-                        <button
                           className="report-delete-link"
                           type="button"
                           disabled={deletingId === report.id}
-                          onClick={() => void handleDelete(report)}
+                          onClick={(e) => { e.stopPropagation(); void handleDelete(report) }}
                         >
-                          删除 · Delete
+                          {t('reports.list.delete')}
                         </button>
                       </div>
                     </td>

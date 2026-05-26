@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import './shared.css'
 
 interface SectionCardProps {
-  titleZh?: string
-  titleEn?: string
+  title?: string
   ariaLabel?: string
   children: ReactNode
   bodyPadding?: boolean
@@ -11,21 +10,17 @@ interface SectionCardProps {
 }
 
 export function SectionCard({
-  titleZh,
-  titleEn,
+  title,
   ariaLabel,
   children,
   bodyPadding = false,
   className = '',
 }: SectionCardProps) {
-  const hasHeader = Boolean(titleZh || titleEn)
-
   return (
     <section className={`card${className ? ` ${className}` : ''}`} aria-label={ariaLabel}>
-      {hasHeader ? (
+      {title ? (
         <div className="card-header">
-          {titleZh ? <div className="card-title">{titleZh}</div> : null}
-          {titleEn ? <div className="card-subtitle">{titleEn}</div> : null}
+          <div className="card-title">{title}</div>
         </div>
       ) : null}
       <div className={bodyPadding ? 'card-body' : undefined}>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { BackButton, PageHeader } from '../../../shared/ui'
@@ -79,6 +80,7 @@ function emptyClient(): ClientFormData {
 }
 
 export function ClientFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
   const { canFeature } = useAccess()
@@ -102,16 +104,14 @@ export function ClientFormPage() {
   if (!canWriteClient) {
     return (
       <>
-        <PageHeader titleZh="权限不足" titleEn="Access Denied" />
-        <p className="access-denied-copy">
-          当前账户不可创建或编辑僧人档案。 / Your current access does not allow creating or editing client profiles.
-        </p>
+        <PageHeader title={t('clients.accessDenied')} />
+        <p className="access-denied-copy">{t('clients.accessDeniedMsg')}</p>
       </>
     )
   }
 
   if (isEdit && isLoading) {
-    return <PageHeader titleZh="加载中..." titleEn="Loading..." />
+    return <PageHeader title={t('common.loading')} />
   }
 
   function updateField<K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) {
@@ -141,7 +141,7 @@ export function ClientFormPage() {
       }
       navigate('/clients')
     } catch {
-      alert('保存失败 / Failed to save')
+      alert(t('clients.saveError'))
     }
   }
 
@@ -149,13 +149,10 @@ export function ClientFormPage() {
 
   return (
     <>
-      <BackButton onClick={() => navigate('/clients')}>← 返回列表 / Back to List</BackButton>
+      <BackButton onClick={() => navigate('/clients')} />
 
       <div className="client-form-header">
-        <PageHeader
-          titleZh={isEdit ? '编辑僧人档案' : '新建僧人档案'}
-          titleEn={isEdit ? 'Edit Client' : 'New Client'}
-        />
+        <PageHeader title={isEdit ? t('clients.form.editTitle') : t('clients.form.newTitle')} />
       </div>
 
       <ClientWizardSteps step={step} onStepChange={setStep} />

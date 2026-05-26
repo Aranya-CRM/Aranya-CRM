@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { PageHeader } from '../../../shared/ui'
@@ -21,6 +22,7 @@ const COLOR_ORDER: Record<CaseColorCode, number> = {
 }
 
 export function CaseListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { canFeature } = useAccess()
   const { data: cases = [], isLoading } = useCases()
@@ -57,20 +59,13 @@ export function CaseListPage() {
   return (
     <div className="case-page">
       <PageHeader
-        titleZh="个案管理"
-        titleEn={`Case Management · ${filteredRows.length} 个个案`}
-        actions={(
-          <div className="case-header-actions">
-            <button className="btn-audit" type="button">
-              审计视图 · Audit View
-            </button>
-            {canFeature('cases.create') ? (
-              <button className="btn-primary" type="button" onClick={() => navigate('/cases/new')}>
-                + 新建个案 · New Case
-              </button>
-            ) : null}
-          </div>
-        )}
+        title={t('nav.cases')}
+        subtitle={t('cases.list.count', { count: filteredRows.length })}
+        actions={canFeature('cases.create') ? (
+          <button className="btn-primary" type="button" onClick={() => navigate('/cases/new')}>
+            {t('cases.list.newCase')}
+          </button>
+        ) : undefined}
       />
 
       <CaseToolbar
@@ -88,7 +83,6 @@ export function CaseListPage() {
         cases={filteredRows}
         loading={isLoading}
         onView={(caseId) => navigate(`/cases/${caseId}`)}
-        onAudit={(caseId) => navigate(`/cases/${caseId}?mode=audit`)}
       />
     </div>
   )
@@ -99,6 +93,7 @@ function toCaseListRow(item: Case): CaseListRow {
     id: item.id,
     caseNo: item.caseNo.replaceAll('_', '/'),
     dateOpened: item.dateOpened,
+    lastModifiedAt: item.lastModifiedAt,
     clientNameChn: item.clientNameChn,
     clientNameEn: item.clientNameEn,
     tradition: item.tradition,
