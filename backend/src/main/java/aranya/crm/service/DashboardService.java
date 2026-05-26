@@ -98,7 +98,7 @@ public class DashboardService {
                         stat("activeMonastics", clientRepository.countByMembershipStatusIgnoreCase(ACTIVE_MEMBERSHIP_STATUS)),
                         stat("openCases", caseService.countActiveCases()),
                         stat("urgentCases", caseService.countUrgentCases()),
-                        stat("pendingReports", 0L)
+                        stat("pendingReports", visitReportRepository.count())
                 ))
                 .build();
     }
