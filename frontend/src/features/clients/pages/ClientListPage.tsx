@@ -502,55 +502,55 @@ function ClientProfilePanel({
       ) : null}
 
       <ProfileSection title={t('clients.profile.section.basicInfo')}>
-        <InfoCell label={t('clients.profile.field.nameChn')} subLabel={t('clients.profile.field.nameChnSub')} value={client.nameChn} />
-        <InfoCell label={t('clients.profile.field.nameEn')} subLabel={t('clients.profile.field.nameEnSub')} value={client.nameEn} />
-        <InfoCell label={t('clients.profile.field.abbr')} subLabel={t('clients.profile.field.abbrSub')} value={client.abbr} />
-        <InfoCell label={t('clients.profile.field.contact')} subLabel={t('clients.profile.field.contactSub')} value={client.contact} />
-        <InfoCell label={t('clients.profile.field.preferredComm')} subLabel={t('clients.profile.field.preferredCommSub')} value={client.preferredCommunication} />
-        <InfoCell label="WhatsApp" subLabel={t('clients.profile.field.whatsappSub')} value={client.whatsappEnabled ? t('clients.profile.field.whatsappYes') : t('clients.profile.field.whatsappNo')} />
-        <InfoCell label={t('clients.profile.field.prefLang')} subLabel={t('clients.profile.field.prefLangSub')} value={client.preferredLanguage} />
-        <InfoCell label={t('clients.profile.field.spokenLang')} subLabel={t('clients.profile.field.spokenLangSub')} value={client.spokenLanguage} />
-        <InfoCell label={t('clients.profile.field.address')} subLabel={t('clients.profile.field.addressSub')} value={client.addressText} />
-        <InfoCell label={t('clients.profile.field.postalCode')} subLabel={t('clients.profile.field.postalCodeSub')} value={client.postalCode} />
-        <InfoCell label={t('clients.profile.field.areaDistrict')} subLabel={t('clients.profile.field.areaDistrictSub')} value={client.areaDistrict} />
-        <InfoCell label={t('clients.profile.field.viharaType')} subLabel={t('clients.profile.field.viharaTypeSub')} value={client.viharaType} />
+        <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} />
+        <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} />
+        <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} />
+        <InfoCell label={t('clients.profile.field.contact')} value={client.contact} />
+        <InfoCell label={t('clients.profile.field.preferredComm')} value={client.preferredCommunication} />
+        <InfoCell label="WhatsApp" value={client.whatsappEnabled ? t('clients.profile.field.whatsappYes') : t('clients.profile.field.whatsappNo')} />
+        <InfoCell label={t('clients.profile.field.prefLang')} value={client.preferredLanguage} />
+        <InfoCell label={t('clients.profile.field.spokenLang')} value={client.spokenLanguage} />
+        <InfoCell label={t('clients.profile.field.address')} value={client.addressText} />
+        <InfoCell label={t('clients.profile.field.postalCode')} value={client.postalCode} />
+        <InfoCell label={t('clients.profile.field.areaDistrict')} value={client.areaDistrict} />
+        <InfoCell label={t('clients.profile.field.viharaType')} value={client.viharaType} />
       </ProfileSection>
 
       {canViewDetailedProfile ? (
         <>
           <ProfileSection title={t('clients.profile.section.identity')}>
-            <InfoCell label={t('clients.profile.field.nricNameEn')} subLabel={t('clients.profile.field.nricNameEnSub')} value={client.nricNameEn} />
-            <InfoCell label={t('clients.profile.field.nricNameChn')} subLabel={t('clients.profile.field.nricNameChnSub')} value={client.nricNameChn} />
-            <InfoCell label={t('clients.profile.field.nricNo')} subLabel={t('clients.profile.field.nricNoSub')} value={client.nricNo} />
-            <InfoCell label={t('clients.profile.field.ordinationCert')} subLabel={t('clients.profile.field.ordinationCertSub')} value={client.ordinationCertificate} />
-            <InfoCell label={t('clients.profile.field.dateVerification')} subLabel={t('clients.profile.field.dateVerificationSub')} value={client.dateOfVerification} />
+            <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} />
+            <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} />
+            <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} />
+            <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} />
+            <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.personal')}>
-            <InfoCell label={t('clients.profile.field.gender')} subLabel={t('clients.profile.field.genderSub')} value={client.gender} />
-            <InfoCell label={t('clients.profile.field.dob')} subLabel={t('clients.profile.field.dobSub')} value={client.dateOfBirth} />
-            <InfoCell label={t('clients.profile.field.age')} subLabel={t('clients.profile.field.ageSub')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} />
-            <InfoCell label={t('clients.profile.field.maritalStatus')} subLabel={t('clients.profile.field.maritalStatusSub')} value={client.maritalStatus} />
-            <InfoCell label={t('clients.profile.field.nationality')} subLabel={t('clients.profile.field.nationalitySub')} value={client.nationality} />
-            <InfoCell label={t('clients.profile.field.ethnicity')} subLabel={t('clients.profile.field.ethnicitySub')} value={client.ethnicity} />
-            <InfoCell label={t('clients.profile.field.dialectGroup')} subLabel={t('clients.profile.field.dialectGroupSub')} value={client.dialectGroup} />
-            <InfoCell label={t('clients.profile.field.nextOfKin')} subLabel={t('clients.profile.field.nextOfKinSub')} value={client.nextOfKinContact} />
+            <InfoCell label={t('clients.profile.field.gender')} value={client.gender} />
+            <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} />
+            <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} />
+            <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} />
+            <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} />
+            <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} />
+            <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} />
+            <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.ordination')}>
-            <InfoCell label={t('clients.profile.field.buddhistTradition')} subLabel={t('clients.profile.field.buddhistTraditionSub')} value={client.buddhistTradition} />
-            <InfoCell label={t('clients.profile.field.ordinationStatus')} subLabel={t('clients.profile.field.ordinationStatusSub')} value={client.ordinationStatus} />
-            <InfoCell label={t('clients.profile.field.dateTonsure')} subLabel={t('clients.profile.field.dateTonsureSub')} value={client.dateOfTonsure} />
-            <InfoCell label={t('clients.profile.field.placeTonsure')} subLabel={t('clients.profile.field.placeTonsureSub')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
-            <InfoCell label={t('clients.profile.field.dateOrdination')} subLabel={t('clients.profile.field.dateOrdinationSub')} value={client.dateOfOrdination} />
-            <InfoCell label={t('clients.profile.field.placeOrdination')} subLabel={t('clients.profile.field.placeOrdinationSub')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
-            <InfoCell label={t('clients.profile.field.ordinationYears')} subLabel={t('clients.profile.field.ordinationYearsSub')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} />
+            <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} />
+            <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} />
+            <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} />
+            <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
+            <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} />
+            <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
+            <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.membership')}>
-            <InfoCell label={t('clients.profile.field.dateJoined')} subLabel={t('clients.profile.field.dateJoinedSub')} value={client.dateJoined} />
-            <InfoCell label={t('clients.profile.field.membershipRemarks')} subLabel={t('clients.profile.field.membershipRemarksSub')} value={client.membershipRemarks || '-'} />
-            <InfoCell label={t('clients.profile.field.comments')} subLabel={t('clients.profile.field.commentsSub')} value={client.comments || '-'} wide />
+            <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} />
+            <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} />
+            <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide />
           </ProfileSection>
         </>
       ) : (
@@ -755,19 +755,16 @@ function ProfileSection({ title, children }: { title: string; children: ReactNod
 
 function InfoCell({
   label,
-  subLabel,
   value,
   wide = false,
 }: {
   label: string
-  subLabel: string
   value: string | number
   wide?: boolean
 }) {
   return (
     <div className={'client-info-cell' + (wide ? ' wide' : '')}>
       <span>{label}</span>
-      <small>{subLabel}</small>
       <strong>{value}</strong>
     </div>
   )

@@ -43,17 +43,6 @@ function ReportsIcon() {
   )
 }
 
-function UsersIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M2.5 19c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M15 19c0-2.5 1.8-4 4-4s2.5 1.5 2.5 4" />
-    </svg>
-  )
-}
-
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -100,13 +89,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/reports',
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,
-  },
-  {
-    id: 'users',
-    routeId: 'users.list',
-    path: '/users',
-    labelKey: 'nav.users',
-    icon: <UsersIcon />,
   },
 ]
 
