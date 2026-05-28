@@ -6,7 +6,6 @@ import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServic
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
 import { CaseIntensityDot } from './CaseIntensityDot'
-import { CaseStatusBadge } from './CaseStatusBadge'
 
 type TabId = 'overview' | 'services' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
 
