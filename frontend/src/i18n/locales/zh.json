@@ -4,6 +4,7 @@
     "clients": "客户档案",
     "cases": "个案管理",
     "reports": "文档管理",
+    "tasks": "任务",
     "users": "用户管理"
   },
   "layout": {
@@ -36,12 +37,18 @@
       "urgentCases": "紧急个案",
       "urgentCases_footnote": "红色/橙色",
       "pendingReports": "待处理报告",
-      "pendingReports_footnote": "标记紧急"
+      "pendingReports_footnote": "标记紧急",
+      "assignedTaskCount": "分配任务",
+      "assignedTaskCount_footnote": "当前义工",
+      "myReportCount": "我的报告",
+      "myReportCount_footnote": "由我提交"
     },
     "recentCases": "最近个案",
+    "recentTasks": "最近分配的任务",
     "recentReports": "最近报告",
     "viewAll": "查看全部",
     "noCases": "暂无最近个案",
+    "noTasks": "暂无分配任务",
     "noReports": "暂无最近报告",
     "urgentBanner": "{{count}} 份紧急报告待处理",
     "viewResolve": "查看",
@@ -49,7 +56,8 @@
     "action": {
       "new_case": "新建个案",
       "add_client": "新增会员",
-      "submit_report": "提交报告"
+      "submit_report": "提交报告",
+      "view_tasks": "查看任务"
     }
   },
   "cases": {
@@ -383,11 +391,19 @@
     "notFound": "未找到探访报告",
     "back": "← 返回列表",
     "unnamedMonastic": "未命名会员",
+    "status": {
+      "DRAFT": "草稿",
+      "SUBMITTED": "已提交",
+      "ARCHIVED": "已归档",
+      "RETURNED": "已退回"
+    },
     "list": {
       "title": "探访报告",
+      "myTitle": "我的探访报告",
       "count": "{{count}} 份报告",
-      "newBtn": "+ 新增报告",
+      "newBtn": "+ 提交探访报告",
       "search": "搜索会员、提交人、地点",
+      "statusFilter": "报告状态",
       "allTypes": "全部类型",
       "loading": "加载中...",
       "empty": "暂无探访报告",
@@ -406,11 +422,13 @@
     },
     "form": {
       "title": "提交探访报告",
+      "editTitle": "编辑探访报告",
       "description": "报告者将自动使用当前登录账户。",
       "sectionBasic": "基本信息",
       "sectionObs": "观察记录",
       "sectionReflections": "反思与建议",
       "monastic": "会员",
+      "staffName": "工作人员/志愿者姓名",
       "dateOfVisit": "探访日期",
       "timeOfVisit": "探访时间",
       "duration": "探访时长",
@@ -433,17 +451,23 @@
       "submitError": "探访报告提交失败，请稍后重试。",
       "backToReports": "← 返回探访报告",
       "submitting": "提交中...",
-      "submit": "提交报告 →"
+      "submit": "提交报告 →",
+      "saveDraft": "保存草稿",
+      "submitFinal": "提交报告",
+      "update": "保存修改"
     },
     "detail": {
       "title": "探访报告",
+      "visitedPerson": "探访僧人",
       "submitted": "已提交",
       "urgent": "紧急",
       "resolveFlag": "处理标记",
       "approve": "审批",
       "archive": "归档",
+      "edit": "编辑",
       "deleting": "删除中...",
       "delete": "删除",
+      "deleteDraft": "删除草稿",
       "confirmDelete": "确认删除报告 {{id}}？",
       "urgentBanner": "此报告由 {{name}} 标记为紧急。",
       "markResolved": "标记为已处理",
@@ -471,6 +495,40 @@
         "highlights": "需关注事项"
       }
     }
+    ,
+    "category": {
+      "all": "全部",
+      "befriending": "💙 慈怀探访",
+      "temple": "🏠 寺院改善",
+      "food": "🍱 食物供养",
+      "planning": "📋 善终规划",
+      "case": "📁 个案管理"
+    }
+    ,
+    "statusFilter": {
+      "all": "全部状态"
+    }
+  },
+  "tasks": {
+    "title": "任务",
+    "count": "{{count}} 个任务",
+    "loadError": "任务加载失败，请稍后重试。",
+    "empty": "暂无分配给你的任务",
+    "open": "查看",
+    "notFound": "未找到任务",
+    "caseOverview": "个案概览",
+    "myReports": "我上传的报告",
+    "myNotes": "我的笔记",
+    "noReports": "暂无我上传的报告",
+    "noNotes": "暂无我上传的笔记",
+    "notePlaceholder": "添加只属于当前任务的跟进笔记",
+    "followUpPlaceholder": "后续跟进（可选）",
+    "addNote": "添加笔记",
+    "deleteNote": "删除",
+    "confirmDeleteNote": "确认删除这条笔记？",
+    "noteError": "笔记保存失败，请稍后重试。",
+    "deleteNoteError": "笔记删除失败，请稍后重试。",
+    "reportsLoadError": "我的报告加载失败，请稍后重试。"
   },
   "auth": {
     "error": {

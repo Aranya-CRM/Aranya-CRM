@@ -33,6 +33,7 @@ public class ReportDetailResponse {
     private String personalReflections;
     private String recommendations;
     private String mattersToHighlight;
+    private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

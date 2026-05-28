@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,7 +32,13 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping
-    public ResponseEntity<List<ReportSummaryResponse>> listReports() {
+    public ResponseEntity<List<ReportSummaryResponse>> listReports(
+            @CurrentUser User currentUser,
+            @RequestParam(defaultValue = "false") boolean mine
+    ) {
+        if (mine) {
+            return ResponseEntity.ok(reportService.listOwnReports(currentUser));
+        }
         return ResponseEntity.ok(reportService.listReports());
     }
 
@@ -48,9 +56,29 @@ public class ReportController {
                 .body(reportService.createReport(request, currentUser));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ReportDetailResponse> updateReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id,
+            @Valid @RequestBody CreateReportRequest request
+    ) {
+        return ResponseEntity.ok(reportService.updateReport(id, request, currentUser));
+    }
+
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<ReportDetailResponse> submitReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(reportService.submitReport(id, currentUser));
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReport(@PathVariable Long id) {
-        reportService.deleteReport(id);
+    public ResponseEntity<Void> deleteReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id
+    ) {
+        reportService.deleteReport(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

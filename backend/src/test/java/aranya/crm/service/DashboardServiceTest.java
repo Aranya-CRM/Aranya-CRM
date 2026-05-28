@@ -7,6 +7,8 @@ import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
 import aranya.crm.entity.UserRole;
 import aranya.crm.entity.VisitReport;
+import aranya.crm.entity.CaseAssignment;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.VisitReportRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +40,9 @@ class DashboardServiceTest {
 
     @Mock
     private VisitReportRepository visitReportRepository;
+
+    @Mock
+    private CaseAssignmentRepository caseAssignmentRepository;
 
     @InjectMocks
     private DashboardService dashboardService;
@@ -88,6 +93,18 @@ class DashboardServiceTest {
     void getDashboard_returnsVolunteerBlocks() {
         User user = userWithRole(9L, "VOLUNTEER");
         Client client = client(15L, "Venerable Sona", "释苏那");
+        ClientCase assignedCase = new ClientCase();
+        assignedCase.setId(41L);
+        assignedCase.setCaseCode("CASE-2026-041");
+        assignedCase.setClient(client);
+        assignedCase.setStatus("OPEN");
+        assignedCase.setColorCode("YELLOW");
+        CaseAssignment assignment = new CaseAssignment();
+        assignment.setClientCase(assignedCase);
+        assignment.setUser(user);
+        assignment.setAssignmentRole("VOLUNTEER");
+        assignment.setStatus("ACTIVE");
+        assignment.setAssignedAt(LocalDateTime.of(2026, 5, 1, 9, 0));
         VisitReport report = new VisitReport();
         report.setId(30L);
         report.setClient(client);
@@ -97,21 +114,29 @@ class DashboardServiceTest {
         report.setCreatedAt(LocalDateTime.of(2026, 5, 2, 10, 0));
 
         when(visitReportRepository.countByCreatedById(9L)).thenReturn(1L);
+        when(caseAssignmentRepository.countVolunteerAssignments(9L)).thenReturn(1L);
         when(visitReportRepository.findByCreatedByIdOrderByCreatedAtDescIdDesc(9L, PageRequest.of(0, 5)))
                 .thenReturn(List.of(report));
+        when(caseAssignmentRepository.findVolunteerAssignments(9L, PageRequest.of(0, 5)))
+                .thenReturn(List.of(assignment));
 
         DashboardResponse response = dashboardService.getDashboard(authentication(user, "VOLUNTEER"));
 
         assertThat(response.getSections()).extracting(DashboardResponse.Section::getId)
-                .containsExactly("volunteer.report_stats", "volunteer.my_recent_reports", "volunteer.quick_actions");
+                .containsExactly("volunteer.report_stats", "volunteer.recent_tasks", "volunteer.my_recent_reports", "volunteer.quick_actions");
         assertThat(response.getSections().get(0).getStats().get(0).getId()).isEqualTo("myReportCount");
         assertThat(response.getSections().get(0).getStats().get(0).getValue()).isEqualTo("1");
-        DashboardResponse.Item item = response.getSections().get(1).getItems().get(0);
+        assertThat(response.getSections().get(0).getStats().get(1).getId()).isEqualTo("assignedTaskCount");
+        DashboardResponse.Item task = response.getSections().get(1).getItems().get(0);
+        assertThat(task.getId()).isEqualTo("41");
+        assertThat(task.getCaseCode()).isEqualTo("CASE-2026-041");
+        assertThat(task.getStatusCode()).isEqualTo("OPEN");
+        DashboardResponse.Item item = response.getSections().get(2).getItems().get(0);
         assertThat(item.getId()).isEqualTo("30");
         assertThat(item.getClientNameEn()).isEqualTo("Venerable Sona");
         assertThat(item.getReportType()).isEqualTo("Temple Visit");
-        assertThat(response.getSections().get(2).getActions()).extracting(DashboardResponse.Action::getId)
-                .containsExactly("submit_report");
+        assertThat(response.getSections().get(3).getActions()).extracting(DashboardResponse.Action::getId)
+                .containsExactly("view_tasks", "submit_report");
     }
 
     @Test
@@ -119,7 +144,10 @@ class DashboardServiceTest {
     void getDashboard_mergesMultiRoleSectionsWithoutDuplicates() {
         User user = userWithRole(11L, "VOLUNTEER", "SOCIAL_WORKER");
         when(visitReportRepository.countByCreatedById(11L)).thenReturn(0L);
+        when(caseAssignmentRepository.countVolunteerAssignments(11L)).thenReturn(0L);
         when(visitReportRepository.findByCreatedByIdOrderByCreatedAtDescIdDesc(11L, PageRequest.of(0, 5)))
+                .thenReturn(List.of());
+        when(caseAssignmentRepository.findVolunteerAssignments(11L, PageRequest.of(0, 5)))
                 .thenReturn(List.of());
         when(clientRepository.countByMembershipStatusIgnoreCase("ACTIVE")).thenReturn(0L);
         when(caseService.countActiveCases()).thenReturn(0L);
@@ -133,6 +161,7 @@ class DashboardServiceTest {
         assertThat(response.getSections()).extracting(DashboardResponse.Section::getId)
                 .containsExactly(
                         "volunteer.report_stats",
+                        "volunteer.recent_tasks",
                         "volunteer.my_recent_reports",
                         "volunteer.quick_actions",
                         "sw.stats",

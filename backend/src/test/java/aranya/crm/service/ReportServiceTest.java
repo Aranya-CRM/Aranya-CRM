@@ -29,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -144,6 +145,7 @@ class ReportServiceTest {
         assertThat(response.getClientId()).isEqualTo(5L);
         assertThat(response.getCreatedById()).isEqualTo(9L);
         assertThat(response.getStaffName()).isEqualTo("YiKai Kong");
+        assertThat(response.getStatus()).isEqualTo("SUBMITTED");
     }
 
     @Test
@@ -204,6 +206,24 @@ class ReportServiceTest {
     }
 
     @Test
+    @DisplayName("createReport saves draft without creating a case note")
+    void createReport_savesDraftWithoutCreatingCaseNote() {
+        Client client = client(5L, "Venerable Dev Test", "测试法师");
+        User creator = user(9L, "Volunteer User");
+        CreateReportRequest request = createRequest();
+        request.setStatus("DRAFT");
+
+        when(clientRepository.findById(5L)).thenReturn(Optional.of(client));
+        when(visitReportRepository.save(any(VisitReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReportDetailResponse response = reportService.createReport(request, creator);
+
+        assertThat(response.getStatus()).isEqualTo("DRAFT");
+        verify(caseRepository, never()).findFirstByClientIdOrderByOpenedAtDescIdDesc(any());
+        verify(caseNoteRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("createReport throws when client does not exist")
     void createReport_throwsWhenClientDoesNotExist() {
         CreateReportRequest request = new CreateReportRequest();
@@ -217,14 +237,105 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("deleteReport removes an existing report")
-    void deleteReport_removesExistingReport() {
-        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), user(9L, "YiKai Kong"));
+    @DisplayName("listOwnReports maps only reports created by the current user")
+    void listOwnReports_mapsOnlyReportsCreatedByCurrentUser() {
+        Client client = client(5L, "Venerable Dev Test", "测试法师");
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client, creator);
+        when(visitReportRepository.findByCreatedByIdOrderByCreatedAtDescIdDesc(9L)).thenReturn(List.of(report));
+
+        List<ReportSummaryResponse> response = reportService.listOwnReports(creator);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getCreatedById()).isEqualTo(9L);
+        assertThat(response.get(0).getClientId()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("updateReport updates an existing report body")
+    void updateReport_updatesExistingReportBody() {
+        Client originalClient = client(5L, "Venerable Dev Test", "测试法师");
+        Client updatedClient = client(6L, "Venerable Updated", "更新法师");
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, originalClient, creator);
+        report.setStatus("DRAFT");
+        CreateReportRequest request = createRequest();
+        request.setClientId(6L);
+        request.setDateOfVisit(LocalDate.of(2026, 6, 1));
+        request.setLocation("Updated location");
+        request.setRecommendations("Updated recommendation");
+
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+        when(clientRepository.findById(6L)).thenReturn(Optional.of(updatedClient));
+
+        ReportDetailResponse response = reportService.updateReport(1L, request, creator);
+
+        assertThat(report.getClient()).isSameAs(updatedClient);
+        assertThat(report.getDateOfVisit()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(report.getLocation()).isEqualTo("Updated location");
+        assertThat(report.getRecommendations()).isEqualTo("Updated recommendation");
+        assertThat(report.getUpdatedAt()).isNotNull();
+        assertThat(response.getClientId()).isEqualTo(6L);
+        assertThat(response.getLocation()).isEqualTo("Updated location");
+    }
+
+    @Test
+    @DisplayName("submitReport publishes draft and creates a case note")
+    void submitReport_publishesDraftAndCreatesCaseNote() {
+        Client client = client(5L, "Venerable Dev Test", "测试法师");
+        User creator = user(9L, "Volunteer User");
+        ClientCase clientCase = clientCase(12L, client, "CASE-2026-012");
+        VisitReport report = report(1L, client, creator);
+        report.setStatus("DRAFT");
+        report.setWhatWasDone("Completed welfare check");
+
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+        when(caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(5L)).thenReturn(Optional.of(clientCase));
+
+        ReportDetailResponse response = reportService.submitReport(1L, creator);
+
+        assertThat(response.getStatus()).isEqualTo("SUBMITTED");
+        verify(caseNoteRepository).save(any(CaseNote.class));
+    }
+
+    @Test
+    @DisplayName("updateReport rejects submitted reports")
+    void updateReport_rejectsSubmittedReports() {
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), creator);
+        report.setStatus("SUBMITTED");
+
         when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
 
-        reportService.deleteReport(1L);
+        assertThatThrownBy(() -> reportService.updateReport(1L, createRequest(), creator))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Only draft or returned reports can be changed");
+    }
+
+    @Test
+    @DisplayName("deleteReport removes an existing report")
+    void deleteReport_removesExistingReport() {
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), creator);
+        report.setStatus("DRAFT");
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        reportService.deleteReport(1L, creator);
 
         verify(visitReportRepository).delete(report);
+    }
+
+    @Test
+    @DisplayName("deleteReport rejects submitted reports")
+    void deleteReport_rejectsSubmittedReports() {
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), creator);
+        report.setStatus("SUBMITTED");
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> reportService.deleteReport(1L, creator))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Only draft reports can be deleted");
     }
 
     @Test
@@ -232,7 +343,7 @@ class ReportServiceTest {
     void deleteReport_throwsWhenReportDoesNotExist() {
         when(visitReportRepository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reportService.deleteReport(404L))
+        assertThatThrownBy(() -> reportService.deleteReport(404L, user(9L, "YiKai Kong")))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Report not found: 404");
     }
@@ -272,6 +383,7 @@ class ReportServiceTest {
         report.setTypeOfVisit("Home Visit");
         report.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 30));
         report.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 10, 30));
+        report.setStatus("SUBMITTED");
         return report;
     }
 

@@ -6,4 +6,7 @@ export {
   useCaseNotes,
   useCases,
   useCreateCase,
+  useCreateCaseNote,
+  useDeleteCaseNote,
+  useOwnCaseNotes,
 } from './useCases'

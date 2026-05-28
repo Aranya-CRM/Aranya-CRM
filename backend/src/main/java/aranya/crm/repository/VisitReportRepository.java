@@ -16,6 +16,9 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById, Pageable pageable);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
+    List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})

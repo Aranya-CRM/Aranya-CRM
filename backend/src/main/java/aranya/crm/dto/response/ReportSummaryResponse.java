@@ -25,5 +25,6 @@ public class ReportSummaryResponse {
     private String location;
     private String programmeName;
     private String typeOfVisit;
+    private String status;
     private LocalDateTime createdAt;
 }

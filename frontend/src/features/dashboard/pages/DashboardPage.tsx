@@ -13,6 +13,7 @@ import type {
 import './dashboard.css'
 
 const STAT_ORDER = ['activeMonastics', 'openCases', 'urgentCases', 'pendingReports']
+const VOLUNTEER_STAT_ORDER = ['assignedTaskCount', 'myReportCount']
 
 const STATUS_COPY: Record<string, string> = {
   OPEN: 'OPEN',
@@ -34,6 +35,7 @@ const ACTION_PATHS: Record<string, string> = {
   new_case: '/cases',
   add_client: '/clients',
   submit_report: '/reports/new',
+  view_tasks: '/tasks',
 }
 
 function getSection(data: DashboardResponse | undefined, id: string): DashboardSection | undefined {
@@ -69,6 +71,22 @@ function StatCards({ stats }: { stats: DashboardStat[] | undefined }) {
   return (
     <section className="dashboard-stats" aria-label="Dashboard statistics">
       {STAT_ORDER.map((id) => (
+        <article className="stat-card" key={id}>
+          <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
+          <div className="stat-value">{statValue(stats, id)}</div>
+          <div className="stat-footnote">{t(`dashboard.stat.${id}_footnote`)}</div>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function VolunteerStatCards({ stats }: { stats: DashboardStat[] | undefined }) {
+  const { t } = useTranslation()
+
+  return (
+    <section className="dashboard-stats compact" aria-label="Volunteer dashboard statistics">
+      {VOLUNTEER_STAT_ORDER.map((id) => (
         <article className="stat-card" key={id}>
           <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
           <div className="stat-value">{statValue(stats, id)}</div>
@@ -153,6 +171,43 @@ function RecentCases({ items }: { items: DashboardItem[] }) {
   )
 }
 
+function RecentTasks({ items }: { items: DashboardItem[] }) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const isZh = i18n.language === 'zh'
+
+  return (
+    <section className="dashboard-panel" aria-label="Recent Assigned Tasks">
+      <SectionHeader titleKey="dashboard.recentTasks" viewAllPath="/tasks" />
+      <div className="dashboard-list">
+        {items.length === 0 ? (
+          <EmptyDashboardList message={t('dashboard.noTasks')} />
+        ) : (
+          items.map((item) => {
+            const colorClass = COLOR_CLASS[item.colorCode ?? ''] ?? 'neutral'
+
+            return (
+              <button
+                className={`case-row case-row-${colorClass}`}
+                key={item.id}
+                type="button"
+                onClick={() => navigate(`/tasks/${item.id}`)}
+              >
+                <span className="case-accent" aria-hidden="true" />
+                <span className="row-main">
+                  <span className="row-title">{displayName(item, isZh)}</span>
+                  <span className="row-meta">{displayText(item.caseCode)}</span>
+                </span>
+                <span className="status-pill">{formatStatus(item.statusCode)}</span>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </section>
+  )
+}
+
 function RecentReports({ items }: { items: DashboardItem[] }) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -170,7 +225,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
               className="report-row"
               key={item.id}
               type="button"
-              onClick={() => navigate(`/reports/${item.id}`)}
+              onClick={() => navigate(`/reports?selected=${item.id}`)}
             >
               <span className="row-main">
                 <span className="row-title">{displayName(item, isZh)}</span>
@@ -277,9 +332,13 @@ export function DashboardPage() {
   }, [t])
 
   const statsSection = useMemo(() => getSection(dashboardData, 'sw.stats'), [dashboardData])
+  const volunteerStatsSection = useMemo(() => getSection(dashboardData, 'volunteer.report_stats'), [dashboardData])
+  const recentTasksSection = useMemo(() => getSection(dashboardData, 'volunteer.recent_tasks'), [dashboardData])
   const recentCasesSection = useMemo(() => getSection(dashboardData, 'sw.recent_cases'), [dashboardData])
   const recentReportsSection = useMemo(() => getSection(dashboardData, 'sw.recent_reports'), [dashboardData])
+  const myRecentReportsSection = useMemo(() => getSection(dashboardData, 'volunteer.my_recent_reports'), [dashboardData])
   const quickActionsSection = useMemo(() => getSection(dashboardData, 'sw.quick_actions'), [dashboardData])
+  const volunteerQuickActionsSection = useMemo(() => getSection(dashboardData, 'volunteer.quick_actions'), [dashboardData])
   const pendingReports = parseStatNumber(statsSection?.stats, 'pendingReports')
 
   return (
@@ -292,16 +351,19 @@ export function DashboardPage() {
         <div className="dashboard-loading">{t('dashboard.loading')}</div>
       ) : (
         <>
-          <StatCards stats={statsSection?.stats} />
+          {volunteerStatsSection ? <VolunteerStatCards stats={volunteerStatsSection.stats} /> : null}
+          {statsSection ? <StatCards stats={statsSection.stats} /> : null}
 
           <div className="dashboard-grid">
-            <RecentCases items={recentCasesSection?.items ?? []} />
-            <RecentReports items={recentReportsSection?.items ?? []} />
+            {recentTasksSection ? <RecentTasks items={recentTasksSection.items ?? []} /> : null}
+            {recentCasesSection ? <RecentCases items={recentCasesSection.items ?? []} /> : null}
+            {myRecentReportsSection ? <RecentReports items={myRecentReportsSection.items ?? []} /> : null}
+            {recentReportsSection ? <RecentReports items={recentReportsSection.items ?? []} /> : null}
           </div>
 
           <UrgentReportBanner pendingReports={pendingReports} />
 
-          <QuickActions actions={quickActionsSection?.actions} />
+          <QuickActions actions={[...(volunteerQuickActionsSection?.actions ?? []), ...(quickActionsSection?.actions ?? [])]} />
         </>
       )}
     </>
