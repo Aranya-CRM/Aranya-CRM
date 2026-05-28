@@ -16,7 +16,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
-  const { canRoute } = useAccess()
+  const { resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -32,7 +32,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     },
   })
 
-  const visibleItems = NAVIGATION_ITEMS.filter((item) => canRoute(item.routeId))
+  const visibleItems = NAVIGATION_ITEMS.filter((item) => resolve(item.routeId))
 
   function handleNavClick(item: NavigationItem) {
     navigate(item.path)

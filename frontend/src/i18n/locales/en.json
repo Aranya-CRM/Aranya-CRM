@@ -18,6 +18,7 @@
     "loading": "Loading...",
     "cancel": "Cancel",
     "save": "Save",
+    "edit": "Edit",
     "back": "← Back to List",
     "actions": "Actions",
     "comingSoon": "Coming soon",
@@ -138,7 +139,8 @@
     "notes": {
       "empty": "No notes yet.",
       "by": "By",
-      "followup": "Follow-up"
+      "followup": "Follow-up",
+      "addNote": "Add Note"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -248,7 +250,8 @@
       "create": "Create Monastic ->"
     },
     "profile": {
-      "linkContacts": "Link Contacts",
+      "convertToClient": "Convert to Client",
+      "convertToCase": "Convert to Case Client",
       "editProfile": "Edit Profile",
       "delete": "Delete",
       "editTitle": "Edit Profile",
@@ -468,6 +471,8 @@
       "deleting": "Deleting...",
       "delete": "Delete",
       "deleteDraft": "Delete Draft",
+      "export": "Export Report",
+      "exportTooltip": "Export feature coming soon",
       "confirmDelete": "Delete report {{id}}?",
       "urgentBanner": "This report was marked URGENT by {{name}}.",
       "markResolved": "Mark Resolved",

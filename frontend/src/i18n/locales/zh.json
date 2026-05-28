@@ -18,6 +18,7 @@
     "loading": "加载中...",
     "cancel": "取消",
     "save": "保存",
+    "edit": "编辑",
     "back": "←",
     "actions": "操作",
     "comingSoon": "功能即将推出",
@@ -138,7 +139,8 @@
     "notes": {
       "empty": "暂无案例笔记",
       "by": "记录人",
-      "followup": "跟进"
+      "followup": "跟进",
+      "addNote": "新增笔记"
     },
     "placeholder": "{{tab}}功能即将推出",
     "audit": {
@@ -248,7 +250,8 @@
       "create": "创建会员 ->"
     },
     "profile": {
-      "linkContacts": "链接联系人",
+      "convertToClient": "转为客户",
+      "convertToCase": "转为个案客户",
       "editProfile": "编辑档案",
       "delete": "删除档案",
       "editTitle": "编辑档案",
@@ -468,6 +471,8 @@
       "deleting": "删除中...",
       "delete": "删除",
       "deleteDraft": "删除草稿",
+      "export": "导出报告",
+      "exportTooltip": "导出功能即将上线",
       "confirmDelete": "确认删除报告 {{id}}？",
       "urgentBanner": "此报告由 {{name}} 标记为紧急。",
       "markResolved": "标记为已处理",

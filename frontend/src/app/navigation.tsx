@@ -77,21 +77,21 @@ export interface NavigationItem {
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     id: 'dashboard',
-    routeId: 'dashboard',
+    routeId: 'route:dashboard',
     path: '/dashboard',
     labelKey: 'nav.dashboard',
     icon: <DashboardIcon />,
   },
   {
     id: 'clients',
-    routeId: 'clients.list',
+    routeId: 'route:clients',
     path: '/clients',
     labelKey: 'nav.clients',
     icon: <ClientsIcon />,
   },
   {
     id: 'cases',
-    routeId: 'cases.list',
+    routeId: 'route:cases',
     path: '/cases',
     labelKey: 'nav.cases',
     icon: <CasesIcon />,
@@ -105,7 +105,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     id: 'reports',
-    routeId: 'reports.list',
+    routeId: 'route:reports',
     path: '/reports',
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,

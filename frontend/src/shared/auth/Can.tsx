@@ -1,36 +1,30 @@
 import type { ReactNode } from 'react'
 import { useAccess } from './useAccess'
-
-type CapabilityKind = 'feature' | 'route' | 'widget'
+import type { DataObject } from '../../types/capManifest'
 
 interface CanProps {
+  // ── v1 legacy props ────────────────────────────────────────────────────────
   feature?: string
   route?: string
   widget?: string
+  // ── v2 cap-key props ───────────────────────────────────────────────────────
+  /** v2 cap key (e.g. 'cases:view'). Evaluated via EvaluationEngine.resolve(). */
+  cap?: string
+  /** Data object for OWN / TEAM / WORKFLOW scope resolution. */
+  object?: DataObject
+  // ──────────────────────────────────────────────────────────────────────────
   fallback?: ReactNode
   children: ReactNode
 }
 
-export function Can({ feature, route, widget, fallback = null, children }: CanProps) {
-  const { canFeature, canRoute, canWidget } = useAccess()
+export function Can({ feature, route, widget, cap, object, fallback = null, children }: CanProps) {
+  const { canFeature, canRoute, canWidget, resolve } = useAccess()
 
-  const checks: Array<[CapabilityKind, string | undefined]> = [
-    ['feature', feature],
-    ['route', route],
-    ['widget', widget],
-  ]
-  const activeChecks = checks.filter(([, value]) => Boolean(value))
-
-  if (activeChecks.length === 0) {
-    return <>{children}</>
-  }
-
-  const allowed = activeChecks.every(([kind, value]) => {
-    if (!value) return true
-    if (kind === 'feature') return canFeature(value)
-    if (kind === 'route') return canRoute(value)
-    return canWidget(value)
-  })
+  const allowed =
+    (!feature || canFeature(feature)) &&
+    (!route   || canRoute(route))     &&
+    (!widget  || canWidget(widget))   &&
+    (!cap     || resolve(cap, object))
 
   return <>{allowed ? children : fallback}</>
 }

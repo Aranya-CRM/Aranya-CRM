@@ -54,7 +54,7 @@ const initialNewClientForm: NewClientForm = {
 
 export function ClientListPage() {
   const { t } = useTranslation()
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
   const { id: routeClientId } = useParams<{ id: string }>()
@@ -71,10 +71,12 @@ export function ClientListPage() {
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
 
   const selectedClientId = searchParams.get('client') ?? routeClientId
-  const canCreateClient = canFeature('clients.create')
-  const canUpdateClient = canFeature('clients.update')
-  const canDeleteClient = canFeature('clients.delete') || canUpdateClient
-  const canViewDetailedProfile = canFeature('clients.view.full')
+  const canCreateClient = resolve('clients:create')
+  const canUpdateClient = resolve('clients:update')
+  const canDeleteClient = resolve('clients:delete')
+  const canViewDetailedProfile = resolve('clients:view.full')
+  const canConvertToCase = resolve('clients:convert_to_case')
+  const canConvertToClient = resolve('members:convert_to_client')
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
@@ -292,6 +294,8 @@ export function ClientListPage() {
                 canUpdateClient={canUpdateClient}
                 canDeleteClient={canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
+                canConvertToCase={canConvertToCase}
+                canConvertToClient={canConvertToClient}
                 showDeleteConfirm={showDeleteConfirm}
                 onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
                 onEdit={() => beginEditClient(profileClient)}
@@ -449,6 +453,8 @@ interface ClientProfilePanelProps {
   canUpdateClient: boolean
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
+  canConvertToCase: boolean
+  canConvertToClient: boolean
   showDeleteConfirm: boolean
   onToggleDeleteConfirm: () => void
   onEdit: () => void
@@ -459,6 +465,8 @@ function ClientProfilePanel({
   canUpdateClient,
   canDeleteClient,
   canViewDetailedProfile,
+  canConvertToCase,
+  canConvertToClient,
   showDeleteConfirm,
   onToggleDeleteConfirm,
   onEdit,
@@ -476,18 +484,29 @@ function ClientProfilePanel({
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
-          <button className="btn-secondary" type="button">
-            {t('clients.profile.linkContacts')}
-          </button>
-          {canUpdateClient ? (
-            <button className="btn-edit" type="button" onClick={onEdit}>
-              {t('clients.profile.editProfile')}
+          {canConvertToClient ? (
+            <button className="btn-primary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
+              {t('clients.profile.convertToClient')}
             </button>
           ) : null}
-          {canDeleteClient ? (
-            <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
-              {t('clients.profile.delete')}
-            </button>
+          {canViewDetailedProfile ? (
+            <>
+              {canConvertToCase ? (
+                <button className="btn-secondary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
+                  {t('clients.profile.convertToCase')}
+                </button>
+              ) : null}
+              {canUpdateClient ? (
+                <button className="btn-edit" type="button" onClick={onEdit}>
+                  {t('clients.profile.editProfile')}
+                </button>
+              ) : null}
+              {canDeleteClient ? (
+                <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
+                  {t('clients.profile.delete')}
+                </button>
+              ) : null}
+            </>
           ) : null}
         </div>
       </header>
@@ -553,11 +572,7 @@ function ClientProfilePanel({
             <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide />
           </ProfileSection>
         </>
-      ) : (
-        <div className="volunteer-notice">
-          {t('clients.profile.volunteerNotice')}
-        </div>
-      )}
+      ) : null}
     </article>
   )
 }
