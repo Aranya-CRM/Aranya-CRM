@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -56,5 +57,50 @@ public class CapPermissionEvaluator {
 
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, params);
         return count != null && count > 0;
+    }
+
+    /**
+     * Returns the effective scope value for the given cap key.
+     * Precedence: ALL > YES > OWN > TEAM > WORKFLOW > NO.
+     * Returns "NO" when the cap is absent or the user has no roles.
+     */
+    public String capScope(Authentication authentication, String capKey) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "NO";
+        }
+
+        List<String> roleNames = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> a.startsWith("ROLE_"))
+                .map(a -> a.substring("ROLE_".length()))
+                .toList();
+
+        if (roleNames.isEmpty()) {
+            return "NO";
+        }
+
+        String placeholders = String.join(",", roleNames.stream().map(_i -> "?").toList());
+        String sql = """
+                SELECT
+                  CASE
+                    WHEN BOOL_OR(rc.scope_value = 'ALL')      THEN 'ALL'
+                    WHEN BOOL_OR(rc.scope_value = 'YES')      THEN 'YES'
+                    WHEN BOOL_OR(rc.scope_value = 'OWN')      THEN 'OWN'
+                    WHEN BOOL_OR(rc.scope_value = 'TEAM')     THEN 'TEAM'
+                    WHEN BOOL_OR(rc.scope_value = 'WORKFLOW') THEN 'WORKFLOW'
+                    ELSE 'NO'
+                  END
+                FROM role_cap rc
+                JOIN cap_definition cd ON cd.id = rc.cap_def_id
+                JOIN role r ON r.id = rc.role_id
+                WHERE r.name IN (%s)
+                  AND cd.cap_key = ?
+                """.formatted(placeholders);
+
+        List<Object> params = new ArrayList<>(roleNames);
+        params.add(capKey);
+
+        String scope = jdbcTemplate.queryForObject(sql, String.class, params.toArray());
+        return scope != null ? scope : "NO";
     }
 }
