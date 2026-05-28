@@ -72,6 +72,23 @@ public class CaseService {
         return caseRepository.countByStatusNotAndColorCodeIn(CLOSED_STATUS, URGENT_COLOR_CODES);
     }
 
+    public long countActiveCasesByCreatedBy(Long createdById) {
+        return caseRepository.countByCreatedByIdAndStatusNot(createdById, CLOSED_STATUS);
+    }
+
+    public long countUrgentCasesByCreatedBy(Long createdById) {
+        return caseRepository.countByCreatedByIdAndStatusNotAndColorCodeIn(createdById, CLOSED_STATUS, URGENT_COLOR_CODES);
+    }
+
+    public long countDistinctActiveClientsByCreatedBy(Long createdById) {
+        return caseRepository.countDistinctActiveClientsByCreatedById(createdById);
+    }
+
+    public List<ClientCase> getActiveCasesByCreatedBy(Long createdById, int limit) {
+        return caseRepository.findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
+                createdById, CLOSED_STATUS, PageRequest.of(0, limit));
+    }
+
     private CaseSummaryResponse toCaseSummaryResponse(ClientCase clientCase) {
         return CaseSummaryResponse.builder()
                 .id(clientCase.getId())

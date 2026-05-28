@@ -64,6 +64,19 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
 
     long countByStatusNotAndColorCodeIn(String status, Collection<String> colorCodes);
 
+    @EntityGraph(attributePaths = "client")
+    List<ClientCase> findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
+            Long createdById, String status, Pageable pageable);
+
+    long countByCreatedByIdAndStatusNot(Long createdById, String status);
+
+    long countByCreatedByIdAndStatusNotAndColorCodeIn(
+            Long createdById, String status, Collection<String> colorCodes);
+
+    @Query("SELECT COUNT(DISTINCT cc.client.id) FROM ClientCase cc " +
+           "WHERE cc.createdBy.id = :createdById AND LOWER(cc.status) != 'closed'")
+    long countDistinctActiveClientsByCreatedById(@Param("createdById") Long createdById);
+
     @Query("SELECT cc.caseCode FROM ClientCase cc " +
            "WHERE cc.caseCode LIKE CONCAT('ASDFL/', :year, '/C/%') " +
            "ORDER BY cc.id DESC LIMIT 1")
