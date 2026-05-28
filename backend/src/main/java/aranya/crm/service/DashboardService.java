@@ -1,11 +1,13 @@
 package aranya.crm.service;
 
+import aranya.crm.entity.CaseAssignment;
 import aranya.crm.dto.response.DashboardResponse;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
 import aranya.crm.repository.ClientRepository;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.VisitReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +32,7 @@ public class DashboardService {
     private final ClientRepository clientRepository;
     private final CaseService caseService;
     private final VisitReportRepository visitReportRepository;
+    private final CaseAssignmentRepository caseAssignmentRepository;
 
     public DashboardResponse getDashboard(Authentication authentication) {
         User currentUser = authentication != null && authentication.getPrincipal() instanceof User user
@@ -40,6 +43,7 @@ public class DashboardService {
         List<DashboardResponse.Section> sections = new ArrayList<>();
         if (roles.contains("VOLUNTEER") && currentUser != null) {
             sections.add(volunteerReportStats(currentUser.getId()));
+            sections.add(volunteerRecentTasks(currentUser.getId()));
             sections.add(volunteerRecentReports(currentUser.getId()));
             sections.add(volunteerQuickActions());
         }
@@ -67,7 +71,10 @@ public class DashboardService {
     private DashboardResponse.Section volunteerReportStats(Long currentUserId) {
         return DashboardResponse.Section.builder()
                 .id("volunteer.report_stats")
-                .stats(List.of(stat("myReportCount", visitReportRepository.countByCreatedById(currentUserId))))
+                .stats(List.of(
+                        stat("myReportCount", visitReportRepository.countByCreatedById(currentUserId)),
+                        stat("assignedTaskCount", caseAssignmentRepository.countVolunteerAssignments(currentUserId))
+                ))
                 .build();
     }
 
@@ -84,10 +91,24 @@ public class DashboardService {
                 .build();
     }
 
+    private DashboardResponse.Section volunteerRecentTasks(Long currentUserId) {
+        List<DashboardResponse.Item> items = caseAssignmentRepository
+                .findVolunteerAssignments(currentUserId, PageRequest.of(0, DASHBOARD_LIST_LIMIT))
+                .stream()
+                .map(CaseAssignment::getClientCase)
+                .map(this::toCaseItem)
+                .toList();
+
+        return DashboardResponse.Section.builder()
+                .id("volunteer.recent_tasks")
+                .items(items)
+                .build();
+    }
+
     private DashboardResponse.Section volunteerQuickActions() {
         return DashboardResponse.Section.builder()
                 .id("volunteer.quick_actions")
-                .actions(List.of(action("submit_report")))
+                .actions(List.of(action("view_tasks"), action("submit_report")))
                 .build();
     }
 
@@ -98,7 +119,7 @@ public class DashboardService {
                         stat("activeMonastics", clientRepository.countByMembershipStatusIgnoreCase(ACTIVE_MEMBERSHIP_STATUS)),
                         stat("openCases", caseService.countActiveCases()),
                         stat("urgentCases", caseService.countUrgentCases()),
-                        stat("pendingReports", 0L)
+                        stat("pendingReports", visitReportRepository.count())
                 ))
                 .build();
     }

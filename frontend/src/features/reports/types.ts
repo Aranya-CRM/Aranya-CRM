@@ -1,3 +1,5 @@
+export type ReportStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED'
+
 export interface ReportSummary {
   id: number
   clientId?: number | null
@@ -13,6 +15,7 @@ export interface ReportSummary {
   location?: string | null
   programmeName?: string | null
   typeOfVisit?: string | null
+  status?: ReportStatus | null
   createdAt?: string | null
 }
 
@@ -45,4 +48,7 @@ export type CreateReportPayload = {
   personalReflections?: string
   recommendations?: string
   mattersToHighlight?: string
+  status?: ReportStatus
 }
+
+export type UpdateReportPayload = CreateReportPayload

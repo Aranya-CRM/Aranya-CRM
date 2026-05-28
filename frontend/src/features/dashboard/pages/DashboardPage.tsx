@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader } from '../../../shared/ui'
 import { fetchDashboardData } from '../api/dashboard.api'
@@ -11,30 +12,8 @@ import type {
 } from '../types'
 import './dashboard.css'
 
-const STAT_COPY: Record<string, { zh: string; en: string; footnote: string }> = {
-  activeMonastics: {
-    zh: '在册僧人',
-    en: 'Active Monastics',
-    footnote: '活跃会员 · Active members',
-  },
-  openCases: {
-    zh: '进行中个案',
-    en: 'Open Cases',
-    footnote: '未关闭个案 · Non-closed',
-  },
-  urgentCases: {
-    zh: '紧急个案',
-    en: 'Urgent Cases',
-    footnote: '红色/橙色 · RED / ORANGE',
-  },
-  pendingReports: {
-    zh: '待处理报告',
-    en: 'Pending Reports',
-    footnote: '标记紧急 · Flagged urgent',
-  },
-}
-
 const STAT_ORDER = ['activeMonastics', 'openCases', 'urgentCases', 'pendingReports']
+const VOLUNTEER_STAT_ORDER = ['assignedTaskCount', 'myReportCount']
 
 const STATUS_COPY: Record<string, string> = {
   OPEN: 'OPEN',
@@ -52,22 +31,11 @@ const COLOR_CLASS: Record<string, string> = {
   GREEN: 'success',
 }
 
-const ACTION_COPY: Record<string, { zh: string; en: string; path: string }> = {
-  new_case: {
-    zh: '新建个案',
-    en: 'New Case',
-    path: '/cases',
-  },
-  add_client: {
-    zh: '新增僧人',
-    en: 'Add Monastic',
-    path: '/clients',
-  },
-  submit_report: {
-    zh: '提交报告',
-    en: 'Submit Report',
-    path: '/reports/new',
-  },
+const ACTION_PATHS: Record<string, string> = {
+  new_case: '/cases',
+  add_client: '/clients',
+  submit_report: '/reports/new',
+  view_tasks: '/tasks',
 }
 
 function getSection(data: DashboardResponse | undefined, id: string): DashboardSection | undefined {
@@ -81,18 +49,6 @@ function statValue(stats: DashboardStat[] | undefined, id: string): string {
 function parseStatNumber(stats: DashboardStat[] | undefined, id: string): number {
   const value = Number(statValue(stats, id))
   return Number.isFinite(value) ? value : 0
-}
-
-function displayName(item: DashboardItem): string {
-  const zh = item.clientNameChn?.trim()
-  const en = item.clientNameEn?.trim()
-
-  if (zh && en) return `${zh} / ${en}`
-  return zh || en || '未命名僧人 / Unnamed monastic'
-}
-
-function displayText(value: string | null | undefined, fallback = '-'): string {
-  return value?.trim() || fallback
 }
 
 function formatStatus(value: string | null | undefined): string {
@@ -110,43 +66,54 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function StatCards({ stats }: { stats: DashboardStat[] | undefined }) {
+  const { t } = useTranslation()
+
   return (
     <section className="dashboard-stats" aria-label="Dashboard statistics">
-      {STAT_ORDER.map((id) => {
-        const copy = STAT_COPY[id]
+      {STAT_ORDER.map((id) => (
+        <article className="stat-card" key={id}>
+          <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
+          <div className="stat-value">{statValue(stats, id)}</div>
+          <div className="stat-footnote">{t(`dashboard.stat.${id}_footnote`)}</div>
+        </article>
+      ))}
+    </section>
+  )
+}
 
-        return (
-          <article className="stat-card" key={id}>
-            <div className="stat-label-zh">{copy.zh}</div>
-            <div className="stat-label-en">{copy.en}</div>
-            <div className="stat-value">{statValue(stats, id)}</div>
-            <div className="stat-footnote">{copy.footnote}</div>
-          </article>
-        )
-      })}
+function VolunteerStatCards({ stats }: { stats: DashboardStat[] | undefined }) {
+  const { t } = useTranslation()
+
+  return (
+    <section className="dashboard-stats compact" aria-label="Volunteer dashboard statistics">
+      {VOLUNTEER_STAT_ORDER.map((id) => (
+        <article className="stat-card" key={id}>
+          <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
+          <div className="stat-value">{statValue(stats, id)}</div>
+          <div className="stat-footnote">{t(`dashboard.stat.${id}_footnote`)}</div>
+        </article>
+      ))}
     </section>
   )
 }
 
 function SectionHeader({
-  titleZh,
-  titleEn,
+  titleKey,
   viewAllPath,
 }: {
-  titleZh: string
-  titleEn: string
+  titleKey: string
   viewAllPath: string
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   return (
     <div className="dashboard-panel-header">
       <div>
-        <h3>{titleZh}</h3>
-        <div>{titleEn}</div>
+        <h3>{t(titleKey)}</h3>
       </div>
       <button className="view-all-link" type="button" onClick={() => navigate(viewAllPath)}>
-        查看全部 · View all
+        {t('dashboard.viewAll')}
       </button>
     </div>
   )
@@ -156,15 +123,28 @@ function EmptyDashboardList({ message }: { message: string }) {
   return <div className="dashboard-empty">{message}</div>
 }
 
+function displayName(item: DashboardItem, isZh: boolean): string {
+  const zh = item.clientNameChn?.trim()
+  const en = item.clientNameEn?.trim()
+  if (isZh) return zh || en || ''
+  return en || zh || ''
+}
+
+function displayText(value: string | null | undefined, fallback = '-'): string {
+  return value?.trim() || fallback
+}
+
 function RecentCases({ items }: { items: DashboardItem[] }) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const isZh = i18n.language === 'zh'
 
   return (
     <section className="dashboard-panel" aria-label="Recent Cases">
-      <SectionHeader titleZh="最近个案" titleEn="Recent Cases" viewAllPath="/cases" />
+      <SectionHeader titleKey="dashboard.recentCases" viewAllPath="/cases" />
       <div className="dashboard-list">
         {items.length === 0 ? (
-          <EmptyDashboardList message="暂无最近个案 / No recent cases" />
+          <EmptyDashboardList message={t('dashboard.noCases')} />
         ) : (
           items.map((item) => {
             const colorClass = COLOR_CLASS[item.colorCode ?? ''] ?? 'neutral'
@@ -178,7 +158,44 @@ function RecentCases({ items }: { items: DashboardItem[] }) {
               >
                 <span className="case-accent" aria-hidden="true" />
                 <span className="row-main">
-                  <span className="row-title">{displayName(item)}</span>
+                  <span className="row-title">{displayName(item, isZh)}</span>
+                  <span className="row-meta">{displayText(item.caseCode)}</span>
+                </span>
+                <span className="status-pill">{formatStatus(item.statusCode)}</span>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </section>
+  )
+}
+
+function RecentTasks({ items }: { items: DashboardItem[] }) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const isZh = i18n.language === 'zh'
+
+  return (
+    <section className="dashboard-panel" aria-label="Recent Assigned Tasks">
+      <SectionHeader titleKey="dashboard.recentTasks" viewAllPath="/tasks" />
+      <div className="dashboard-list">
+        {items.length === 0 ? (
+          <EmptyDashboardList message={t('dashboard.noTasks')} />
+        ) : (
+          items.map((item) => {
+            const colorClass = COLOR_CLASS[item.colorCode ?? ''] ?? 'neutral'
+
+            return (
+              <button
+                className={`case-row case-row-${colorClass}`}
+                key={item.id}
+                type="button"
+                onClick={() => navigate(`/tasks/${item.id}`)}
+              >
+                <span className="case-accent" aria-hidden="true" />
+                <span className="row-main">
+                  <span className="row-title">{displayName(item, isZh)}</span>
                   <span className="row-meta">{displayText(item.caseCode)}</span>
                 </span>
                 <span className="status-pill">{formatStatus(item.statusCode)}</span>
@@ -192,29 +209,31 @@ function RecentCases({ items }: { items: DashboardItem[] }) {
 }
 
 function RecentReports({ items }: { items: DashboardItem[] }) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const isZh = i18n.language === 'zh'
 
   return (
     <section className="dashboard-panel" aria-label="Recent Reports">
-      <SectionHeader titleZh="最近探访报告" titleEn="Recent Reports" viewAllPath="/reports" />
+      <SectionHeader titleKey="dashboard.recentReports" viewAllPath="/reports" />
       <div className="dashboard-list">
         {items.length === 0 ? (
-          <EmptyDashboardList message="暂无最近报告 / No recent reports" />
+          <EmptyDashboardList message={t('dashboard.noReports')} />
         ) : (
           items.map((item) => (
             <button
               className="report-row"
               key={item.id}
               type="button"
-              onClick={() => navigate(`/reports/${item.id}`)}
+              onClick={() => navigate(`/reports?selected=${item.id}`)}
             >
               <span className="row-main">
-                <span className="row-title">{displayName(item)}</span>
+                <span className="row-title">{displayName(item, isZh)}</span>
                 <span className="row-meta">
                   {displayText(item.createdByName, 'Unknown')} · {formatDate(item.dateOfVisit)} · {displayText(item.reportType, 'Visit')}
                 </span>
               </span>
-              <span className="report-pill">Submitted</span>
+              <span className="report-pill">{t('reports.detail.submitted')}</span>
             </button>
           ))
         )}
@@ -224,6 +243,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
 }
 
 function UrgentReportBanner({ pendingReports }: { pendingReports: number }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   if (pendingReports <= 0) {
@@ -233,19 +253,19 @@ function UrgentReportBanner({ pendingReports }: { pendingReports: number }) {
   return (
     <section className="urgent-report-banner" aria-label="Urgent reports pending action">
       <div className="urgent-report-text">
-        <strong>{pendingReports} 份紧急探访报告待处理</strong>
-        <span> · {pendingReports} Urgent Report(s) Pending Action</span>
+        <strong>{t('dashboard.urgentBanner', { count: pendingReports })}</strong>
       </div>
       <button type="button" onClick={() => navigate('/reports')}>
-        查看 · View & Resolve
+        {t('dashboard.viewResolve')}
       </button>
     </section>
   )
 }
 
 function QuickActions({ actions }: { actions: DashboardAction[] | undefined }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
-  const visibleActions = (actions ?? []).filter((action) => ACTION_COPY[action.id])
+  const visibleActions = (actions ?? []).filter((action) => ACTION_PATHS[action.id])
 
   if (visibleActions.length === 0) {
     return null
@@ -255,32 +275,28 @@ function QuickActions({ actions }: { actions: DashboardAction[] | undefined }) {
     <section className="quick-actions-card" aria-label="Quick Actions">
       <div className="dashboard-panel-header compact">
         <div>
-          <h3>快捷操作</h3>
-          <div>Quick Actions</div>
+          <h3>{t('dashboard.quickActions')}</h3>
         </div>
       </div>
       <div className="quick-actions">
-        {visibleActions.map((action) => {
-          const copy = ACTION_COPY[action.id]
-
-          return (
-            <button
-              className="quick-btn"
-              key={action.id}
-              type="button"
-              onClick={() => navigate(copy.path)}
-            >
-              <span className="quick-icon" aria-hidden="true">+</span>
-              <span>{copy.zh} · {copy.en}</span>
-            </button>
-          )
-        })}
+        {visibleActions.map((action) => (
+          <button
+            className="quick-btn"
+            key={action.id}
+            type="button"
+            onClick={() => navigate(ACTION_PATHS[action.id])}
+          >
+            <span className="quick-icon" aria-hidden="true">+</span>
+            <span>{t(`dashboard.action.${action.id}`)}</span>
+          </button>
+        ))}
       </div>
     </section>
   )
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const [dashboardData, setDashboardData] = useState<DashboardResponse>()
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
@@ -299,7 +315,7 @@ export function DashboardPage() {
         }
       } catch {
         if (active) {
-          setErrorMessage('工作台数据加载失败，请稍后重试。 / Failed to load dashboard data.')
+          setErrorMessage(t('dashboard.error'))
         }
       } finally {
         if (active) {
@@ -313,37 +329,41 @@ export function DashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [t])
 
   const statsSection = useMemo(() => getSection(dashboardData, 'sw.stats'), [dashboardData])
+  const volunteerStatsSection = useMemo(() => getSection(dashboardData, 'volunteer.report_stats'), [dashboardData])
+  const recentTasksSection = useMemo(() => getSection(dashboardData, 'volunteer.recent_tasks'), [dashboardData])
   const recentCasesSection = useMemo(() => getSection(dashboardData, 'sw.recent_cases'), [dashboardData])
   const recentReportsSection = useMemo(() => getSection(dashboardData, 'sw.recent_reports'), [dashboardData])
+  const myRecentReportsSection = useMemo(() => getSection(dashboardData, 'volunteer.my_recent_reports'), [dashboardData])
   const quickActionsSection = useMemo(() => getSection(dashboardData, 'sw.quick_actions'), [dashboardData])
+  const volunteerQuickActionsSection = useMemo(() => getSection(dashboardData, 'volunteer.quick_actions'), [dashboardData])
   const pendingReports = parseStatNumber(statsSection?.stats, 'pendingReports')
 
   return (
     <>
-      <PageHeader
-        titleZh="工作台"
-        titleEn="Dashboard · 欢迎回来"
-      />
+      <PageHeader title={t('dashboard.pageTitle')} />
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
       {isLoading ? (
-        <div className="dashboard-loading">正在加载工作台数据 / Loading dashboard data...</div>
+        <div className="dashboard-loading">{t('dashboard.loading')}</div>
       ) : (
         <>
-          <StatCards stats={statsSection?.stats} />
+          {volunteerStatsSection ? <VolunteerStatCards stats={volunteerStatsSection.stats} /> : null}
+          {statsSection ? <StatCards stats={statsSection.stats} /> : null}
 
           <div className="dashboard-grid">
-            <RecentCases items={recentCasesSection?.items ?? []} />
-            <RecentReports items={recentReportsSection?.items ?? []} />
+            {recentTasksSection ? <RecentTasks items={recentTasksSection.items ?? []} /> : null}
+            {recentCasesSection ? <RecentCases items={recentCasesSection.items ?? []} /> : null}
+            {myRecentReportsSection ? <RecentReports items={myRecentReportsSection.items ?? []} /> : null}
+            {recentReportsSection ? <RecentReports items={recentReportsSection.items ?? []} /> : null}
           </div>
 
           <UrgentReportBanner pendingReports={pendingReports} />
 
-          <QuickActions actions={quickActionsSection?.actions} />
+          <QuickActions actions={[...(volunteerQuickActionsSection?.actions ?? []), ...(quickActionsSection?.actions ?? [])]} />
         </>
       )}
     </>

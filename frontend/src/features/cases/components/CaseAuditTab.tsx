@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { AuditLogAction, AuditLogEntry, Case, CaseFlag, CaseNote } from '../types'
 
 interface CaseAuditTabProps {
@@ -9,10 +10,8 @@ interface CaseAuditTabProps {
 
 interface ComplianceItem {
   id: string
-  labelZh: string
-  labelEn: string
   passed: boolean
-  failNote?: string
+  failNoteKey?: string
 }
 
 function computeCompliance(caseData: Case, notes: CaseNote[]): ComplianceItem[] {
@@ -26,73 +25,53 @@ function computeCompliance(caseData: Case, notes: CaseNote[]): ComplianceItem[] 
   return [
     {
       id: 'sw_assigned',
-      labelZh: '主责社工已分配',
-      labelEn: 'Caseworker assigned',
       passed: Boolean(caseData.socialWorker),
     },
     {
       id: 'volunteer_assigned',
-      labelZh: '义工已分配',
-      labelEn: 'Volunteer assigned',
       passed: Boolean(caseData.assignedVolunteer),
-      failNote: '建议为活跃个案分配跟进义工',
+      failNoteKey: 'cases.audit.compliance.volunteer_assigned_fail',
     },
     {
       id: 'early_note',
-      labelZh: '开案7天内有案例笔记',
-      labelEn: 'Note recorded within 7 days of opening',
       passed: hasNoteWithin7Days,
-      failNote: '开案后应在7天内完成首次评估记录',
+      failNoteKey: 'cases.audit.compliance.early_note_fail',
     },
     {
       id: 'has_notes',
-      labelZh: '至少有一条案例笔记',
-      labelEn: 'At least one case note recorded',
       passed: notes.length > 0,
     },
     {
       id: 'tasks_defined',
-      labelZh: '已建立任务清单',
-      labelEn: 'Task list defined',
       passed: Boolean(caseData.tasks && caseData.tasks.length > 0),
-      failNote: '建立任务清单有助于追踪跟进进度',
+      failNoteKey: 'cases.audit.compliance.tasks_defined_fail',
     },
     {
       id: 'crisis_for_red',
-      labelZh: '红色个案: 危机干预服务已启用',
-      labelEn: 'Red case: Crisis Intervention module enabled',
       passed: !isRed || caseData.services.crisisIntervention,
-      failNote: '红色级别个案须启用危机干预 (Crisis Intervention) 服务模块',
+      failNoteKey: 'cases.audit.compliance.crisis_for_red_fail',
     },
     {
       id: 'status_ok',
-      labelZh: '暂停个案须有案例笔记记录原因',
-      labelEn: 'Suspended case must have notes explaining reason',
       passed: caseData.status !== 'SUSPENDED' || notes.length > 0,
     },
   ]
 }
 
-const ACTION_CONFIG: Record<AuditLogAction, { labelZh: string; labelEn: string; colorClass: string }> = {
-  CASE_CREATED:        { labelZh: '个案已创建',     labelEn: 'Case Created',          colorClass: 'audit-dot-green'  },
-  CASE_CLOSED:         { labelZh: '个案已关闭',     labelEn: 'Case Closed',           colorClass: 'audit-dot-grey'   },
-  CASE_REOPENED:       { labelZh: '个案已重新开启', labelEn: 'Case Reopened',         colorClass: 'audit-dot-green'  },
-  STATUS_CHANGED:      { labelZh: '状态已变更',     labelEn: 'Status Changed',        colorClass: 'audit-dot-orange' },
-  INTENSITY_CHANGED:   { labelZh: '强度已变更',     labelEn: 'Intensity Changed',     colorClass: 'audit-dot-red'    },
-  NOTE_ADDED:          { labelZh: '案例笔记已添加', labelEn: 'Note Added',            colorClass: 'audit-dot-blue'   },
-  TASK_COMPLETED:      { labelZh: '任务已完成',     labelEn: 'Task Completed',        colorClass: 'audit-dot-green'  },
-  TASK_ADDED:          { labelZh: '任务已添加',     labelEn: 'Task Added',            colorClass: 'audit-dot-blue'   },
-  CASEWORKER_ASSIGNED: { labelZh: '社工已分配',     labelEn: 'Caseworker Assigned',   colorClass: 'audit-dot-grey'   },
-  VOLUNTEER_ASSIGNED:  { labelZh: '义工已分配',     labelEn: 'Volunteer Assigned',    colorClass: 'audit-dot-grey'   },
-  SERVICE_UPDATED:     { labelZh: '服务模块已更新', labelEn: 'Service Updated',       colorClass: 'audit-dot-blue'   },
-  CASE_FLAGGED:        { labelZh: '个案已标记',     labelEn: 'Case Flagged',          colorClass: 'audit-dot-purple' },
-  FLAG_RESOLVED:       { labelZh: '标记已解决',     labelEn: 'Flag Resolved',         colorClass: 'audit-dot-green'  },
-}
-
-const FLAG_SEVERITY_LABELS: Record<string, { zh: string; en: string }> = {
-  HIGH:   { zh: '高',  en: 'High'   },
-  MEDIUM: { zh: '中',  en: 'Medium' },
-  LOW:    { zh: '低',  en: 'Low'    },
+const ACTION_COLOR_CLASS: Record<AuditLogAction, string> = {
+  CASE_CREATED:        'audit-dot-green',
+  CASE_CLOSED:         'audit-dot-grey',
+  CASE_REOPENED:       'audit-dot-green',
+  STATUS_CHANGED:      'audit-dot-orange',
+  INTENSITY_CHANGED:   'audit-dot-red',
+  NOTE_ADDED:          'audit-dot-blue',
+  TASK_COMPLETED:      'audit-dot-green',
+  TASK_ADDED:          'audit-dot-blue',
+  CASEWORKER_ASSIGNED: 'audit-dot-grey',
+  VOLUNTEER_ASSIGNED:  'audit-dot-grey',
+  SERVICE_UPDATED:     'audit-dot-blue',
+  CASE_FLAGGED:        'audit-dot-purple',
+  FLAG_RESOLVED:       'audit-dot-green',
 }
 
 function formatAuditDateTime(iso: string): { date: string; time: string } {
@@ -104,6 +83,7 @@ function formatAuditDateTime(iso: string): { date: string; time: string } {
 }
 
 export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabProps) {
+  const { t } = useTranslation()
   const compliance = computeCompliance(caseData, notes)
   const passed = compliance.filter((c) => c.passed).length
   const total = compliance.length
@@ -117,10 +97,12 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
       <section className="audit-section">
         <div className="audit-section-header">
           <div>
-            <div className="audit-section-title">合规状态 · Compliance Status</div>
-            <div className="audit-section-sub">根据个案数据自动检查 · Auto-checked from case data</div>
+            <div className="audit-section-title">{t('cases.audit.compliance.title')}</div>
+            <div className="audit-section-sub">{t('cases.audit.compliance.subtitle')}</div>
           </div>
-          <span className={'audit-score-badge ' + scoreClass}>{passed} / {total} 项通过</span>
+          <span className={'audit-score-badge ' + scoreClass}>
+            {t('cases.audit.compliance.passed', { count: passed, total })}
+          </span>
         </div>
         <div className="audit-compliance-list">
           {compliance.map((item) => (
@@ -129,9 +111,11 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
                 {item.passed ? '✓' : '✗'}
               </span>
               <div className="audit-compliance-body">
-                <span className="audit-compliance-label">{item.labelZh} · {item.labelEn}</span>
-                {!item.passed && item.failNote ? (
-                  <span className="audit-compliance-note">{item.failNote}</span>
+                <span className="audit-compliance-label">
+                  {t(`cases.audit.compliance.${item.id}`)}
+                </span>
+                {!item.passed && item.failNoteKey ? (
+                  <span className="audit-compliance-note">{t(item.failNoteKey)}</span>
                 ) : null}
               </div>
             </div>
@@ -143,24 +127,24 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
       <section className="audit-section">
         <div className="audit-section-header">
           <div>
-            <div className="audit-section-title">标记管理 · Flag Management</div>
+            <div className="audit-section-title">{t('cases.audit.flags.title')}</div>
             <div className="audit-section-sub">
               {openFlags.length > 0
-                ? `${openFlags.length} 个未解决标记 · ${openFlags.length} open flag(s)`
-                : '暂无未解决标记 · No open flags'}
+                ? t('cases.audit.flags.open', { count: openFlags.length })
+                : t('cases.audit.flags.noOpen')}
             </div>
           </div>
           <button
             className="btn-audit btn-compact"
             type="button"
-            onClick={() => alert('功能即将推出 / Coming soon')}
+            onClick={() => alert(t('common.comingSoon'))}
           >
-            ⚑ 标记个案 · Flag Case
+            ⚑ {t('cases.audit.flags.flagCase')}
           </button>
         </div>
 
         {flags.length === 0 ? (
-          <p className="audit-empty-state">暂无标记记录 · No flags recorded for this case.</p>
+          <p className="audit-empty-state">{t('cases.audit.flags.empty')}</p>
         ) : (
           <div className="audit-flag-list">
             {flags.map((flag) => (
@@ -168,37 +152,37 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
                 <div className="audit-flag-header">
                   <div className="audit-flag-badges">
                     <span className={'audit-flag-severity severity-' + flag.severity.toLowerCase()}>
-                      {FLAG_SEVERITY_LABELS[flag.severity]?.zh ?? flag.severity}
-                      {' / '}
-                      {FLAG_SEVERITY_LABELS[flag.severity]?.en ?? flag.severity}
+                      {t(`cases.audit.flagSeverity.${flag.severity}`)}
                     </span>
                     <span className={'audit-flag-status ' + (flag.status === 'OPEN' ? 'status-open' : 'status-resolved')}>
-                      {flag.status === 'OPEN' ? '未解决 · Open' : '已解决 · Resolved'}
+                      {flag.status === 'OPEN'
+                        ? t('cases.audit.flags.statusOpen')
+                        : t('cases.audit.flags.statusResolved')}
                     </span>
                   </div>
                   {flag.status === 'OPEN' ? (
                     <button
                       className="btn-secondary btn-compact"
                       type="button"
-                      onClick={() => alert('功能即将推出 / Coming soon')}
+                      onClick={() => alert(t('common.comingSoon'))}
                     >
-                      标记为已解决 · Resolve
+                      {t('cases.audit.flags.resolve')}
                     </button>
                   ) : null}
                 </div>
                 <p className="audit-flag-reason">{flag.reason}</p>
                 <div className="audit-flag-meta">
-                  标记人 / Flagged by: <strong>{flag.flaggedBy}</strong>
+                  {t('cases.audit.flags.flaggedBy')}: <strong>{flag.flaggedBy}</strong>
                   {' · '}
                   {formatAuditDateTime(flag.flaggedAt).date}
                   {flag.status === 'RESOLVED' && flag.resolvedBy ? (
                     <span>
-                      {' · '}已解决 / Resolved by <strong>{flag.resolvedBy}</strong> on {flag.resolvedAt ? formatAuditDateTime(flag.resolvedAt).date : '—'}
+                      {' · '}{t('cases.audit.flags.resolvedBy')} <strong>{flag.resolvedBy}</strong> on {flag.resolvedAt ? formatAuditDateTime(flag.resolvedAt).date : '—'}
                     </span>
                   ) : null}
                 </div>
                 {flag.status === 'RESOLVED' && flag.resolution ? (
-                  <div className="audit-flag-resolution">处理说明 / Resolution: {flag.resolution}</div>
+                  <div className="audit-flag-resolution">{t('cases.audit.flags.resolution')}: {flag.resolution}</div>
                 ) : null}
               </div>
             ))}
@@ -210,17 +194,19 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
       <section className="audit-section">
         <div className="audit-section-header">
           <div>
-            <div className="audit-section-title">操作日志 · Activity Log</div>
-            <div className="audit-section-sub">{auditLog.length} 条记录 · {auditLog.length} entries</div>
+            <div className="audit-section-title">{t('cases.audit.activityLog.title')}</div>
+            <div className="audit-section-sub">
+              {t('cases.audit.activityLog.count', { count: auditLog.length })}
+            </div>
           </div>
         </div>
 
         {auditLog.length === 0 ? (
-          <p className="audit-empty-state">暂无操作记录 · No activity recorded.</p>
+          <p className="audit-empty-state">{t('cases.audit.activityLog.empty')}</p>
         ) : (
           <div className="audit-log-timeline">
             {auditLog.map((entry) => {
-              const config = ACTION_CONFIG[entry.action]
+              const colorClass = ACTION_COLOR_CLASS[entry.action]
               const { date, time } = formatAuditDateTime(entry.at)
               return (
                 <div key={entry.id} className="audit-log-entry">
@@ -229,14 +215,14 @@ export function CaseAuditTab({ caseData, notes, auditLog, flags }: CaseAuditTabP
                     <span className="audit-log-clock">{time}</span>
                   </div>
                   <div className="audit-log-line-wrap">
-                    <span className={'audit-log-dot ' + config.colorClass} />
+                    <span className={'audit-log-dot ' + colorClass} />
                     <div className="audit-log-track" />
                   </div>
                   <div className="audit-log-body">
                     <div className="audit-log-action">
-                      {config.labelZh} · {config.labelEn}
+                      {t(`cases.audit.action.${entry.action}`)}
                     </div>
-                    <div className="audit-log-actor">by {entry.actor}</div>
+                    <div className="audit-log-actor">{t('common.by')} {entry.actor}</div>
                     {entry.detail ? (
                       <div className="audit-log-detail">{entry.detail}</div>
                     ) : null}

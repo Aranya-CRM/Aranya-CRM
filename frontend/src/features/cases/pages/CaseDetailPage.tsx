@@ -47,9 +47,7 @@ export function CaseDetailPage() {
 
   return (
     <div className="case-detail-page">
-      <BackButton onClick={() => navigate('/cases')}>
-        ← 返回个案列表 · Back to Cases
-      </BackButton>
+      <BackButton onClick={() => navigate('/cases')} />
 
       <div className="case-detail-card">
         <CaseDetailHeader caseData={caseData} isManager={isManager} />

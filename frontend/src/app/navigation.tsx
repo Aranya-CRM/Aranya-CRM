@@ -43,13 +43,15 @@ function ReportsIcon() {
   )
 }
 
-function UsersIcon() {
+function TasksIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M2.5 19c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M15 19c0-2.5 1.8-4 4-4s2.5 1.5 2.5 4" />
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6l1 1 2-2" />
+      <path d="M3 12l1 1 2-2" />
+      <path d="M3 18l1 1 2-2" />
     </svg>
   )
 }
@@ -68,8 +70,7 @@ export interface NavigationItem {
   id: string
   routeId: string
   path: string
-  zhLabel: string
-  enLabel: string
+  labelKey: string
   icon: ReactNode
 }
 
@@ -78,41 +79,36 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     id: 'dashboard',
     routeId: 'dashboard',
     path: '/dashboard',
-    zhLabel: '工作台',
-    enLabel: 'Dashboard',
+    labelKey: 'nav.dashboard',
     icon: <DashboardIcon />,
   },
   {
     id: 'clients',
     routeId: 'clients.list',
     path: '/clients',
-    zhLabel: '僧人档案',
-    enLabel: 'Clients',
+    labelKey: 'nav.clients',
     icon: <ClientsIcon />,
   },
   {
     id: 'cases',
     routeId: 'cases.list',
     path: '/cases',
-    zhLabel: '个案管理',
-    enLabel: 'Cases',
+    labelKey: 'nav.cases',
     icon: <CasesIcon />,
+  },
+  {
+    id: 'tasks',
+    routeId: 'tasks.list',
+    path: '/tasks',
+    labelKey: 'nav.tasks',
+    icon: <TasksIcon />,
   },
   {
     id: 'reports',
     routeId: 'reports.list',
     path: '/reports',
-    zhLabel: '探访报告',
-    enLabel: 'Reports',
+    labelKey: 'nav.reports',
     icon: <ReportsIcon />,
-  },
-  {
-    id: 'users',
-    routeId: 'users.list',
-    path: '/users',
-    zhLabel: '用户管理',
-    enLabel: 'Users',
-    icon: <UsersIcon />,
   },
 ]
 

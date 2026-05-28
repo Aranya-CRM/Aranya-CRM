@@ -472,6 +472,14 @@
   margin-top: 16px;
 }
 
+.client-list-card tbody tr.client-row-clickable {
+  cursor: pointer;
+}
+
+.client-list-card tbody tr.client-row-clickable:hover {
+  background: #f3f0ff;
+}
+
 .table-action-group {
   display: flex;
   gap: 8px;

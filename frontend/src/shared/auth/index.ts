@@ -5,3 +5,8 @@ export {
   canAccessRoute,
   canAccessWidget,
 } from './accessControl'
+export {
+  FEATURE_CAPABILITIES,
+  ROUTE_CAPABILITIES,
+  useRoleViewAccess,
+} from './roleViewAccess'

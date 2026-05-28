@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
 import {
@@ -12,11 +13,7 @@ import {
 import type { InviteUserPayload, UserRole, UserStatus, UserSummary } from '../types'
 import './users.css'
 
-const ROLE_OPTIONS: Array<{ value: UserRole; labelZh: string; labelEn: string }> = [
-  { value: 'MANAGER', labelZh: '管理员', labelEn: 'Manager' },
-  { value: 'SOCIAL_WORKER', labelZh: '社工', labelEn: 'Social Worker' },
-  { value: 'VOLUNTEER', labelZh: '义工', labelEn: 'Volunteer' },
-]
+const ROLE_VALUES: UserRole[] = ['MANAGER', 'SOCIAL_WORKER', 'VOLUNTEER']
 
 const initialInviteForm: InviteUserPayload = {
   username: '',
@@ -26,21 +23,13 @@ const initialInviteForm: InviteUserPayload = {
   roles: ['VOLUNTEER'],
 }
 
-function roleLabel(role: UserRole): string {
-  const option = ROLE_OPTIONS.find((item) => item.value === role)
-  return option ? `${option.labelZh} · ${option.labelEn}` : String(role)
-}
-
-function statusLabel(status: UserStatus): string {
-  return status === 'ACTIVE' ? '活跃 · Active' : '停用 · Inactive'
-}
-
 function normalizeText(value: string | null | undefined, fallback = '-'): string {
   const text = value?.trim()
   return text || fallback
 }
 
 export function UsersPage() {
+  const { t } = useTranslation()
   const { user: currentUser } = useAuth()
   const { data: users = [], isLoading, isError } = useUsers()
   const inviteUser = useInviteUser()
@@ -95,7 +84,7 @@ export function UsersPage() {
     setFormError(undefined)
 
     if (inviteForm.roles.length === 0) {
-      setFormError('请至少选择一个角色。 / Select at least one role.')
+      setFormError(t('users.error.roleRequired'))
       return
     }
 
@@ -109,7 +98,7 @@ export function UsersPage() {
       })
       closeInviteModal()
     } catch {
-      setFormError('用户邀请失败，请检查信息后重试。 / Failed to invite user.')
+      setFormError(t('users.error.invite'))
     }
   }
 
@@ -132,7 +121,7 @@ export function UsersPage() {
     setFormError(undefined)
 
     if (editingRoles.length === 0) {
-      setFormError('请至少选择一个角色。 / Select at least one role.')
+      setFormError(t('users.error.roleRequired'))
       return
     }
 
@@ -143,7 +132,7 @@ export function UsersPage() {
       })
       closeRoleEditor()
     } catch {
-      setFormError('角色更新失败，请稍后重试。 / Failed to update roles.')
+      setFormError(t('users.error.roles'))
     }
   }
 
@@ -151,8 +140,8 @@ export function UsersPage() {
     const nextStatus: UserStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
     const confirmed = window.confirm(
       nextStatus === 'ACTIVE'
-        ? `确认启用 ${user.fullName}？ / Activate this account?`
-        : `确认停用 ${user.fullName}？ / Deactivate this account?`,
+        ? t('users.confirm.activate', { name: user.fullName })
+        : t('users.confirm.deactivate', { name: user.fullName }),
     )
     if (!confirmed) return
 
@@ -164,9 +153,7 @@ export function UsersPage() {
   }
 
   async function handleDelete(user: UserSummary) {
-    const confirmed = window.confirm(
-      `确认移除或停用 ${user.fullName} 的账号？ / Remove or deactivate this account?`,
-    )
+    const confirmed = window.confirm(t('users.confirm.delete', { name: user.fullName }))
     if (!confirmed) return
 
     try {
@@ -181,31 +168,29 @@ export function UsersPage() {
   return (
     <div className="users-page">
       <PageHeader
-        titleZh="用户管理"
-        titleEn="User Management · 管理员专用 · Manager Only"
+        title={t('users.pageTitle')}
         actions={(
           <button className="users-primary-button" type="button" onClick={openInviteModal}>
-            + 新增用户 · Add User
+            + {t('users.addBtn')}
           </button>
         )}
       />
 
       <section className="users-manager-banner" aria-label="Manager user management notice">
         <div>
-          <strong>管理员视图 · Manager View</strong>
-          <span>您可以创建、编辑、停用或移除用户账号。</span>
+          <strong>{t('users.managerView')}</strong>
+          <span>{t('users.managerDesc')}</span>
         </div>
-        <p>You can create, edit, deactivate, or remove user accounts.</p>
       </section>
 
-      {isError ? <ErrorBanner message="用户列表加载失败，请稍后重试。 / Failed to load users." /> : null}
-      {actionError ? <ErrorBanner message="用户操作失败，请刷新后重试。 / User action failed." /> : null}
+      {isError ? <ErrorBanner message={t('users.error.load')} /> : null}
+      {actionError ? <ErrorBanner message={t('users.error.action')} /> : null}
 
       <div className="users-toolbar">
         <input
           className="users-search-input"
           type="text"
-          placeholder="搜索姓名、邮箱或角色 · Search users..."
+          placeholder={t('users.search')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -224,22 +209,22 @@ export function UsersPage() {
             </colgroup>
             <thead>
               <tr>
-                <th><span className="users-th-zh">姓名</span><span className="users-th-en">Name</span></th>
-                <th><span className="users-th-zh">角色</span><span className="users-th-en">Role</span></th>
-                <th><span className="users-th-zh">邮箱</span><span className="users-th-en">Email</span></th>
-                <th><span className="users-th-zh">状态</span><span className="users-th-en">Status</span></th>
-                <th><span className="users-th-zh">最后登录</span><span className="users-th-en">Last Login</span></th>
-                <th><span className="users-th-zh">操作</span><span className="users-th-en">Actions</span></th>
+                <th>{t('users.table.name')}</th>
+                <th>{t('users.table.role')}</th>
+                <th>{t('users.table.email')}</th>
+                <th>{t('users.table.status')}</th>
+                <th>{t('users.table.lastLogin')}</th>
+                <th>{t('users.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td className="users-table-state" colSpan={6}>加载中 · Loading...</td>
+                  <td className="users-table-state" colSpan={6}>{t('users.table.loading')}</td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="users-table-state" colSpan={6}>暂无用户 · No users found</td>
+                  <td className="users-table-state" colSpan={6}>{t('users.table.empty')}</td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => {
@@ -250,14 +235,14 @@ export function UsersPage() {
                       <td>
                         <span className="users-cell-strong">{normalizeText(user.fullName)}</span>
                         <span className="users-cell-muted">
-                          @{normalizeText(user.username, 'username')}{isSelf ? ' · 当前账号 / You' : ''}
+                          @{normalizeText(user.username, 'username')}{isSelf ? ` · ${t('users.table.self')}` : ''}
                         </span>
                       </td>
                       <td>
                         <div className="users-role-stack">
                           {user.roles.map((role) => (
                             <span className={`users-role-badge users-role-${String(role).toLowerCase()}`} key={role}>
-                              {roleLabel(role)}
+                              {t(`users.role.${role}`)}
                             </span>
                           ))}
                         </div>
@@ -265,7 +250,7 @@ export function UsersPage() {
                       <td><span className="users-cell-main">{normalizeText(user.email)}</span></td>
                       <td>
                         <span className={`users-status-badge users-status-${user.status.toLowerCase()}`}>
-                          {statusLabel(user.status)}
+                          {t(`users.status.${user.status}`)}
                         </span>
                       </td>
                       <td><span className="users-cell-main">-</span></td>
@@ -275,28 +260,28 @@ export function UsersPage() {
                             className="users-action-link"
                             type="button"
                             disabled={isSelf}
-                            title={isSelf ? '当前账号不能编辑自己的角色 / You cannot edit your own roles' : undefined}
+                            title={isSelf ? t('users.tooltip.selfEdit') : undefined}
                             onClick={() => openRoleEditor(user)}
                           >
-                            编辑 · Edit
+                            {t('users.table.edit')}
                           </button>
                           <button
                             className="users-action-link users-action-warning"
                             type="button"
                             disabled={isSelf || updateStatus.isPending}
-                            title={isSelf ? '当前账号不能停用自己 / You cannot deactivate yourself' : undefined}
+                            title={isSelf ? t('users.tooltip.selfDeactivate') : undefined}
                             onClick={() => void toggleStatus(user)}
                           >
-                            {user.status === 'ACTIVE' ? '停用 · Deactivate' : '启用 · Activate'}
+                            {user.status === 'ACTIVE' ? t('users.table.deactivate') : t('users.table.activate')}
                           </button>
                           <button
                             className="users-action-link users-action-danger"
                             type="button"
                             disabled={isSelf || deleteUser.isPending}
-                            title={isSelf ? '当前账号不能移除自己 / You cannot remove yourself' : undefined}
+                            title={isSelf ? t('users.tooltip.selfRemove') : undefined}
                             onClick={() => void handleDelete(user)}
                           >
-                            移除 · Remove
+                            {t('users.table.remove')}
                           </button>
                         </div>
                       </td>
@@ -310,42 +295,41 @@ export function UsersPage() {
       </SectionCard>
 
       <div className="users-summary-grid">
-        <SummaryCard titleZh="总用户数" titleEn="Total Users" value={users.length} />
-        <SummaryCard titleZh="活跃用户" titleEn="Active" value={activeUsers} />
-        <SummaryCard titleZh="义工" titleEn="Volunteers" value={volunteers} />
+        <SummaryCard titleKey="users.summary.total" value={users.length} />
+        <SummaryCard titleKey="users.summary.active" value={activeUsers} />
+        <SummaryCard titleKey="users.summary.volunteers" value={volunteers} />
       </div>
 
       {showInviteModal ? (
         <UserModal
-          titleZh="新增用户"
-          titleEn="Add User"
+          titleKey="users.modal.addTitle"
           error={formError}
           submitting={inviteUser.isPending}
-          submitLabel={inviteUser.isPending ? '创建中 · Creating...' : '创建用户 · Create User'}
+          submitLabel={inviteUser.isPending ? t('users.modal.creating') : t('users.modal.createBtn')}
           onClose={closeInviteModal}
           onSubmit={submitInvite}
         >
           <UserTextField
-            label="用户名 / Username"
+            label={t('users.modal.username')}
             required
             value={inviteForm.username}
             onChange={(value) => setInviteForm((current) => ({ ...current, username: value }))}
           />
           <UserTextField
-            label="姓名 / Full Name"
+            label={t('users.modal.fullName')}
             required
             value={inviteForm.fullName}
             onChange={(value) => setInviteForm((current) => ({ ...current, fullName: value }))}
           />
           <UserTextField
-            label="邮箱 / Email"
+            label={t('users.modal.email')}
             required
             type="email"
             value={inviteForm.email}
             onChange={(value) => setInviteForm((current) => ({ ...current, email: value }))}
           />
           <UserTextField
-            label="电话 / Phone"
+            label={t('users.modal.phone')}
             value={inviteForm.phone ?? ''}
             onChange={(value) => setInviteForm((current) => ({ ...current, phone: value }))}
           />
@@ -358,11 +342,11 @@ export function UsersPage() {
 
       {editingUser ? (
         <UserModal
-          titleZh="编辑角色"
-          titleEn={editingUser.fullName}
+          titleKey="users.modal.editTitle"
+          titleSuffix={editingUser.fullName}
           error={formError}
           submitting={updateRoles.isPending}
-          submitLabel={updateRoles.isPending ? '保存中 · Saving...' : '保存角色 · Save Roles'}
+          submitLabel={updateRoles.isPending ? t('users.modal.saving') : t('users.modal.saveBtn')}
           onClose={closeRoleEditor}
           onSubmit={submitRoleUpdate}
         >
@@ -376,19 +360,19 @@ export function UsersPage() {
   )
 }
 
-function SummaryCard({ titleZh, titleEn, value }: { titleZh: string; titleEn: string; value: number }) {
+function SummaryCard({ titleKey, value }: { titleKey: string; value: number }) {
+  const { t } = useTranslation()
   return (
     <div className="users-summary-card">
-      <span>{titleZh}</span>
-      <small>{titleEn}</small>
+      <span>{t(titleKey)}</span>
       <strong>{value}</strong>
     </div>
   )
 }
 
 interface UserModalProps {
-  titleZh: string
-  titleEn: string
+  titleKey: string
+  titleSuffix?: string
   error?: string
   submitting: boolean
   submitLabel: string
@@ -398,8 +382,8 @@ interface UserModalProps {
 }
 
 function UserModal({
-  titleZh,
-  titleEn,
+  titleKey,
+  titleSuffix,
   error,
   submitting,
   submitLabel,
@@ -407,6 +391,8 @@ function UserModal({
   onClose,
   onSubmit,
 }: UserModalProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="users-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <form
@@ -416,8 +402,7 @@ function UserModal({
       >
         <header className="users-modal-header">
           <div>
-            <h2>{titleZh}</h2>
-            <span>{titleEn}</span>
+            <h2>{t(titleKey)}{titleSuffix ? ` — ${titleSuffix}` : ''}</h2>
           </div>
           <button className="users-modal-close" type="button" aria-label="Close" onClick={onClose}>
             x
@@ -429,7 +414,7 @@ function UserModal({
 
         <footer className="users-modal-footer">
           <button className="users-secondary-button" type="button" disabled={submitting} onClick={onClose}>
-            取消 · Cancel
+            {t('users.modal.cancel')}
           </button>
           <button className="users-primary-button" type="submit" disabled={submitting}>
             {submitLabel}
@@ -474,21 +459,22 @@ function RoleCheckboxGroup({
   roles: UserRole[]
   onSelect: (role: UserRole) => void
 }) {
+  const { t } = useTranslation()
   const selectedRole = roles[0]
 
   return (
     <fieldset className="users-role-fieldset">
-      <legend>角色 / Roles</legend>
+      <legend>{t('users.modal.roles')}</legend>
       <div className="users-role-options">
-        {ROLE_OPTIONS.map((role) => (
-          <label className="users-role-option" key={role.value}>
+        {ROLE_VALUES.map((role) => (
+          <label className="users-role-option" key={role}>
             <input
               type="radio"
               name="user-role"
-              checked={selectedRole === role.value}
-              onChange={() => onSelect(role.value)}
+              checked={selectedRole === role}
+              onChange={() => onSelect(role)}
             />
-            <span>{role.labelZh} · {role.labelEn}</span>
+            <span>{t(`users.role.${role}`)}</span>
           </label>
         ))}
       </div>

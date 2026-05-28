@@ -1,16 +1,17 @@
-import { type ReactNode, useState } from 'react'
-import type { AuditLogEntry, Case, CaseFlag, CaseNote, CaseServices, CaseTask } from '../types'
-import { CASE_COLOR_LABELS, CASE_SERVICE_LABELS } from '../types'
+import { type ReactNode, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { fetchUsers } from '../../users/api/userManagement.api'
+import type { UserSummary } from '../../users/types'
+import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
+import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
 import { CaseIntensityDot } from './CaseIntensityDot'
-import { CaseStatusBadge } from './CaseStatusBadge'
 
 type TabId = 'overview' | 'services' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
 
 interface TabDef {
   id: TabId
-  zh: string
-  en: string
+  labelKey: string
   managerOnly?: boolean
   count?: number
 }
@@ -28,18 +29,19 @@ function activeServiceCount(services: CaseServices): number {
 }
 
 export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: CaseDetailTabsProps) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   const serviceCount = activeServiceCount(caseData.services)
 
   const tabs: TabDef[] = [
-    { id: 'overview',   zh: '概览',     en: 'Overview' },
-    { id: 'services',   zh: '服务模块', en: 'Services', count: serviceCount },
-    { id: 'notes',      zh: '案例笔记', en: 'Notes',    count: notes.length },
-    { id: 'documents',  zh: '文件',     en: 'Documents' },
-    { id: 'reports',    zh: '探访报告', en: 'Reports' },
-    { id: 'history',    zh: '历史',     en: 'History' },
-    { id: 'audit',      zh: '审计',     en: 'Audit', managerOnly: true },
+    { id: 'overview',   labelKey: 'cases.tab.overview' },
+    { id: 'services',   labelKey: 'cases.tab.services',  count: serviceCount },
+    { id: 'notes',      labelKey: 'cases.tab.notes',     count: notes.length },
+    { id: 'documents',  labelKey: 'cases.tab.documents' },
+    { id: 'reports',    labelKey: 'cases.tab.reports' },
+    { id: 'history',    labelKey: 'cases.tab.history' },
+    { id: 'audit',      labelKey: 'cases.tab.audit',     managerOnly: true },
   ]
 
   const visibleTabs = isManager ? tabs : tabs.filter((t) => !t.managerOnly)
@@ -54,7 +56,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
             className={'case-detail-tab-btn' + (activeTab === tab.id ? ' active' : '')}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.zh} / {tab.en}
+            {t(tab.labelKey)}
             {tab.id === 'audit' ? ' ⚙' : null}
             {tab.count != null && tab.count > 0 ? (
               <span className="case-tab-badge">{tab.count}</span>
@@ -67,9 +69,9 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
         {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} /> : null}
         {activeTab === 'services'  ? <ServicesTab  services={caseData.services} /> : null}
         {activeTab === 'notes'     ? <NotesTab     notes={notes} /> : null}
-        {activeTab === 'documents' ? <PlaceholderTab zh="文件" en="Documents" /> : null}
-        {activeTab === 'reports'   ? <PlaceholderTab zh="探访报告" en="Visit Reports" /> : null}
-        {activeTab === 'history'   ? <PlaceholderTab zh="状态历史" en="Status History" /> : null}
+        {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
+        {activeTab === 'reports'   ? <PlaceholderTab tabKey="cases.tab.reports" /> : null}
+        {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
         {activeTab === 'audit' && isManager ? (
           <CaseAuditTab caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} />
         ) : null}
@@ -78,46 +80,117 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
   )
 }
 
+const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'GREY']
+
 function OverviewTab({ caseData }: { caseData: Case }) {
-  const intensityLabel = CASE_COLOR_LABELS[caseData.colorCode]
+  const { t } = useTranslation()
   const serviceCount = activeServiceCount(caseData.services)
+
+  const [status, setStatus] = useState<CaseStatus>(caseData.status)
+  const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
+  const [assignedVolunteer, setAssignedVolunteer] = useState(caseData.assignedVolunteer ?? '')
+  const [volunteers, setVolunteers] = useState<UserSummary[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+  const isDirty =
+    status !== caseData.status ||
+    colorCode !== caseData.colorCode ||
+    assignedVolunteer !== (caseData.assignedVolunteer ?? '')
+
+  useEffect(() => {
+    fetchUsers()
+      .then((users) => setVolunteers(users.filter((u) => u.roles.includes('VOLUNTEER') && u.status === 'ACTIVE')))
+      .catch(() => {})
+  }, [])
+
+  async function handleSave() {
+    setIsSaving(true)
+    try {
+      window.alert(t('common.comingSoon'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <>
       <div className="case-detail-info-grid">
-        <InfoCell label="开案日期 / DATE OPENED" value={caseData.dateOpened} />
+        <InfoCell label={t('cases.overview.dateOpened')} value={caseData.dateOpened} />
         <InfoCell
-          label="状态 / STATUS"
-          value={<CaseStatusBadge status={caseData.status} />}
-        />
-        <InfoCell label="主责社工 / CASEWORKER" value={caseData.socialWorker || '—'} />
-        <InfoCell label="负责义工 / ASSIGNED VOLUNTEER" value={caseData.assignedVolunteer || '—'} />
-        <InfoCell
-          label="个案强度 / INTENSITY"
+          label={t('cases.overview.status')}
           value={
-            <span className="case-detail-intensity-label">
-              <CaseIntensityDot colorCode={caseData.colorCode} />
-              {intensityLabel.zh}
-            </span>
+            <select
+              className="overview-select"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as CaseStatus)}
+            >
+              <option value="OPEN">OPEN</option>
+              <option value="SUSPENDED">SUSPENDED</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+          }
+        />
+        <InfoCell label={t('cases.overview.caseworker')} value={caseData.socialWorker || '—'} />
+        <InfoCell
+          label={t('cases.overview.volunteer')}
+          value={
+            <select
+              className="overview-select"
+              value={assignedVolunteer}
+              onChange={(e) => setAssignedVolunteer(e.target.value)}
+            >
+              <option value="">—</option>
+              {volunteers.map((v) => (
+                <option key={v.id} value={v.fullName}>{v.fullName}</option>
+              ))}
+            </select>
           }
         />
         <InfoCell
-          label="启用服务模块 / ACTIVE MODULES"
-          value={`${serviceCount} 项 · ${serviceCount} module(s)`}
+          label={t('cases.overview.intensity')}
+          value={
+            <div className="overview-intensity-select-row">
+              <CaseIntensityDot colorCode={colorCode} />
+              <select
+                className="overview-select"
+                value={colorCode}
+                onChange={(e) => setColorCode(e.target.value as CaseColorCode)}
+              >
+                {INTENSITY_OPTIONS.map((code) => (
+                  <option key={code} value={code}>{t(CASE_COLOR_KEYS[code])}</option>
+                ))}
+              </select>
+            </div>
+          }
+        />
+        <InfoCell
+          label={t('cases.overview.activeModules')}
+          value={t('cases.overview.activeModulesValue', { count: serviceCount })}
         />
         {caseData.comments ? (
-          <InfoCell label="备注 / COMMENTS" value={caseData.comments} wide />
+          <InfoCell label={t('cases.overview.comments')} value={caseData.comments} wide />
         ) : null}
         {caseData.remarks ? (
-          <InfoCell label="补充说明 / REMARKS" value={caseData.remarks} wide />
+          <InfoCell label={t('cases.overview.remarks')} value={caseData.remarks} wide />
         ) : null}
         {caseData.lastModifiedAt ? (
           <InfoCell
-            label="最后修改 / LAST MODIFIED"
+            label={t('cases.overview.lastModified')}
             value={`${caseData.lastModifiedAt}${caseData.lastModifiedBy ? ` by ${caseData.lastModifiedBy}` : ''}`}
             wide
           />
         ) : null}
+      </div>
+
+      <div className="case-overview-save-row">
+        <button
+          className="btn-primary"
+          type="button"
+          disabled={!isDirty || isSaving}
+          onClick={() => void handleSave()}
+        >
+          {isSaving ? t('common.saving') : t('common.save')}
+        </button>
       </div>
 
       {caseData.tasks && caseData.tasks.length > 0 ? (
@@ -145,9 +218,12 @@ function InfoCell({
 }
 
 function TaskList({ tasks }: { tasks: CaseTask[] }) {
+  const { t, i18n } = useTranslation()
+  const isZh = i18n.language === 'zh'
+
   return (
     <div>
-      <div className="case-task-section-title">任务清单 / Task List</div>
+      <div className="case-task-section-title">{t('cases.tasks.title')}</div>
       <div className="case-task-list">
         {tasks.map((task) => (
           <div key={task.id} className="case-task-item">
@@ -160,16 +236,13 @@ function TaskList({ tasks }: { tasks: CaseTask[] }) {
             </div>
             <div className="case-task-body">
               <div className={'case-task-title-zh' + (task.completed ? ' done' : '')}>
-                {task.titleZh}
-              </div>
-              <div className={'case-task-title-en' + (task.completed ? ' done' : '')}>
-                {task.titleEn}
+                {isZh ? task.titleZh : task.titleEn}
               </div>
               <div className="case-task-meta">
-                截止 / Due: {task.dueDate}
+                {t('cases.tasks.due')}: {task.dueDate}
                 {task.completed && task.completedAt ? (
                   <span className="case-task-done-badge">
-                    {' '}✓ 完成 / Done: {formatCompletedAt(task.completedAt)}
+                    {' '}✓ {t('cases.tasks.done')}: {formatCompletedAt(task.completedAt)}
                   </span>
                 ) : null}
               </div>
@@ -188,30 +261,27 @@ function formatCompletedAt(iso: string): string {
   return `${date} ${hhmm}`
 }
 
-const SERVICE_GROUPS: { key: string; zh: string; en: string }[] = [
-  { key: 'practical', zh: '实务支持', en: 'Practical Support' },
-  { key: 'emotional', zh: '情感 / 社交', en: 'Emotional / Social' },
-  { key: 'admin',     zh: '行政协助', en: 'Administrative' },
-  { key: 'spiritual', zh: '灵性 / 社区', en: 'Spiritual / Community' },
-]
+const SERVICE_GROUP_KEYS = ['practical', 'emotional', 'admin', 'spiritual'] as const
 
 function ServicesTab({ services }: { services: CaseServices }) {
+  const { t } = useTranslation()
+
   return (
     <>
-      {SERVICE_GROUPS.map((group) => {
-        const items = (Object.keys(CASE_SERVICE_LABELS) as (keyof CaseServices)[]).filter(
-          (k) => CASE_SERVICE_LABELS[k].group === group.key,
+      {SERVICE_GROUP_KEYS.map((groupKey) => {
+        const items = (Object.keys(CASE_SERVICE_GROUPS) as (keyof CaseServices)[]).filter(
+          (k) => CASE_SERVICE_GROUPS[k] === groupKey,
         )
         return (
-          <div key={group.key}>
+          <div key={groupKey}>
             <div className="case-services-section-title">
-              {group.zh} / {group.en}
+              {t(`cases.serviceGroup.${groupKey}`)}
             </div>
             <div className="case-services-grid">
               {items.map((key) => (
                 <div key={key} className="case-services-item">
                   <span className={'dot ' + (services[key] ? 'dot-yes' : 'dot-no')} />
-                  {CASE_SERVICE_LABELS[key].zh} / {CASE_SERVICE_LABELS[key].en}
+                  {t(`cases.service.${key}`)}
                 </div>
               ))}
             </div>
@@ -223,8 +293,10 @@ function ServicesTab({ services }: { services: CaseServices }) {
 }
 
 function NotesTab({ notes }: { notes: CaseNote[] }) {
+  const { t } = useTranslation()
+
   if (notes.length === 0) {
-    return <p className="case-placeholder-text">暂无案例笔记 / No notes yet.</p>
+    return <p className="case-placeholder-text">{t('cases.notes.empty')}</p>
   }
 
   return (
@@ -233,11 +305,11 @@ function NotesTab({ notes }: { notes: CaseNote[] }) {
         <div key={note.id} className="case-note-item">
           <div className="case-note-header">
             <span className="case-note-date">{note.date}</span>
-            <span className="case-note-author">记录人 / By: {note.recordedBy}</span>
+            <span className="case-note-author">{t('cases.notes.by')}: {note.recordedBy}</span>
           </div>
           <p className="case-note-content">{note.content}</p>
           {note.followUp ? (
-            <div className="case-note-followup">跟进 / Follow-up: {note.followUp}</div>
+            <div className="case-note-followup">{t('cases.notes.followup')}: {note.followUp}</div>
           ) : null}
         </div>
       ))}
@@ -245,10 +317,11 @@ function NotesTab({ notes }: { notes: CaseNote[] }) {
   )
 }
 
-function PlaceholderTab({ zh, en }: { zh: string; en: string }) {
+function PlaceholderTab({ tabKey }: { tabKey: string }) {
+  const { t } = useTranslation()
   return (
     <p className="case-placeholder-text">
-      {zh}功能即将推出 / {en} coming soon.
+      {t('cases.placeholder', { tab: t(tabKey) })}
     </p>
   )
 }

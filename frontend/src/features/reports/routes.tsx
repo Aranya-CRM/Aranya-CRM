@@ -20,4 +20,9 @@ export const reportRoutes: AppRouteConfig[] = [
     routeId: NAVIGATION_BY_ID.reports.routeId,
     element: <ReportDetailPage />,
   },
+  {
+    path: '/reports/:id/edit',
+    routeId: NAVIGATION_BY_ID.reports.routeId,
+    element: <ReportFormPage />,
+  },
 ]

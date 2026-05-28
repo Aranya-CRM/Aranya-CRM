@@ -18,7 +18,8 @@ Current implementation status:
 - Backend uses the local database for CRM users, roles, permissions, and account status.
 - Dashboard API reads current client, case, and report summary data.
 - User-management APIs exist for managers, with limitations noted below.
-- Client and case read APIs exist. Client and case frontend services still keep mock fallback behavior for local development.
+- Client read APIs exist. Client create and update APIs are implemented (MANAGER-only). Client frontend services still keep mock fallback behavior for local development.
+- Case read APIs exist. Case frontend services still keep mock fallback behavior for local development.
 - Report pages exist in the frontend and still rely on mock/fallback behavior.
 
 ## 2. Repository Layout
@@ -146,6 +147,8 @@ Implemented backend endpoints:
 - `DELETE /api/v1/users/{id}`
 - `GET /api/v1/clients`
 - `GET /api/v1/clients/{id}`
+- `POST /api/v1/clients` (MANAGER only — creates client + initial case atomically)
+- `PATCH /api/v1/clients/{id}` (MANAGER only)
 - `GET /api/v1/cases`
 - `GET /api/v1/cases/{id}`
 
@@ -161,7 +164,7 @@ Important limitations:
 
 - Backend does not expose custom login, refresh-token, logout, or custom 2FA APIs.
 - User invite currently creates only a local database user. It does not create a Firebase Auth user or assign `firebase_uid`.
-- Client create/update APIs are not complete yet.
+- Client create/update APIs are implemented. Case write, notes, and status-history APIs are not complete yet.
 - Case create, notes, and status-history APIs are not complete yet.
 - Report backend APIs are not complete yet.
 
@@ -394,6 +397,7 @@ Expected URLs:
 
 - frontend: `http://localhost`
 - backend: `http://localhost:8080`
+- admin server: `http://localhost:9090`
 - postgres: `localhost:5432`
 
 How traffic works in Docker:
@@ -679,11 +683,14 @@ Backend Docker build:
 
 ### Compose notes
 
-Current compose file starts:
+Default compose services (always-on):
 
 - `postgres`
+- `admin-server` (Spring Boot Admin, port 9090)
 - `backend`
 - `frontend`
+
+The `sonar` Docker Compose profile adds `sonar-postgres`, `sonarqube`, and `sonar-scanner`. These are resource-heavy and opt-in only — they do not start with the default `up -d`.
 
 Backend container configuration:
 
@@ -692,30 +699,74 @@ Backend container configuration:
 - sets `FIREBASE_SERVICE_ACCOUNT_PATH=file:/run/secrets/firebase-service-account-dev.json`
 - bind-mounts the local service account JSON as read-only
 
-## 15. Known Issues And Risks
+## 15. Observability
+
+### Spring Boot Admin
+
+Spring Boot Admin provides a runtime UI for the backend: JVM metrics, health indicators, active HTTP traces, log-level overrides, and environment properties.
+
+| URL | Available when |
+| --- | --- |
+| `http://localhost:9090` | `admin-server` container is running |
+
+The `admin-server` is always started as part of the default Docker Compose stack. The backend auto-registers with it via `SPRING_BOOT_ADMIN_URL: http://admin-server:9090` in the compose environment.
+
+Source: `admin-server/` module — Spring Boot 3 + `@EnableAdminServer`.
+
+### SonarQube and JaCoCo (Code Coverage)
+
+JaCoCo is wired into the Maven build (`jacoco-maven-plugin`). It instruments tests and generates `target/site/jacoco/jacoco.xml` on the `verify` phase.
+
+SonarQube reads this report and uploads coverage data. It runs as a Docker Compose profile so it does not consume resources during normal development.
+
+#### First-time setup
+
+1. Start SonarQube:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml --profile sonar up -d sonar-postgres sonarqube
+```
+
+2. Open `http://localhost:9000`, log in with `admin` / `admin`, change the password when prompted.
+
+3. Generate a scanner token: My Account → Security → Generate Token (type: Global Analysis).
+
+4. Set the token in your environment:
+
+```powershell
+$env:SONAR_TOKEN="<your-token>"
+```
+
+#### Running a scan
+
+```powershell
+docker compose -f infra/docker/docker-compose.yaml --profile sonar run --rm sonar-scanner
+```
+
+The scanner service mounts `backend/` as its workspace, runs `mvn clean verify sonar:sonar`, and uploads results to the local SonarQube instance. Testcontainers-based integration tests work inside this container via Docker socket mount and `TESTCONTAINERS_HOST_OVERRIDE`.
+
+## 16. Known Issues And Risks
 
 - User invite does not create or link Firebase Auth users yet.
 - Some legacy JWT/custom 2FA config and DTO/test artifacts may still exist while the Firebase migration is being cleaned up.
-- Client write APIs are incomplete.
 - Case write, notes, and status-history APIs are incomplete.
 - Report backend APIs are incomplete.
 - Role and permission UI is moving toward `/api/v1/ui/manifest`; individual backend endpoints must still enforce authorization.
 - Service account JSON is required locally but must never be committed or baked into images.
 - Firebase TOTP MFA must be enabled at the Firebase/Identity Platform project level, otherwise enrollment returns `auth/operation-not-allowed`.
 
-## 16. Recommended Next Improvements
+## 17. Recommended Next Improvements
 
 - Clean up remaining legacy JWT and custom 2FA code/tests/config once Firebase auth is stable.
 - Add a proper admin flow to create Firebase Auth users and link local `users.firebase_uid`.
 - Add `.env.example` files for frontend and backend.
 - Add integration tests for `FirebaseAuthFilter` behavior.
-- Add client write APIs.
 - Add case write, notes, status-history, and assignment-aware authorization APIs.
 - Add report backend APIs.
 - Expand route wiring so all frontend pages are consistently reachable.
 - Add account settings for re-enrolling or removing TOTP factors through Firebase.
 
-## 17. Quick Start For New Contributors
+## 18. Quick Start For New Contributors
 
 Fastest path to a working local stack:
 
@@ -740,5 +791,7 @@ docker compose -f infra/docker/docker-compose.yaml up -d --build
 8. Open:
 
 ```text
-http://localhost
+http://localhost          # frontend
+http://localhost:8080     # backend API
+http://localhost:9090     # Spring Boot Admin
 ```

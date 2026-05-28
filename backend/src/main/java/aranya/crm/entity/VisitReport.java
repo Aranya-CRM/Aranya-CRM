@@ -82,6 +82,9 @@ public class VisitReport {
     @Column(name = "matters_to_highlight", columnDefinition = "TEXT")
     private String mattersToHighlight;
 
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "SUBMITTED";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
