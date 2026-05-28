@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 029-add-visit-report-status
+      author: codex
+      changes:
+        - addColumn:
+            tableName: visit_report
+            columns:
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: SUBMITTED
+                  constraints:
+                    nullable: false

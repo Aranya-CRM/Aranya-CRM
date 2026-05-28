@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { fetchClients } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { createReport } from '../api/report.api'
-import type { CreateReportPayload } from '../types'
+import { createReport, fetchReportById, submitReport, updateReport } from '../api/report.api'
+import type { CreateReportPayload, ReportDetail, ReportStatus } from '../types'
 import './reports.css'
 
 const VISIT_TYPES = [
@@ -54,6 +54,26 @@ const initialForm: ReportFormState = {
   mattersToHighlight: '',
 }
 
+function reportToForm(report: ReportDetail): ReportFormState {
+  return {
+    clientId: report.clientId ? String(report.clientId) : '',
+    dateOfVisit: report.dateOfVisit ?? '',
+    timeOfVisit: report.timeOfVisit ?? '',
+    durationOfVisit: report.durationOfVisit ?? '',
+    location: report.location ?? '',
+    programmeName: report.programmeName ?? '',
+    typeOfVisit: report.typeOfVisit ?? '',
+    purposeOfVisit: report.purposeOfVisit ?? '',
+    whatWasDone: report.whatWasDone ?? '',
+    environmentObservations: report.environmentObservations ?? '',
+    sanghaObservations: report.sanghaObservations ?? '',
+    otherObservations: report.otherObservations ?? '',
+    personalReflections: report.personalReflections ?? '',
+    recommendations: report.recommendations ?? '',
+    mattersToHighlight: report.mattersToHighlight ?? '',
+  }
+}
+
 function clientLabel(client: Client, isZh: boolean): string {
   const primary = isZh ? client.nameChn : client.nameEn
   const secondary = isZh ? client.nameEn : client.nameChn
@@ -84,10 +104,14 @@ export function ReportFormPage() {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const isEditMode = Boolean(id)
   const [clients, setClients] = useState<Client[]>([])
   const [form, setForm] = useState<ReportFormState>(initialForm)
   const [isLoadingClients, setIsLoadingClients] = useState(true)
+  const [isLoadingReport, setIsLoadingReport] = useState(Boolean(id))
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [reportStatus, setReportStatus] = useState<ReportStatus>('DRAFT')
   const [errorMessage, setErrorMessage] = useState<string>()
 
   useEffect(() => {
@@ -118,6 +142,37 @@ export function ReportFormPage() {
     }
   }, [t])
 
+  useEffect(() => {
+    if (!id) return
+    let active = true
+
+    async function loadReport() {
+      setIsLoadingReport(true)
+      try {
+        const data = await fetchReportById(id!)
+        if (active) {
+          setForm(reportToForm(data))
+          setReportStatus(data.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT')
+          setErrorMessage(undefined)
+        }
+      } catch {
+        if (active) {
+          setErrorMessage(t('reports.loadError'))
+        }
+      } finally {
+        if (active) {
+          setIsLoadingReport(false)
+        }
+      }
+    }
+
+    void loadReport()
+
+    return () => {
+      active = false
+    }
+  }, [id, t])
+
   const sortedClients = useMemo(
     () => [...clients].sort((a, b) => clientLabel(a, isZh).localeCompare(clientLabel(b, isZh))),
     [clients, isZh],
@@ -130,6 +185,15 @@ export function ReportFormPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    const submitter = event.nativeEvent instanceof SubmitEvent
+      ? event.nativeEvent.submitter as HTMLButtonElement | null
+      : null
+    const status: ReportStatus = submitter?.value === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'
+    if (isEditMode && reportStatus === 'SUBMITTED') {
+      navigate(`/reports?selected=${id}`)
+      return
+    }
+
     if (!form.clientId || !form.dateOfVisit) {
       setErrorMessage(t('reports.form.required'))
       return
@@ -139,8 +203,13 @@ export function ReportFormPage() {
     setErrorMessage(undefined)
 
     try {
-      const created = await createReport(compactPayload(form))
-      navigate(`/reports/${created.id}`)
+      const payload = { ...compactPayload(form), status }
+      const saved = isEditMode && id
+        ? status === 'SUBMITTED'
+          ? await submitReport((await updateReport(id, { ...payload, status: 'DRAFT' })).id)
+          : await updateReport(id, payload)
+        : await createReport(payload)
+      navigate(`/reports?selected=${saved.id}`)
     } catch {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
@@ -153,12 +222,15 @@ export function ReportFormPage() {
       <BackButton onClick={() => navigate('/reports')} />
 
       <PageHeader
-        title={t('reports.form.title')}
+        title={isEditMode ? t('reports.form.editTitle') : t('reports.form.title')}
         description={t('reports.form.description')}
       />
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
+      {isLoadingReport ? (
+        <div className="report-form-loading">{t('reports.loading')}</div>
+      ) : (
       <form onSubmit={handleSubmit}>
         <SectionCard
           className="report-form-card"
@@ -344,11 +416,31 @@ export function ReportFormPage() {
           <button className="btn-secondary" type="button" disabled={isSubmitting} onClick={() => navigate('/reports')}>
             {t('common.cancel')}
           </button>
-          <button className="btn-primary" type="submit" disabled={isSubmitting || isLoadingClients}>
-            {isSubmitting ? t('reports.form.submitting') : t('reports.form.submit')}
-          </button>
+          {reportStatus === 'SUBMITTED' ? null : (
+            <div className="report-form-actions">
+              <button
+                className="btn-secondary"
+                type="submit"
+                name="reportStatus"
+                value="DRAFT"
+                disabled={isSubmitting || isLoadingClients}
+              >
+                {isSubmitting ? t('common.saving') : t('reports.form.saveDraft')}
+              </button>
+              <button
+                className="btn-primary"
+                type="submit"
+                name="reportStatus"
+                value="SUBMITTED"
+                disabled={isSubmitting || isLoadingClients}
+              >
+                {isSubmitting ? t('reports.form.submitting') : t('reports.form.submitFinal')}
+              </button>
+            </div>
+          )}
         </div>
       </form>
+      )}
     </div>
   )
 }

@@ -249,6 +249,23 @@ databaseChangeLog:
               ON CONFLICT (role_id, permission_id) DO NOTHING;
 
   - changeSet:
+      id: 024-8-seed-volunteer-task-route
+      author: Codex
+      comment: "Allow volunteers to access the task module"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO permission (code, type, description) VALUES
+                ('tasks.list', 'ROUTE', 'Route: task list')
+              ON CONFLICT (code, type) DO NOTHING;
+              INSERT INTO role_permission (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM role r
+              JOIN permission p ON p.code = 'tasks.list'
+              WHERE r.name = 'VOLUNTEER'
+              ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+  - changeSet:
       id: 024-5-align-capability-permissions
       author: ShiDu
       comment: "Align capability codes with current permission design"

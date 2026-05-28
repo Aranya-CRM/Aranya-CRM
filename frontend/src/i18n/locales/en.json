@@ -4,6 +4,7 @@
     "clients": "Clients",
     "cases": "Cases",
     "reports": "Reports",
+    "tasks": "Tasks",
     "users": "Users"
   },
   "layout": {
@@ -36,12 +37,18 @@
       "urgentCases": "Urgent Cases",
       "urgentCases_footnote": "RED / ORANGE",
       "pendingReports": "Pending Reports",
-      "pendingReports_footnote": "Flagged urgent"
+      "pendingReports_footnote": "Flagged urgent",
+      "assignedTaskCount": "Assigned Tasks",
+      "assignedTaskCount_footnote": "Current volunteer",
+      "myReportCount": "My Reports",
+      "myReportCount_footnote": "Submitted by me"
     },
     "recentCases": "Recent Cases",
+    "recentTasks": "Recently Assigned Tasks",
     "recentReports": "Recent Reports",
     "viewAll": "View all",
     "noCases": "No recent cases",
+    "noTasks": "No assigned tasks",
     "noReports": "No recent reports",
     "urgentBanner": "{{count}} Urgent Report(s) Pending Action",
     "viewResolve": "View & Resolve",
@@ -49,7 +56,8 @@
     "action": {
       "new_case": "New Case",
       "add_client": "Add Monastic",
-      "submit_report": "Submit Report"
+      "submit_report": "Submit Report",
+      "view_tasks": "View Tasks"
     }
   },
   "cases": {
@@ -383,11 +391,19 @@
     "notFound": "Report Not Found",
     "back": "← Back to List",
     "unnamedMonastic": "Unnamed monastic",
+    "status": {
+      "DRAFT": "Draft",
+      "SUBMITTED": "Submitted",
+      "ARCHIVED": "Archived",
+      "RETURNED": "Returned"
+    },
     "list": {
       "title": "Reports",
+      "myTitle": "My Visit Reports",
       "count": "{{count}} reports",
-      "newBtn": "+ New Report",
+      "newBtn": "+ Submit Visit Report",
       "search": "Search reports...",
+      "statusFilter": "Report status",
       "allTypes": "All Types",
       "loading": "Loading...",
       "empty": "No reports found",
@@ -406,11 +422,13 @@
     },
     "form": {
       "title": "Submit Observation Report",
+      "editTitle": "Edit Observation Report",
       "description": "Reporter is auto-filled from the signed-in user.",
       "sectionBasic": "Basic Info",
       "sectionObs": "Observations",
       "sectionReflections": "Reflections & Recommendations",
       "monastic": "Monastic",
+      "staffName": "Staff / Volunteer Name",
       "dateOfVisit": "Date of Visit",
       "timeOfVisit": "Time of Visit",
       "duration": "Duration of Visit",
@@ -433,17 +451,23 @@
       "submitError": "Failed to submit report.",
       "backToReports": "← Back to Reports",
       "submitting": "Submitting...",
-      "submit": "Submit Report →"
+      "submit": "Submit Report →",
+      "saveDraft": "Save Draft",
+      "submitFinal": "Submit Report",
+      "update": "Save Changes"
     },
     "detail": {
       "title": "Observation Report",
+      "visitedPerson": "Visited Monastic",
       "submitted": "Submitted",
       "urgent": "Urgent",
       "resolveFlag": "Resolve Flag",
       "approve": "Approve",
       "archive": "Archive",
+      "edit": "Edit",
       "deleting": "Deleting...",
       "delete": "Delete",
+      "deleteDraft": "Delete Draft",
       "confirmDelete": "Delete report {{id}}?",
       "urgentBanner": "This report was marked URGENT by {{name}}.",
       "markResolved": "Mark Resolved",
@@ -471,6 +495,40 @@
         "highlights": "Matters to Highlight"
       }
     }
+    ,
+    "category": {
+      "all": "All",
+      "befriending": "💙 Befriending",
+      "temple": "🏠 Temple Improvement",
+      "food": "🍱 Food Support",
+      "planning": "📋 Care Planning",
+      "case": "📁 Case Management"
+    }
+    ,
+    "statusFilter": {
+      "all": "All statuses"
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "count": "{{count}} tasks",
+    "loadError": "Failed to load tasks.",
+    "empty": "No tasks assigned to you",
+    "open": "Open",
+    "notFound": "Task Not Found",
+    "caseOverview": "Case Overview",
+    "myReports": "My Uploaded Reports",
+    "myNotes": "My Notes",
+    "noReports": "No reports uploaded by you",
+    "noNotes": "No notes uploaded by you",
+    "notePlaceholder": "Add a follow-up note for this task",
+    "followUpPlaceholder": "Follow-up (optional)",
+    "addNote": "Add Note",
+    "deleteNote": "Delete",
+    "confirmDeleteNote": "Delete this note?",
+    "noteError": "Failed to save note.",
+    "deleteNoteError": "Failed to delete note.",
+    "reportsLoadError": "Failed to load my reports."
   },
   "auth": {
     "error": {

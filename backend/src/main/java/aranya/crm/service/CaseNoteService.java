@@ -1,7 +1,9 @@
 package aranya.crm.service;
 
+import aranya.crm.dto.request.CreateCaseNoteRequest;
 import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.entity.CaseNote;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
 import aranya.crm.repository.CaseNoteRepository;
 import aranya.crm.repository.CaseRepository;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -30,16 +33,72 @@ public class CaseNoteService {
                 .toList();
     }
 
+    public List<CaseNoteResponse> listOwnCaseNotes(Long caseId, User currentUser) {
+        if (!caseRepository.existsById(caseId)) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        if (currentUserId == null) {
+            return List.of();
+        }
+
+        return caseNoteRepository.findByClientCaseIdAndCreatedByIdOrderByCreatedAtDescIdDesc(caseId, currentUserId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public CaseNoteResponse createCaseNote(Long caseId, CreateCaseNoteRequest request, User createdBy) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+
+        CaseNote note = new CaseNote();
+        note.setClientCase(clientCase);
+        note.setNoteType("VOLUNTEER");
+        note.setVisibility("TEAM");
+        note.setCreatedBy(createdBy);
+        note.setContent(normalizeText(request.getContent()));
+        note.setUpdatedAt(LocalDateTime.now());
+
+        CaseNote saved = caseNoteRepository.save(note);
+        return toResponse(saved, normalizeText(request.getFollowUp()));
+    }
+
+    @Transactional
+    public void deleteOwnCaseNote(Long noteId, User currentUser) {
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        if (currentUserId == null) {
+            throw new EntityNotFoundException("Case note not found: " + noteId);
+        }
+
+        CaseNote note = caseNoteRepository.findByIdAndCreatedById(noteId, currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("Case note not found: " + noteId));
+
+        caseNoteRepository.delete(note);
+    }
+
     private CaseNoteResponse toResponse(CaseNote note) {
+        return toResponse(note, "");
+    }
+
+    private CaseNoteResponse toResponse(CaseNote note, String followUp) {
         User createdBy = note.getCreatedBy();
         return CaseNoteResponse.builder()
                 .id(String.valueOf(note.getId()))
                 .caseId(String.valueOf(note.getClientCase().getId()))
                 .date(note.getCreatedAt().toLocalDate())
                 .content(note.getContent())
-                .followUp("")
+                .followUp(followUp != null ? followUp : "")
                 .recordedBy(createdBy != null ? createdBy.getFullName() : "Unknown")
                 .createdAt(note.getCreatedAt())
                 .build();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.trim();
     }
 }

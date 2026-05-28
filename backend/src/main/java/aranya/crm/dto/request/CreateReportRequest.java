@@ -30,4 +30,5 @@ public class CreateReportRequest {
     private String personalReflections;
     private String recommendations;
     private String mattersToHighlight;
+    private String status;
 }

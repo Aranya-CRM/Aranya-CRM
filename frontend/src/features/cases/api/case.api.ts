@@ -75,12 +75,12 @@ export async function createCase(data: Omit<Case, 'id'>): Promise<Case> {
   }
 }
 
-export async function fetchCaseNotes(caseId: string): Promise<CaseNote[]> {
+export async function fetchCaseNotes(caseId: string, mine = false): Promise<CaseNote[]> {
   const mode = getDataMode()
   if (mode === 'mock') return caseNoteMockData.filter((n) => n.caseId === caseId)
 
   try {
-    const res = await http.get<CaseNote[]>(`/v1/cases/${caseId}/notes`)
+    const res = await http.get<CaseNote[]>(`/v1/cases/${caseId}/notes`, { params: mine ? { mine: true } : undefined })
     return res.data
   } catch {
     if (mode === 'auto') return caseNoteMockData.filter((n) => n.caseId === caseId)
@@ -88,24 +88,67 @@ export async function fetchCaseNotes(caseId: string): Promise<CaseNote[]> {
   }
 }
 
-export async function createCaseNote(data: Omit<CaseNote, 'id' | 'createdAt'>): Promise<CaseNote> {
+export interface CreateCaseNotePayload {
+  caseId: string
+  content: string
+  followUp?: string
+}
+
+export async function createCaseNote(data: CreateCaseNotePayload): Promise<CaseNote> {
   const mode = getDataMode()
   if (mode === 'mock') {
-    const note: CaseNote = { ...data, id: `note-${Date.now()}`, createdAt: new Date().toISOString() }
+    const note: CaseNote = {
+      ...data,
+      followUp: data.followUp ?? '',
+      date: new Date().toISOString().slice(0, 10),
+      recordedBy: 'Volunteer',
+      id: `note-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    }
     caseNoteMockData.push(note)
     return note
   }
 
   try {
-    const res = await http.post<CaseNote>(`/v1/cases/${data.caseId}/notes`, data)
+    const res = await http.post<CaseNote>(`/v1/cases/${data.caseId}/notes`, {
+      content: data.content,
+      followUp: data.followUp,
+    })
     return res.data
   } catch {
     if (mode === 'auto') {
-      const note: CaseNote = { ...data, id: `note-${Date.now()}`, createdAt: new Date().toISOString() }
+      const note: CaseNote = {
+        ...data,
+        followUp: data.followUp ?? '',
+        date: new Date().toISOString().slice(0, 10),
+        recordedBy: 'Volunteer',
+        id: `note-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      }
       caseNoteMockData.push(note)
       return note
     }
     throw new Error('Failed to create case note')
+  }
+}
+
+export async function deleteCaseNote(caseId: string, noteId: string): Promise<void> {
+  const mode = getDataMode()
+  if (mode === 'mock') {
+    const index = caseNoteMockData.findIndex((note) => note.caseId === caseId && note.id === noteId)
+    if (index >= 0) caseNoteMockData.splice(index, 1)
+    return
+  }
+
+  try {
+    await http.delete(`/v1/cases/${caseId}/notes/${noteId}`)
+  } catch {
+    if (mode === 'auto') {
+      const index = caseNoteMockData.findIndex((note) => note.caseId === caseId && note.id === noteId)
+      if (index >= 0) caseNoteMockData.splice(index, 1)
+      return
+    }
+    throw new Error('Failed to delete case note')
   }
 }
 

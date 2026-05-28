@@ -4,6 +4,7 @@ export type DashboardSectionId =
   | 'sw.recent_reports'
   | 'sw.quick_actions'
   | 'volunteer.report_stats'
+  | 'volunteer.recent_tasks'
   | 'volunteer.my_recent_reports'
   | 'volunteer.quick_actions'
 
