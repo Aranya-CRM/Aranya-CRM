@@ -7,6 +7,7 @@ import type { UserSummary } from '../../users/types'
 import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
+import { CaseServiceCalendar } from './CaseServiceCalendar'
 import { CaseIntensityDot } from './CaseIntensityDot'
 
 type TabId = 'overview' | 'services' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
@@ -281,7 +282,7 @@ function formatCompletedAt(iso: string): string {
   return `${date} ${hhmm}`
 }
 
-const SERVICE_GROUP_KEYS = ['practical', 'emotional', 'admin', 'spiritual'] as const
+const SERVICE_GROUP_KEYS = ['housing', 'financial', 'food', 'other'] as const
 
 function ServicesTab({ services }: { services: CaseServices }) {
   const { t } = useTranslation()
@@ -300,7 +301,12 @@ function ServicesTab({ services }: { services: CaseServices }) {
             <div className="case-services-grid">
               {items.map((key) => (
                 <div key={key} className="case-services-item">
-                  <span className={'dot ' + (services[key] ? 'dot-yes' : 'dot-no')} />
+                  <input
+                    type="checkbox"
+                    className="service-check"
+                    checked={services[key]}
+                    readOnly
+                  />
                   {t(`cases.service.${key}`)}
                 </div>
               ))}
@@ -308,6 +314,13 @@ function ServicesTab({ services }: { services: CaseServices }) {
           </div>
         )
       })}
+
+      <div className="service-calendar-section">
+        <div className="case-services-section-title">
+          {t('cases.services.calendarTitle')}
+        </div>
+        <CaseServiceCalendar events={[]} />
+      </div>
     </>
   )
 }

@@ -12,6 +12,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
     "@reduxjs/toolkit": "^2.11.2",
     "@tanstack/react-query": "^5.100.9",
     "antd": "^6.3.5",

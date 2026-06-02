@@ -86,29 +86,31 @@
       "BLACK": "黑色 · 已关闭"
     },
     "service": {
-      "housingSupport": "住房援助",
-      "financialAssistance": "财务援助",
-      "medicalTransportation": "医疗交通",
-      "foodAssistance": "食物援助",
+      "accommodationArrangement": "住宿安排",
+      "deepCleaning": "大扫除",
+      "relocationAssistance": "搬迁协助",
+      "dailyCleaning": "日常清洁",
+      "pestControl": "害虫防治",
+      "homeRepair": "房屋维修",
+      "dailyExpenseSubsidy": "日常开支补助",
+      "cpfAssistance": "公积援助对接",
+      "mealDelivery": "送餐服务",
+      "lunchSupport": "午餐供养",
+      "monasticSupport": "僧团供养",
+      "monasticEscort": "僧团护送",
       "legalAid": "法律援助",
-      "immigrationSupport": "移民支持",
-      "counselling": "辅导服务",
-      "befriending": "陪伴服务",
-      "crisisIntervention": "危机干预",
-      "familyMediation": "家庭调解",
-      "governmentLiaison": "政府联络",
-      "hospitalLiaison": "医院联络",
-      "documentAssistance": "文件协助",
-      "interpreterService": "口译服务",
-      "templeLiaison": "寺院联络",
-      "communityReferral": "社区转介",
-      "religiousSupport": "宗教支持"
+      "volunteerVisit": "志愿者探访",
+      "digitalSupport": "数字化支持"
+    },
+    "services": {
+      "calendarTitle": "服务日历",
+      "calendarPlaceholder": "Google Calendar 即将接入"
     },
     "serviceGroup": {
-      "practical": "实务支持",
-      "emotional": "情感 / 社交",
-      "admin": "行政协助",
-      "spiritual": "灵性 / 社区"
+      "housing": "居住与住宿",
+      "financial": "经济援助",
+      "food": "食物援助",
+      "other": "其它服务"
     },
     "tab": {
       "overview": "概览",

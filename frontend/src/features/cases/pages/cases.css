@@ -541,6 +541,123 @@
   padding: 5px 0;
 }
 
+.service-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border: 1.5px solid #c4b8f0;
+  border-radius: 4px;
+  background: #fff;
+  cursor: default;
+  pointer-events: none;
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.service-check:checked {
+  background: #6c47ff;
+  border-color: #6c47ff;
+}
+
+.service-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+/* Service calendar */
+
+.service-calendar-section {
+  margin-top: 28px;
+}
+
+.service-calendar-wrap {
+  --fc-border-color: #e4e0f7;
+  --fc-today-bg-color: #f3f0ff;
+  --fc-button-bg-color: #6c47ff;
+  --fc-button-border-color: #6c47ff;
+  --fc-button-hover-bg-color: #5538d6;
+  --fc-button-hover-border-color: #5538d6;
+  --fc-button-active-bg-color: #5538d6;
+  --fc-button-active-border-color: #5538d6;
+  --fc-button-text-color: #fff;
+  --fc-page-bg-color: #fff;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid #e4e0f7;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(108, 71, 255, 0.07);
+}
+
+.service-calendar-wrap .fc-toolbar-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.service-calendar-wrap .fc-button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.service-calendar-wrap .fc-col-header {
+  background: #f5f2ff;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.service-calendar-wrap .fc-col-header-cell-cushion {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c47ff;
+  text-decoration: none;
+  padding: 8px 0;
+}
+
+.service-calendar-wrap .fc-daygrid-day-frame {
+  min-height: 90px;
+}
+
+.service-calendar-wrap .fc-daygrid-day-number {
+  font-size: 12px;
+  color: var(--text-normal);
+  text-decoration: none;
+  padding: 6px 8px;
+}
+
+.service-calendar-wrap .fc-day-today .fc-daygrid-day-number {
+  background: #6c47ff;
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  padding: 0;
+  margin: 6px 8px;
+}
+
+.service-calendar-placeholder {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* Notes tab */
 
 .case-notes-actions {

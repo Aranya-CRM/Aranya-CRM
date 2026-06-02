@@ -1,23 +1,21 @@
 import type { AuditLogEntry, Case, CaseFlag, CaseNote, CaseStatusChange } from '../features/cases/types'
 
 const defaultServices = {
-  housingSupport: false,
-  financialAssistance: false,
-  medicalTransportation: false,
-  foodAssistance: false,
+  accommodationArrangement: false,
+  deepCleaning: false,
+  relocationAssistance: false,
+  dailyCleaning: false,
+  pestControl: false,
+  homeRepair: false,
+  dailyExpenseSubsidy: false,
+  cpfAssistance: false,
+  mealDelivery: false,
+  lunchSupport: false,
+  monasticSupport: false,
+  monasticEscort: false,
   legalAid: false,
-  immigrationSupport: false,
-  counselling: false,
-  befriending: false,
-  crisisIntervention: false,
-  familyMediation: false,
-  governmentLiaison: false,
-  hospitalLiaison: false,
-  documentAssistance: false,
-  interpreterService: false,
-  templeLiaison: false,
-  communityReferral: false,
-  religiousSupport: false,
+  volunteerVisit: false,
+  digitalSupport: false,
 }
 
 export const caseMockData: Case[] = [
@@ -36,9 +34,9 @@ export const caseMockData: Case[] = [
     remarks: '',
     services: {
       ...defaultServices,
-      housingSupport: true,
-      governmentLiaison: true,
-      templeLiaison: true,
+      accommodationArrangement: true,
+      monasticSupport: true,
+      volunteerVisit: true,
     },
   },
   {
@@ -56,9 +54,9 @@ export const caseMockData: Case[] = [
     remarks: 'Weekly hospital visits',
     services: {
       ...defaultServices,
-      medicalTransportation: true,
-      hospitalLiaison: true,
-      befriending: true,
+      mealDelivery: true,
+      volunteerVisit: true,
+      monasticEscort: true,
     },
   },
   {
@@ -76,9 +74,9 @@ export const caseMockData: Case[] = [
     remarks: '',
     services: {
       ...defaultServices,
-      foodAssistance: true,
-      financialAssistance: true,
-      communityReferral: true,
+      lunchSupport: true,
+      dailyExpenseSubsidy: true,
+      monasticSupport: true,
     },
   },
   {
@@ -99,10 +97,10 @@ export const caseMockData: Case[] = [
     remarks: 'Client has no next of kin. MSF referral in progress.',
     services: {
       ...defaultServices,
-      housingSupport: true,
+      accommodationArrangement: true,
       legalAid: true,
-      immigrationSupport: true,
-      documentAssistance: true,
+      relocationAssistance: true,
+      digitalSupport: true,
     },
     tasks: [
       {
@@ -149,9 +147,9 @@ export const caseMockData: Case[] = [
     remarks: '',
     services: {
       ...defaultServices,
-      counselling: true,
-      befriending: true,
-      hospitalLiaison: true,
+      volunteerVisit: true,
+      dailyExpenseSubsidy: true,
+      mealDelivery: true,
     },
   },
 ]
