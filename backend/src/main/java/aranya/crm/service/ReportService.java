@@ -42,9 +42,18 @@ public class ReportService {
     }
 
     public List<ReportSummaryResponse> listOwnReports(User currentUser) {
+        return listOwnReports(currentUser, null);
+    }
+
+    public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null) {
             return List.of();
+        }
+        if (caseId != null) {
+            return visitReportRepository.findOwnReportsForCase(currentUserId, caseId).stream()
+                    .map(this::toReportSummaryResponse)
+                    .toList();
         }
         return visitReportRepository.findByCreatedByIdOrderByCreatedAtDescIdDesc(currentUserId).stream()
                 .map(this::toReportSummaryResponse)
@@ -70,6 +79,7 @@ public class ReportService {
                 : createdBy != null ? createdBy.getFullName() : null);
         report.setReportTimestamp(LocalDateTime.now());
         applyReportFields(report, client, request);
+        applyReportCase(report, request.getCaseId());
         report.setStatus(normalizeStatus(request.getStatus()));
 
         VisitReport savedReport = visitReportRepository.save(report);
@@ -90,6 +100,7 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
 
         applyReportFields(report, client, request);
+        applyReportCase(report, request.getCaseId());
 
         return toReportDetailResponse(report);
     }
@@ -122,6 +133,7 @@ public class ReportService {
 
         return ReportSummaryResponse.builder()
                 .id(report.getId())
+                .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
@@ -148,6 +160,7 @@ public class ReportService {
 
         return ReportDetailResponse.builder()
                 .id(report.getId())
+                .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
@@ -254,17 +267,32 @@ public class ReportService {
         report.setUpdatedAt(LocalDateTime.now());
     }
 
+    private void applyReportCase(VisitReport report, Long caseId) {
+        if (caseId == null) {
+            return;
+        }
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        report.setClientCase(clientCase);
+    }
+
     private void createLinkedCaseNoteIfPresent(Client client, VisitReport report, User createdBy) {
+        if (report.getClientCase() != null) {
+            createLinkedCaseNote(report.getClientCase(), report, createdBy);
+            return;
+        }
         caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId())
-                .ifPresent(clientCase -> {
-                    CaseNote note = new CaseNote();
-                    note.setClientCase(clientCase);
-                    note.setNoteType("REPORT");
-                    note.setVisibility("INTERNAL");
-                    note.setCreatedBy(createdBy);
-                    note.setContent(buildCaseNoteContent(report));
-                    caseNoteRepository.save(note);
-                });
+                .ifPresent(clientCase -> createLinkedCaseNote(clientCase, report, createdBy));
+    }
+
+    private void createLinkedCaseNote(ClientCase clientCase, VisitReport report, User createdBy) {
+        CaseNote note = new CaseNote();
+        note.setClientCase(clientCase);
+        note.setNoteType("REPORT");
+        note.setVisibility("INTERNAL");
+        note.setCreatedBy(createdBy);
+        note.setContent(buildCaseNoteContent(report));
+        caseNoteRepository.save(note);
     }
 
     private String buildCaseNoteContent(VisitReport report) {

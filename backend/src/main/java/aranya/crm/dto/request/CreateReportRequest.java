@@ -13,6 +13,8 @@ public class CreateReportRequest {
     @NotNull
     private Long clientId;
 
+    private Long caseId;
+
     @NotNull
     private LocalDate dateOfVisit;
 

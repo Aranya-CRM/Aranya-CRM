@@ -34,10 +34,11 @@ public class ReportController {
     @GetMapping
     public ResponseEntity<List<ReportSummaryResponse>> listReports(
             @CurrentUser User currentUser,
-            @RequestParam(defaultValue = "false") boolean mine
+            @RequestParam(defaultValue = "false") boolean mine,
+            @RequestParam(required = false) Long caseId
     ) {
         if (mine) {
-            return ResponseEntity.ok(reportService.listOwnReports(currentUser));
+            return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId));
         }
         return ResponseEntity.ok(reportService.listReports());
     }

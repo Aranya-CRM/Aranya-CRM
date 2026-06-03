@@ -17,6 +17,13 @@ function reportClientMatches(report: ReportSummary, clientId: string | undefined
   return Boolean(clientId && report.clientId != null && String(report.clientId) === clientId)
 }
 
+function reportMatchesTask(report: ReportSummary, caseId: string | undefined, clientId: string | undefined): boolean {
+  if (caseId && report.caseId != null) {
+    return String(report.caseId) === caseId
+  }
+  return reportClientMatches(report, clientId)
+}
+
 function reportStatusKey(report: ReportSummary | ReportDetail): 'DRAFT' | 'SUBMITTED' {
   if (report.status === 'DRAFT') return 'DRAFT'
   return 'SUBMITTED'
@@ -29,6 +36,15 @@ function isCurrentReportStatus(report: ReportSummary): boolean {
 function mergeReportSummary(reports: ReportSummary[], report: ReportDetail): ReportSummary[] {
   const summary = report as ReportSummary
   return [summary, ...reports.filter((item) => item.id !== summary.id)]
+}
+
+function mergeReportLists(incoming: ReportSummary[], existing: ReportSummary[]): ReportSummary[] {
+  const incomingIds = new Set(incoming.map((report) => report.id))
+  return [...incoming, ...existing.filter((report) => !incomingIds.has(report.id))]
+}
+
+function isReportDetail(value: unknown): value is ReportDetail {
+  return Boolean(value && typeof value === 'object' && 'id' in value)
 }
 
 export function TaskDetailPage() {
@@ -45,12 +61,15 @@ export function TaskDetailPage() {
   const [content, setContent] = useState('')
   const [followUp, setFollowUp] = useState('')
   const [errorMessage, setErrorMessage] = useState<string>()
+  const returnedReport = isReportDetail(location.state && typeof location.state === 'object' ? (location.state as { report?: unknown }).report : undefined)
+    ? (location.state as { report: ReportDetail }).report
+    : undefined
 
   async function loadReports(active = true) {
     try {
-      const data = await fetchReports({ mine: true })
+      const data = await fetchReports({ mine: true, caseId: id })
       if (active) {
-        setReports(data)
+        setReports((prev) => mergeReportLists(data, prev))
       }
     } catch {
       if (active) setErrorMessage(t('tasks.reportsLoadError'))
@@ -58,12 +77,15 @@ export function TaskDetailPage() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('reportId')) return
+
     let active = true
     void loadReports(active)
     return () => {
       active = false
     }
-  }, [t])
+  }, [location.search, t])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -74,11 +96,14 @@ export function TaskDetailPage() {
     async function loadCreatedReport() {
       setErrorMessage(undefined)
       try {
-        const detail = await fetchReportById(reportId!)
+        const detail = returnedReport ?? await fetchReportById(reportId!)
         if (!active) return
-        const latestReports = await fetchReports({ mine: true })
+        setReports((prev) => mergeReportSummary(prev, detail))
+
         if (!active) return
-        setReports(mergeReportSummary(latestReports, detail))
+        const latestReports = await fetchReports({ mine: true, caseId: id })
+        if (!active) return
+        setReports((prev) => mergeReportSummary(mergeReportLists(latestReports, prev), detail))
       } catch {
         if (active) setErrorMessage(t('reports.loadError'))
       } finally {
@@ -90,9 +115,9 @@ export function TaskDetailPage() {
     return () => {
       active = false
     }
-  }, [location.pathname, location.search, navigate, t])
+  }, [location.pathname, location.search, navigate, returnedReport, t])
 
-  const myReports = reports.filter((report) => reportClientMatches(report, caseData?.clientId) && isCurrentReportStatus(report))
+  const myReports = reports.filter((report) => reportMatchesTask(report, id, caseData?.clientId) && isCurrentReportStatus(report))
 
   async function handleAddNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -159,7 +184,7 @@ export function TaskDetailPage() {
 
       <div className="task-detail-grid">
         <SectionCard title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
-          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&returnTo=/tasks/${caseData.id}&clientName=${encodeURIComponent(clientName)}`)}>
+          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&caseId=${caseData.id}&returnTo=/tasks/${caseData.id}&clientName=${encodeURIComponent(clientName)}`)}>
             {t('tasks.submitReport')}
           </button>
           {myReports.length === 0 ? (
