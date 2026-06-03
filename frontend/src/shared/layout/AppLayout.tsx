@@ -70,9 +70,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          <LanguageSwitcher />
-        </div>
       </aside>
 
       <section className="main">
@@ -82,6 +79,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="topbar-subtitle">{t('layout.topbarSubtitle')}</div>
           </div>
           <div className="topbar-right">
+            <LanguageSwitcher />
             <div className="topbar-user">
               <span className="topbar-user-name">
                 {user?.fullName ?? 'User'}
