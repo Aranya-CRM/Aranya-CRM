@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAccess } from '../../../shared/auth/useAccess'
 import { ErrorBanner } from '../../../shared/ui'
 import { deleteReport, fetchReportById, fetchReports, submitReport, updateReport } from '../api/report.api'
 import type { CreateReportPayload, ReportDetail, ReportStatus, ReportSummary } from '../types'
@@ -110,6 +111,8 @@ export function ReportListPage() {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
+  const { getCap } = useAccess()
+  const mineOnly = getCap('reports:view') === 'OWN'
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedParam = searchParams.get('selected')
   const [reports, setReports] = useState<ReportSummary[]>([])
@@ -131,7 +134,7 @@ export function ReportListPage() {
     async function loadReports() {
       setIsLoadingList(true)
       try {
-        const data = await fetchReports({ mine: true })
+        const data = await fetchReports({ mine: mineOnly })
         if (!active) return
         setReports(data)
         setErrorMessage(undefined)

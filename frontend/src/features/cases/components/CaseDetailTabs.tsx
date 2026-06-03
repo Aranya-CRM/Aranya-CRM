@@ -7,6 +7,7 @@ import type { UserSummary } from '../../users/types'
 import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
+import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
 import { CaseIntensityDot } from './CaseIntensityDot'
 
@@ -73,7 +74,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
         {activeTab === 'services'  ? <ServicesTab  services={caseData.services} /> : null}
         {activeTab === 'notes'     ? <NotesTab     notes={notes} /> : null}
         {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
-        {activeTab === 'reports'   ? <PlaceholderTab tabKey="cases.tab.reports" /> : null}
+        {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} /> : null}
         {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
         {activeTab === 'audit' && isManager ? (
           <CaseAuditTab caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} />

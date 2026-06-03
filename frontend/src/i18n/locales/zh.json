@@ -208,6 +208,18 @@
       "count": "{{count}} 个个案",
       "auditView": "审计视图",
       "newCase": "+ 新建个案"
+    },
+    "reports": {
+      "count": "共 {{count}} 份报告",
+      "empty": "暂无探访报告",
+      "newBtn": "+ 新建报告",
+      "col": {
+        "date": "探访日期",
+        "type": "类型",
+        "duration": "时长",
+        "submitter": "提交人",
+        "status": "状态"
+      }
     }
   },
   "clients": {
@@ -514,6 +526,24 @@
     ,
     "statusFilter": {
       "all": "全部状态"
+    },
+    "overview": {
+      "title": "文档管理",
+      "tabVolunteer": "义工报告",
+      "tabMine": "我的报告",
+      "emptyVolunteer": "暂无义工探访报告",
+      "emptyMine": "暂无我的探访报告",
+      "selectHint": "请选择一份报告查看详情",
+      "selectVolunteer": "请选择义工以查看其提交记录",
+      "searchVolunteer": "搜索义工姓名…",
+      "reportCount": "{{count}} 份报告",
+      "lastDate": "最近提交：",
+      "volunteerCount": "共 {{count}} 名义工",
+      "freshness": {
+        "recent": "近期活跃",
+        "medium": "一般",
+        "old": "需跟进"
+      }
     }
   },
   "tasks": {

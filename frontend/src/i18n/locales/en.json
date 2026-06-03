@@ -208,6 +208,18 @@
       "count": "{{count}} cases",
       "auditView": "Audit View",
       "newCase": "+ New Case"
+    },
+    "reports": {
+      "count": "{{count}} report(s)",
+      "empty": "No visit reports yet",
+      "newBtn": "+ New Report",
+      "col": {
+        "date": "Visit Date",
+        "type": "Type",
+        "duration": "Duration",
+        "submitter": "Submitted By",
+        "status": "Status"
+      }
     }
   },
   "clients": {
@@ -514,6 +526,24 @@
     ,
     "statusFilter": {
       "all": "All statuses"
+    },
+    "overview": {
+      "title": "Documents",
+      "tabVolunteer": "Volunteer Reports",
+      "tabMine": "My Reports",
+      "emptyVolunteer": "No volunteer reports",
+      "emptyMine": "No reports from you",
+      "selectHint": "Select a report to view details",
+      "selectVolunteer": "Select a volunteer to view their submissions",
+      "searchVolunteer": "Search volunteer name…",
+      "reportCount": "{{count}} reports",
+      "lastDate": "Last: ",
+      "volunteerCount": "{{count}} volunteers",
+      "freshness": {
+        "recent": "Active",
+        "medium": "Moderate",
+        "old": "Follow up"
+      }
     }
   },
   "tasks": {
