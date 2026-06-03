@@ -83,7 +83,7 @@ export function ClientFormPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
   const navigate = useNavigate()
 
   const [step, setStep] = useState(0)
@@ -91,7 +91,7 @@ export function ClientFormPage() {
   const { data: client, isLoading } = useClient(id)
   const createClientMutation = useCreateClient()
   const updateClientMutation = useUpdateClient()
-  const canWriteClient = isEdit ? canFeature('clients.update') : canFeature('clients.create')
+  const canWriteClient = isEdit ? resolve('clients:update') : resolve('clients:create')
 
   useEffect(() => {
     if (client) {

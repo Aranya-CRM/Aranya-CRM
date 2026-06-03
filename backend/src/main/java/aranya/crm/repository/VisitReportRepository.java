@@ -12,6 +12,8 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
 
     long countByCreatedById(Long createdById);
 
+    long countByCreatedByIdAndStatusIgnoreCase(Long createdById, String status);
+
     @EntityGraph(attributePaths = {"client", "createdBy"})
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById, Pageable pageable);
 

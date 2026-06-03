@@ -13,13 +13,13 @@ import './clients.css'
 export function ClientDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
   const navigate = useNavigate()
   const { data: client, isLoading } = useClient(id)
   const [activeTab, setActiveTab] = useState<ClientDetailTabId>('basic')
 
-  const canViewDetailedProfile = canFeature('clients.view.full')
-  const canUpdateClient = canFeature('clients.update')
+  const canViewDetailedProfile = resolve('clients:view.full')
+  const canUpdateClient = resolve('clients:update')
 
   if (isLoading) {
     return <PageHeader title={t('common.loading')} />

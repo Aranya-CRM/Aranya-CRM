@@ -10,3 +10,5 @@ export {
   ROUTE_CAPABILITIES,
   useRoleViewAccess,
 } from './roleViewAccess'
+export { resolve as resolveAccess } from './evaluationEngine'
+export type { Decision } from './evaluationEngine'

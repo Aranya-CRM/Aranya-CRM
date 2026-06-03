@@ -8,14 +8,14 @@ import './cases.css'
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
 
   const { data: caseData, isLoading } = useCase(id)
   const { data: notes = [] } = useCaseNotes(id)
   const { data: auditLog = [] } = useCaseAuditLog(id)
   const { data: flags = [] } = useCaseFlags(id)
 
-  const isManager = canFeature('cases.audit')
+  const isManager = resolve('cases:audit')
 
   if (isLoading) {
     return (
