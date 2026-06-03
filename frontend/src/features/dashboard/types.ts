@@ -38,12 +38,15 @@ export interface DashboardStat {
 export interface DashboardItem {
   id: string
   clientId?: string | null
+  clientAbbr?: string | null
   clientNameChn?: string | null
   clientNameEn?: string | null
   caseCode?: string | null
   statusCode?: string | null
   colorCode?: string | null
   openedAt?: string | null
+  location?: string | null
+  programmeName?: string | null
   reportType?: string | null
   dateOfVisit?: string | null
   createdAt?: string | null

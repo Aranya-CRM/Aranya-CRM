@@ -15,7 +15,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation()
-  const { user, logout } = useAuth()
+  const { user, manifest, logout } = useAuth()
   const { canRoute } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
@@ -32,7 +32,14 @@ export function AppLayout({ children }: AppLayoutProps) {
     },
   })
 
-  const visibleItems = NAVIGATION_ITEMS.filter((item) => canRoute(item.routeId))
+  const manifestRoutes = manifest?.routes ?? []
+  const isVolunteerOnly = manifestRoutes.includes('tasks.list')
+    && !manifestRoutes.includes('clients.list')
+    && !manifestRoutes.includes('cases.list')
+  const visibleItems = NAVIGATION_ITEMS.filter((item) => {
+    if (isVolunteerOnly && item.id !== 'tasks') return false
+    return canRoute(item.routeId)
+  })
 
   function handleNavClick(item: NavigationItem) {
     navigate(item.path)

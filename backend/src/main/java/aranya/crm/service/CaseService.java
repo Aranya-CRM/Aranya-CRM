@@ -123,6 +123,19 @@ public class CaseService {
         return clientCase.getClient().getBuddhistTradition();
     }
 
+    public String findLatestCaseCodeForClient(Long clientId) {
+        return caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(clientId)
+                .map(ClientCase::getCaseCode)
+                .orElse(null);
+    }
+
+    private String resolveClientVenue(ClientCase clientCase) {
+        if (clientCase.getClient().getViharaType() != null && !clientCase.getClient().getViharaType().isBlank()) {
+            return clientCase.getClient().getViharaType();
+        }
+        return clientCase.getClient().getAreaDistrict();
+    }
+
     private String normalizeFilter(String value) {
         if (value == null || value.isBlank()) {
             return null;

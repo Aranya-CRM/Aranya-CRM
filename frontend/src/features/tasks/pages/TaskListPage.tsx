@@ -2,21 +2,19 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
+import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import type { DashboardItem } from '../../dashboard/types'
 import { fetchAssignedTasks } from '../api/task.api'
 import './tasks.css'
 
-function displayName(item: DashboardItem, isZh: boolean): string {
-  const zh = item.clientNameChn?.trim()
-  const en = item.clientNameEn?.trim()
-  if (isZh) return zh || en || ''
-  return en || zh || ''
+function formatDate(value: string | null | undefined): string {
+  if (!value) return '-'
+  return value.slice(0, 10)
 }
 
 export function TaskListPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
-  const isZh = i18n.language === 'zh'
   const [tasks, setTasks] = useState<DashboardItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
@@ -65,8 +63,8 @@ export function TaskListPage() {
               <button className="task-row" key={task.id} type="button" onClick={() => navigate(`/tasks/${task.id}`)}>
                 <span className={`task-color task-color-${(task.colorCode ?? 'GREY').toLowerCase()}`} />
                 <span className="task-row-main">
-                  <span className="task-title">{task.caseCode}</span>
-                  <span className="task-meta">{displayName(task, isZh)} · {task.statusCode ?? 'OPEN'}</span>
+                  <span className="task-title">{formatServiceTitle(task)}</span>
+                  <span className="task-meta">{formatDate(task.openedAt)}</span>
                 </span>
                 <span className="task-open">{t('tasks.open')}</span>
               </button>

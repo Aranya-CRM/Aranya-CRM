@@ -4,7 +4,7 @@
     "clients": "Clients",
     "cases": "Cases",
     "reports": "Reports",
-    "tasks": "Tasks",
+    "tasks": "Help with",
     "users": "Users"
   },
   "layout": {
@@ -510,14 +510,22 @@
     }
   },
   "tasks": {
-    "title": "Tasks",
-    "count": "{{count}} tasks",
+    "title": "Help with",
+    "count": "{{count}} requests",
     "loadError": "Failed to load tasks.",
     "empty": "No tasks assigned to you",
     "open": "Open",
     "notFound": "Task Not Found",
-    "caseOverview": "Case Overview",
+    "caseOverview": "Request",
+    "submitReport": "Submit report",
     "myReports": "My Uploaded Reports",
+    "request": {
+      "subject": "Subject",
+      "time": "Time",
+      "location": "Location",
+      "todo": "What is needed",
+      "notes": "Supplementary notes"
+    },
     "myNotes": "My Notes",
     "noReports": "No reports uploaded by you",
     "noNotes": "No notes uploaded by you",

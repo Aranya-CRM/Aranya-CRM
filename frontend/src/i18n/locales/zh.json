@@ -4,7 +4,7 @@
     "clients": "客户档案",
     "cases": "个案管理",
     "reports": "文档管理",
-    "tasks": "任务",
+    "tasks": "协助",
     "users": "用户管理"
   },
   "layout": {
@@ -510,14 +510,22 @@
     }
   },
   "tasks": {
-    "title": "任务",
-    "count": "{{count}} 个任务",
+    "title": "协助",
+    "count": "{{count}} 个请求",
     "loadError": "任务加载失败，请稍后重试。",
     "empty": "暂无分配给你的任务",
     "open": "查看",
     "notFound": "未找到任务",
-    "caseOverview": "个案概览",
+    "caseOverview": "Request",
+    "submitReport": "提交报告",
     "myReports": "我上传的报告",
+    "request": {
+      "subject": "主题",
+      "time": "时间",
+      "location": "地点",
+      "todo": "需要做什么",
+      "notes": "补充说明"
+    },
     "myNotes": "我的笔记",
     "noReports": "暂无我上传的报告",
     "noNotes": "暂无我上传的笔记",

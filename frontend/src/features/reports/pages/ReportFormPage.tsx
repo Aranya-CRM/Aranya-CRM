@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchClients } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
@@ -105,9 +105,17 @@ export function ReportFormPage() {
   const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || '/reports'
+  const initialClientId = searchParams.get('clientId')
+  const initialClientName = searchParams.get('clientName') || ''
   const isEditMode = Boolean(id)
+  const isTaskReturn = returnTo.startsWith('/tasks/')
   const [clients, setClients] = useState<Client[]>([])
-  const [form, setForm] = useState<ReportFormState>(initialForm)
+  const [form, setForm] = useState<ReportFormState>(() => ({
+    ...initialForm,
+    clientId: initialClientId ?? '',
+  }))
   const [isLoadingClients, setIsLoadingClients] = useState(true)
   const [isLoadingReport, setIsLoadingReport] = useState(Boolean(id))
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -141,6 +149,12 @@ export function ReportFormPage() {
       active = false
     }
   }, [t])
+
+  useEffect(() => {
+    if (!id && initialClientId) {
+      setForm((prev) => ({ ...prev, clientId: initialClientId }))
+    }
+  }, [id, initialClientId])
 
   useEffect(() => {
     if (!id) return
@@ -190,7 +204,7 @@ export function ReportFormPage() {
       : null
     const status: ReportStatus = submitter?.value === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'
     if (isEditMode && reportStatus === 'SUBMITTED') {
-      navigate(`/reports?selected=${id}`)
+      navigate(returnTo)
       return
     }
 
@@ -209,7 +223,7 @@ export function ReportFormPage() {
           ? await submitReport((await updateReport(id, { ...payload, status: 'DRAFT' })).id)
           : await updateReport(id, payload)
         : await createReport(payload)
-      navigate(`/reports?selected=${saved.id}`)
+      navigate(isTaskReturn ? `${returnTo}?reportId=${saved.id}` : returnTo)
     } catch {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
@@ -219,7 +233,7 @@ export function ReportFormPage() {
 
   return (
     <div className="report-page">
-      <BackButton onClick={() => navigate('/reports')} />
+      <BackButton onClick={() => navigate(returnTo)} />
 
       <PageHeader
         title={isEditMode ? t('reports.form.editTitle') : t('reports.form.title')}
@@ -248,6 +262,9 @@ export function ReportFormPage() {
                 onChange={(event) => updateField('clientId', event.target.value)}
               >
                 <option value="">{isLoadingClients ? t('reports.form.loadingMonastics') : t('reports.form.selectMonastic')}</option>
+                {initialClientId && initialClientName && !sortedClients.some((client) => String(client.id) === initialClientId) ? (
+                  <option value={initialClientId}>{initialClientName}</option>
+                ) : null}
                 {sortedClients.map((client) => (
                   <option key={client.id} value={client.id}>{clientLabel(client, isZh)}</option>
                 ))}
@@ -413,7 +430,7 @@ export function ReportFormPage() {
         </SectionCard>
 
         <div className="report-form-footer">
-          <button className="btn-secondary" type="button" disabled={isSubmitting} onClick={() => navigate('/reports')}>
+          <button className="btn-secondary" type="button" disabled={isSubmitting} onClick={() => navigate(returnTo)}>
             {t('common.cancel')}
           </button>
           {reportStatus === 'SUBMITTED' ? null : (

@@ -37,8 +37,6 @@ const STATUS_FILTERS: Array<{ id: 'all' | ReportStatus, labelKey: string }> = [
   { id: 'all', labelKey: 'reports.statusFilter.all' },
   { id: 'DRAFT', labelKey: 'reports.status.DRAFT' },
   { id: 'SUBMITTED', labelKey: 'reports.status.SUBMITTED' },
-  { id: 'ARCHIVED', labelKey: 'reports.status.ARCHIVED' },
-  { id: 'RETURNED', labelKey: 'reports.status.RETURNED' },
 ]
 
 function formatDate(value: string | null | undefined): string {
@@ -99,11 +97,13 @@ function compactPayload(form: ReportFormState): CreateReportPayload {
   }
 }
 
-function reportStatus(report: ReportSummary | ReportDetail | undefined): ReportStatus {
+function reportStatus(report: ReportSummary | ReportDetail | undefined): 'DRAFT' | 'SUBMITTED' {
   if (report?.status === 'DRAFT') return 'DRAFT'
-  if (report?.status === 'ARCHIVED') return 'ARCHIVED'
-  if (report?.status === 'RETURNED') return 'RETURNED'
   return 'SUBMITTED'
+}
+
+function isCurrentReportStatus(report: ReportSummary): boolean {
+  return report.status === 'DRAFT' || report.status === 'SUBMITTED' || !report.status
 }
 
 export function ReportListPage() {
@@ -175,6 +175,7 @@ export function ReportListPage() {
   const filteredReports = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return reports.filter((report) => {
+      if (!isCurrentReportStatus(report)) return false
       const matchesCategory = activeCategory === 'all' || report.typeOfVisit === activeCategory
       const matchesStatus = statusFilter === 'all' || reportStatus(report) === statusFilter
       const searchText = [
@@ -380,24 +381,15 @@ export function ReportListPage() {
             <>
               {(() => {
                 const status = reportStatus(selectedReport)
-                const canEdit = status === 'DRAFT' || status === 'RETURNED'
+                const canEdit = status === 'DRAFT'
                 const canDelete = status === 'DRAFT'
                 return (
                   <>
-              <section className="report-person-card">
-                <div>
-                  <span>{t('reports.detail.visitedPerson')}</span>
-                  <strong>{displayName(selectedReport, isZh) || t('reports.unnamedMonastic')}</strong>
-                  <em>{isZh ? displayText(selectedReport.clientNameEn, '') : displayText(selectedReport.clientNameChn, '')}</em>
-                </div>
+              <section className="report-reader-card report-reader-card-continuous">
                 <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>
                   {t(`reports.status.${status}`)}
                 </span>
-              </section>
-
-              <SectionTitle title={t('reports.form.sectionBasic')} />
-              <section className="report-reader-card">
-                <div className="report-reader-grid">
+                <div className="report-reader-grid continuous">
                   <FieldView
                     label={t('reports.form.staffName')}
                     value={displayText(selectedReport.createdByName ?? selectedReport.staffName, 'Unknown')}
@@ -434,12 +426,6 @@ export function ReportListPage() {
                     input={<textarea value={form.purposeOfVisit} onChange={(e) => updateField('purposeOfVisit', e.target.value)} />}
                     wide
                   />
-                </div>
-              </section>
-
-              <SectionTitle title={t('reports.form.sectionObs')} />
-              <section className="report-reader-card">
-                <div className="report-reader-grid">
                   <EditableField
                     editing={isEditing && canEdit}
                     label={t('reports.form.whatWasDone')}
@@ -466,12 +452,6 @@ export function ReportListPage() {
                     input={<textarea value={form.otherObservations} onChange={(e) => updateField('otherObservations', e.target.value)} />}
                     wide
                   />
-                </div>
-              </section>
-
-              <SectionTitle title={t('reports.form.sectionReflections')} />
-              <section className="report-reader-card">
-                <div className="report-reader-grid">
                   <EditableField
                     editing={isEditing && canEdit}
                     label={t('reports.form.personalReflections')}
@@ -544,10 +524,6 @@ export function ReportListPage() {
       </div>
     </div>
   )
-}
-
-function SectionTitle({ title }: { title: string }) {
-  return <h2 className="report-section-title">{title}</h2>
 }
 
 function FieldView({ label, value, wide = false }: { label: string, value: string, wide?: boolean }) {

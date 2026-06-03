@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { fetchReports } from '../../reports/api/report.api'
-import type { ReportSummary } from '../../reports/types'
-import { CASE_COLOR_KEYS } from '../../cases/types'
+import { formatServiceTitle } from '../../../shared/format/serviceTitle'
+import { fetchReportById, fetchReports } from '../../reports/api/report.api'
+import type { ReportDetail, ReportSummary } from '../../reports/types'
 import { useCase, useCreateCaseNote, useDeleteCaseNote, useOwnCaseNotes } from '../../cases/hooks'
 import './tasks.css'
 
@@ -17,16 +17,24 @@ function reportClientMatches(report: ReportSummary, clientId: string | undefined
   return Boolean(clientId && report.clientId != null && String(report.clientId) === clientId)
 }
 
-function reportStatusKey(report: ReportSummary): 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED' {
+function reportStatusKey(report: ReportSummary | ReportDetail): 'DRAFT' | 'SUBMITTED' {
   if (report.status === 'DRAFT') return 'DRAFT'
-  if (report.status === 'ARCHIVED') return 'ARCHIVED'
-  if (report.status === 'RETURNED') return 'RETURNED'
   return 'SUBMITTED'
+}
+
+function isCurrentReportStatus(report: ReportSummary): boolean {
+  return report.status === 'DRAFT' || report.status === 'SUBMITTED' || !report.status
+}
+
+function mergeReportSummary(reports: ReportSummary[], report: ReportDetail): ReportSummary[] {
+  const summary = report as ReportSummary
+  return [summary, ...reports.filter((item) => item.id !== summary.id)]
 }
 
 export function TaskDetailPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const isZh = i18n.language === 'zh'
   const { data: caseData, isLoading } = useCase(id)
@@ -38,21 +46,53 @@ export function TaskDetailPage() {
   const [followUp, setFollowUp] = useState('')
   const [errorMessage, setErrorMessage] = useState<string>()
 
+  async function loadReports(active = true) {
+    try {
+      const data = await fetchReports({ mine: true })
+      if (active) {
+        setReports(data)
+      }
+    } catch {
+      if (active) setErrorMessage(t('tasks.reportsLoadError'))
+    }
+  }
+
   useEffect(() => {
     let active = true
-    fetchReports({ mine: true })
-      .then((data) => {
-        if (active) setReports(data)
-      })
-      .catch(() => {
-        if (active) setErrorMessage(t('tasks.reportsLoadError'))
-      })
+    void loadReports(active)
     return () => {
       active = false
     }
   }, [t])
 
-  const myReports = reports.filter((report) => reportClientMatches(report, caseData?.clientId))
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const reportId = params.get('reportId')
+    if (!reportId) return
+
+    let active = true
+    async function loadCreatedReport() {
+      setErrorMessage(undefined)
+      try {
+        const detail = await fetchReportById(reportId!)
+        if (!active) return
+        const latestReports = await fetchReports({ mine: true })
+        if (!active) return
+        setReports(mergeReportSummary(latestReports, detail))
+      } catch {
+        if (active) setErrorMessage(t('reports.loadError'))
+      } finally {
+        if (active) navigate(location.pathname, { replace: true })
+      }
+    }
+
+    void loadCreatedReport()
+    return () => {
+      active = false
+    }
+  }, [location.pathname, location.search, navigate, t])
+
+  const myReports = reports.filter((report) => reportClientMatches(report, caseData?.clientId) && isCurrentReportStatus(report))
 
   async function handleAddNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -97,30 +137,39 @@ export function TaskDetailPage() {
   return (
     <div className="task-page">
       <BackButton onClick={() => navigate('/tasks')} />
-      <PageHeader title={caseData.caseNo} subtitle={`${clientName} · ${caseData.tradition}`} />
+      <PageHeader title={formatServiceTitle({
+        id: caseData.id,
+        programmeName: caseData.title,
+        clientAbbr: caseData.clientAbbr,
+        clientNameEn: caseData.clientNameEn,
+        clientNameChn: caseData.clientNameChn,
+        location: caseData.venue,
+      })} subtitle={`${clientName} · ${caseData.tradition}`} />
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
-      <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Case overview" bodyPadding>
+      <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Request" bodyPadding>
         <div className="task-overview-grid">
-          <Info label={t('cases.overview.dateOpened')} value={caseData.dateOpened} />
-          <Info label={t('cases.overview.status')} value={caseData.status} />
-          <Info label={t('cases.overview.caseworker')} value={caseData.socialWorker || '-'} />
-          <Info label={t('cases.overview.intensity')} value={t(CASE_COLOR_KEYS[caseData.colorCode])} />
-          <Info label={t('cases.overview.comments')} value={caseData.comments || '-'} wide />
-          <Info label={t('cases.overview.remarks')} value={caseData.remarks || '-'} wide />
+          <Info label={t('tasks.request.subject')} value={caseData.title || '-'} />
+          <Info label={t('tasks.request.time')} value={caseData.dateOpened} />
+          <Info label={t('tasks.request.location')} value={caseData.venue || '-'} />
+          <Info label={t('tasks.request.todo')} value={caseData.comments || '-'} wide />
+          <Info label={t('tasks.request.notes')} value={caseData.remarks || '-'} wide />
         </div>
       </SectionCard>
 
       <div className="task-detail-grid">
         <SectionCard title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
+          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&returnTo=/tasks/${caseData.id}&clientName=${encodeURIComponent(clientName)}`)}>
+            {t('tasks.submitReport')}
+          </button>
           {myReports.length === 0 ? (
             <div className="task-empty compact">{t('tasks.noReports')}</div>
           ) : (
             <div className="task-sub-list">
               {myReports.map((report) => (
-                <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports?selected=${report.id}`)}>
-                  <span>RPT-{String(report.id).padStart(4, '0')}</span>
-                  <span>{formatDate(report.dateOfVisit)} · {report.typeOfVisit ?? t('reports.detail.title')} · {t(`reports.status.${reportStatusKey(report)}`)}</span>
+                <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports/${report.id}?returnTo=/tasks/${caseData.id}`)}>
+                  <span>{formatServiceTitle(report)} report</span>
+                  <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report)}`)}</span>
                 </button>
               ))}
             </div>

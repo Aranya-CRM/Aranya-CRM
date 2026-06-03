@@ -161,12 +161,15 @@ public class DashboardService {
         return DashboardResponse.Item.builder()
                 .id(String.valueOf(clientCase.getId()))
                 .clientId(client != null ? String.valueOf(client.getId()) : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .caseCode(clientCase.getCaseCode())
                 .statusCode(clientCase.getStatus())
                 .colorCode(clientCase.getColorCode())
                 .openedAt(clientCase.getOpenedAt() != null ? clientCase.getOpenedAt().toString() : null)
+                .location(resolveClientVenue(client))
+                .programmeName(clientCase.getTitle())
                 .build();
     }
 
@@ -176,14 +179,35 @@ public class DashboardService {
         return DashboardResponse.Item.builder()
                 .id(String.valueOf(report.getId()))
                 .clientId(client != null ? String.valueOf(client.getId()) : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
+                .caseCode(findReportCaseCode(client))
                 .reportType(report.getTypeOfVisit())
                 .dateOfVisit(report.getDateOfVisit() != null ? report.getDateOfVisit().toString() : null)
+                .location(report.getLocation())
+                .programmeName(report.getProgrammeName())
                 .createdAt(report.getCreatedAt() != null ? report.getCreatedAt().toString() : null)
                 .createdById(createdBy != null ? String.valueOf(createdBy.getId()) : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
                 .build();
+    }
+
+    private String resolveClientVenue(Client client) {
+        if (client == null) {
+            return null;
+        }
+        if (client.getViharaType() != null && !client.getViharaType().isBlank()) {
+            return client.getViharaType();
+        }
+        return client.getAreaDistrict();
+    }
+
+    private String findReportCaseCode(Client client) {
+        if (client == null || client.getId() == null) {
+            return null;
+        }
+        return caseService.findLatestCaseCodeForClient(client.getId());
     }
 
     private DashboardResponse.Stat stat(String id, long value) {

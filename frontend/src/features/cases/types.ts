@@ -68,11 +68,14 @@ export interface CaseServices {
 export interface Case {
   id: string
   caseNo: string
+  title?: string
   dateOpened: string
   closedAt?: string
   clientId: string
+  clientAbbr?: string
   clientNameEn: string
   clientNameChn: string
+  venue?: string
   tradition: string
   socialWorker: string
   assignedVolunteer?: string
