@@ -27,7 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('MANAGER')")
+@PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
 public class UserController {
 
     private final UserService userService;

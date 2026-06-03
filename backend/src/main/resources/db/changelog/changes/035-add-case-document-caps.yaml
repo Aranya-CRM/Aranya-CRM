@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 035-1
+      author: system
+      comment: Add cases:documents.upload and cases:documents.delete cap definitions
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO cap_definition (cap_key, domain, description)
+              VALUES
+                ('cases:documents.upload', 'cases', 'Upload or edit case documents'),
+                ('cases:documents.delete', 'cases', 'Delete case documents')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+  - changeSet:
+      id: 035-2
+      author: system
+      comment: Seed role-cap mappings for case document caps
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, t.sv
+              FROM (VALUES
+                ('FULL_MANAGER',   'cases:documents.upload', 'ALL'),
+                ('FULL_MANAGER',   'cases:documents.delete', 'ALL'),
+                ('TEAM_LEAD',      'cases:documents.upload', 'ALL'),
+                ('TEAM_LEAD',      'cases:documents.delete', 'WORKFLOW'),
+                ('SOCIAL_WORKER',  'cases:documents.upload', 'ALL'),
+                ('VOLUNTEER',      'cases:documents.upload', 'YES')
+              ) AS t(rn, ck, sv)
+              JOIN role r ON r.name = t.rn
+              JOIN cap_definition cd ON cd.cap_key = t.ck
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

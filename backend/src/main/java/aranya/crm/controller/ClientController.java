@@ -46,7 +46,7 @@ public class ClientController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:create')")
     public ResponseEntity<ClientDetailResponse> createClient(
             @Valid @RequestBody CreateClientRequest req,
             @CurrentUser User currentUser
@@ -60,7 +60,7 @@ public class ClientController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:update')")
     public ResponseEntity<ClientDetailResponse> updateClient(
             @PathVariable Long id,
             @Valid @RequestBody UpdateClientRequest req

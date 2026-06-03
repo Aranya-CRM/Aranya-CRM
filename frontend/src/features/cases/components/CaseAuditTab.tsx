@@ -48,7 +48,7 @@ function computeCompliance(caseData: Case, notes: CaseNote[]): ComplianceItem[] 
     },
     {
       id: 'crisis_for_red',
-      passed: !isRed || caseData.services.crisisIntervention,
+      passed: !isRed || caseData.services.volunteerVisit,
       failNoteKey: 'cases.audit.compliance.crisis_for_red_fail',
     },
     {

@@ -18,6 +18,7 @@
     "loading": "Loading...",
     "cancel": "Cancel",
     "save": "Save",
+    "edit": "Edit",
     "back": "← Back to List",
     "actions": "Actions",
     "comingSoon": "Coming soon",
@@ -31,13 +32,13 @@
     "unnamedMonastic": "Unnamed monastic",
     "stat": {
       "activeMonastics": "Active Monastics",
-      "activeMonastics_footnote": "Active members",
+      "myAssignedClients": "My Assigned Monastics",
+      "myOpenCases": "My Open Cases",
+      "myUrgentCases": "My Urgent Cases",
+      "myDraftReports": "Draft Reports",
       "openCases": "Open Cases",
-      "openCases_footnote": "Non-closed",
       "urgentCases": "Urgent Cases",
-      "urgentCases_footnote": "RED / ORANGE",
       "pendingReports": "Pending Reports",
-      "pendingReports_footnote": "Flagged urgent",
       "assignedTaskCount": "Assigned Tasks",
       "assignedTaskCount_footnote": "Current volunteer",
       "myReportCount": "My Reports",
@@ -85,29 +86,31 @@
       "BLACK": "Black · Closed"
     },
     "service": {
-      "housingSupport": "Housing Support",
-      "financialAssistance": "Financial Assistance",
-      "medicalTransportation": "Medical Transportation",
-      "foodAssistance": "Food Assistance",
+      "accommodationArrangement": "Accommodation Arrangement",
+      "deepCleaning": "Deep Cleaning",
+      "relocationAssistance": "Relocation Assistance",
+      "dailyCleaning": "Daily Cleaning",
+      "pestControl": "Pest Control",
+      "homeRepair": "Home Repair",
+      "dailyExpenseSubsidy": "Daily Expense Subsidy",
+      "cpfAssistance": "CPF Assistance",
+      "mealDelivery": "Meal Delivery",
+      "lunchSupport": "Lunch Support",
+      "monasticSupport": "Monastic Support",
+      "monasticEscort": "Monastic Escort",
       "legalAid": "Legal Aid",
-      "immigrationSupport": "Immigration Support",
-      "counselling": "Counselling",
-      "befriending": "Befriending",
-      "crisisIntervention": "Crisis Intervention",
-      "familyMediation": "Family Mediation",
-      "governmentLiaison": "Government Liaison",
-      "hospitalLiaison": "Hospital Liaison",
-      "documentAssistance": "Document Assistance",
-      "interpreterService": "Interpreter Service",
-      "templeLiaison": "Temple Liaison",
-      "communityReferral": "Community Referral",
-      "religiousSupport": "Religious Support"
+      "volunteerVisit": "Volunteer Visit",
+      "digitalSupport": "Digital Support"
+    },
+    "services": {
+      "calendarTitle": "Service Calendar",
+      "calendarPlaceholder": "Google Calendar integration coming soon"
     },
     "serviceGroup": {
-      "practical": "Practical Support",
-      "emotional": "Emotional / Social",
-      "admin": "Administrative",
-      "spiritual": "Spiritual / Community"
+      "housing": "Housing & Accommodation",
+      "financial": "Financial Aid",
+      "food": "Food Assistance",
+      "other": "Other Services"
     },
     "tab": {
       "overview": "Overview",
@@ -138,7 +141,8 @@
     "notes": {
       "empty": "No notes yet.",
       "by": "By",
-      "followup": "Follow-up"
+      "followup": "Follow-up",
+      "addNote": "Add Note"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -248,7 +252,8 @@
       "create": "Create Monastic ->"
     },
     "profile": {
-      "linkContacts": "Link Contacts",
+      "convertToClient": "Convert to Client",
+      "convertToCase": "Convert to Case Client",
       "editProfile": "Edit Profile",
       "delete": "Delete",
       "editTitle": "Edit Profile",
@@ -468,6 +473,8 @@
       "deleting": "Deleting...",
       "delete": "Delete",
       "deleteDraft": "Delete Draft",
+      "export": "Export Report",
+      "exportTooltip": "Export feature coming soon",
       "confirmDelete": "Delete report {{id}}?",
       "urgentBanner": "This report was marked URGENT by {{name}}.",
       "markResolved": "Mark Resolved",

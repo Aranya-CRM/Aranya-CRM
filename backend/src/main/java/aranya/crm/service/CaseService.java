@@ -22,19 +22,31 @@ public class CaseService {
 
     private final CaseRepository caseRepository;
 
-    public List<CaseSummaryResponse> listCases(String q, String status) {
+    public List<CaseSummaryResponse> listCases(String q, String status, Long scopedToUserId) {
         String normalizedQuery = normalizeFilter(q);
         String normalizedStatus = normalizeFilter(status);
 
         List<ClientCase> cases;
-        if (normalizedQuery == null && normalizedStatus == null) {
-            cases = caseRepository.findAllByOrderByOpenedAtDescIdDesc();
-        } else if (normalizedQuery == null) {
-            cases = caseRepository.findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc(normalizedStatus);
-        } else if (normalizedStatus == null) {
-            cases = caseRepository.searchCases(normalizedQuery);
+        if (scopedToUserId != null) {
+            if (normalizedQuery == null && normalizedStatus == null) {
+                cases = caseRepository.findByCreatedByIdOrderByOpenedAtDescIdDesc(scopedToUserId);
+            } else if (normalizedQuery == null) {
+                cases = caseRepository.findByCreatedByIdAndStatusIgnoreCaseOrderByOpenedAtDescIdDesc(scopedToUserId, normalizedStatus);
+            } else if (normalizedStatus == null) {
+                cases = caseRepository.searchCasesByCreatedBy(scopedToUserId, normalizedQuery);
+            } else {
+                cases = caseRepository.searchCasesByCreatedBy(scopedToUserId, normalizedQuery, normalizedStatus);
+            }
         } else {
-            cases = caseRepository.searchCases(normalizedQuery, normalizedStatus);
+            if (normalizedQuery == null && normalizedStatus == null) {
+                cases = caseRepository.findAllByOrderByOpenedAtDescIdDesc();
+            } else if (normalizedQuery == null) {
+                cases = caseRepository.findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc(normalizedStatus);
+            } else if (normalizedStatus == null) {
+                cases = caseRepository.searchCases(normalizedQuery);
+            } else {
+                cases = caseRepository.searchCases(normalizedQuery, normalizedStatus);
+            }
         }
 
         return cases.stream()
@@ -70,6 +82,23 @@ public class CaseService {
 
     public long countUrgentCases() {
         return caseRepository.countByStatusNotAndColorCodeIn(CLOSED_STATUS, URGENT_COLOR_CODES);
+    }
+
+    public long countActiveCasesByCreatedBy(Long createdById) {
+        return caseRepository.countByCreatedByIdAndStatusNot(createdById, CLOSED_STATUS);
+    }
+
+    public long countUrgentCasesByCreatedBy(Long createdById) {
+        return caseRepository.countByCreatedByIdAndStatusNotAndColorCodeIn(createdById, CLOSED_STATUS, URGENT_COLOR_CODES);
+    }
+
+    public long countDistinctActiveClientsByCreatedBy(Long createdById) {
+        return caseRepository.countDistinctActiveClientsByCreatedById(createdById);
+    }
+
+    public List<ClientCase> getActiveCasesByCreatedBy(Long createdById, int limit) {
+        return caseRepository.findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
+                createdById, CLOSED_STATUS, PageRequest.of(0, limit));
     }
 
     private CaseSummaryResponse toCaseSummaryResponse(ClientCase clientCase) {

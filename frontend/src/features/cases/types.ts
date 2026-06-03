@@ -22,47 +22,43 @@ export interface CaseTask {
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
-  housingSupport:        'practical',
-  financialAssistance:   'practical',
-  medicalTransportation: 'practical',
-  foodAssistance:        'practical',
-  legalAid:              'practical',
-  immigrationSupport:    'practical',
-  counselling:           'emotional',
-  befriending:           'emotional',
-  crisisIntervention:    'emotional',
-  familyMediation:       'emotional',
-  governmentLiaison:     'admin',
-  hospitalLiaison:       'admin',
-  documentAssistance:    'admin',
-  interpreterService:    'admin',
-  templeLiaison:         'spiritual',
-  communityReferral:     'spiritual',
-  religiousSupport:      'spiritual',
+  accommodationArrangement: 'housing',
+  deepCleaning:             'housing',
+  relocationAssistance:     'housing',
+  dailyCleaning:            'housing',
+  pestControl:              'housing',
+  homeRepair:               'housing',
+  dailyExpenseSubsidy:      'financial',
+  cpfAssistance:            'financial',
+  mealDelivery:             'food',
+  lunchSupport:             'food',
+  monasticSupport:          'other',
+  monasticEscort:           'other',
+  legalAid:                 'other',
+  volunteerVisit:           'other',
+  digitalSupport:           'other',
 }
 
 export interface CaseServices {
-  // Practical support
-  housingSupport: boolean
-  financialAssistance: boolean
-  medicalTransportation: boolean
-  foodAssistance: boolean
+  // Housing & accommodation
+  accommodationArrangement: boolean
+  deepCleaning: boolean
+  relocationAssistance: boolean
+  dailyCleaning: boolean
+  pestControl: boolean
+  homeRepair: boolean
+  // Financial aid
+  dailyExpenseSubsidy: boolean
+  cpfAssistance: boolean
+  // Food assistance
+  mealDelivery: boolean
+  lunchSupport: boolean
+  // Other services
+  monasticSupport: boolean
+  monasticEscort: boolean
   legalAid: boolean
-  immigrationSupport: boolean
-  // Emotional / social
-  counselling: boolean
-  befriending: boolean
-  crisisIntervention: boolean
-  familyMediation: boolean
-  // Administrative
-  governmentLiaison: boolean
-  hospitalLiaison: boolean
-  documentAssistance: boolean
-  interpreterService: boolean
-  // Spiritual / community
-  templeLiaison: boolean
-  communityReferral: boolean
-  religiousSupport: boolean
+  volunteerVisit: boolean
+  digitalSupport: boolean
 }
 
 export interface Case {
@@ -129,6 +125,18 @@ export interface AuditLogEntry {
   at: string
   detail?: string
   meta?: Record<string, string>
+}
+
+export interface ServiceCalendarEvent {
+  id: string
+  title: string
+  start: string
+  end?: string
+  color?: string
+  extendedProps?: {
+    serviceType?: keyof CaseServices
+    note?: string
+  }
 }
 
 export type FlagSeverity = 'LOW' | 'MEDIUM' | 'HIGH'

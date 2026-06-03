@@ -24,7 +24,7 @@ const COLOR_ORDER: Record<CaseColorCode, number> = {
 export function CaseListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
   const { data: cases = [], isLoading } = useCases()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -61,7 +61,7 @@ export function CaseListPage() {
       <PageHeader
         title={t('nav.cases')}
         subtitle={t('cases.list.count', { count: filteredRows.length })}
-        actions={canFeature('cases.create') ? (
+        actions={resolve('cases:create') ? (
           <button className="btn-primary" type="button" onClick={() => navigate('/cases/new')}>
             {t('cases.list.newCase')}
           </button>

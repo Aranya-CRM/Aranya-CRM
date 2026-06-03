@@ -11,17 +11,17 @@ export const clientRoutes: AppRouteConfig[] = [
   },
   {
     path: '/clients/new',
-    routeId: 'clients.create',
+    routeId: 'route:clients',
     element: <ClientFormPage />,
   },
   {
     path: '/clients/:id',
-    routeId: 'clients.detail',
+    routeId: 'route:clients',
     element: <ClientListPage />,
   },
   {
     path: '/clients/:id/edit',
-    routeId: 'clients.edit',
+    routeId: 'route:clients',
     element: <ClientListPage />,
   },
 ]

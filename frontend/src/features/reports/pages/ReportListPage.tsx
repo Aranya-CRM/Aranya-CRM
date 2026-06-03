@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAccess } from '../../../shared/auth/useAccess'
 import { ErrorBanner } from '../../../shared/ui'
 import { deleteReport, fetchReportById, fetchReports, submitReport, updateReport } from '../api/report.api'
 import type { CreateReportPayload, ReportDetail, ReportStatus, ReportSummary } from '../types'
@@ -109,6 +110,7 @@ function reportStatus(report: ReportSummary | ReportDetail | undefined): ReportS
 export function ReportListPage() {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language === 'zh'
+  const { resolve } = useAccess()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedParam = searchParams.get('selected')
@@ -381,7 +383,9 @@ export function ReportListPage() {
               {(() => {
                 const status = reportStatus(selectedReport)
                 const canEdit = status === 'DRAFT' || status === 'RETURNED'
-                const canDelete = status === 'DRAFT'
+                const canDelete = resolve('reports:delete') && status === 'DRAFT'
+                const canExport = resolve('reports:export', { ownerId: selectedReport.createdById ?? 0 })
+                  && (status === 'SUBMITTED' || status === 'ARCHIVED')
                 return (
                   <>
               <section className="report-person-card">
@@ -529,9 +533,11 @@ export function ReportListPage() {
                       {isSaving ? t('reports.form.submitting') : t('reports.form.submitFinal')}
                     </button>
                   </>
-                ) : (
-                  null
-                )}
+                ) : canExport ? (
+                  <button className="btn-secondary" type="button" disabled title={t('reports.detail.exportTooltip')}>
+                    {t('reports.detail.export')}
+                  </button>
+                ) : null}
               </div>
                   </>
                 )

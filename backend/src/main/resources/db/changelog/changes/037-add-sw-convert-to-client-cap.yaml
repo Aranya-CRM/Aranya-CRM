@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 037-1
+      author: ShiDu
+      comment: "Add members:convert_to_client cap for SOCIAL_WORKER role (extracted from 032 fix)"
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'WORKFLOW'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'SOCIAL_WORKER'
+                AND cd.cap_key = 'members:convert_to_client'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

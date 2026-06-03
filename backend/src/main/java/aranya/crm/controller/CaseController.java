@@ -5,6 +5,7 @@ import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.CaseNoteService;
 import aranya.crm.service.CaseService;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,13 +33,18 @@ public class CaseController {
 
     private final CaseService caseService;
     private final CaseNoteService caseNoteService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
     public ResponseEntity<List<CaseSummaryResponse>> listCases(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.listCases(q, status));
+        String scope = capEval.capScope(authentication, "cases:view");
+        Long scopedUserId = "OWN".equals(scope) && currentUser != null ? currentUser.getId() : null;
+        return ResponseEntity.ok(caseService.listCases(q, status, scopedUserId));
     }
 
     @GetMapping("/{id}")

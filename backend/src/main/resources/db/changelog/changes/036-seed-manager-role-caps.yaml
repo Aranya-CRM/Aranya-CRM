@@ -1,0 +1,89 @@
+databaseChangeLog:
+  - changeSet:
+      id: 036-1
+      author: system
+      comment: >
+        Backward-compat: seed role_cap entries for the legacy MANAGER role (identical to FULL_MANAGER).
+        Also fixes an oversight in 032 where clients:create was missing from FULL_MANAGER.
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, t.sv
+              FROM (VALUES
+                -- Fix oversight: FULL_MANAGER was missing clients:create
+                ('FULL_MANAGER', 'clients:create', 'ALL'),
+
+                -- Legacy MANAGER role: mirror all FULL_MANAGER caps
+                ('MANAGER', 'route:dashboard',                    'YES'),
+                ('MANAGER', 'route:clients',                      'YES'),
+                ('MANAGER', 'route:cases',                        'YES'),
+                ('MANAGER', 'route:reports',                      'YES'),
+                ('MANAGER', 'route:users',                        'YES'),
+                ('MANAGER', 'route:audit',                        'YES'),
+                ('MANAGER', 'members:view',                       'YES'),
+                ('MANAGER', 'members:create',                     'YES'),
+                ('MANAGER', 'members:update',                     'YES'),
+                ('MANAGER', 'members:docs.upload',                'YES'),
+                ('MANAGER', 'members:convert_to_client',          'YES'),
+                ('MANAGER', 'members:report.generate',            'YES'),
+                ('MANAGER', 'clients:view',                       'ALL'),
+                ('MANAGER', 'clients:view.full',                  'ALL'),
+                ('MANAGER', 'clients:create',                     'ALL'),
+                ('MANAGER', 'clients:update',                     'ALL'),
+                ('MANAGER', 'clients:delete',                     'WORKFLOW'),
+                ('MANAGER', 'clients:docs.upload',                'ALL'),
+                ('MANAGER', 'clients:convert_to_case',            'YES'),
+                ('MANAGER', 'clients:sensitive.indicator',        'YES'),
+                ('MANAGER', 'clients:sensitive.ordination',       'ALL'),
+                ('MANAGER', 'clients:sensitive.medical',          'YES'),
+                ('MANAGER', 'clients:sensitive.financial.view',   'ALL'),
+                ('MANAGER', 'clients:sensitive.financial.approve','WORKFLOW'),
+                ('MANAGER', 'clients:sensitive.will_lpa',         'YES'),
+                ('MANAGER', 'clients:sensitive.acp',              'YES'),
+                ('MANAGER', 'clients:sensitive.living_will',      'YES'),
+                ('MANAGER', 'clients:sensitive.safeguarding',     'YES'),
+                ('MANAGER', 'clients:sensitive.docs.upload',      'YES'),
+                ('MANAGER', 'clients:sensitive.export',           'WORKFLOW'),
+                ('MANAGER', 'clients:sensitive.archive',          'WORKFLOW'),
+                ('MANAGER', 'clients:sensitive.audit',            'YES'),
+                ('MANAGER', 'cases:view',                         'ALL'),
+                ('MANAGER', 'cases:notes.create',                 'ALL'),
+                ('MANAGER', 'cases:notes.update.own',             'ALL'),
+                ('MANAGER', 'cases:notes.update.others',          'YES'),
+                ('MANAGER', 'cases:notes.delete',                 'WORKFLOW'),
+                ('MANAGER', 'cases:assign',                       'ALL'),
+                ('MANAGER', 'cases:reassign',                     'ALL'),
+                ('MANAGER', 'cases:status.close',                 'WORKFLOW'),
+                ('MANAGER', 'cases:services.view',                'ALL'),
+                ('MANAGER', 'cases:services.create',              'YES'),
+                ('MANAGER', 'cases:services.assess',              'YES'),
+                ('MANAGER', 'cases:services.recommend',           'YES'),
+                ('MANAGER', 'cases:services.approve',             'WORKFLOW'),
+                ('MANAGER', 'cases:services.assign_provider',     'ALL'),
+                ('MANAGER', 'cases:services.suspend',             'WORKFLOW'),
+                ('MANAGER', 'cases:services.close',               'WORKFLOW'),
+                ('MANAGER', 'cases:services.history',             'ALL'),
+                ('MANAGER', 'cases:audit',                        'YES'),
+                ('MANAGER', 'cases:documents.upload',             'ALL'),
+                ('MANAGER', 'cases:documents.delete',             'ALL'),
+                ('MANAGER', 'reports:view',                       'ALL'),
+                ('MANAGER', 'reports:create',                     'YES'),
+                ('MANAGER', 'reports:update',                     'ALL'),
+                ('MANAGER', 'reports:export',                     'ALL'),
+                ('MANAGER', 'reports:delete',                     'WORKFLOW'),
+                ('MANAGER', 'reports:approve_archive',            'WORKFLOW'),
+                ('MANAGER', 'admin:users.manage',                 'YES'),
+                ('MANAGER', 'admin:audit.view',                   'YES'),
+                ('MANAGER', 'admin:data.bulk_export',             'WORKFLOW'),
+                ('MANAGER', 'admin:data.delete',                  'WORKFLOW'),
+                ('MANAGER', 'dashboard:total_clients',            'YES'),
+                ('MANAGER', 'dashboard:active_cases',             'YES'),
+                ('MANAGER', 'dashboard:urgent_cases',             'YES'),
+                ('MANAGER', 'dashboard:pending_reports',          'YES'),
+                ('MANAGER', 'dashboard:my_reports',               'YES'),
+                ('MANAGER', 'dashboard:pending_tasks',            'YES')
+              ) AS t(rn, ck, sv)
+              JOIN role r ON r.name = t.rn
+              JOIN cap_definition cd ON cd.cap_key = t.ck
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

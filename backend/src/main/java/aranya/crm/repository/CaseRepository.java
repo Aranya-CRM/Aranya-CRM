@@ -64,6 +64,56 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
 
     long countByStatusNotAndColorCodeIn(String status, Collection<String> colorCodes);
 
+    @EntityGraph(attributePaths = "client")
+    List<ClientCase> findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
+            Long createdById, String status, Pageable pageable);
+
+    long countByCreatedByIdAndStatusNot(Long createdById, String status);
+
+    long countByCreatedByIdAndStatusNotAndColorCodeIn(
+            Long createdById, String status, Collection<String> colorCodes);
+
+    @Query("SELECT COUNT(DISTINCT cc.client.id) FROM ClientCase cc " +
+           "WHERE cc.createdBy.id = :createdById AND LOWER(cc.status) != 'closed'")
+    long countDistinctActiveClientsByCreatedById(@Param("createdById") Long createdById);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    List<ClientCase> findByCreatedByIdOrderByOpenedAtDescIdDesc(Long createdById);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    List<ClientCase> findByCreatedByIdAndStatusIgnoreCaseOrderByOpenedAtDescIdDesc(Long createdById, String status);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            JOIN cc.client c
+            WHERE cc.createdBy.id = :createdById
+            AND (
+                LOWER(cc.caseCode) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(cc.title) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameEn) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameChn) LIKE LOWER(CONCAT('%', :q, '%'))
+            )
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> searchCasesByCreatedBy(@Param("createdById") Long createdById, @Param("q") String q);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            JOIN cc.client c
+            WHERE cc.createdBy.id = :createdById
+            AND LOWER(cc.status) = LOWER(:status)
+            AND (
+                LOWER(cc.caseCode) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(cc.title) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameEn) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameChn) LIKE LOWER(CONCAT('%', :q, '%'))
+            )
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> searchCasesByCreatedBy(@Param("createdById") Long createdById, @Param("q") String q, @Param("status") String status);
+
     @Query("SELECT cc.caseCode FROM ClientCase cc " +
            "WHERE cc.caseCode LIKE CONCAT('ASDFL/', :year, '/C/%') " +
            "ORDER BY cc.id DESC LIMIT 1")

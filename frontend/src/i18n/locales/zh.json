@@ -18,6 +18,7 @@
     "loading": "加载中...",
     "cancel": "取消",
     "save": "保存",
+    "edit": "编辑",
     "back": "←",
     "actions": "操作",
     "comingSoon": "功能即将推出",
@@ -31,13 +32,13 @@
     "unnamedMonastic": "未命名会员",
     "stat": {
       "activeMonastics": "在册会员",
-      "activeMonastics_footnote": "活跃会员",
+      "myAssignedClients": "我的跟进僧人",
+      "myOpenCases": "我的进行中个案",
+      "myUrgentCases": "我的紧急个案",
+      "myDraftReports": "待提交草稿",
       "openCases": "进行中个案",
-      "openCases_footnote": "未关闭个案",
       "urgentCases": "紧急个案",
-      "urgentCases_footnote": "红色/橙色",
       "pendingReports": "待处理报告",
-      "pendingReports_footnote": "标记紧急",
       "assignedTaskCount": "分配任务",
       "assignedTaskCount_footnote": "当前义工",
       "myReportCount": "我的报告",
@@ -85,29 +86,31 @@
       "BLACK": "黑色 · 已关闭"
     },
     "service": {
-      "housingSupport": "住房援助",
-      "financialAssistance": "财务援助",
-      "medicalTransportation": "医疗交通",
-      "foodAssistance": "食物援助",
+      "accommodationArrangement": "住宿安排",
+      "deepCleaning": "大扫除",
+      "relocationAssistance": "搬迁协助",
+      "dailyCleaning": "日常清洁",
+      "pestControl": "害虫防治",
+      "homeRepair": "房屋维修",
+      "dailyExpenseSubsidy": "日常开支补助",
+      "cpfAssistance": "公积援助对接",
+      "mealDelivery": "送餐服务",
+      "lunchSupport": "午餐供养",
+      "monasticSupport": "僧团供养",
+      "monasticEscort": "僧团护送",
       "legalAid": "法律援助",
-      "immigrationSupport": "移民支持",
-      "counselling": "辅导服务",
-      "befriending": "陪伴服务",
-      "crisisIntervention": "危机干预",
-      "familyMediation": "家庭调解",
-      "governmentLiaison": "政府联络",
-      "hospitalLiaison": "医院联络",
-      "documentAssistance": "文件协助",
-      "interpreterService": "口译服务",
-      "templeLiaison": "寺院联络",
-      "communityReferral": "社区转介",
-      "religiousSupport": "宗教支持"
+      "volunteerVisit": "志愿者探访",
+      "digitalSupport": "数字化支持"
+    },
+    "services": {
+      "calendarTitle": "服务日历",
+      "calendarPlaceholder": "Google Calendar 即将接入"
     },
     "serviceGroup": {
-      "practical": "实务支持",
-      "emotional": "情感 / 社交",
-      "admin": "行政协助",
-      "spiritual": "灵性 / 社区"
+      "housing": "居住与住宿",
+      "financial": "经济援助",
+      "food": "食物援助",
+      "other": "其它服务"
     },
     "tab": {
       "overview": "概览",
@@ -138,7 +141,8 @@
     "notes": {
       "empty": "暂无案例笔记",
       "by": "记录人",
-      "followup": "跟进"
+      "followup": "跟进",
+      "addNote": "新增笔记"
     },
     "placeholder": "{{tab}}功能即将推出",
     "audit": {
@@ -248,7 +252,8 @@
       "create": "创建会员 ->"
     },
     "profile": {
-      "linkContacts": "链接联系人",
+      "convertToClient": "转为客户",
+      "convertToCase": "转为个案客户",
       "editProfile": "编辑档案",
       "delete": "删除档案",
       "editTitle": "编辑档案",
@@ -468,6 +473,8 @@
       "deleting": "删除中...",
       "delete": "删除",
       "deleteDraft": "删除草稿",
+      "export": "导出报告",
+      "exportTooltip": "导出功能即将上线",
       "confirmDelete": "确认删除报告 {{id}}？",
       "urgentBanner": "此报告由 {{name}} 标记为紧急。",
       "markResolved": "标记为已处理",
