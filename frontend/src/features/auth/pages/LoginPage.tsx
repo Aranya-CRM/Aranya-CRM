@@ -6,13 +6,16 @@ import {
   TotpEnrollmentStep,
 } from '../components'
 import { useFirebaseLoginFlow } from '../hooks'
+import { useAuth } from '../../../contexts/AuthContext'
+import { getDefaultRoute } from '../../../shared/auth/defaultRoute'
 import './login.css'
 
 export function LoginPage() {
   const loginFlow = useFirebaseLoginFlow()
+  const { manifest } = useAuth()
 
   if (loginFlow.authenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={getDefaultRoute(manifest)} replace />
   }
 
   function renderStep() {

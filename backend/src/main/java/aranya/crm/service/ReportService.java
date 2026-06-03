@@ -123,8 +123,10 @@ public class ReportService {
         return ReportSummaryResponse.builder()
                 .id(report.getId())
                 .clientId(client != null ? client.getId() : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
+                .caseCode(findReportCaseCode(client))
                 .createdById(createdBy != null ? createdBy.getId() : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
                 .staffName(report.getStaffName())
@@ -147,8 +149,10 @@ public class ReportService {
         return ReportDetailResponse.builder()
                 .id(report.getId())
                 .clientId(client != null ? client.getId() : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
+                .caseCode(findReportCaseCode(client))
                 .createdById(createdBy != null ? createdBy.getId() : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
                 .staffName(report.getStaffName())
@@ -178,6 +182,15 @@ public class ReportService {
             return null;
         }
         return value.trim();
+    }
+
+    private String findReportCaseCode(Client client) {
+        if (client == null || client.getId() == null) {
+            return null;
+        }
+        return caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId())
+                .map(ClientCase::getCaseCode)
+                .orElse(null);
     }
 
     private String normalizeStatus(String value) {

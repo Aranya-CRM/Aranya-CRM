@@ -126,6 +126,40 @@
   padding: 12px 14px;
 }
 
+.task-sub-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.task-report-action {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.task-report-detail-card {
+  margin-top: 18px;
+}
+
+.task-report-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 5px;
+  background: #eef4ff;
+  color: #244aa5;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 18px;
+  padding: 0 10px;
+}
+
+.task-report-flow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 30px;
+}
+
 .task-note-form {
   display: grid;
   gap: 10px;
@@ -194,7 +228,8 @@
 
 @media (max-width: 900px) {
   .task-overview-grid,
-  .task-detail-grid {
+  .task-detail-grid,
+  .task-report-flow {
     grid-template-columns: 1fr;
   }
 
