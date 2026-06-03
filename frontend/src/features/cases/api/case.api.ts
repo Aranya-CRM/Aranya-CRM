@@ -14,8 +14,10 @@ type BackendCase = {
   openedAt?: string | null
   closedAt?: string | null
   clientId?: number | string | null
+  clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  venue?: string | null
   createdById?: number | string | null
   createdByName?: string | null
   comments?: string | null
@@ -178,11 +180,14 @@ function mapBackendCase(source: BackendCase): Case {
   return {
     id: String(source.id),
     caseNo: text(source.caseCode),
+    title: text(source.title),
     dateOpened: toDateOnly(source.openedAt),
     closedAt: source.closedAt ? toDateOnly(source.closedAt) : undefined,
     clientId: text(source.clientId),
+    clientAbbr: text(source.clientAbbr),
     clientNameEn: text(source.clientNameEn),
     clientNameChn: text(source.clientNameChn),
+    venue: text(source.venue),
     tradition: text(source.tradition),
     socialWorker: text(source.createdByName),
     status: mapCaseStatus(source.status),

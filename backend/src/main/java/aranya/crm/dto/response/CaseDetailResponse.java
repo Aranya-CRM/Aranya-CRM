@@ -21,8 +21,10 @@ public class CaseDetailResponse {
     private LocalDateTime openedAt;
     private LocalDateTime closedAt;
     private Long clientId;
+    private String clientAbbr;
     private String clientNameEn;
     private String clientNameChn;
+    private String venue;
     private Long createdById;
     private String createdByName;
     private String comments;

@@ -13,8 +13,10 @@ import java.time.LocalDateTime;
 public class ReportDetailResponse {
     private Long id;
     private Long clientId;
+    private String clientAbbr;
     private String clientNameEn;
     private String clientNameChn;
+    private String caseCode;
     private Long createdById;
     private String createdByName;
     private String staffName;

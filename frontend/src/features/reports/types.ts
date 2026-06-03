@@ -3,8 +3,10 @@ export type ReportStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED'
 export interface ReportSummary {
   id: number
   clientId?: number | null
+  clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  caseCode?: string | null
   createdById?: number | null
   createdByName?: string | null
   staffName?: string | null
