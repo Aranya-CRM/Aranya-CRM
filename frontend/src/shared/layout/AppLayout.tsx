@@ -16,7 +16,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation()
   const { user, manifest, logout } = useAuth()
-  const { canRoute } = useAccess()
+  const { canRoute, resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -38,7 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     && !manifestRoutes.includes('cases.list')
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
     if (isVolunteerOnly && item.id !== 'tasks') return false
-    return canRoute(item.routeId)
+    return resolve(item.routeId) || canRoute(item.routeId)
   })
 
   function handleNavClick(item: NavigationItem) {
@@ -77,9 +77,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          <LanguageSwitcher />
-        </div>
       </aside>
 
       <section className="main">
@@ -89,6 +86,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="topbar-subtitle">{t('layout.topbarSubtitle')}</div>
           </div>
           <div className="topbar-right">
+            <LanguageSwitcher />
             <div className="topbar-user">
               <span className="topbar-user-name">
                 {user?.fullName ?? 'User'}

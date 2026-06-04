@@ -2,13 +2,13 @@ import { NAVIGATION_BY_ID } from '../../app/navigation'
 import type { AppRouteConfig } from '../../app/router'
 import { ReportDetailPage } from './pages/ReportDetailPage'
 import { ReportFormPage } from './pages/ReportFormPage'
-import { ReportListPage } from './pages/ReportListPage'
+import { ReportOverviewPage } from './pages/ReportOverviewPage'
 
 export const reportRoutes: AppRouteConfig[] = [
   {
     path: NAVIGATION_BY_ID.reports.path,
     routeId: NAVIGATION_BY_ID.reports.routeId,
-    element: <ReportListPage />,
+    element: <ReportOverviewPage />,
   },
   {
     path: '/reports/new',

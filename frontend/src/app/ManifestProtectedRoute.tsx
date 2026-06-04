@@ -14,12 +14,12 @@ interface ManifestProtectedRouteProps {
 
 export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedRouteProps) {
   const { loading, authenticated, manifest } = useAuth()
-  const { canRoute } = useAccess()
+  const { canRoute, resolve } = useAccess()
 
   if (loading) {
     return (
       <div className="route-loading">
-        <Spin size="large" tip="Loading..." />
+        <Spin size="large" />
       </div>
     )
   }
@@ -28,7 +28,8 @@ export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedR
     return <Navigate to="/login" replace />
   }
 
-  if (!canRoute(routeId)) {
+  const allowed = resolve(routeId) || canRoute(routeId)
+  if (!allowed) {
     return <Navigate to={getDefaultRoute(manifest)} replace />
   }
 
