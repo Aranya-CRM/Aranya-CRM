@@ -122,7 +122,6 @@ export function ReportOverviewPage() {
 
     void load()
     return () => { active = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, t])
 
   async function handleSelectMineReport(id: number) {
@@ -416,10 +415,7 @@ function VolunteerReportList({
               >
                 <span className="report-vol-date">{formatDate(r.dateOfVisit)}</span>
                 <span className="report-vol-client">
-                  {(isZh ? r.clientNameChn : r.clientNameEn)?.trim() ||
-                    r.clientNameChn?.trim() ||
-                    r.clientNameEn?.trim() ||
-                    t('reports.unnamedMonastic')}
+                  {displayName(r, isZh) || t('reports.unnamedMonastic')}
                 </span>
                 <span className="report-vol-type">{r.typeOfVisit ?? '-'}</span>
                 <span
@@ -505,10 +501,7 @@ function MineTabContent({
                   onClick={() => onSelect(r.id)}
                 >
                   <span className="report-master-name">
-                    {(isZh ? r.clientNameChn : r.clientNameEn)?.trim() ||
-                      r.clientNameChn?.trim() ||
-                      r.clientNameEn?.trim() ||
-                      t('reports.unnamedMonastic')}
+                    {displayName(r, isZh) || t('reports.unnamedMonastic')}
                   </span>
                   <span className="report-master-date">{formatDate(r.dateOfVisit)}</span>
                   <span className={`report-master-status report-master-status-${status.toLowerCase()}`}>
