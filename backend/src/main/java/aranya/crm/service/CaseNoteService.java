@@ -29,6 +29,7 @@ public class CaseNoteService {
         }
 
         return caseNoteRepository.findByClientCaseIdOrderByCreatedAtDescIdDesc(caseId).stream()
+                .filter(this::isManualNote)
                 .map(this::toResponse)
                 .toList();
     }
@@ -44,6 +45,7 @@ public class CaseNoteService {
 
         return caseNoteRepository.findByClientCaseIdAndCreatedByIdOrderByCreatedAtDescIdDesc(caseId, currentUserId)
                 .stream()
+                .filter(this::isManualNote)
                 .map(this::toResponse)
                 .toList();
     }
@@ -83,6 +85,10 @@ public class CaseNoteService {
 
     private CaseNoteResponse toResponse(CaseNote note) {
         return toResponse(note, "");
+    }
+
+    private boolean isManualNote(CaseNote note) {
+        return !"REPORT".equalsIgnoreCase(note.getNoteType());
     }
 
     private CaseNoteResponse toResponse(CaseNote note, String followUp) {

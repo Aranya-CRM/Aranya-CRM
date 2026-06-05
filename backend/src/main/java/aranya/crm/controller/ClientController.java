@@ -41,6 +41,11 @@ public class ClientController {
         return ResponseEntity.ok(clientService.listClients(q, membershipStatus));
     }
 
+    @GetMapping("/without-case")
+    public ResponseEntity<List<ClientSummaryResponse>> listClientsWithoutCase() {
+        return ResponseEntity.ok(clientService.listClientsWithoutCase());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ClientDetailResponse> getClientDetail(@PathVariable Long id) {
         return ResponseEntity.ok(clientService.getClientDetail(id));

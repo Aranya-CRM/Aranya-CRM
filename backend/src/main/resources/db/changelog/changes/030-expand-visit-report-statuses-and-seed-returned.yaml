@@ -2,6 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: 030-expand-visit-report-statuses-and-seed-returned
       author: codex
+      context: dev, test
       changes:
         - sql:
             splitStatements: false

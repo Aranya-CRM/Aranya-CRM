@@ -93,6 +93,11 @@ export async function fetchClients(): Promise<Client[]> {
   }
 }
 
+export async function fetchClientsWithoutCase(): Promise<Client[]> {
+  const res = await http.get<BackendClientSummary[]>('/v1/clients/without-case')
+  return res.data.map(mapBackendClient)
+}
+
 export async function fetchClientById(id: string): Promise<Client | undefined> {
   const mode = getDataMode()
   if (mode === 'mock') return clientMockData.find((c) => c.id === id)

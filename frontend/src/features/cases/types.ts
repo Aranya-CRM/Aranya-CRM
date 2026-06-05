@@ -21,6 +21,23 @@ export interface CaseTask {
   completedAt?: string
 }
 
+export interface ServiceEvent {
+  id: number
+  caseId: number
+  clientId: number
+  clientAbbr?: string | null
+  clientNameEn?: string | null
+  clientNameChn?: string | null
+  caseCode?: string | null
+  serviceKey: keyof CaseServices
+  serviceName: string
+  title: string
+  location?: string | null
+  scheduledStart: string
+  assignedUserId?: number | null
+  assignedUserName?: string | null
+}
+
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
   accommodationArrangement: 'housing',
   deepCleaning:             'housing',
@@ -83,6 +100,7 @@ export interface Case {
   comments: string
   remarks: string
   services: CaseServices
+  serviceEvents?: ServiceEvent[]
   tasks?: CaseTask[]
 }
 
@@ -140,6 +158,26 @@ export interface ServiceCalendarEvent {
   extendedProps?: {
     serviceType?: keyof CaseServices
     note?: string
+  }
+}
+
+export function emptyCaseServices(): CaseServices {
+  return {
+    accommodationArrangement: false,
+    deepCleaning: false,
+    relocationAssistance: false,
+    dailyCleaning: false,
+    pestControl: false,
+    homeRepair: false,
+    dailyExpenseSubsidy: false,
+    cpfAssistance: false,
+    mealDelivery: false,
+    lunchSupport: false,
+    monasticSupport: false,
+    monasticEscort: false,
+    legalAid: false,
+    volunteerVisit: false,
+    digitalSupport: false,
   }
 }
 

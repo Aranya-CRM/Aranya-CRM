@@ -1,10 +1,5 @@
 import { useMemo } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import {
-  canAccessFeature,
-  canAccessRoute,
-  canAccessWidget,
-} from './accessControl'
 import { resolve as resolveEngine } from './evaluationEngine'
 import type { DataObject, ScopeValue } from '../../types/capManifest'
 
@@ -14,9 +9,9 @@ export function useAccess() {
 
   return useMemo(() => ({
     // ── v1 legacy (dot-notation feature codes) ────────────────────────────────
-    canRoute:   (routeId: string)   => canAccessRoute(manifest, routeId),
-    canFeature: (featureId: string) => canAccessFeature(manifest, featureId),
-    canWidget:  (widgetId: string)  => canAccessWidget(manifest, widgetId),
+    canRoute:   (routeId: string)   => Boolean(manifest?.routes.includes(routeId)),
+    canFeature: (featureId: string) => Boolean(manifest?.features.includes(featureId)),
+    canWidget:  (widgetId: string)  => Boolean(manifest?.widgets.includes(widgetId)),
 
     // ── v2 cap-key API ────────────────────────────────────────────────────────
     /** Raw scope value for a cap key. Returns 'NO' when absent. */

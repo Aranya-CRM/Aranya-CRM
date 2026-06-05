@@ -117,7 +117,15 @@
     },
     "services": {
       "calendarTitle": "Service Calendar",
-      "calendarPlaceholder": "Google Calendar integration coming soon"
+      "calendarPlaceholder": "No service events",
+      "addEvent": "Add Service Event",
+      "service": "Service",
+      "selectService": "Select service",
+      "assignee": "Assignee",
+      "selectAssignee": "Select assignee",
+      "time": "Specific Time",
+      "location": "Location",
+      "createEvent": "Create Event"
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -217,7 +225,20 @@
       }
     },
     "form": {
-      "newCase": "New Case"
+      "newCase": "New Case",
+      "loadError": "Failed to load data for the new case.",
+      "saveError": "Failed to create case. Check the details and try again.",
+      "coreInfo": "Core Information",
+      "client": "Member",
+      "selectClient": "Select member",
+      "openedAt": "Date Opened",
+      "caseworker": "Caseworker",
+      "unassigned": "Unassigned",
+      "status": "Status",
+      "comments": "Comments",
+      "remarks": "Remarks",
+      "intensity": "Case Intensity",
+      "services": "Service Modules"
     },
     "list": {
       "count": "{{count}} cases",

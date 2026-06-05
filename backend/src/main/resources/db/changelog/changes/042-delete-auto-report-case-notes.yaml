@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 042-delete-auto-report-case-notes
+      author: codex
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM case_note
+              WHERE UPPER(COALESCE(note_type, '')) = 'REPORT';

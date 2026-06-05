@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 039-clear-dev-client-case-report-data
+      author: codex
+      context: dev, test
+      comment: "Clear dev sample client, case, and report data so business lists start empty"
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM visit_report;
+              DELETE FROM case_note;
+              DELETE FROM case_assignment;
+              DELETE FROM case_change_log;
+              DELETE FROM service_appointment;
+              DELETE FROM case_document;
+              DELETE FROM "case";
+              DELETE FROM related_contact;
+              DELETE FROM client;
+
+      rollback:
+        - sql:
+            sql: SELECT 1;

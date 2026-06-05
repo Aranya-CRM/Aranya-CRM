@@ -1,7 +1,6 @@
-import { fetchDashboardData } from '../../dashboard/api/dashboard.api'
-import type { DashboardItem } from '../../dashboard/types'
+import { fetchAssignedServiceEvents } from '../../cases/api/case.api'
+import type { ServiceEvent } from '../../cases/types'
 
-export async function fetchAssignedTasks(): Promise<DashboardItem[]> {
-  const dashboard = await fetchDashboardData()
-  return dashboard.sections.find((section) => section.id === 'volunteer.recent_tasks')?.items ?? []
+export async function fetchAssignedTasks(): Promise<ServiceEvent[]> {
+  return fetchAssignedServiceEvents()
 }

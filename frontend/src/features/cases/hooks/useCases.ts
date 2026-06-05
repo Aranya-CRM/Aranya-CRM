@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, deleteCaseNote, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, updateCase } from '../api/case.api'
-import type { CreateCaseNotePayload, UpdateCasePayload } from '../api/case.api'
-import type { Case } from '../types'
+import { createCase, createCaseNote, createServiceEvent, deleteCaseNote, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, updateCase, updateCaseServices } from '../api/case.api'
+import type { CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload } from '../api/case.api'
+import type { CaseServices } from '../types'
 
 export const caseQueryKeys = {
   all: ['cases'] as const,
@@ -87,10 +87,34 @@ export function useCreateCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Omit<Case, 'id'>) => createCase(data),
+    mutationFn: (data: CreateCasePayload) => createCase(data),
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
+    },
+  })
+}
+
+export function useUpdateCaseServices(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (services: Array<keyof CaseServices>) => updateCaseServices(caseId!, services),
+    onSuccess: (item) => {
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
+    },
+  })
+}
+
+export function useCreateServiceEvent(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: CreateServiceEventPayload) => createServiceEvent(caseId!, data),
+    onSuccess: () => {
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
     },
   })
 }

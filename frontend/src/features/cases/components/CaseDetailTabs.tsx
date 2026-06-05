@@ -4,8 +4,8 @@ import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
-import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase } from '../hooks'
-import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
+import { useCreateCaseNote, useCreateServiceEvent, useDeleteCaseNote, useUpdateCase, useUpdateCaseServices } from '../hooks'
+import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask, ServiceCalendarEvent } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
 import { CaseReportsTab } from './CaseReportsTab'
@@ -72,7 +72,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
 
       <div className="case-detail-tab-content">
         {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} isManager={isManager} /> : null}
-        {activeTab === 'services'  ? <ServicesTab  services={caseData.services} isManager={isManager} /> : null}
+        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} isManager={isManager} /> : null}
         {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
         {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
@@ -379,13 +379,64 @@ function formatCompletedAt(iso: string): string {
 
 const SERVICE_GROUP_KEYS = ['housing', 'financial', 'food', 'other'] as const
 
-function ServicesTab({ services, isManager }: { services: CaseServices; isManager: boolean }) {
+function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boolean }) {
   const { t } = useTranslation()
+  const { resolve } = useAccess()
   const [isEditing, setIsEditing] = useState(false)
-  const [serviceState, setServiceState] = useState<CaseServices>(services)
+  const [serviceState, setServiceState] = useState<CaseServices>(caseData.services)
+  const [users, setUsers] = useState<UserSummary[]>([])
+  const [eventServiceKey, setEventServiceKey] = useState<keyof CaseServices | ''>('')
+  const [assignedUserId, setAssignedUserId] = useState('')
+  const [scheduledStart, setScheduledStart] = useState('')
+  const [location, setLocation] = useState(caseData.venue ?? '')
+  const updateServices = useUpdateCaseServices(caseData.id)
+  const createEvent = useCreateServiceEvent(caseData.id)
+  const canAssignEvent = resolve('cases:assign') || resolve('cases:reassign')
+
+  useEffect(() => {
+    if (!canAssignEvent) return
+    fetchUsers()
+      .then((items) => setUsers(items.filter((user) => user.status === 'ACTIVE')))
+      .catch(() => {})
+  }, [canAssignEvent])
+
+  const selectedServiceKeys = (Object.keys(serviceState) as Array<keyof CaseServices>).filter((key) => serviceState[key])
+  const assignableUsers = users.filter((user) => (
+    isManager
+      ? user.roles.includes('VOLUNTEER') || user.roles.includes('SOCIAL_WORKER')
+      : user.roles.includes('VOLUNTEER')
+  ))
+  const calendarEvents: ServiceCalendarEvent[] = (caseData.serviceEvents ?? []).map((event) => ({
+    id: String(event.id),
+    title: event.title,
+    start: event.scheduledStart,
+    extendedProps: {
+      serviceType: event.serviceKey,
+      note: event.assignedUserName ?? undefined,
+    },
+  }))
 
   function toggleService(key: keyof CaseServices) {
     setServiceState((current) => ({ ...current, [key]: !current[key] }))
+  }
+
+  async function saveServices() {
+    await updateServices.mutateAsync(selectedServiceKeys)
+    setIsEditing(false)
+  }
+
+  async function submitEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!eventServiceKey || !assignedUserId || !scheduledStart) return
+    await createEvent.mutateAsync({
+      serviceKey: eventServiceKey,
+      assignedUserId,
+      scheduledStart,
+      location: location.trim() || undefined,
+    })
+    setEventServiceKey('')
+    setAssignedUserId('')
+    setScheduledStart('')
   }
 
   return (
@@ -393,9 +444,22 @@ function ServicesTab({ services, isManager }: { services: CaseServices; isManage
       {isManager ? (
         <div className="case-services-actions">
           {isEditing ? (
-            <button className="btn-primary" type="button" onClick={() => setIsEditing(false)}>
-              {t('common.save')}
-            </button>
+            <>
+              <button className="btn-primary" type="button" disabled={updateServices.isPending} onClick={() => void saveServices()}>
+                {updateServices.isPending ? t('common.saving') : t('common.save')}
+              </button>
+              <button
+                className="btn-secondary"
+                type="button"
+                disabled={updateServices.isPending}
+                onClick={() => {
+                  setServiceState(caseData.services)
+                  setIsEditing(false)
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+            </>
           ) : (
             <button className="btn-primary" type="button" onClick={() => setIsEditing(true)}>
               {t('common.edit')}
@@ -434,8 +498,43 @@ function ServicesTab({ services, isManager }: { services: CaseServices; isManage
         <div className="case-services-section-title">
           {t('cases.services.calendarTitle')}
         </div>
-        <CaseServiceCalendar events={[]} />
+        <CaseServiceCalendar events={calendarEvents} />
       </div>
+
+      {canAssignEvent && selectedServiceKeys.length > 0 ? (
+        <form className="case-event-form" onSubmit={(event) => void submitEvent(event)}>
+          <h3>{t('cases.services.addEvent')}</h3>
+          <label>
+            <span>{t('cases.services.service')}</span>
+            <select value={eventServiceKey} required onChange={(event) => setEventServiceKey(event.target.value as keyof CaseServices)}>
+              <option value="">{t('cases.services.selectService')}</option>
+              {selectedServiceKeys.map((key) => (
+                <option key={key} value={key}>{t(`cases.service.${key}`)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('cases.services.assignee')}</span>
+            <select value={assignedUserId} required onChange={(event) => setAssignedUserId(event.target.value)}>
+              <option value="">{t('cases.services.selectAssignee')}</option>
+              {assignableUsers.map((user) => (
+                <option key={user.id} value={user.id}>{user.fullName}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('cases.services.time')}</span>
+            <input type="datetime-local" value={scheduledStart} required onChange={(event) => setScheduledStart(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('cases.services.location')}</span>
+            <input value={location} onChange={(event) => setLocation(event.target.value)} />
+          </label>
+          <button className="btn-primary" type="submit" disabled={createEvent.isPending}>
+            {createEvent.isPending ? t('common.saving') : t('cases.services.createEvent')}
+          </button>
+        </form>
+      ) : null}
     </>
   )
 }

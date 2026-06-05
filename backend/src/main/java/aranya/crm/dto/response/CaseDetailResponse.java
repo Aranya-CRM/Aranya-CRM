@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -29,4 +31,6 @@ public class CaseDetailResponse {
     private String createdByName;
     private String comments;
     private String remarks;
+    private Map<String, Boolean> services;
+    private List<ServiceEventResponse> serviceEvents;
 }
