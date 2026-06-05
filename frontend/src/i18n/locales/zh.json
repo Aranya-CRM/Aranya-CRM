@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "工作台",
-    "clients": "客户档案",
+    "clients": "会员",
     "cases": "个案管理",
     "reports": "文档管理",
     "tasks": "协助",
@@ -23,7 +23,8 @@
     "actions": "操作",
     "comingSoon": "功能即将推出",
     "saving": "保存中...",
-    "by": "by"
+    "by": "by",
+    "delete": "删除"
   },
   "dashboard": {
     "pageTitle": "工作台",
@@ -85,6 +86,18 @@
       "GREY": "灰色 · 低度活跃",
       "BLACK": "黑色 · 已关闭"
     },
+    "status": {
+      "OPEN": "进行中",
+      "WEEKLY": "每周跟进",
+      "MONTHLY": "每月跟进",
+      "IN_REVIEW": "审核中",
+      "SUSPENDED": "暂停",
+      "CLOSED": "已关闭"
+    },
+    "filter": {
+      "allStatus": "全部状态",
+      "search": "搜索个案或会员"
+    },
     "service": {
       "accommodationArrangement": "住宿安排",
       "deepCleaning": "大扫除",
@@ -142,7 +155,9 @@
       "empty": "暂无案例笔记",
       "by": "记录人",
       "followup": "跟进",
-      "addNote": "新增笔记"
+      "addNote": "新增笔记",
+      "placeholder": "添加案例笔记",
+      "followupPlaceholder": "后续跟进（可选）"
     },
     "placeholder": "{{tab}}功能即将推出",
     "audit": {
@@ -479,7 +494,7 @@
       "submitted": "已提交",
       "urgent": "紧急",
       "resolveFlag": "处理标记",
-      "approve": "审批",
+      "approve": "通过",
       "archive": "归档",
       "edit": "编辑",
       "deleting": "删除中...",

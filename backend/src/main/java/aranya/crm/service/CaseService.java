@@ -1,9 +1,12 @@
 package aranya.crm.service;
 
+import aranya.crm.dto.request.UpdateCaseRequest;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.User;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +24,7 @@ public class CaseService {
     private static final List<String> URGENT_COLOR_CODES = List.of("RED", "ORANGE");
 
     private final CaseRepository caseRepository;
+    private final UserRepository userRepository;
 
     public List<CaseSummaryResponse> listCases(String q, String status, Long scopedToUserId) {
         String normalizedQuery = normalizeFilter(q);
@@ -59,6 +63,28 @@ public class CaseService {
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
 
         return toCaseDetailResponse(clientCase);
+    }
+
+    @Transactional
+    public CaseDetailResponse updateCase(Long caseId, UpdateCaseRequest request) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+
+        setText(request.getStatus(), clientCase::setStatus);
+        setText(request.getColorCode(), clientCase::setColorCode);
+        if (request.getComments() != null) {
+            clientCase.setComments(request.getComments().trim());
+        }
+        if (request.getRemarks() != null) {
+            clientCase.setRemarks(request.getRemarks().trim());
+        }
+        if (request.getSocialWorkerId() != null) {
+            User socialWorker = userRepository.findById(request.getSocialWorkerId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getSocialWorkerId()));
+            clientCase.setCreatedBy(socialWorker);
+        }
+
+        return toCaseDetailResponse(caseRepository.save(clientCase));
     }
 
     public List<ClientCase> getActiveCases(int limit) {
@@ -114,6 +140,7 @@ public class CaseService {
                 .openedAt(clientCase.getOpenedAt())
                 .closedAt(clientCase.getClosedAt())
                 .clientId(clientCase.getClient().getId())
+                .clientAbbr(clientCase.getClient().getAbbr())
                 .clientNameEn(clientCase.getClient().getNameEn())
                 .clientNameChn(clientCase.getClient().getNameChn())
                 .createdById(clientCase.getCreatedBy().getId())
@@ -136,6 +163,7 @@ public class CaseService {
                 .openedAt(clientCase.getOpenedAt())
                 .closedAt(clientCase.getClosedAt())
                 .clientId(clientCase.getClient().getId())
+                .clientAbbr(clientCase.getClient().getAbbr())
                 .clientNameEn(clientCase.getClient().getNameEn())
                 .clientNameChn(clientCase.getClient().getNameChn())
                 .createdById(clientCase.getCreatedBy().getId())
@@ -170,5 +198,11 @@ public class CaseService {
             return null;
         }
         return value.trim();
+    }
+
+    private void setText(String value, java.util.function.Consumer<String> setter) {
+        if (value != null && !value.isBlank()) {
+            setter.accept(value.trim());
+        }
     }
 }

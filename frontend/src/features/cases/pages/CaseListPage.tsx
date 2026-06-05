@@ -28,7 +28,6 @@ export function CaseListPage() {
   const { data: cases = [], isLoading } = useCases()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [caseworkerFilter, setCaseworkerFilter] = useState<string>('all')
 
   const rows = useMemo(() => {
     return cases.map(toCaseListRow).sort((a, b) => {
@@ -39,7 +38,6 @@ export function CaseListPage() {
   }, [cases])
 
   const statuses = useMemo(() => unique(rows.map((item) => item.status)), [rows])
-  const caseworkers = useMemo(() => unique(rows.map((item) => item.socialWorker).filter(Boolean)), [rows])
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -48,13 +46,13 @@ export function CaseListPage() {
       const matchesSearch =
         !q ||
         item.caseNo.toLowerCase().includes(q) ||
+        (item.clientAbbr ?? '').toLowerCase().includes(q) ||
         item.clientNameChn.includes(q) ||
         item.clientNameEn.toLowerCase().includes(q)
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter
-      const matchesCaseworker = caseworkerFilter === 'all' || item.socialWorker === caseworkerFilter
-      return matchesSearch && matchesStatus && matchesCaseworker
+      return matchesSearch && matchesStatus
     })
-  }, [rows, search, statusFilter, caseworkerFilter])
+  }, [rows, search, statusFilter])
 
   return (
     <div className="case-page">
@@ -71,12 +69,9 @@ export function CaseListPage() {
       <CaseToolbar
         search={search}
         status={statusFilter}
-        caseworker={caseworkerFilter}
-        caseworkers={caseworkers}
         statuses={statuses}
         onSearchChange={setSearch}
         onStatusChange={setStatusFilter}
-        onCaseworkerChange={setCaseworkerFilter}
       />
 
       <CaseTable
@@ -94,6 +89,7 @@ function toCaseListRow(item: Case): CaseListRow {
     caseNo: item.caseNo.replaceAll('_', '/'),
     dateOpened: item.dateOpened,
     lastModifiedAt: item.lastModifiedAt,
+    clientAbbr: item.clientAbbr,
     clientNameChn: item.clientNameChn,
     clientNameEn: item.clientNameEn,
     tradition: item.tradition,

@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "clients": "Clients",
+    "clients": "Member",
     "cases": "Cases",
     "reports": "Reports",
     "tasks": "Help with",
@@ -23,7 +23,8 @@
     "actions": "Actions",
     "comingSoon": "Coming soon",
     "saving": "Saving...",
-    "by": "by"
+    "by": "by",
+    "delete": "Delete"
   },
   "dashboard": {
     "pageTitle": "Dashboard",
@@ -64,7 +65,7 @@
   "cases": {
     "table": {
       "intensity": "Intensity",
-      "caseNo": "Case No.",
+      "caseNo": "Case Number",
       "monastic": "Monastic",
       "tradition": "Tradition",
       "caseworker": "Caseworker",
@@ -84,6 +85,18 @@
       "GREEN": "Green · Stable",
       "GREY": "Grey · Low Activity",
       "BLACK": "Black · Closed"
+    },
+    "status": {
+      "OPEN": "Open",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "IN_REVIEW": "In Review",
+      "SUSPENDED": "Suspended",
+      "CLOSED": "Closed"
+    },
+    "filter": {
+      "allStatus": "All statuses",
+      "search": "Search cases or members"
     },
     "service": {
       "accommodationArrangement": "Accommodation Arrangement",
@@ -142,7 +155,9 @@
       "empty": "No notes yet.",
       "by": "By",
       "followup": "Follow-up",
-      "addNote": "Add Note"
+      "addNote": "Add Note",
+      "placeholder": "Add a case note",
+      "followupPlaceholder": "Follow-up (optional)"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -222,9 +237,9 @@
       }
     }
   },
-  "clients": {
-    "pageTitle": "Client Profiles",
-    "pageSubtitle": "Client Profiles",
+    "clients": {
+    "pageTitle": "Member Profiles",
+    "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
     "filterAll": "Tradition · All",
     "addBtn": "New Monastic",
@@ -479,7 +494,7 @@
       "submitted": "Submitted",
       "urgent": "Urgent",
       "resolveFlag": "Resolve Flag",
-      "approve": "Approve",
+      "approve": "Pass",
       "archive": "Archive",
       "edit": "Edit",
       "deleting": "Deleting...",

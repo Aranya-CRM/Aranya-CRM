@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, deleteCaseNote, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases } from '../api/case.api'
-import type { CreateCaseNotePayload } from '../api/case.api'
+import { createCase, createCaseNote, deleteCaseNote, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, updateCase } from '../api/case.api'
+import type { CreateCaseNotePayload, UpdateCasePayload } from '../api/case.api'
 import type { Case } from '../types'
 
 export const caseQueryKeys = {
@@ -88,6 +88,18 @@ export function useCreateCase() {
 
   return useMutation({
     mutationFn: (data: Omit<Case, 'id'>) => createCase(data),
+    onSuccess: (item) => {
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
+    },
+  })
+}
+
+export function useUpdateCase() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateCasePayload }) => updateCase(id, data),
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       queryClient.setQueryData(caseQueryKeys.detail(item.id), item)

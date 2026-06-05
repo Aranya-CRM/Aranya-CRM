@@ -73,6 +73,7 @@ export interface Case {
   clientNameChn: string
   venue?: string
   tradition: string
+  socialWorkerId?: string
   socialWorker: string
   assignedVolunteer?: string
   lastModifiedAt?: string

@@ -1,9 +1,10 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
+import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase } from '../hooks'
 import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
@@ -70,11 +71,11 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
       </div>
 
       <div className="case-detail-tab-content">
-        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} /> : null}
-        {activeTab === 'services'  ? <ServicesTab  services={caseData.services} /> : null}
-        {activeTab === 'notes'     ? <NotesTab     notes={notes} /> : null}
+        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} isManager={isManager} /> : null}
+        {activeTab === 'services'  ? <ServicesTab  services={caseData.services} isManager={isManager} /> : null}
+        {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
         {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
-        {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} /> : null}
+        {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
         {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
         {activeTab === 'audit' && isManager ? (
           <CaseAuditTab caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} />
@@ -86,7 +87,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
 
 const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'GREY']
 
-function OverviewTab({ caseData }: { caseData: Case }) {
+function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const serviceCount = activeServiceCount(caseData.services)
@@ -99,28 +100,78 @@ function OverviewTab({ caseData }: { caseData: Case }) {
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
   const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
   const [assignedVolunteer, setAssignedVolunteer] = useState(caseData.assignedVolunteer ?? '')
+  const [savedStatus, setSavedStatus] = useState<CaseStatus>(caseData.status)
+  const [savedColorCode, setSavedColorCode] = useState<CaseColorCode>(caseData.colorCode)
+  const [savedAssignedVolunteer, setSavedAssignedVolunteer] = useState(caseData.assignedVolunteer ?? '')
+  const [savedSocialWorkerId, setSavedSocialWorkerId] = useState(caseData.socialWorkerId ?? '')
+  const [savedSocialWorkerName, setSavedSocialWorkerName] = useState(caseData.socialWorker ?? '')
+  const [savedComments, setSavedComments] = useState(caseData.comments ?? '')
+  const [savedRemarks, setSavedRemarks] = useState(caseData.remarks ?? '')
+  const [socialWorkerId, setSocialWorkerId] = useState(caseData.socialWorkerId ?? '')
+  const [comments, setComments] = useState(caseData.comments ?? '')
+  const [remarks, setRemarks] = useState(caseData.remarks ?? '')
   const [volunteers, setVolunteers] = useState<UserSummary[]>([])
-  const [isSaving, setIsSaving] = useState(false)
+  const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const updateCase = useUpdateCase()
 
+  const managerEditing = !isManager || isEditing
   const isDirty =
-    status !== caseData.status ||
-    colorCode !== caseData.colorCode ||
-    assignedVolunteer !== (caseData.assignedVolunteer ?? '')
+    status !== savedStatus ||
+    colorCode !== savedColorCode ||
+    assignedVolunteer !== savedAssignedVolunteer ||
+    socialWorkerId !== savedSocialWorkerId ||
+    comments !== savedComments ||
+    remarks !== savedRemarks
 
   useEffect(() => {
-    if (!canAssign) return
+    if (!canAssign && !isManager) return
     fetchUsers()
-      .then((users) => setVolunteers(users.filter((u) => u.roles.includes('VOLUNTEER') && u.status === 'ACTIVE')))
+      .then((users) => {
+        setVolunteers(users.filter((u) => u.roles.includes('VOLUNTEER') && u.status === 'ACTIVE'))
+        setSocialWorkers(users.filter((u) => u.roles.includes('SOCIAL_WORKER') && u.status === 'ACTIVE'))
+      })
       .catch(() => {})
-  }, [canAssign])
+  }, [canAssign, isManager])
 
   async function handleSave() {
-    setIsSaving(true)
-    try {
-      window.alert(t('common.comingSoon'))
-    } finally {
-      setIsSaving(false)
-    }
+    const updated = await updateCase.mutateAsync({
+      id: caseData.id,
+      data: {
+        status,
+        colorCode,
+        socialWorkerId: socialWorkerId || undefined,
+        comments,
+        remarks,
+      },
+    })
+    const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
+    setSavedStatus(updated.status)
+    setSavedColorCode(updated.colorCode)
+    setSavedAssignedVolunteer(updated.assignedVolunteer ?? assignedVolunteer)
+    setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
+    setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
+    setSavedComments(updated.comments ?? comments)
+    setSavedRemarks(updated.remarks ?? remarks)
+    setIsEditing(false)
+  }
+
+  function handleCancelEdit() {
+    setStatus(savedStatus)
+    setColorCode(savedColorCode)
+    setAssignedVolunteer(savedAssignedVolunteer)
+    setSocialWorkerId(savedSocialWorkerId)
+    setComments(savedComments)
+    setRemarks(savedRemarks)
+    setIsEditing(false)
+  }
+
+  function updateSocialWorker(value: string) {
+    setSocialWorkerId(value)
+  }
+
+  function handleEditClick() {
+    setIsEditing(true)
   }
 
   return (
@@ -129,7 +180,7 @@ function OverviewTab({ caseData }: { caseData: Case }) {
         <InfoCell label={t('cases.overview.dateOpened')} value={caseData.dateOpened} />
         <InfoCell
           label={t('cases.overview.status')}
-          value={canChangeStatus ? (
+          value={canChangeStatus && managerEditing ? (
             <select
               className="overview-select"
               value={status}
@@ -140,30 +191,48 @@ function OverviewTab({ caseData }: { caseData: Case }) {
               <option value="CLOSED">CLOSED</option>
             </select>
           ) : (
-            caseData.status
+            savedStatus
           )}
         />
-        <InfoCell label={t('cases.overview.caseworker')} value={caseData.socialWorker || '—'} />
         <InfoCell
-          label={t('cases.overview.volunteer')}
-          value={canAssign ? (
+          label={t('cases.overview.caseworker')}
+          value={isManager && managerEditing ? (
             <select
               className="overview-select"
-              value={assignedVolunteer}
-              onChange={(e) => setAssignedVolunteer(e.target.value)}
+              value={socialWorkerId}
+              onChange={(e) => updateSocialWorker(e.target.value)}
             >
               <option value="">—</option>
-              {volunteers.map((v) => (
-                <option key={v.id} value={v.fullName}>{v.fullName}</option>
+              {socialWorkers.map((worker) => (
+                <option key={worker.id} value={worker.id}>{worker.fullName}</option>
               ))}
             </select>
           ) : (
-            caseData.assignedVolunteer || '—'
+            savedSocialWorkerName || '—'
           )}
         />
+        {!isManager ? (
+          <InfoCell
+            label={t('cases.overview.volunteer')}
+            value={canAssign && managerEditing ? (
+              <select
+                className="overview-select"
+                value={assignedVolunteer}
+                onChange={(e) => setAssignedVolunteer(e.target.value)}
+              >
+                <option value="">—</option>
+                {volunteers.map((v) => (
+                  <option key={v.id} value={v.fullName}>{v.fullName}</option>
+                ))}
+              </select>
+            ) : (
+              savedAssignedVolunteer || '—'
+            )}
+          />
+        ) : null}
         <InfoCell
           label={t('cases.overview.intensity')}
-          value={canEditIntensity ? (
+          value={canEditIntensity && managerEditing ? (
             <div className="overview-intensity-select-row">
               <CaseIntensityDot colorCode={colorCode} />
               <select
@@ -178,8 +247,8 @@ function OverviewTab({ caseData }: { caseData: Case }) {
             </div>
           ) : (
             <div className="overview-intensity-select-row">
-              <CaseIntensityDot colorCode={caseData.colorCode} />
-              {t(CASE_COLOR_KEYS[caseData.colorCode])}
+              <CaseIntensityDot colorCode={savedColorCode} />
+              {t(CASE_COLOR_KEYS[savedColorCode])}
             </div>
           )}
         />
@@ -187,12 +256,24 @@ function OverviewTab({ caseData }: { caseData: Case }) {
           label={t('cases.overview.activeModules')}
           value={t('cases.overview.activeModulesValue', { count: serviceCount })}
         />
-        {caseData.comments ? (
-          <InfoCell label={t('cases.overview.comments')} value={caseData.comments} wide />
-        ) : null}
-        {caseData.remarks ? (
-          <InfoCell label={t('cases.overview.remarks')} value={caseData.remarks} wide />
-        ) : null}
+        <InfoCell
+          label={t('cases.overview.comments')}
+          value={isManager && managerEditing ? (
+            <textarea className="overview-textarea" value={comments} onChange={(e) => setComments(e.target.value)} />
+          ) : (
+            savedComments || '—'
+          )}
+          wide
+        />
+        <InfoCell
+          label={t('cases.overview.remarks')}
+          value={isManager && managerEditing ? (
+            <textarea className="overview-textarea" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          ) : (
+            savedRemarks || '—'
+          )}
+          wide
+        />
         {caseData.lastModifiedAt ? (
           <InfoCell
             label={t('cases.overview.lastModified')}
@@ -204,14 +285,27 @@ function OverviewTab({ caseData }: { caseData: Case }) {
 
       {canEdit ? (
         <div className="case-overview-save-row">
-          <button
-            className="btn-primary"
-            type="button"
-            disabled={!isDirty || isSaving}
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? t('common.saving') : t('common.save')}
-          </button>
+          {isManager && !isEditing ? (
+            <button className="btn-primary" type="button" onClick={handleEditClick}>
+              {t('common.edit')}
+            </button>
+          ) : (
+            <>
+            <button
+              className="btn-primary"
+              type="button"
+              disabled={!isDirty || updateCase.isPending}
+              onClick={() => void handleSave()}
+            >
+              {updateCase.isPending ? t('common.saving') : t('common.save')}
+            </button>
+            {isManager ? (
+              <button className="btn-secondary" type="button" disabled={updateCase.isPending} onClick={handleCancelEdit}>
+                {t('common.cancel')}
+              </button>
+            ) : null}
+            </>
+          )}
         </div>
       ) : null}
 
@@ -285,11 +379,30 @@ function formatCompletedAt(iso: string): string {
 
 const SERVICE_GROUP_KEYS = ['housing', 'financial', 'food', 'other'] as const
 
-function ServicesTab({ services }: { services: CaseServices }) {
+function ServicesTab({ services, isManager }: { services: CaseServices; isManager: boolean }) {
   const { t } = useTranslation()
+  const [isEditing, setIsEditing] = useState(false)
+  const [serviceState, setServiceState] = useState<CaseServices>(services)
+
+  function toggleService(key: keyof CaseServices) {
+    setServiceState((current) => ({ ...current, [key]: !current[key] }))
+  }
 
   return (
     <>
+      {isManager ? (
+        <div className="case-services-actions">
+          {isEditing ? (
+            <button className="btn-primary" type="button" onClick={() => setIsEditing(false)}>
+              {t('common.save')}
+            </button>
+          ) : (
+            <button className="btn-primary" type="button" onClick={() => setIsEditing(true)}>
+              {t('common.edit')}
+            </button>
+          )}
+        </div>
+      ) : null}
       {SERVICE_GROUP_KEYS.map((groupKey) => {
         const items = (Object.keys(CASE_SERVICE_GROUPS) as (keyof CaseServices)[]).filter(
           (k) => CASE_SERVICE_GROUPS[k] === groupKey,
@@ -305,8 +418,9 @@ function ServicesTab({ services }: { services: CaseServices }) {
                   <input
                     type="checkbox"
                     className="service-check"
-                    checked={services[key]}
-                    readOnly
+                    checked={serviceState[key]}
+                    disabled={!isEditing}
+                    onChange={() => toggleService(key)}
                   />
                   {t(`cases.service.${key}`)}
                 </div>
@@ -326,26 +440,49 @@ function ServicesTab({ services }: { services: CaseServices }) {
   )
 }
 
-function NotesTab({ notes }: { notes: CaseNote[] }) {
+function NotesTab({ caseId, notes }: { caseId: string; notes: CaseNote[] }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const { user } = useAuth()
 
   const canCreateNote   = resolve('cases:notes.create')
   const canEditOwnNote  = resolve('cases:notes.update.own')
+  const canDeleteAnyNote = resolve('cases:notes.delete')
+  const createNote = useCreateCaseNote()
+  const deleteNote = useDeleteCaseNote(caseId)
+  const [content, setContent] = useState('')
+  const [followUp, setFollowUp] = useState('')
+
+  async function submitNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!content.trim()) return
+    await createNote.mutateAsync({ caseId, content: content.trim(), followUp: followUp.trim() || undefined })
+    setContent('')
+    setFollowUp('')
+  }
 
   return (
     <>
       {canCreateNote ? (
-        <div className="case-notes-actions">
-          <button
-            className="btn-primary"
-            type="button"
-            onClick={() => window.alert(t('common.comingSoon'))}
-          >
-            {t('cases.notes.addNote')}
-          </button>
-        </div>
+        <form className="case-note-form" onSubmit={(event) => void submitNote(event)}>
+          <textarea
+            className="overview-textarea"
+            value={content}
+            placeholder={t('cases.notes.placeholder')}
+            onChange={(event) => setContent(event.target.value)}
+          />
+          <input
+            className="overview-select"
+            value={followUp}
+            placeholder={t('cases.notes.followupPlaceholder')}
+            onChange={(event) => setFollowUp(event.target.value)}
+          />
+          <div className="case-notes-actions">
+            <button className="btn-primary" type="submit" disabled={createNote.isPending || !content.trim()}>
+              {createNote.isPending ? t('common.saving') : t('cases.notes.addNote')}
+            </button>
+          </div>
+        </form>
       ) : null}
 
       {notes.length === 0 ? (
@@ -354,6 +491,7 @@ function NotesTab({ notes }: { notes: CaseNote[] }) {
         <div className="case-note-list">
           {notes.map((note) => {
             const isOwn = note.recordedBy === (user?.fullName ?? '')
+            const canDeleteNote = canDeleteAnyNote || (canEditOwnNote && isOwn)
             return (
               <div key={note.id} className="case-note-item">
                 <div className="case-note-header">
@@ -366,6 +504,16 @@ function NotesTab({ notes }: { notes: CaseNote[] }) {
                       onClick={() => window.alert(t('common.comingSoon'))}
                     >
                       {t('common.edit')}
+                    </button>
+                  ) : null}
+                  {canDeleteNote ? (
+                    <button
+                      className="btn-note-edit"
+                      type="button"
+                      disabled={deleteNote.isPending}
+                      onClick={() => void deleteNote.mutateAsync(note.id)}
+                    >
+                      {t('common.delete')}
                     </button>
                   ) : null}
                 </div>

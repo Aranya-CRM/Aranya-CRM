@@ -9,4 +9,5 @@ export {
   useCreateCaseNote,
   useDeleteCaseNote,
   useOwnCaseNotes,
+  useUpdateCase,
 } from './useCases'

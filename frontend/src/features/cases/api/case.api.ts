@@ -24,6 +24,14 @@ type BackendCase = {
   remarks?: string | null
 }
 
+export interface UpdateCasePayload {
+  status?: CaseStatus
+  colorCode?: CaseColorCode
+  socialWorkerId?: string | number
+  comments?: string
+  remarks?: string
+}
+
 function getDataMode(): 'mock' | 'api' | 'auto' {
   const mode = (import.meta.env.VITE_DATA_MODE ?? 'auto').toLowerCase()
   if (mode === 'mock' || mode === 'api') return mode
@@ -74,6 +82,45 @@ export async function createCase(data: Omit<Case, 'id'>): Promise<Case> {
       return newCase
     }
     throw new Error('Failed to create case')
+  }
+}
+
+export async function updateCase(id: string, data: UpdateCasePayload): Promise<Case> {
+  const mode = getDataMode()
+  if (mode === 'mock') {
+    const idx = caseMockData.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error('Case not found')
+    const updated = {
+      ...caseMockData[idx],
+      status: data.status ?? caseMockData[idx].status,
+      colorCode: data.colorCode ?? caseMockData[idx].colorCode,
+      socialWorkerId: data.socialWorkerId ? String(data.socialWorkerId) : caseMockData[idx].socialWorkerId,
+      comments: data.comments ?? caseMockData[idx].comments,
+      remarks: data.remarks ?? caseMockData[idx].remarks,
+    }
+    caseMockData[idx] = updated
+    return updated
+  }
+
+  try {
+    const res = await http.patch<BackendCase>(`/v1/cases/${id}`, data)
+    return mapBackendCase(res.data)
+  } catch {
+    if (mode === 'auto') {
+      const idx = caseMockData.findIndex((c) => c.id === id)
+      if (idx === -1) throw new Error('Case not found')
+      const updated = {
+        ...caseMockData[idx],
+        status: data.status ?? caseMockData[idx].status,
+        colorCode: data.colorCode ?? caseMockData[idx].colorCode,
+        socialWorkerId: data.socialWorkerId ? String(data.socialWorkerId) : caseMockData[idx].socialWorkerId,
+        comments: data.comments ?? caseMockData[idx].comments,
+        remarks: data.remarks ?? caseMockData[idx].remarks,
+      }
+      caseMockData[idx] = updated
+      return updated
+    }
+    throw new Error('Failed to update case')
   }
 }
 
@@ -189,6 +236,7 @@ function mapBackendCase(source: BackendCase): Case {
     clientNameChn: text(source.clientNameChn),
     venue: text(source.venue),
     tradition: text(source.tradition),
+    socialWorkerId: text(source.createdById),
     socialWorker: text(source.createdByName),
     status: mapCaseStatus(source.status),
     colorCode: mapCaseColorCode(source.colorCode),

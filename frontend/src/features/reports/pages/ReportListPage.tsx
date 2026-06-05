@@ -113,6 +113,7 @@ export function ReportListPage() {
   const navigate = useNavigate()
   const { getCap } = useAccess()
   const mineOnly = getCap('reports:view') === 'OWN'
+  const isManagerView = !mineOnly
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedParam = searchParams.get('selected')
   const [reports, setReports] = useState<ReportSummary[]>([])
@@ -129,6 +130,12 @@ export function ReportListPage() {
   const [errorMessage, setErrorMessage] = useState<string>()
 
   useEffect(() => {
+    if (isManagerView && statusFilter === 'DRAFT') {
+      setStatusFilter('all')
+    }
+  }, [isManagerView, statusFilter])
+
+  useEffect(() => {
     let active = true
 
     async function loadReports() {
@@ -136,12 +143,13 @@ export function ReportListPage() {
       try {
         const data = await fetchReports({ mine: mineOnly })
         if (!active) return
-        setReports(data)
+        const visibleData = isManagerView ? data.filter((report) => reportStatus(report) === 'SUBMITTED') : data
+        setReports(visibleData)
         setErrorMessage(undefined)
 
         const first = selectedParam
-          ? data.find((report) => String(report.id) === selectedParam) ?? data[0]
-          : data[0]
+          ? visibleData.find((report) => String(report.id) === selectedParam) ?? visibleData[0]
+          : visibleData[0]
         if (first) {
           setIsLoadingDetail(true)
           try {
@@ -173,12 +181,13 @@ export function ReportListPage() {
     return () => {
       active = false
     }
-  }, [selectedParam, t])
+  }, [isManagerView, mineOnly, selectedParam, t])
 
   const filteredReports = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return reports.filter((report) => {
       if (!isCurrentReportStatus(report)) return false
+      if (isManagerView && reportStatus(report) !== 'SUBMITTED') return false
       const matchesCategory = activeCategory === 'all' || report.typeOfVisit === activeCategory
       const matchesStatus = statusFilter === 'all' || reportStatus(report) === statusFilter
       const searchText = [
@@ -192,7 +201,7 @@ export function ReportListPage() {
       ].filter(Boolean).join(' ').toLowerCase()
       return matchesCategory && matchesStatus && (!keyword || searchText.includes(keyword))
     })
-  }, [reports, activeCategory, statusFilter, search])
+  }, [reports, activeCategory, isManagerView, statusFilter, search])
 
   async function loadReportDetail(id: number | string, active = true) {
     setIsLoadingDetail(true)
@@ -307,10 +316,12 @@ export function ReportListPage() {
   return (
     <div className="report-workspace">
       <div className="report-workspace-header">
-        <h1>{t('reports.list.myTitle')}</h1>
-        <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
-          {t('reports.list.newBtn')}
-        </button>
+        <h1>{isManagerView ? t('reports.list.title') : t('reports.list.myTitle')}</h1>
+        {!isManagerView ? (
+          <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
+            {t('reports.list.newBtn')}
+          </button>
+        ) : null}
       </div>
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
@@ -342,7 +353,7 @@ export function ReportListPage() {
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as 'all' | ReportStatus)}
         >
-          {STATUS_FILTERS.map((item) => (
+          {STATUS_FILTERS.filter((item) => !isManagerView || item.id !== 'DRAFT').map((item) => (
             <option key={item.id} value={item.id}>{t(item.labelKey)}</option>
           ))}
         </select>

@@ -119,12 +119,29 @@ public class ReportService {
 
     @Transactional
     public void deleteReport(Long reportId, User currentUser) {
+        deleteReport(reportId, currentUser, false);
+    }
+
+    @Transactional
+    public void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
-        requireOwner(report, currentUser);
-        requireDraft(report);
+        if (!canDeleteAny) {
+            requireOwner(report, currentUser);
+            requireDraft(report);
+        }
 
         visitReportRepository.delete(report);
+    }
+
+    @Transactional
+    public ReportDetailResponse approveReport(Long reportId, User currentUser) {
+        VisitReport report = visitReportRepository.findById(reportId)
+                .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
+        report.setStatus(STATUS_ARCHIVED);
+        report.setUpdatedAt(LocalDateTime.now());
+        createLinkedCaseNoteIfPresent(report.getClient(), report, currentUser);
+        return toReportDetailResponse(report);
     }
 
     private ReportSummaryResponse toReportSummaryResponse(VisitReport report) {

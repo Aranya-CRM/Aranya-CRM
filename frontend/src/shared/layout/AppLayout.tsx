@@ -33,11 +33,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   })
 
   const manifestRoutes = manifest?.routes ?? []
+  const isManager = resolve('cases:audit')
   const isVolunteerOnly = manifestRoutes.includes('tasks.list')
     && !manifestRoutes.includes('clients.list')
     && !manifestRoutes.includes('cases.list')
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
     if (isVolunteerOnly && item.id !== 'tasks') return false
+    if (isManager && item.id === 'tasks') return false
     return resolve(item.routeId) || canRoute(item.routeId)
   })
 

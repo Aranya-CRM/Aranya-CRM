@@ -33,6 +33,9 @@ public class ClientService {
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
         String normalizedQuery = normalizeFilter(q);
         String normalizedStatus = normalizeFilter(membershipStatus);
+        if (normalizedStatus == null) {
+            normalizedStatus = "ACTIVE";
+        }
 
         List<Client> clients;
         if (normalizedQuery == null && normalizedStatus == null) {
@@ -142,6 +145,14 @@ public class ClientService {
 
         clientRepository.save(client);
         return getClientDetail(clientId);
+    }
+
+    @Transactional
+    public void deleteClient(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+        client.setMembershipStatus("DELETED");
+        clientRepository.save(client);
     }
 
     private static <T> void set(T value, Consumer<T> setter) {
