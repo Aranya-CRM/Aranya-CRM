@@ -264,8 +264,7 @@
       "create": "创建会员 ->"
     },
     "profile": {
-      "convertToClient": "转为客户",
-      "convertToCase": "转为个案客户",
+      "createCase": "创建个案",
       "editProfile": "编辑档案",
       "delete": "删除档案",
       "editTitle": "编辑档案",
@@ -480,6 +479,8 @@
       "urgent": "紧急",
       "resolveFlag": "处理标记",
       "approve": "审批",
+      "approving": "审批中...",
+      "approveError": "审批失败，请重试。",
       "archive": "归档",
       "edit": "编辑",
       "deleting": "删除中...",

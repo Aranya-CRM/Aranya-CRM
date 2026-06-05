@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 041-trim-cases-one-per-client
+      author: ShiDu
+      context: dev, test
+      comment: "Enforce one-case-per-client: keep CASE-2026-001 (VXA) and CASE-2026-002 (VKB), remove the extra cases, and drop the grey/black intensity case"
+      changes:
+        # Remove child rows of the cases being deleted first (FK is NO ACTION / RESTRICT)
+        - sql:
+            sql: >
+              DELETE FROM case_assignment
+              WHERE case_id IN (
+                SELECT id FROM "case"
+                WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001')
+              );
+        - sql:
+            sql: >
+              DELETE FROM case_note
+              WHERE case_id IN (
+                SELECT id FROM "case"
+                WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001')
+              );
+        - sql:
+            sql: >
+              DELETE FROM case_change_log
+              WHERE case_id IN (
+                SELECT id FROM "case"
+                WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001')
+              );
+        - sql:
+            sql: >
+              DELETE FROM case_document
+              WHERE case_id IN (
+                SELECT id FROM "case"
+                WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001')
+              );
+        - sql:
+            sql: >
+              DELETE FROM service_appointment
+              WHERE case_id IN (
+                SELECT id FROM "case"
+                WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001')
+              );
+
+        # Delete the extra cases, leaving exactly one case per client
+        - sql:
+            sql: >
+              DELETE FROM "case"
+              WHERE case_code IN ('CASE-2026-003', 'CASE-2026-004', 'ASDFL/2026/C/001');

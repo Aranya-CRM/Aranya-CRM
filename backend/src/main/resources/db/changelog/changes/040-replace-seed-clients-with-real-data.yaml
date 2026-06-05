@@ -1,0 +1,111 @@
+databaseChangeLog:
+  - changeSet:
+      id: 040-replace-seed-clients-with-real-data
+      author: ShiDu
+      context: dev, test
+      comment: "Replace the fake seed clients with the two organisation-provided sangha records (VXA, VKB), re-pointing existing cases and visit reports onto them, then removing the old seed clients"
+      changes:
+        # 1) Insert real member VXA - Venerable Xian Ai (显碍师父)
+        #    Wellbeing flags in source: Peer Conflicts, Family, End of Life
+        #    -> mapped to the 7 available buckets: social_support (peer/family), spiritual (end-of-life)
+        - sql:
+            sql: >
+              INSERT INTO client (
+                abbr, name_en, name_chn, contact, preferred_communication, whatsapp_enabled,
+                preferred_language, spoken_language, address_text, postal_code, area_district, vihara_type,
+                nric_name_en, nric_name_chn, nric_no, ordination_certificate_status, date_of_verification,
+                gender, date_of_birth, marital_status, nationality, ethnicity, dialect_group,
+                membership_status, date_joined, membership_remarks,
+                buddhist_tradition, ordination_status, date_of_tonsure, country_of_tonsure, place_of_tonsure,
+                date_of_ordination, country_of_ordination, place_of_ordination,
+                wellbeing_social_support, wellbeing_spiritual, wellbeing_remarks,
+                special_needs, special_needs_remarks, bank_transfer_info, pay_now_info, next_of_kin_contact,
+                comments, created_at
+              )
+              VALUES (
+                'VXA', 'Venerable Xian Ai', '显碍师父', '97654322', 'WhatsApp Msg', true,
+                'ENG', 'English only', 'Blk 69, Ubi Ave 1', '408371', 'Ubi', '2 room',
+                'Lim Siew Wee', '林秀微', 'S1234567Q', 'Completed', '2023-10-13',
+                'Female', '1956-12-03', 'Never married', 'S''porean', 'Chinese', 'Hokkien',
+                'Active', '2019-03-19',
+                'Social services suspended 1 Jan 2023 until further notice; will continue to invite her to activities',
+                'Mahayana', 'Samaneri', '2013-05-25', 'Singapore', '诚贤精舍',
+                '2014-11-04', 'Singapore', '极乐寺',
+                true, true,
+                'Source concern flags not covered by standard buckets: Peer Conflicts, Family, End of Life (mapped to Social Support & Spiritual).',
+                'Multiple', 'Undiagnosed mental illness and ID', 'Nil', NULL, NULL,
+                'Ordination (三坛大戒) source text: "Sramanerika: 4 Nov 2014". Ordination years till date (戒腊): 11.',
+                '2019-03-19 09:00:00'
+              )
+              ON CONFLICT (abbr) DO NOTHING;
+
+        # 2) Insert real member VKB - Venerable Kong Bai (空白师父)
+        #    Wellbeing flags in source: Housing, Financial -> living_conditions, financial_stability
+        - sql:
+            sql: >
+              INSERT INTO client (
+                abbr, name_en, name_chn, contact, preferred_communication, whatsapp_enabled,
+                preferred_language, spoken_language, address_text, postal_code, area_district, vihara_type,
+                nric_name_en, nric_name_chn, nric_no, ordination_certificate_status, date_of_verification,
+                gender, date_of_birth, marital_status, nationality, ethnicity, dialect_group,
+                membership_status, date_joined,
+                buddhist_tradition, ordination_status,
+                date_of_ordination, country_of_ordination, place_of_ordination,
+                wellbeing_living_conditions, wellbeing_financial_stability,
+                special_needs, bank_transfer_info, pay_now_info,
+                comments, created_at
+              )
+              VALUES (
+                'VKB', 'Venerable Kong Bai', '空白师父', '88607608', 'WhatsApp Msg', true,
+                'CHN', 'English & Mandarin only', 'Blk 81 Tiong Poh Rd', '160081', 'Tiong Bahru', '3 room',
+                'Lee Kai Sheng', '李开盛', 'S2234567Z', 'Completed', '2023-10-13',
+                'Male', '1962-08-19', 'Never married', 'S''porean', 'Chinese', 'Hokkien',
+                'Active', '2019-06-20',
+                'Theravada', 'Bhikkhu',
+                '1994-01-23', 'Thailand', 'Wat Traidhammaram Surat Thani',
+                true, true,
+                'No', 'Lee Kai Sheng' || chr(10) || 'POSB 060-55555-5', 'Nil',
+                'Ordination years till date (戒腊): 32.',
+                '2019-06-20 09:00:00'
+              )
+              ON CONFLICT (abbr) DO NOTHING;
+
+        # 3) Re-point cases of HM001 / TY003 / NF005 onto VXA
+        - sql:
+            sql: >
+              UPDATE "case"
+              SET client_id = (SELECT id FROM client WHERE abbr = 'VXA')
+              WHERE client_id IN (SELECT id FROM client WHERE abbr IN ('HM001', 'TY003', 'NF005'));
+
+        # 4) Re-point cases of SN002 / DL004 / DL005 onto VKB
+        - sql:
+            sql: >
+              UPDATE "case"
+              SET client_id = (SELECT id FROM client WHERE abbr = 'VKB')
+              WHERE client_id IN (SELECT id FROM client WHERE abbr IN ('SN002', 'DL004', 'DL005'));
+
+        # 5) Re-point visit reports of HM001 / TY003 / NF005 onto VXA
+        - sql:
+            sql: >
+              UPDATE visit_report
+              SET client_id = (SELECT id FROM client WHERE abbr = 'VXA')
+              WHERE client_id IN (SELECT id FROM client WHERE abbr IN ('HM001', 'TY003', 'NF005'));
+
+        # 6) Re-point visit reports of SN002 / DL004 / DL005 onto VKB
+        - sql:
+            sql: >
+              UPDATE visit_report
+              SET client_id = (SELECT id FROM client WHERE abbr = 'VKB')
+              WHERE client_id IN (SELECT id FROM client WHERE abbr IN ('SN002', 'DL004', 'DL005'));
+
+        # 7) Remove old seed clients (now unreferenced)
+        - sql:
+            sql: >
+              DELETE FROM related_contact
+              WHERE client_id IN (
+                SELECT id FROM client WHERE abbr IN ('HM001', 'SN002', 'TY003', 'DL004', 'DL005', 'NF005')
+              );
+        - sql:
+            sql: >
+              DELETE FROM client
+              WHERE abbr IN ('HM001', 'SN002', 'TY003', 'DL004', 'DL005', 'NF005');

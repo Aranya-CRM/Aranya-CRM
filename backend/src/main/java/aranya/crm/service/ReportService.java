@@ -35,8 +35,32 @@ public class ReportService {
     private static final String STATUS_ARCHIVED = "ARCHIVED";
     private static final String STATUS_RETURNED = "RETURNED";
 
+    /** Statuses of reports that are visible to other users for review/approval. */
+    private static final List<String> REVIEWABLE_STATUSES = List.of(STATUS_SUBMITTED, STATUS_ARCHIVED);
+
+    /** MOCK scope: Social Workers only review reports authored by volunteers. */
+    private static final String VOLUNTEER_ROLE = "VOLUNTEER";
+
     public List<ReportSummaryResponse> listReports() {
         return visitReportRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
+                .map(this::toReportSummaryResponse)
+                .toList();
+    }
+
+    /**
+     * Reports authored by other users that are visible for review — submitted or
+     * archived only. The caller's own reports and everyone's drafts/returned reports
+     * are excluded (drafts stay private to their author, viewable via listOwnReports).
+     */
+    public List<ReportSummaryResponse> listReviewableReports(User currentUser, boolean volunteerAuthorsOnly) {
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        if (currentUserId == null) {
+            return List.of();
+        }
+        List<VisitReport> reports = volunteerAuthorsOnly
+                ? visitReportRepository.findReviewableByAuthorRole(currentUserId, REVIEWABLE_STATUSES, VOLUNTEER_ROLE)
+                : visitReportRepository.findByCreatedByIdNotAndStatusInOrderByCreatedAtDescIdDesc(currentUserId, REVIEWABLE_STATUSES);
+        return reports.stream()
                 .map(this::toReportSummaryResponse)
                 .toList();
     }
@@ -103,6 +127,16 @@ public class ReportService {
         report.setStatus(STATUS_SUBMITTED);
         report.setUpdatedAt(LocalDateTime.now());
         createLinkedCaseNoteIfPresent(report.getClient(), report, currentUser);
+        return toReportDetailResponse(report);
+    }
+
+    @Transactional
+    public ReportDetailResponse approveReport(Long reportId, User currentUser) {
+        VisitReport report = visitReportRepository.findById(reportId)
+                .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
+        requireSubmitted(report);
+        report.setStatus(STATUS_ARCHIVED);
+        report.setUpdatedAt(LocalDateTime.now());
         return toReportDetailResponse(report);
     }
 
@@ -212,6 +246,12 @@ public class ReportService {
 
     private boolean isSubmitted(VisitReport report) {
         return STATUS_SUBMITTED.equalsIgnoreCase(report.getStatus());
+    }
+
+    private void requireSubmitted(VisitReport report) {
+        if (!STATUS_SUBMITTED.equalsIgnoreCase(report.getStatus())) {
+            throw new IllegalStateException("Only submitted reports can be approved");
+        }
     }
 
     private void requireDraft(VisitReport report) {

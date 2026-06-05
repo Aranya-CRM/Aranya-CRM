@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader } from '../../../shared/ui'
+import { useAccess } from '../../../shared/auth/useAccess'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
-import { deleteReport, fetchReportById, submitReport } from '../api/report.api'
+import { approveReport, deleteReport, fetchReportById, submitReport } from '../api/report.api'
 import type { ReportDetail } from '../types'
 import './reports.css'
 
@@ -17,10 +18,6 @@ function formatDate(value: string | null | undefined): string {
   return value.slice(0, 10)
 }
 
-function reportStatus(report: ReportDetail): 'DRAFT' | 'SUBMITTED' {
-  return report.status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED'
-}
-
 function withReturnTo(path: string, returnTo: string, clientName?: string): string {
   const params = new URLSearchParams({ returnTo })
   if (clientName) params.set('clientName', clientName)
@@ -31,6 +28,7 @@ export function ReportDetailPage() {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
+  const { getCap } = useAccess()
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const returnTo = searchParams.get('returnTo') || '/reports'
@@ -38,7 +36,10 @@ export function ReportDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>()
+
+  const canApprove = getCap('reports:approve_archive') !== 'NO'
 
   useEffect(() => {
     if (!id) {
@@ -83,6 +84,20 @@ export function ReportDetailPage() {
     }
   }
 
+  async function handleApprove() {
+    if (!report) return
+    setIsApproving(true)
+    setErrorMessage(undefined)
+    try {
+      const approved = await approveReport(report.id)
+      setReport(approved)
+    } catch {
+      setErrorMessage(t('reports.detail.approveError'))
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
   async function handleDeleteDraft() {
     if (!report || !window.confirm(t('reports.detail.confirmDelete', { id: formatServiceTitle(report) }))) return
     setIsDeleting(true)
@@ -116,7 +131,7 @@ export function ReportDetailPage() {
     )
   }
 
-  const status = reportStatus(report)
+  const status = report.status ?? 'SUBMITTED'
   const clientName = isZh ? report.clientNameChn || report.clientNameEn : report.clientNameEn || report.clientNameChn
   const editPath = withReturnTo(`/reports/${report.id}/edit`, returnTo, clientName || undefined)
 
@@ -124,7 +139,7 @@ export function ReportDetailPage() {
     <div className="report-page">
       <BackButton onClick={() => navigate(returnTo)} />
       <PageHeader
-        title={`${formatServiceTitle(report)} report`}
+        title={formatServiceTitle(report)}
         description={t(`reports.status.${status}`)}
       />
 
@@ -163,6 +178,12 @@ export function ReportDetailPage() {
             </button>
             <button className="btn-primary" type="button" onClick={() => void handleSubmitDraft()} disabled={isSubmitting || isDeleting}>
               {isSubmitting ? t('reports.form.submitting') : t('reports.form.submitFinal')}
+            </button>
+          </div>
+        ) : status === 'SUBMITTED' && canApprove ? (
+          <div className="report-form-actions">
+            <button className="btn-primary" type="button" onClick={() => void handleApprove()} disabled={isApproving}>
+              {isApproving ? t('reports.detail.approving') : t('reports.detail.approve')}
             </button>
           </div>
         ) : null}

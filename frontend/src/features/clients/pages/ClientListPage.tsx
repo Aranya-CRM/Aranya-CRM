@@ -20,6 +20,7 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Bhikkhu',
   'Bhikkhuni',
   'Samanera',
+  'Samaneri',
   'Sikkhamana',
   'Sayalay',
 ]
@@ -75,8 +76,7 @@ export function ClientListPage() {
   const canUpdateClient = resolve('clients:update')
   const canDeleteClient = resolve('clients:delete')
   const canViewDetailedProfile = resolve('clients:view.full')
-  const canConvertToCase = resolve('clients:convert_to_case')
-  const canConvertToClient = resolve('members:convert_to_client')
+  const canCreateCase = resolve('clients:convert_to_case')
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
@@ -294,8 +294,7 @@ export function ClientListPage() {
                 canUpdateClient={canUpdateClient}
                 canDeleteClient={canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={canConvertToCase}
-                canConvertToClient={canConvertToClient}
+                canCreateCase={canCreateCase}
                 showDeleteConfirm={showDeleteConfirm}
                 onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
                 onEdit={() => beginEditClient(profileClient)}
@@ -453,8 +452,7 @@ interface ClientProfilePanelProps {
   canUpdateClient: boolean
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
-  canConvertToCase: boolean
-  canConvertToClient: boolean
+  canCreateCase: boolean
   showDeleteConfirm: boolean
   onToggleDeleteConfirm: () => void
   onEdit: () => void
@@ -465,8 +463,7 @@ function ClientProfilePanel({
   canUpdateClient,
   canDeleteClient,
   canViewDetailedProfile,
-  canConvertToCase,
-  canConvertToClient,
+  canCreateCase,
   showDeleteConfirm,
   onToggleDeleteConfirm,
   onEdit,
@@ -484,18 +481,13 @@ function ClientProfilePanel({
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
-          {canConvertToClient ? (
+          {canCreateCase ? (
             <button className="btn-primary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
-              {t('clients.profile.convertToClient')}
+              {t('clients.profile.createCase')}
             </button>
           ) : null}
           {canViewDetailedProfile ? (
             <>
-              {canConvertToCase ? (
-                <button className="btn-secondary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
-                  {t('clients.profile.convertToCase')}
-                </button>
-              ) : null}
               {canUpdateClient ? (
                 <button className="btn-edit" type="button" onClick={onEdit}>
                   {t('clients.profile.editProfile')}

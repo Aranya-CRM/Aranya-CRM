@@ -184,7 +184,7 @@ function mapBackendClient(source: BackendClientDetail): Client {
     dateJoined: text(source.dateJoined),
     membershipRemarks: text(source.membershipRemarks),
     buddhistTradition: mapBuddhistTradition(source.buddhistTradition),
-    ordinationStatus: mapOrdinationStatus(source.ordinationStatus),
+    ordinationStatus: text(source.ordinationStatus),
     dateOfTonsure: text(source.dateOfTonsure),
     countryOfTonsure: text(source.countryOfTonsure),
     placeOfTonsure: text(source.placeOfTonsure),
@@ -248,15 +248,6 @@ function mapBuddhistTradition(value: string | null | undefined): Client['buddhis
   if (normalized === 'theravada') return 'Theravada'
   if (normalized === 'vajrayana') return 'Vajrayana'
   return 'Mahayana'
-}
-
-function mapOrdinationStatus(value: string | null | undefined): Client['ordinationStatus'] {
-  const normalized = normalizeEnum(value)
-  if (normalized === 'bhikkhuni') return 'Bhikkhuni'
-  if (normalized === 'samanera') return 'Samanera'
-  if (normalized === 'sikkhamana') return 'Sikkhamana'
-  if (normalized === 'sayalay') return 'Sayalay'
-  return 'Bhikkhu'
 }
 
 function mapOrdinationCertificate(value: string | null | undefined): Client['ordinationCertificate'] {

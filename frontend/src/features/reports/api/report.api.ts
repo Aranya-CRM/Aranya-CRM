@@ -28,6 +28,11 @@ export async function submitReport(id: string | number): Promise<ReportDetail> {
   return res.data
 }
 
+export async function approveReport(id: string | number): Promise<ReportDetail> {
+  const res = await http.post<ReportDetail>(`/v1/reports/${id}/approve`)
+  return res.data
+}
+
 export async function deleteReport(id: string | number): Promise<void> {
   await http.delete(`/v1/reports/${id}`)
 }

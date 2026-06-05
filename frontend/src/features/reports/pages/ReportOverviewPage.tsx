@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { ErrorBanner } from '../../../shared/ui'
 import { deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
+import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import type { ReportDetail, ReportSummary } from '../types'
 import './reports.css'
 
@@ -21,13 +22,6 @@ function formatDate(value: string | null | undefined): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function displayName(report: ReportSummary | ReportDetail, isZh: boolean): string {
-  const zh = report.clientNameChn?.trim()
-  const en = report.clientNameEn?.trim()
-  if (isZh) return zh || en || ''
-  return en || zh || ''
 }
 
 function daysSince(dateStr: string | null): number {
@@ -57,8 +51,7 @@ function groupByVolunteer(reports: ReportSummary[]): VolunteerSummary[] {
 }
 
 export function ReportOverviewPage() {
-  const { t, i18n } = useTranslation()
-  const isZh = i18n.language === 'zh'
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getCap } = useAccess()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -250,7 +243,6 @@ export function ReportOverviewPage() {
           search={volSearch}
           onSearchChange={setVolSearch}
           onSelect={setSelectedVolunteer}
-          isZh={isZh}
           t={t}
           navigate={navigate}
         />
@@ -271,7 +263,6 @@ export function ReportOverviewPage() {
           onEdit={() => selectedReport && navigate(`/reports/${selectedReport.id}/edit`)}
           onSubmit={() => void handleSubmitDraft()}
           onDelete={() => void handleDeleteDraft()}
-          isZh={isZh}
           t={t}
         />
       )}
@@ -289,7 +280,6 @@ function VolunteerTabContent({
   search,
   onSearchChange,
   onSelect,
-  isZh,
   t,
   navigate,
 }: {
@@ -300,7 +290,6 @@ function VolunteerTabContent({
   search: string
   onSearchChange: (v: string) => void
   onSelect: (v: VolunteerSummary) => void
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
   navigate: (path: string) => void
 }) {
@@ -360,7 +349,6 @@ function VolunteerTabContent({
           ) : (
             <VolunteerReportList
               volunteer={selected}
-              isZh={isZh}
               t={t}
               navigate={navigate}
             />
@@ -373,12 +361,10 @@ function VolunteerTabContent({
 
 function VolunteerReportList({
   volunteer,
-  isZh,
   t,
   navigate,
 }: {
   volunteer: VolunteerSummary
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
   navigate: (path: string) => void
 }) {
@@ -415,7 +401,7 @@ function VolunteerReportList({
               >
                 <span className="report-vol-date">{formatDate(r.dateOfVisit)}</span>
                 <span className="report-vol-client">
-                  {displayName(r, isZh) || t('reports.unnamedMonastic')}
+                  {formatServiceTitle(r) || t('reports.unnamedMonastic')}
                 </span>
                 <span className="report-vol-type">{r.typeOfVisit ?? '-'}</span>
                 <span
@@ -450,7 +436,6 @@ function MineTabContent({
   onEdit,
   onSubmit,
   onDelete,
-  isZh,
   t,
 }: {
   isLoading: boolean
@@ -468,7 +453,6 @@ function MineTabContent({
   onEdit: () => void
   onSubmit: () => void
   onDelete: () => void
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   return (
@@ -501,7 +485,7 @@ function MineTabContent({
                   onClick={() => onSelect(r.id)}
                 >
                   <span className="report-master-name">
-                    {displayName(r, isZh) || t('reports.unnamedMonastic')}
+                    {formatServiceTitle(r) || t('reports.unnamedMonastic')}
                   </span>
                   <span className="report-master-date">{formatDate(r.dateOfVisit)}</span>
                   <span className={`report-master-status report-master-status-${status.toLowerCase()}`}>

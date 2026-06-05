@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,12 +35,25 @@ public class ReportController {
     @GetMapping
     public ResponseEntity<List<ReportSummaryResponse>> listReports(
             @CurrentUser User currentUser,
+            Authentication authentication,
             @RequestParam(defaultValue = "false") boolean mine
     ) {
         if (mine) {
             return ResponseEntity.ok(reportService.listOwnReports(currentUser));
         }
-        return ResponseEntity.ok(reportService.listReports());
+        // MOCK: Social Workers only see reports submitted by volunteers (eventually scoped
+        // to the tasks they are responsible for). Other reviewers (e.g. Manager) see all.
+        boolean volunteerAuthorsOnly = hasRole(authentication, "SOCIAL_WORKER");
+        return ResponseEntity.ok(reportService.listReviewableReports(currentUser, volunteerAuthorsOnly));
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null) {
+            return false;
+        }
+        String authority = "ROLE_" + role;
+        return authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 
     @GetMapping("/{id}")
@@ -71,6 +85,15 @@ public class ReportController {
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(reportService.submitReport(id, currentUser));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("@capEval.hasCap(authentication, 'reports:approve_archive')")
+    public ResponseEntity<ReportDetailResponse> approveReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(reportService.approveReport(id, currentUser));
     }
 
     @DeleteMapping("/{id}")
