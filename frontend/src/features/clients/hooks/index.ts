@@ -3,5 +3,6 @@ export {
   useClient,
   useClients,
   useCreateClient,
+  useDeleteClient,
   useUpdateClient,
 } from './useClients'

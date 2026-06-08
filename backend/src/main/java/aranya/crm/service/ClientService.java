@@ -6,10 +6,8 @@ import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.entity.Client;
-import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.RelatedContact;
 import aranya.crm.entity.User;
-import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.RelatedContactRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -17,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -27,12 +24,14 @@ import java.util.function.Consumer;
 public class ClientService {
 
     private final ClientRepository clientRepository;
-    private final CaseRepository caseRepository;
     private final RelatedContactRepository relatedContactRepository;
 
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
         String normalizedQuery = normalizeFilter(q);
         String normalizedStatus = normalizeFilter(membershipStatus);
+        if (normalizedStatus == null) {
+            normalizedStatus = "ACTIVE";
+        }
 
         List<Client> clients;
         if (normalizedQuery == null && normalizedStatus == null) {
@@ -50,6 +49,12 @@ public class ClientService {
                 .toList();
     }
 
+    public List<ClientSummaryResponse> listClientsWithoutCase() {
+        return clientRepository.findActiveClientsWithoutCase().stream()
+                .map(this::toClientSummaryResponse)
+                .toList();
+    }
+
     @Transactional
     public ClientDetailResponse createClient(CreateClientRequest req, User createdBy) {
         Client client = new Client();
@@ -63,28 +68,7 @@ public class ClientService {
         client.setContact(req.getContact());
         clientRepository.save(client);
 
-        // 同步新增case,一个client对应一个长期维护的case
-        ClientCase clientCase = new ClientCase();
-        clientCase.setClient(client);
-        clientCase.setCreatedBy(createdBy);
-        clientCase.setCaseCode(generateCaseCode());
-        clientCase.setTitle(client.getNameEn() + " - Initial Case");
-        clientCase.setColorCode(req.getColorCode());
-        clientCase.setTradition(req.getBuddhistTradition());
-        caseRepository.save(clientCase);
-
         return getClientDetail(client.getId());
-    }
-
-    private String generateCaseCode() {
-        String year = String.valueOf(LocalDate.now().getYear());
-        return caseRepository.findLatestCaseCodeByYear(year)
-                .map(latest -> {
-                    String[] parts = latest.split("/");
-                    int next = Integer.parseInt(parts[parts.length - 1]) + 1;
-                    return String.format("ASDFL/%s/C/%03d", year, next);
-                })
-                .orElse(String.format("ASDFL/%s/C/001", year));
     }
 
     @Transactional
@@ -142,6 +126,14 @@ public class ClientService {
 
         clientRepository.save(client);
         return getClientDetail(clientId);
+    }
+
+    @Transactional
+    public void deleteClient(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+        client.setMembershipStatus("DELETED");
+        clientRepository.save(client);
     }
 
     private static <T> void set(T value, Consumer<T> setter) {

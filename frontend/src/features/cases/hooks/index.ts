@@ -7,6 +7,9 @@ export {
   useCases,
   useCreateCase,
   useCreateCaseNote,
+  useCreateServiceEvent,
   useDeleteCaseNote,
   useOwnCaseNotes,
+  useUpdateCase,
+  useUpdateCaseServices,
 } from './useCases'

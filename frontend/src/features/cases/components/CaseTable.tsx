@@ -9,6 +9,7 @@ export interface CaseListRow {
   caseNo: string
   dateOpened: string
   lastModifiedAt?: string
+  clientAbbr?: string
   clientNameChn: string
   clientNameEn: string
   tradition: string
@@ -24,8 +25,7 @@ interface CaseTableProps {
 }
 
 export function CaseTable({ cases, loading, onView }: CaseTableProps) {
-  const { t, i18n } = useTranslation()
-  const isZh = i18n.language === 'zh'
+  const { t } = useTranslation()
 
   return (
     <SectionCard className="case-list-card">
@@ -35,7 +35,6 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
             <col className="case-col-intensity" />
             <col className="case-col-client" />
             <col className="case-col-tradition" />
-            <col className="case-col-worker" />
             <col className="case-col-status" />
             <col className="case-col-opened" />
           </colgroup>
@@ -43,17 +42,16 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
             <tr>
               <th>{t('cases.table.intensity')}</th>
               <th>{t('cases.table.monastic')}</th>
-              <th>{t('cases.table.tradition')}</th>
-              <th>{t('cases.table.caseworker')}</th>
+              <th>{t('cases.table.caseNo')}</th>
               <th>{t('cases.table.status')}</th>
               <th>{t('cases.table.lastUpdated')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <EmptyTableRow colSpan={6} message={t('cases.table.loading')} />
+              <EmptyTableRow colSpan={5} message={t('cases.table.loading')} />
             ) : cases.length === 0 ? (
-              <EmptyTableRow colSpan={6} message={t('cases.table.empty')} />
+              <EmptyTableRow colSpan={5} message={t('cases.table.empty')} />
             ) : (
               cases.map((item) => (
                 <tr
@@ -63,11 +61,9 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
                 >
                   <td><CaseIntensityDot colorCode={item.colorCode} /></td>
                   <td>
-                    <span className="case-cell-main">{isZh ? item.clientNameChn : item.clientNameEn}</span>
-                    <span className="case-cell-sub">Ven. {item.clientNameEn}</span>
+                    <span className="case-cell-main">{item.clientAbbr || item.clientNameEn || item.clientNameChn || '-'}</span>
                   </td>
-                  <td><span className="case-cell-main">{item.tradition}</span></td>
-                  <td><span className="case-cell-main">{item.socialWorker}</span></td>
+                  <td><span className="case-cell-main">{item.caseNo}</span></td>
                   <td><CaseStatusBadge status={item.status} /></td>
                   <td><span className="case-cell-main">{item.lastModifiedAt ?? item.dateOpened}</span></td>
                 </tr>
