@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "工作台",
-    "clients": "客户档案",
+    "clients": "会员",
     "cases": "个案管理",
     "reports": "文档管理",
     "tasks": "协助",
@@ -23,7 +23,8 @@
     "actions": "操作",
     "comingSoon": "功能即将推出",
     "saving": "保存中...",
-    "by": "by"
+    "by": "by",
+    "delete": "删除"
   },
   "dashboard": {
     "pageTitle": "工作台",
@@ -85,6 +86,18 @@
       "GREY": "灰色 · 低度活跃",
       "BLACK": "黑色 · 已关闭"
     },
+    "status": {
+      "OPEN": "进行中",
+      "WEEKLY": "每周跟进",
+      "MONTHLY": "每月跟进",
+      "IN_REVIEW": "审核中",
+      "SUSPENDED": "暂停",
+      "CLOSED": "已关闭"
+    },
+    "filter": {
+      "allStatus": "全部状态",
+      "search": "搜索个案或会员"
+    },
     "service": {
       "accommodationArrangement": "住宿安排",
       "deepCleaning": "大扫除",
@@ -104,7 +117,15 @@
     },
     "services": {
       "calendarTitle": "服务日历",
-      "calendarPlaceholder": "Google Calendar 即将接入"
+      "calendarPlaceholder": "暂无服务事件",
+      "addEvent": "新增服务事件",
+      "service": "服务",
+      "selectService": "请选择服务",
+      "assignee": "负责人",
+      "selectAssignee": "请选择负责人",
+      "time": "具体时间",
+      "location": "地点",
+      "createEvent": "创建事件"
     },
     "serviceGroup": {
       "housing": "居住与住宿",
@@ -142,7 +163,9 @@
       "empty": "暂无案例笔记",
       "by": "记录人",
       "followup": "跟进",
-      "addNote": "新增笔记"
+      "addNote": "新增笔记",
+      "placeholder": "添加案例笔记",
+      "followupPlaceholder": "后续跟进（可选）"
     },
     "placeholder": "{{tab}}功能即将推出",
     "audit": {
@@ -202,7 +225,20 @@
       }
     },
     "form": {
-      "newCase": "新建个案"
+      "newCase": "新建个案",
+      "loadError": "新建个案所需数据加载失败，请稍后重试。",
+      "saveError": "个案创建失败，请检查信息后重试。",
+      "coreInfo": "基本信息",
+      "client": "会员",
+      "selectClient": "请选择会员",
+      "openedAt": "开案日期",
+      "caseworker": "主责社工",
+      "unassigned": "暂不分配",
+      "status": "状态",
+      "comments": "备注",
+      "remarks": "补充说明",
+      "intensity": "个案强度",
+      "services": "服务模块"
     },
     "list": {
       "count": "{{count}} 个个案",
@@ -478,9 +514,7 @@
       "submitted": "已提交",
       "urgent": "紧急",
       "resolveFlag": "处理标记",
-      "approve": "审批",
-      "approving": "审批中...",
-      "approveError": "审批失败，请重试。",
+      "approve": "通过",
       "archive": "归档",
       "edit": "编辑",
       "deleting": "删除中...",

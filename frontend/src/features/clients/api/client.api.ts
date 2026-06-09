@@ -93,6 +93,11 @@ export async function fetchClients(): Promise<Client[]> {
   }
 }
 
+export async function fetchClientsWithoutCase(): Promise<Client[]> {
+  const res = await http.get<BackendClientSummary[]>('/v1/clients/without-case')
+  return res.data.map(mapBackendClient)
+}
+
 export async function fetchClientById(id: string): Promise<Client | undefined> {
   const mode = getDataMode()
   if (mode === 'mock') return clientMockData.find((c) => c.id === id)
@@ -115,8 +120,8 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<Client> {
   }
 
   try {
-    const res = await http.post<Client>('/v1/clients', data)
-    return res.data
+    const res = await http.post<BackendClientDetail>('/v1/clients', data)
+    return mapBackendClient(res.data)
   } catch {
     if (mode === 'auto') {
       const newClient = { ...data, id: `client-${Date.now()}` } as Client
@@ -129,6 +134,7 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<Client> {
 
 export async function updateClient(id: string, data: Partial<Client>): Promise<Client> {
   const mode = getDataMode()
+  const payload = toBackendClientPayload(data)
   if (mode === 'mock') {
     const idx = clientMockData.findIndex((c) => c.id === id)
     if (idx === -1) throw new Error('Client not found')
@@ -138,8 +144,8 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 
   try {
-    const res = await http.patch<Client>(`/v1/clients/${id}`, data)
-    return res.data
+    const res = await http.patch<BackendClientDetail>(`/v1/clients/${id}`, payload)
+    return mapBackendClient(res.data)
   } catch {
     if (mode === 'auto') {
       const idx = clientMockData.findIndex((c) => c.id === id)
@@ -149,6 +155,81 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
       return updated
     }
     throw new Error('Failed to update client')
+  }
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const mode = getDataMode()
+  const removeMockClient = () => {
+    const idx = clientMockData.findIndex((c) => c.id === id)
+    if (idx >= 0) clientMockData.splice(idx, 1)
+  }
+
+  if (mode === 'mock') {
+    removeMockClient()
+    return
+  }
+
+  try {
+    await http.delete(`/v1/clients/${id}`)
+  } catch {
+    if (mode === 'auto') {
+      removeMockClient()
+      return
+    }
+    throw new Error('Failed to delete client')
+  }
+}
+
+function toBackendClientPayload(data: Partial<Client>) {
+  return {
+    nameEn: data.nameEn,
+    nameChn: data.nameChn,
+    abbr: data.abbr,
+    contact: data.contact,
+    preferredCommunication: data.preferredCommunication,
+    whatsappEnabled: data.whatsappEnabled,
+    preferredLanguage: data.preferredLanguage,
+    spokenLanguage: data.spokenLanguage,
+    addressText: data.addressText,
+    postalCode: data.postalCode,
+    areaDistrict: data.areaDistrict,
+    viharaType: data.viharaType,
+    nricNameEn: data.nricNameEn,
+    nricNameChn: data.nricNameChn,
+    nricNo: data.nricNo,
+    ordinationCertificateStatus: data.ordinationCertificate,
+    dateOfVerification: data.dateOfVerification || undefined,
+    gender: data.gender,
+    dateOfBirth: data.dateOfBirth || undefined,
+    maritalStatus: data.maritalStatus,
+    nationality: data.nationality,
+    ethnicity: data.ethnicity,
+    dialectGroup: data.dialectGroup,
+    dateJoined: data.dateJoined || undefined,
+    membershipRemarks: data.membershipRemarks,
+    buddhistTradition: data.buddhistTradition,
+    ordinationStatus: data.ordinationStatus,
+    dateOfTonsure: data.dateOfTonsure || undefined,
+    countryOfTonsure: data.countryOfTonsure,
+    placeOfTonsure: data.placeOfTonsure,
+    dateOfOrdination: data.dateOfOrdination || undefined,
+    countryOfOrdination: data.countryOfOrdination,
+    placeOfOrdination: data.placeOfOrdination,
+    wellbeingPhysicalHealth: data.wellbeingIssues?.physicalHealth,
+    wellbeingMentalHealth: data.wellbeingIssues?.mentalHealth,
+    wellbeingSocialSupport: data.wellbeingIssues?.socialSupport,
+    wellbeingFinancialStability: data.wellbeingIssues?.financialStability,
+    wellbeingLivingConditions: data.wellbeingIssues?.livingConditions,
+    wellbeingSpiritual: data.wellbeingIssues?.spiritual,
+    wellbeingLegalIssues: data.wellbeingIssues?.legalIssues,
+    wellbeingRemarks: data.wellbeingRemarks,
+    specialNeeds: data.specialNeeds ? Object.entries(data.specialNeeds).filter(([, value]) => value).map(([key]) => key).join(',') : undefined,
+    specialNeedsRemarks: data.specialNeedsRemarks,
+    bankTransferInfo: data.bankTransferInfo,
+    payNowInfo: data.payNowInfo,
+    nextOfKinContact: data.nextOfKinContact,
+    comments: data.comments,
   }
 }
 

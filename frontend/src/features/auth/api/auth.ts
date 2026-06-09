@@ -96,6 +96,36 @@ export async function getFirebaseIdToken(forceRefresh = false): Promise<string |
   return firebaseAuth.currentUser?.getIdToken(forceRefresh) ?? null
 }
 
+function waitForFirebaseUser(timeoutMs = 3000): Promise<User | null> {
+  if (firebaseAuth.currentUser) {
+    return Promise.resolve(firebaseAuth.currentUser)
+  }
+
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(() => {
+      unsubscribe()
+      resolve(firebaseAuth.currentUser)
+    }, timeoutMs)
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      window.clearTimeout(timeout)
+      unsubscribe()
+      resolve(user)
+    })
+  })
+}
+
+export async function requireFirebaseIdToken(forceRefresh = false): Promise<string> {
+  const user = firebaseAuth.currentUser ?? await waitForFirebaseUser()
+  const token = await user?.getIdToken(forceRefresh)
+
+  if (!token) {
+    throw new Error('Authentication is still initializing. Please try again.')
+  }
+
+  return token
+}
+
 export async function logoutFirebase(): Promise<void> {
   await signOut(firebaseAuth)
 }

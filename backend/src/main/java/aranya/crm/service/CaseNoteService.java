@@ -29,6 +29,7 @@ public class CaseNoteService {
         }
 
         return caseNoteRepository.findByClientCaseIdOrderByCreatedAtDescIdDesc(caseId).stream()
+                .filter(this::isManualNote)
                 .map(this::toResponse)
                 .toList();
     }
@@ -44,6 +45,7 @@ public class CaseNoteService {
 
         return caseNoteRepository.findByClientCaseIdAndCreatedByIdOrderByCreatedAtDescIdDesc(caseId, currentUserId)
                 .stream()
+                .filter(this::isManualNote)
                 .map(this::toResponse)
                 .toList();
     }
@@ -66,20 +68,27 @@ public class CaseNoteService {
     }
 
     @Transactional
-    public void deleteOwnCaseNote(Long noteId, User currentUser) {
+    public void deleteCaseNote(Long noteId, User currentUser, boolean canDeleteAny) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
-        if (currentUserId == null) {
+        if (currentUserId == null && !canDeleteAny) {
             throw new EntityNotFoundException("Case note not found: " + noteId);
         }
 
-        CaseNote note = caseNoteRepository.findByIdAndCreatedById(noteId, currentUserId)
-                .orElseThrow(() -> new EntityNotFoundException("Case note not found: " + noteId));
+        CaseNote note = canDeleteAny
+                ? caseNoteRepository.findById(noteId)
+                    .orElseThrow(() -> new EntityNotFoundException("Case note not found: " + noteId))
+                : caseNoteRepository.findByIdAndCreatedById(noteId, currentUserId)
+                    .orElseThrow(() -> new EntityNotFoundException("Case note not found: " + noteId));
 
         caseNoteRepository.delete(note);
     }
 
     private CaseNoteResponse toResponse(CaseNote note) {
         return toResponse(note, "");
+    }
+
+    private boolean isManualNote(CaseNote note) {
+        return !"REPORT".equalsIgnoreCase(note.getNoteType());
     }
 
     private CaseNoteResponse toResponse(CaseNote note, String followUp) {

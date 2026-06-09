@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 030-add-visit-report-case-id
+      author: codex
+      changes:
+        - addColumn:
+            tableName: visit_report
+            columns:
+              - column:
+                  name: case_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_visit_report_case
+                    references: case(id)
+        - createIndex:
+            tableName: visit_report
+            indexName: idx_visit_report_case_id
+            columns:
+              - column:
+                  name: case_id

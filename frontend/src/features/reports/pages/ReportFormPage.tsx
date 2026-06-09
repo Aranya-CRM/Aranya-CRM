@@ -108,6 +108,7 @@ export function ReportFormPage() {
   const [searchParams] = useSearchParams()
   const returnTo = searchParams.get('returnTo') || '/reports'
   const initialClientId = searchParams.get('clientId')
+  const initialCaseId = searchParams.get('caseId')
   const initialClientName = searchParams.get('clientName') || ''
   const isEditMode = Boolean(id)
   const isTaskReturn = returnTo.startsWith('/tasks/')
@@ -191,6 +192,7 @@ export function ReportFormPage() {
     () => [...clients].sort((a, b) => clientLabel(a, isZh).localeCompare(clientLabel(b, isZh))),
     [clients, isZh],
   )
+  const isWaitingForRequiredClient = isLoadingClients && !form.clientId
 
   function updateField<K extends keyof ReportFormState>(key: K, value: ReportFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -217,15 +219,22 @@ export function ReportFormPage() {
     setErrorMessage(undefined)
 
     try {
-      const payload = { ...compactPayload(form), status }
+      const payload = {
+        ...compactPayload(form),
+        ...(initialCaseId ? { caseId: Number(initialCaseId) } : {}),
+        status,
+      }
       const saved = isEditMode && id
         ? status === 'SUBMITTED'
           ? await submitReport((await updateReport(id, { ...payload, status: 'DRAFT' })).id)
           : await updateReport(id, payload)
         : await createReport(payload)
-      navigate(isTaskReturn ? `${returnTo}?reportId=${saved.id}` : returnTo)
-    } catch {
-      setErrorMessage(t('reports.form.submitError'))
+      navigate(isTaskReturn ? `${returnTo}?reportId=${saved.id}` : returnTo, {
+        state: isTaskReturn ? { report: saved } : undefined,
+      })
+    } catch (error) {
+      const detail = error instanceof Error ? ` ${error.message}` : ''
+      setErrorMessage(`${t('reports.form.submitError')}${detail}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -440,7 +449,7 @@ export function ReportFormPage() {
                 type="submit"
                 name="reportStatus"
                 value="DRAFT"
-                disabled={isSubmitting || isLoadingClients}
+                disabled={isSubmitting || isWaitingForRequiredClient}
               >
                 {isSubmitting ? t('common.saving') : t('reports.form.saveDraft')}
               </button>
@@ -449,7 +458,7 @@ export function ReportFormPage() {
                 type="submit"
                 name="reportStatus"
                 value="SUBMITTED"
-                disabled={isSubmitting || isLoadingClients}
+                disabled={isSubmitting || isWaitingForRequiredClient}
               >
                 {isSubmitting ? t('reports.form.submitting') : t('reports.form.submitFinal')}
               </button>

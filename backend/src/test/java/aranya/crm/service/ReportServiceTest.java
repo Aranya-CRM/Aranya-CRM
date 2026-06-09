@@ -224,6 +224,32 @@ class ReportServiceTest {
     }
 
     @Test
+    @DisplayName("createReport links report to the task case when case id is provided")
+    void createReport_linksReportToTaskCaseWhenCaseIdIsProvided() {
+        Client selectedClient = client(5L, "Venerable Selected", "选择法师");
+        Client taskClient = client(9L, "Venerable Task", "任务法师");
+        ClientCase taskCase = clientCase(12L, taskClient, "CASE-2026-012");
+        User creator = user(9L, "Volunteer User");
+        CreateReportRequest request = createRequest();
+        request.setCaseId(12L);
+        request.setStatus("DRAFT");
+
+        when(clientRepository.findById(5L)).thenReturn(Optional.of(selectedClient));
+        when(caseRepository.findById(12L)).thenReturn(Optional.of(taskCase));
+        when(visitReportRepository.save(any(VisitReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReportDetailResponse response = reportService.createReport(request, creator);
+
+        ArgumentCaptor<VisitReport> reportCaptor = ArgumentCaptor.forClass(VisitReport.class);
+        verify(visitReportRepository).save(reportCaptor.capture());
+        assertThat(reportCaptor.getValue().getClient()).isSameAs(selectedClient);
+        assertThat(reportCaptor.getValue().getClientCase()).isSameAs(taskCase);
+        assertThat(response.getClientId()).isEqualTo(5L);
+        assertThat(response.getCaseId()).isEqualTo(12L);
+        verify(caseNoteRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("createReport throws when client does not exist")
     void createReport_throwsWhenClientDoesNotExist() {
         CreateReportRequest request = new CreateReportRequest();
@@ -249,6 +275,24 @@ class ReportServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getCreatedById()).isEqualTo(9L);
         assertThat(response.get(0).getClientId()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("listOwnReports filters volunteer task reports by case id")
+    void listOwnReports_filtersVolunteerTaskReportsByCaseId() {
+        Client client = client(5L, "Venerable Dev Test", "测试法师");
+        User creator = user(9L, "YiKai Kong");
+        ClientCase taskCase = clientCase(12L, client, "CASE-2026-012");
+        VisitReport report = report(1L, client, creator);
+        report.setClientCase(taskCase);
+        when(visitReportRepository.findOwnReportsForCase(9L, 12L)).thenReturn(List.of(report));
+
+        List<ReportSummaryResponse> response = reportService.listOwnReports(creator, 12L);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getCreatedById()).isEqualTo(9L);
+        assertThat(response.get(0).getClientId()).isEqualTo(5L);
+        assertThat(response.get(0).getCaseId()).isEqualTo(12L);
     }
 
     @Test

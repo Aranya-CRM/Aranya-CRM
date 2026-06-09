@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ReportSummaryResponse {
     private Long id;
+    private Long caseId;
     private Long clientId;
     private String clientAbbr;
     private String clientNameEn;
