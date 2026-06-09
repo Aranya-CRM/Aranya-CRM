@@ -73,8 +73,10 @@ services:
         VITE_DATA_MODE: api
     container_name: aranya_crm_frontend_dev
     restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8080
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
     networks:

@@ -1,0 +1,65 @@
+# Cloud Build 配置：构建前端镜像 -> 推送 Artifact Registry -> 部署到 Cloud Run
+#
+# 在 Cloud Build「触发器」的「替换变量(Substitution variables)」里填入：
+#   _FIREBASE_API_KEY / _FIREBASE_AUTH_DOMAIN / _FIREBASE_PROJECT_ID / _FIREBASE_APP_ID
+#   （这些值取自 frontend/.env，属 Firebase Web 公开配置，不进 git）
+#   _BACKEND_URL  —— 后端就绪后改成真实地址；暂未就绪保持默认即可（/api 会 502）
+#
+# 可选覆盖：_REGION / _REPO / _SERVICE
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPO: aranya
+  _SERVICE: aranya-frontend
+  _BACKEND_URL: "http://127.0.0.1:9"
+  _FIREBASE_API_KEY: ""
+  _FIREBASE_AUTH_DOMAIN: ""
+  _FIREBASE_PROJECT_ID: ""
+  _FIREBASE_APP_ID: ""
+
+steps:
+  # 1. 构建镜像（把 Firebase 配置作为构建参数烤进前端产物）
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:latest
+      - --build-arg
+      - VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}
+      - --build-arg
+      - VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
+      - --build-arg
+      - VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
+      - --build-arg
+      - VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - frontend          # 构建上下文（相对仓库根目录），Dockerfile 在 frontend/Dockerfile
+
+  # 2. 推送镜像
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend
+
+  # 3. 部署到 Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --set-env-vars=BACKEND_URL=${_BACKEND_URL}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
