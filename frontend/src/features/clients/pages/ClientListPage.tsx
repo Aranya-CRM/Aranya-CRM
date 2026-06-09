@@ -78,8 +78,6 @@ export function ClientListPage() {
   const canDeleteClient = resolve('clients:delete')
   const canViewDetailedProfile = resolve('clients:view.full')
   const canCreateCase = resolve('clients:convert_to_case')
-  const canConvertToCase = resolve('clients:convert_to_case')
-  const canConvertToClient = resolve('members:convert_to_client')
   const isManager = resolve('cases:audit')
 
   const filtered = useMemo(() => {
