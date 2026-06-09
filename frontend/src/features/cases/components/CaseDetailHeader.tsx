@@ -6,12 +6,10 @@ import { CaseStatusBadge } from './CaseStatusBadge'
 
 interface CaseDetailHeaderProps {
   caseData: Case
-  isManager: boolean
 }
 
-export function CaseDetailHeader({ caseData, isManager }: CaseDetailHeaderProps) {
-  const { t, i18n } = useTranslation()
-  const isZh = i18n.language === 'zh'
+export function CaseDetailHeader({ caseData }: CaseDetailHeaderProps) {
+  const { t } = useTranslation()
 
   return (
     <div className="case-detail-header">
@@ -25,27 +23,8 @@ export function CaseDetailHeader({ caseData, isManager }: CaseDetailHeaderProps)
       </div>
 
       <div className="case-detail-subtitle">
-        {isZh ? caseData.clientNameChn : caseData.clientNameEn}
-        {' / Ven. '}{caseData.clientNameEn}
-        {caseData.tradition ? ` · ${caseData.tradition}` : ''}
-        {caseData.socialWorker ? ` · ${t('cases.overview.caseworker')}: ${caseData.socialWorker}` : ''}
+        {caseData.clientAbbr || caseData.clientNameEn || caseData.clientNameChn}
       </div>
-
-      <div className="case-detail-actions">
-        <button className="btn-edit" type="button" onClick={() => alert(t('common.comingSoon'))}>
-          {t('clients.profile.editProfile')}
-        </button>
-        <button className="btn-audit" type="button" onClick={() => alert(t('common.comingSoon'))}>
-          {t('cases.audit.flags.flagCase')}
-        </button>
-      </div>
-
-      {isManager ? (
-        <div className="case-manager-banner">
-          <span>⚙</span>
-          <span>{t('users.managerView')} — {t('cases.tab.audit')}</span>
-        </div>
-      ) : null}
     </div>
   )
 }

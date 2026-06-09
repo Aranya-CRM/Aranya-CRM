@@ -17,16 +17,39 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
 
     long countByCreatedByIdAndStatusIgnoreCase(Long createdById, String status);
 
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById);
 
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @Query("""
+            SELECT vr
+            FROM VisitReport vr
+            WHERE vr.createdBy.id = :createdById
+              AND (
+                vr.clientCase.id = :caseId
+                OR (
+                  vr.clientCase IS NULL
+                  AND vr.client.id = (
+                    SELECT cc.client.id
+                    FROM ClientCase cc
+                    WHERE cc.id = :caseId
+                  )
+                )
+              )
+            ORDER BY vr.createdAt DESC, vr.id DESC
+            """)
+    List<VisitReport> findOwnReportsForCase(
+            @Param("createdById") Long createdById,
+            @Param("caseId") Long caseId
+    );
+
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc();
 
     /**
@@ -60,6 +83,6 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
             @Param("statuses") Collection<String> statuses,
             @Param("roleName") String roleName);
 
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
     Optional<VisitReport> findById(Long id);
 }

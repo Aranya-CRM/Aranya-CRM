@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 041-add-case-create-capability
+      author: codex
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO cap_definition (cap_key, domain, description)
+              VALUES ('cases:create', 'cases', 'Create a case for an existing client')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, t.scope_value
+              FROM (VALUES
+                ('FULL_MANAGER', 'ALL'),
+                ('TEAM_LEAD', 'ALL'),
+                ('MANAGER', 'ALL')
+              ) AS t(role_name, scope_value)
+              JOIN role r ON r.name = t.role_name
+              JOIN cap_definition cd ON cd.cap_key = 'cases:create'
+              ON CONFLICT (role_id, cap_def_id) DO UPDATE SET scope_value = EXCLUDED.scope_value;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'cases:create');
+
+              DELETE FROM cap_definition WHERE cap_key = 'cases:create';

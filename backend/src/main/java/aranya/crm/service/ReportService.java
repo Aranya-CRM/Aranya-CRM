@@ -3,12 +3,10 @@ package aranya.crm.service;
 import aranya.crm.dto.request.CreateReportRequest;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
-import aranya.crm.entity.CaseNote;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
-import aranya.crm.repository.CaseNoteRepository;
 import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.VisitReportRepository;
@@ -29,7 +27,6 @@ public class ReportService {
     private final ClientRepository clientRepository;
     private final VisitReportRepository visitReportRepository;
     private final CaseRepository caseRepository;
-    private final CaseNoteRepository caseNoteRepository;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final String STATUS_ARCHIVED = "ARCHIVED";
@@ -66,9 +63,18 @@ public class ReportService {
     }
 
     public List<ReportSummaryResponse> listOwnReports(User currentUser) {
+        return listOwnReports(currentUser, null);
+    }
+
+    public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null) {
             return List.of();
+        }
+        if (caseId != null) {
+            return visitReportRepository.findOwnReportsForCase(currentUserId, caseId).stream()
+                    .map(this::toReportSummaryResponse)
+                    .toList();
         }
         return visitReportRepository.findByCreatedByIdOrderByCreatedAtDescIdDesc(currentUserId).stream()
                 .map(this::toReportSummaryResponse)
@@ -94,14 +100,10 @@ public class ReportService {
                 : createdBy != null ? createdBy.getFullName() : null);
         report.setReportTimestamp(LocalDateTime.now());
         applyReportFields(report, client, request);
+        applyReportCase(report, request.getCaseId());
         report.setStatus(normalizeStatus(request.getStatus()));
 
-        VisitReport savedReport = visitReportRepository.save(report);
-        if (isSubmitted(savedReport)) {
-            createLinkedCaseNoteIfPresent(client, savedReport, createdBy);
-        }
-
-        return toReportDetailResponse(savedReport);
+        return toReportDetailResponse(visitReportRepository.save(report));
     }
 
     @Transactional
@@ -114,6 +116,7 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
 
         applyReportFields(report, client, request);
+        applyReportCase(report, request.getCaseId());
 
         return toReportDetailResponse(report);
     }
@@ -126,7 +129,6 @@ public class ReportService {
         requireEditable(report);
         report.setStatus(STATUS_SUBMITTED);
         report.setUpdatedAt(LocalDateTime.now());
-        createLinkedCaseNoteIfPresent(report.getClient(), report, currentUser);
         return toReportDetailResponse(report);
     }
 
@@ -142,10 +144,17 @@ public class ReportService {
 
     @Transactional
     public void deleteReport(Long reportId, User currentUser) {
+        deleteReport(reportId, currentUser, false);
+    }
+
+    @Transactional
+    public void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
-        requireOwner(report, currentUser);
-        requireDraft(report);
+        if (!canDeleteAny) {
+            requireOwner(report, currentUser);
+            requireDraft(report);
+        }
 
         visitReportRepository.delete(report);
     }
@@ -156,6 +165,7 @@ public class ReportService {
 
         return ReportSummaryResponse.builder()
                 .id(report.getId())
+                .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
@@ -182,6 +192,7 @@ public class ReportService {
 
         return ReportDetailResponse.builder()
                 .id(report.getId())
+                .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
@@ -294,35 +305,13 @@ public class ReportService {
         report.setUpdatedAt(LocalDateTime.now());
     }
 
-    private void createLinkedCaseNoteIfPresent(Client client, VisitReport report, User createdBy) {
-        caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId())
-                .ifPresent(clientCase -> {
-                    CaseNote note = new CaseNote();
-                    note.setClientCase(clientCase);
-                    note.setNoteType("REPORT");
-                    note.setVisibility("INTERNAL");
-                    note.setCreatedBy(createdBy);
-                    note.setContent(buildCaseNoteContent(report));
-                    caseNoteRepository.save(note);
-                });
-    }
-
-    private String buildCaseNoteContent(VisitReport report) {
-        StringBuilder content = new StringBuilder("Report submitted");
-        appendLine(content, "Programme", report.getProgrammeName());
-        appendLine(content, "Visit type", report.getTypeOfVisit());
-        appendLine(content, "Location", report.getLocation());
-        appendLine(content, "Purpose", report.getPurposeOfVisit());
-        appendLine(content, "What was done", report.getWhatWasDone());
-        appendLine(content, "Observations", report.getSanghaObservations());
-        appendLine(content, "Recommendations", report.getRecommendations());
-        appendLine(content, "Matters to highlight", report.getMattersToHighlight());
-        return content.toString();
-    }
-
-    private void appendLine(StringBuilder content, String label, String value) {
-        if (value != null && !value.isBlank()) {
-            content.append(System.lineSeparator()).append(label).append(": ").append(value);
+    private void applyReportCase(VisitReport report, Long caseId) {
+        if (caseId == null) {
+            return;
         }
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        report.setClientCase(clientCase);
     }
+
 }

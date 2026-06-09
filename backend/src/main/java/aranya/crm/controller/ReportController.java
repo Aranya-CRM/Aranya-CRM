@@ -4,6 +4,7 @@ import aranya.crm.dto.request.CreateReportRequest;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.ReportService;
 import jakarta.validation.Valid;
@@ -31,15 +32,17 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
     public ResponseEntity<List<ReportSummaryResponse>> listReports(
             @CurrentUser User currentUser,
             Authentication authentication,
-            @RequestParam(defaultValue = "false") boolean mine
+            @RequestParam(defaultValue = "false") boolean mine,
+            @RequestParam(required = false) Long caseId
     ) {
         if (mine) {
-            return ResponseEntity.ok(reportService.listOwnReports(currentUser));
+            return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId));
         }
         // MOCK: Social Workers only see reports submitted by volunteers (eventually scoped
         // to the tasks they are responsible for). Other reviewers (e.g. Manager) see all.
@@ -99,9 +102,11 @@ public class ReportController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReport(
             @CurrentUser User currentUser,
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
-        reportService.deleteReport(id, currentUser);
+        boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
+        reportService.deleteReport(id, currentUser, canDeleteAny);
         return ResponseEntity.noContent().build();
     }
 }

@@ -50,7 +50,7 @@ export function CaseDetailPage() {
       <BackButton onClick={() => navigate('/cases')} />
 
       <div className="case-detail-card">
-        <CaseDetailHeader caseData={caseData} isManager={isManager} />
+        <CaseDetailHeader caseData={caseData} />
         <CaseDetailTabs caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} isManager={isManager} />
       </div>
     </div>

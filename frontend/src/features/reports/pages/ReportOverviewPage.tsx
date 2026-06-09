@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { ErrorBanner } from '../../../shared/ui'
-import { deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
+import { approveReport, deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import type { ReportDetail, ReportSummary } from '../types'
 import './reports.css'
@@ -22,6 +22,13 @@ function formatDate(value: string | null | undefined): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function displayName(report: ReportSummary | ReportDetail, isZh: boolean): string {
+  const zh = report.clientNameChn?.trim()
+  const en = report.clientNameEn?.trim()
+  if (isZh) return zh || en || ''
+  return en || zh || ''
 }
 
 function daysSince(dateStr: string | null): number {
@@ -51,9 +58,11 @@ function groupByVolunteer(reports: ReportSummary[]): VolunteerSummary[] {
 }
 
 export function ReportOverviewPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
   const { getCap } = useAccess()
+  const isManagerView = getCap('reports:view') !== 'OWN'
   const [searchParams, setSearchParams] = useSearchParams()
 
   const rawTab = searchParams.get('tab')
@@ -72,6 +81,7 @@ export function ReportOverviewPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
 
   const [isLoadingList, setIsLoadingList] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
@@ -86,6 +96,22 @@ export function ReportOverviewPage() {
 
     async function load() {
       try {
+        if (isManagerView) {
+          const data = (await fetchReports()).filter((report) => report.status === 'SUBMITTED' || !report.status)
+          if (!active) return
+          setAllReports(data)
+          if (data[0]) {
+            setIsLoadingDetail(true)
+            try {
+              const detail = await fetchReportById(data[0].id)
+              if (active) setSelectedReport(detail)
+            } finally {
+              if (active) setIsLoadingDetail(false)
+            }
+          }
+          setErrorMessage(undefined)
+          return
+        }
         const mine = activeTab === 'mine'
         const data = await fetchReports({ mine })
         if (!active) return
@@ -115,7 +141,7 @@ export function ReportOverviewPage() {
 
     void load()
     return () => { active = false }
-  }, [activeTab, t])
+  }, [activeTab, isManagerView, t])
 
   async function handleSelectMineReport(id: number) {
     setIsLoadingDetail(true)
@@ -126,6 +152,41 @@ export function ReportOverviewPage() {
       setErrorMessage(t('reports.loadError'))
     } finally {
       setIsLoadingDetail(false)
+    }
+  }
+
+  async function handleApproveSelectedReport() {
+    if (!selectedReport) return
+    setIsApproving(true)
+    setErrorMessage(undefined)
+    try {
+      await approveReport(selectedReport.id)
+      const remaining = allReports.filter((report) => report.id !== selectedReport.id)
+      setAllReports(remaining)
+      setSelectedReport(undefined)
+      if (remaining[0]) void handleSelectMineReport(remaining[0].id)
+    } catch {
+      setErrorMessage(t('reports.form.submitError'))
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  async function handleDeleteSelectedReport() {
+    if (!selectedReport) return
+    if (!window.confirm(t('reports.detail.confirmDelete', { id: `RPT-${String(selectedReport.id).padStart(4, '0')}` }))) return
+    setIsDeleting(true)
+    setErrorMessage(undefined)
+    try {
+      await deleteReport(selectedReport.id)
+      const remaining = allReports.filter((report) => report.id !== selectedReport.id)
+      setAllReports(remaining)
+      setSelectedReport(undefined)
+      if (remaining[0]) void handleSelectMineReport(remaining[0].id)
+    } catch {
+      setErrorMessage(t('reports.deleteError'))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -204,13 +265,31 @@ export function ReportOverviewPage() {
     <div className="report-workspace">
       <div className="report-workspace-header">
         <h1>{t('reports.overview.title')}</h1>
+        {!isManagerView ? (
         <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
           {t('reports.list.newBtn')}
         </button>
+        ) : null}
       </div>
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
+      {isManagerView ? (
+        <ManagerReportContent
+          isLoading={isLoadingList}
+          isLoadingDetail={isLoadingDetail}
+          reports={allReports}
+          selectedReport={selectedReport}
+          onSelect={(id) => void handleSelectMineReport(id)}
+          onApprove={() => void handleApproveSelectedReport()}
+          onDelete={() => void handleDeleteSelectedReport()}
+          isApproving={isApproving}
+          isDeleting={isDeleting}
+          isZh={isZh}
+          t={t}
+        />
+      ) : (
+      <>
       <div className="report-overview-tabs">
         <button
           type="button"
@@ -266,6 +345,85 @@ export function ReportOverviewPage() {
           t={t}
         />
       )}
+      </>
+      )}
+    </div>
+  )
+}
+
+function ManagerReportContent({
+  isLoading,
+  isLoadingDetail,
+  reports,
+  selectedReport,
+  onSelect,
+  onApprove,
+  onDelete,
+  isApproving,
+  isDeleting,
+  isZh,
+  t,
+}: {
+  isLoading: boolean
+  isLoadingDetail: boolean
+  reports: ReportSummary[]
+  selectedReport: ReportDetail | undefined
+  onSelect: (id: number) => void
+  onApprove: () => void
+  onDelete: () => void
+  isApproving: boolean
+  isDeleting: boolean
+  isZh: boolean
+  t: (key: string, opts?: Record<string, unknown>) => string
+}) {
+  return (
+    <div className="report-split-layout">
+      <aside className="report-master-list" aria-label="Submitted reports">
+        {isLoading ? (
+          <div className="report-master-state">{t('reports.list.loading')}</div>
+        ) : reports.length === 0 ? (
+          <div className="report-master-state">{t('reports.list.empty')}</div>
+        ) : (
+          reports.map((report) => {
+            const isSelected = selectedReport?.id === report.id
+            return (
+              <button
+                key={report.id}
+                type="button"
+                className={'report-master-item' + (isSelected ? ' active' : '')}
+                onClick={() => onSelect(report.id)}
+              >
+                <span className="report-master-name">
+                  {displayName(report, isZh) || t('reports.unnamedMonastic')}
+                </span>
+                <span className="report-master-en">{report.createdByName ?? report.staffName ?? '-'}</span>
+                <span className="report-master-date">{formatDate(report.dateOfVisit)}</span>
+              </button>
+            )
+          })
+        )}
+        <div className="report-master-count">{t('reports.list.count', { count: reports.length })}</div>
+      </aside>
+
+      <main className="report-reader" aria-label="Report detail">
+        {isLoadingDetail ? (
+          <div className="report-reader-state">{t('reports.loading')}</div>
+        ) : !selectedReport ? (
+          <div className="report-reader-state">{t('reports.overview.selectHint')}</div>
+        ) : (
+          <>
+            <ReportDetailReadView report={selectedReport} showStatus={false} />
+            <div className="report-inline-actions">
+              <button className="report-delete-link" type="button" disabled={isDeleting || isApproving} onClick={onDelete}>
+                {isDeleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
+              </button>
+              <button className="btn-primary" type="button" disabled={isDeleting || isApproving} onClick={onApprove}>
+                {isApproving ? t('common.saving') : t('reports.detail.approve')}
+              </button>
+            </div>
+          </>
+        )}
+      </main>
     </div>
   )
 }
@@ -557,14 +715,16 @@ function FieldView({ label, value, wide = false }: { label: string; value: strin
   )
 }
 
-function ReportDetailReadView({ report }: { report: ReportDetail }) {
+function ReportDetailReadView({ report, showStatus = true }: { report: ReportDetail; showStatus?: boolean }) {
   const { t } = useTranslation()
   const status = report.status ?? 'SUBMITTED'
   return (
     <section className="report-reader-card report-reader-card-continuous">
-      <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>
+      {showStatus ? (
+        <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>
         {t(`reports.status.${status}`)}
       </span>
+      ) : null}
       <div className="report-reader-grid continuous">
         <FieldView label={t('reports.form.staffName')} value={report.createdByName ?? report.staffName ?? ''} />
         <FieldView label={t('reports.form.dateOfVisit')} value={formatDate(report.dateOfVisit)} />

@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "clients": "Clients",
+    "clients": "Member",
     "cases": "Cases",
     "reports": "Reports",
     "tasks": "Help with",
@@ -23,7 +23,8 @@
     "actions": "Actions",
     "comingSoon": "Coming soon",
     "saving": "Saving...",
-    "by": "by"
+    "by": "by",
+    "delete": "Delete"
   },
   "dashboard": {
     "pageTitle": "Dashboard",
@@ -64,7 +65,7 @@
   "cases": {
     "table": {
       "intensity": "Intensity",
-      "caseNo": "Case No.",
+      "caseNo": "Case Number",
       "monastic": "Monastic",
       "tradition": "Tradition",
       "caseworker": "Caseworker",
@@ -85,6 +86,18 @@
       "GREY": "Grey · Low Activity",
       "BLACK": "Black · Closed"
     },
+    "status": {
+      "OPEN": "Open",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "IN_REVIEW": "In Review",
+      "SUSPENDED": "Suspended",
+      "CLOSED": "Closed"
+    },
+    "filter": {
+      "allStatus": "All statuses",
+      "search": "Search cases or members"
+    },
     "service": {
       "accommodationArrangement": "Accommodation Arrangement",
       "deepCleaning": "Deep Cleaning",
@@ -104,7 +117,15 @@
     },
     "services": {
       "calendarTitle": "Service Calendar",
-      "calendarPlaceholder": "Google Calendar integration coming soon"
+      "calendarPlaceholder": "No service events",
+      "addEvent": "Add Service Event",
+      "service": "Service",
+      "selectService": "Select service",
+      "assignee": "Assignee",
+      "selectAssignee": "Select assignee",
+      "time": "Specific Time",
+      "location": "Location",
+      "createEvent": "Create Event"
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -142,7 +163,9 @@
       "empty": "No notes yet.",
       "by": "By",
       "followup": "Follow-up",
-      "addNote": "Add Note"
+      "addNote": "Add Note",
+      "placeholder": "Add a case note",
+      "followupPlaceholder": "Follow-up (optional)"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -202,7 +225,20 @@
       }
     },
     "form": {
-      "newCase": "New Case"
+      "newCase": "New Case",
+      "loadError": "Failed to load data for the new case.",
+      "saveError": "Failed to create case. Check the details and try again.",
+      "coreInfo": "Core Information",
+      "client": "Member",
+      "selectClient": "Select member",
+      "openedAt": "Date Opened",
+      "caseworker": "Caseworker",
+      "unassigned": "Unassigned",
+      "status": "Status",
+      "comments": "Comments",
+      "remarks": "Remarks",
+      "intensity": "Case Intensity",
+      "services": "Service Modules"
     },
     "list": {
       "count": "{{count}} cases",
@@ -222,9 +258,9 @@
       }
     }
   },
-  "clients": {
-    "pageTitle": "Client Profiles",
-    "pageSubtitle": "Client Profiles",
+    "clients": {
+    "pageTitle": "Member Profiles",
+    "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
     "filterAll": "Tradition · All",
     "addBtn": "New Monastic",
@@ -264,7 +300,8 @@
       "create": "Create Monastic ->"
     },
     "profile": {
-      "createCase": "Create Case",
+      "convertToClient": "Convert to Client",
+      "convertToCase": "Convert to Case Client",
       "editProfile": "Edit Profile",
       "delete": "Delete",
       "editTitle": "Edit Profile",

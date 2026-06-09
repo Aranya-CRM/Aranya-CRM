@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { formatServiceTitle } from '../../../shared/format/serviceTitle'
-import type { DashboardItem } from '../../dashboard/types'
+import type { ServiceEvent } from '../../cases/types'
 import { fetchAssignedTasks } from '../api/task.api'
 import './tasks.css'
 
@@ -15,7 +14,7 @@ function formatDate(value: string | null | undefined): string {
 export function TaskListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [tasks, setTasks] = useState<DashboardItem[]>([])
+  const [tasks, setTasks] = useState<ServiceEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
 
@@ -61,10 +60,10 @@ export function TaskListPage() {
           <div className="task-list">
             {tasks.map((task) => (
               <button className="task-row" key={task.id} type="button" onClick={() => navigate(`/tasks/${task.id}`)}>
-                <span className={`task-color task-color-${(task.colorCode ?? 'GREY').toLowerCase()}`} />
+                <span className="task-color task-color-green" />
                 <span className="task-row-main">
-                  <span className="task-title">{formatServiceTitle(task)}</span>
-                  <span className="task-meta">{formatDate(task.openedAt)}</span>
+                  <span className="task-title">{task.title}</span>
+                  <span className="task-meta">{formatDate(task.scheduledStart)} · {task.location ?? '-'}</span>
                 </span>
                 <span className="task-open">{t('tasks.open')}</span>
               </button>

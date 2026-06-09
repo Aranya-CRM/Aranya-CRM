@@ -21,6 +21,7 @@ public class CaseSummaryResponse {
     private LocalDateTime openedAt;
     private LocalDateTime closedAt;
     private Long clientId;
+    private String clientAbbr;
     private String clientNameEn;
     private String clientNameChn;
     private Long createdById;
