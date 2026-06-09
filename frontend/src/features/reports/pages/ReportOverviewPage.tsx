@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { ErrorBanner } from '../../../shared/ui'
 import { approveReport, deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
+import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import type { ReportDetail, ReportSummary } from '../types'
 import './reports.css'
 
@@ -321,7 +322,6 @@ export function ReportOverviewPage() {
           search={volSearch}
           onSearchChange={setVolSearch}
           onSelect={setSelectedVolunteer}
-          isZh={isZh}
           t={t}
           navigate={navigate}
         />
@@ -342,7 +342,6 @@ export function ReportOverviewPage() {
           onEdit={() => selectedReport && navigate(`/reports/${selectedReport.id}/edit`)}
           onSubmit={() => void handleSubmitDraft()}
           onDelete={() => void handleDeleteDraft()}
-          isZh={isZh}
           t={t}
         />
       )}
@@ -439,7 +438,6 @@ function VolunteerTabContent({
   search,
   onSearchChange,
   onSelect,
-  isZh,
   t,
   navigate,
 }: {
@@ -450,7 +448,6 @@ function VolunteerTabContent({
   search: string
   onSearchChange: (v: string) => void
   onSelect: (v: VolunteerSummary) => void
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
   navigate: (path: string) => void
 }) {
@@ -510,7 +507,6 @@ function VolunteerTabContent({
           ) : (
             <VolunteerReportList
               volunteer={selected}
-              isZh={isZh}
               t={t}
               navigate={navigate}
             />
@@ -523,12 +519,10 @@ function VolunteerTabContent({
 
 function VolunteerReportList({
   volunteer,
-  isZh,
   t,
   navigate,
 }: {
   volunteer: VolunteerSummary
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
   navigate: (path: string) => void
 }) {
@@ -565,7 +559,7 @@ function VolunteerReportList({
               >
                 <span className="report-vol-date">{formatDate(r.dateOfVisit)}</span>
                 <span className="report-vol-client">
-                  {displayName(r, isZh) || t('reports.unnamedMonastic')}
+                  {formatServiceTitle(r) || t('reports.unnamedMonastic')}
                 </span>
                 <span className="report-vol-type">{r.typeOfVisit ?? '-'}</span>
                 <span
@@ -600,7 +594,6 @@ function MineTabContent({
   onEdit,
   onSubmit,
   onDelete,
-  isZh,
   t,
 }: {
   isLoading: boolean
@@ -618,7 +611,6 @@ function MineTabContent({
   onEdit: () => void
   onSubmit: () => void
   onDelete: () => void
-  isZh: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   return (
@@ -651,7 +643,7 @@ function MineTabContent({
                   onClick={() => onSelect(r.id)}
                 >
                   <span className="report-master-name">
-                    {displayName(r, isZh) || t('reports.unnamedMonastic')}
+                    {formatServiceTitle(r) || t('reports.unnamedMonastic')}
                   </span>
                   <span className="report-master-date">{formatDate(r.dateOfVisit)}</span>
                   <span className={`report-master-status report-master-status-${status.toLowerCase()}`}>

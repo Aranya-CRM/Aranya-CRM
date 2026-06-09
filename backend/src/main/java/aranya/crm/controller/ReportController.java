@@ -37,13 +37,26 @@ public class ReportController {
     @GetMapping
     public ResponseEntity<List<ReportSummaryResponse>> listReports(
             @CurrentUser User currentUser,
+            Authentication authentication,
             @RequestParam(defaultValue = "false") boolean mine,
             @RequestParam(required = false) Long caseId
     ) {
         if (mine) {
             return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId));
         }
-        return ResponseEntity.ok(reportService.listReports());
+        // MOCK: Social Workers only see reports submitted by volunteers (eventually scoped
+        // to the tasks they are responsible for). Other reviewers (e.g. Manager) see all.
+        boolean volunteerAuthorsOnly = hasRole(authentication, "SOCIAL_WORKER");
+        return ResponseEntity.ok(reportService.listReviewableReports(currentUser, volunteerAuthorsOnly));
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null) {
+            return false;
+        }
+        String authority = "ROLE_" + role;
+        return authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 
     @GetMapping("/{id}")
@@ -77,6 +90,15 @@ public class ReportController {
         return ResponseEntity.ok(reportService.submitReport(id, currentUser));
     }
 
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("@capEval.hasCap(authentication, 'reports:approve_archive')")
+    public ResponseEntity<ReportDetailResponse> approveReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(reportService.approveReport(id, currentUser));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReport(
             @CurrentUser User currentUser,
@@ -86,14 +108,5 @@ public class ReportController {
         boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
         reportService.deleteReport(id, currentUser, canDeleteAny);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{id}/approve")
-    @PreAuthorize("@capEval.hasCap(authentication, 'reports:approve_archive')")
-    public ResponseEntity<ReportDetailResponse> approveReport(
-            @CurrentUser User currentUser,
-            @PathVariable Long id
-    ) {
-        return ResponseEntity.ok(reportService.approveReport(id, currentUser));
     }
 }

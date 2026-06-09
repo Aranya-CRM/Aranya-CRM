@@ -20,6 +20,7 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Bhikkhu',
   'Bhikkhuni',
   'Samanera',
+  'Samaneri',
   'Sikkhamana',
   'Sayalay',
 ]
