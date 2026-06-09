@@ -71,7 +71,7 @@ export function useFirebaseLoginFlow() {
   async function finishBackendCheck(user: User) {
     await user.getIdToken(true)
     await refreshUser()
-    navigate('/dashboard', { replace: true })
+    navigate('/', { replace: true })
   }
 
   async function continueAfterPrimarySignIn(user: User) {

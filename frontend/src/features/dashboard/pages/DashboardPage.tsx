@@ -12,8 +12,6 @@ import type {
 } from '../types'
 import './dashboard.css'
 
-const STAT_ORDER = ['activeMonastics', 'openCases', 'urgentCases', 'pendingReports']
-const VOLUNTEER_STAT_ORDER = ['assignedTaskCount', 'myReportCount']
 
 const STATUS_COPY: Record<string, string> = {
   OPEN: 'OPEN',
@@ -67,14 +65,14 @@ function formatDate(value: string | null | undefined): string {
 
 function StatCards({ stats }: { stats: DashboardStat[] | undefined }) {
   const { t } = useTranslation()
+  if (!stats || stats.length === 0) return null
 
   return (
     <section className="dashboard-stats" aria-label="Dashboard statistics">
-      {STAT_ORDER.map((id) => (
-        <article className="stat-card" key={id}>
-          <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
-          <div className="stat-value">{statValue(stats, id)}</div>
-          <div className="stat-footnote">{t(`dashboard.stat.${id}_footnote`)}</div>
+      {stats.map((stat) => (
+        <article className="stat-card" key={stat.id}>
+          <div className="stat-label-zh">{t(`dashboard.stat.${stat.id}`, stat.id)}</div>
+          <div className="stat-value">{stat.value}</div>
         </article>
       ))}
     </section>
@@ -83,14 +81,14 @@ function StatCards({ stats }: { stats: DashboardStat[] | undefined }) {
 
 function VolunteerStatCards({ stats }: { stats: DashboardStat[] | undefined }) {
   const { t } = useTranslation()
+  if (!stats || stats.length === 0) return null
 
   return (
     <section className="dashboard-stats compact" aria-label="Volunteer dashboard statistics">
-      {VOLUNTEER_STAT_ORDER.map((id) => (
-        <article className="stat-card" key={id}>
-          <div className="stat-label-zh">{t(`dashboard.stat.${id}`)}</div>
-          <div className="stat-value">{statValue(stats, id)}</div>
-          <div className="stat-footnote">{t(`dashboard.stat.${id}_footnote`)}</div>
+      {stats.map((stat) => (
+        <article className="stat-card" key={stat.id}>
+          <div className="stat-label-zh">{t(`dashboard.stat.${stat.id}`, stat.id)}</div>
+          <div className="stat-value">{stat.value}</div>
         </article>
       ))}
     </section>
@@ -233,7 +231,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
                   {displayText(item.createdByName, 'Unknown')} · {formatDate(item.dateOfVisit)} · {displayText(item.reportType, 'Visit')}
                 </span>
               </span>
-              <span className="report-pill">{t('reports.detail.submitted')}</span>
+              <span className="report-pill">{t(`reports.status.${item.statusCode ?? 'SUBMITTED'}`)}</span>
             </button>
           ))
         )}

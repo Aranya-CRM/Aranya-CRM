@@ -1,0 +1,98 @@
+databaseChangeLog:
+  - changeSet:
+      id: 032-1-add-new-roles
+      author: ShiDu
+      comment: "Add VIEW_MANAGER, FULL_MANAGER, TEAM_LEAD, ADMIN roles for v2 permission architecture"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role (name, description) VALUES
+                ('VIEW_MANAGER', 'Read-only governance and audit access (Board, Audit Committee, ED)'),
+                ('FULL_MANAGER', 'Full operational management access (General Manager)'),
+                ('TEAM_LEAD',    'Programme supervisor access (Lead Social Worker)'),
+                ('ADMIN',        'Membership administration and system operations (Admin Support)')
+              ON CONFLICT (name) DO NOTHING;
+
+  - changeSet:
+      id: 032-2-create-cap-definition-table
+      author: ShiDu
+      comment: "Canonical registry of all cap keys used in the v2 permission architecture"
+      changes:
+        - createTable:
+            tableName: cap_definition
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: cap_key
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: domain
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(255)
+        - addUniqueConstraint:
+            tableName: cap_definition
+            columnNames: cap_key
+            constraintName: uq_cap_definition_cap_key
+        - createIndex:
+            indexName: idx_cap_definition_domain
+            tableName: cap_definition
+            columns:
+              - column:
+                  name: domain
+
+  - changeSet:
+      id: 032-3-create-role-cap-table
+      author: ShiDu
+      comment: "Maps roles to cap definitions with explicit scope values (ALL/OWN/TEAM/YES/WORKFLOW)"
+      changes:
+        - createTable:
+            tableName: role_cap
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_role_cap_role
+                    references: role(id)
+              - column:
+                  name: cap_def_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_role_cap_cap_definition
+                    references: cap_definition(id)
+              - column:
+                  name: scope_value
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: role_cap
+            columnNames: role_id, cap_def_id
+            constraintName: uq_role_cap_role_id_cap_def_id
+        - createIndex:
+            indexName: idx_role_cap_role_id
+            tableName: role_cap
+            columns:
+              - column:
+                  name: role_id

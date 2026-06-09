@@ -4,6 +4,7 @@ import { Spin } from 'antd'
 import { useAuth } from '../contexts/AuthContext'
 import { AppLayout } from '../shared/layout'
 import { useAccess } from '../shared/auth'
+import { getDefaultRoute } from '../shared/auth/defaultRoute'
 import '../shared/ui/shared.css'
 
 interface ManifestProtectedRouteProps {
@@ -12,13 +13,13 @@ interface ManifestProtectedRouteProps {
 }
 
 export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedRouteProps) {
-  const { loading, authenticated } = useAuth()
-  const { canRoute } = useAccess()
+  const { loading, authenticated, manifest, caps } = useAuth()
+  const { canRoute, resolve } = useAccess()
 
   if (loading) {
     return (
       <div className="route-loading">
-        <Spin size="large" tip="Loading..." />
+        <Spin size="large" />
       </div>
     )
   }
@@ -27,8 +28,9 @@ export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedR
     return <Navigate to="/login" replace />
   }
 
-  if (!canRoute(routeId)) {
-    return <Navigate to="/dashboard" replace />
+  const allowed = resolve(routeId) || canRoute(routeId)
+  if (!allowed) {
+    return <Navigate to={getDefaultRoute(manifest, caps)} replace />
   }
 
   return <AppLayout>{children}</AppLayout>

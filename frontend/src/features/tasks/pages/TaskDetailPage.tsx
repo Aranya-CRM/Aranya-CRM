@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { fetchReports } from '../../reports/api/report.api'
-import type { ReportSummary } from '../../reports/types'
-import { CASE_COLOR_KEYS } from '../../cases/types'
+import { fetchReportById, fetchReports } from '../../reports/api/report.api'
+import type { ReportDetail, ReportSummary } from '../../reports/types'
 import { useCase, useCreateCaseNote, useDeleteCaseNote, useOwnCaseNotes } from '../../cases/hooks'
+import type { ServiceEvent } from '../../cases/types'
+import { fetchAssignedTasks } from '../api/task.api'
 import './tasks.css'
 
 function formatDate(value: string | null | undefined): string {
@@ -17,49 +18,132 @@ function reportClientMatches(report: ReportSummary, clientId: string | undefined
   return Boolean(clientId && report.clientId != null && String(report.clientId) === clientId)
 }
 
-function reportStatusKey(report: ReportSummary): 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED' {
+function reportMatchesTask(report: ReportSummary, caseId: string | undefined, clientId: string | undefined): boolean {
+  if (caseId && report.caseId != null) {
+    return String(report.caseId) === caseId
+  }
+  return reportClientMatches(report, clientId)
+}
+
+function reportStatusKey(report: ReportSummary | ReportDetail): 'DRAFT' | 'SUBMITTED' {
   if (report.status === 'DRAFT') return 'DRAFT'
-  if (report.status === 'ARCHIVED') return 'ARCHIVED'
-  if (report.status === 'RETURNED') return 'RETURNED'
   return 'SUBMITTED'
+}
+
+function isCurrentReportStatus(report: ReportSummary): boolean {
+  return report.status === 'DRAFT' || report.status === 'SUBMITTED' || !report.status
+}
+
+function mergeReportSummary(reports: ReportSummary[], report: ReportDetail): ReportSummary[] {
+  const summary = report as ReportSummary
+  return [summary, ...reports.filter((item) => item.id !== summary.id)]
+}
+
+function mergeReportLists(incoming: ReportSummary[], existing: ReportSummary[]): ReportSummary[] {
+  const incomingIds = new Set(incoming.map((report) => report.id))
+  return [...incoming, ...existing.filter((report) => !incomingIds.has(report.id))]
+}
+
+function isReportDetail(value: unknown): value is ReportDetail {
+  return Boolean(value && typeof value === 'object' && 'id' in value)
 }
 
 export function TaskDetailPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const isZh = i18n.language === 'zh'
-  const { data: caseData, isLoading } = useCase(id)
-  const { data: notes = [], refetch: refetchNotes } = useOwnCaseNotes(id)
+  const [taskEvent, setTaskEvent] = useState<ServiceEvent>()
+  const [isTaskLoading, setIsTaskLoading] = useState(true)
+  const caseId = taskEvent ? String(taskEvent.caseId) : undefined
+  const { data: caseData, isLoading } = useCase(caseId)
+  const { data: notes = [], refetch: refetchNotes } = useOwnCaseNotes(caseId)
   const createNote = useCreateCaseNote()
-  const deleteNote = useDeleteCaseNote(id)
+  const deleteNote = useDeleteCaseNote(caseId)
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [content, setContent] = useState('')
   const [followUp, setFollowUp] = useState('')
   const [errorMessage, setErrorMessage] = useState<string>()
+  const returnedReport = isReportDetail(location.state && typeof location.state === 'object' ? (location.state as { report?: unknown }).report : undefined)
+    ? (location.state as { report: ReportDetail }).report
+    : undefined
 
   useEffect(() => {
     let active = true
-    fetchReports({ mine: true })
-      .then((data) => {
-        if (active) setReports(data)
+    setIsTaskLoading(true)
+    fetchAssignedTasks()
+      .then((items) => {
+        if (active) setTaskEvent(items.find((item) => String(item.id) === id))
       })
-      .catch(() => {
-        if (active) setErrorMessage(t('tasks.reportsLoadError'))
-      })
+      .catch(() => { if (active) setErrorMessage(t('tasks.loadError')) })
+      .finally(() => { if (active) setIsTaskLoading(false) })
     return () => {
       active = false
     }
-  }, [t])
+  }, [id, t])
 
-  const myReports = reports.filter((report) => reportClientMatches(report, caseData?.clientId))
+  const loadReports = useCallback(async (active = true) => {
+    try {
+      const data = await fetchReports({ mine: true, caseId })
+      if (active) {
+        setReports((prev) => mergeReportLists(data, prev))
+      }
+    } catch {
+      if (active) setErrorMessage(t('tasks.reportsLoadError'))
+    }
+  }, [caseId, t])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('reportId')) return
+
+    let active = true
+    void loadReports(active)
+    return () => {
+      active = false
+    }
+  }, [loadReports, location.search])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const reportId = params.get('reportId')
+    if (!reportId) return
+
+    let active = true
+    async function loadCreatedReport() {
+      setErrorMessage(undefined)
+      try {
+        const detail = returnedReport ?? await fetchReportById(reportId!)
+        if (!active) return
+        setReports((prev) => mergeReportSummary(prev, detail))
+
+        if (!active) return
+        const latestReports = await fetchReports({ mine: true, caseId })
+        if (!active) return
+        setReports((prev) => mergeReportSummary(mergeReportLists(latestReports, prev), detail))
+      } catch {
+        if (active) setErrorMessage(t('reports.loadError'))
+      } finally {
+        if (active) navigate(location.pathname, { replace: true })
+      }
+    }
+
+    void loadCreatedReport()
+    return () => {
+      active = false
+    }
+  }, [caseId, location.pathname, location.search, navigate, returnedReport, t])
+
+  const myReports = reports.filter((report) => reportMatchesTask(report, caseId, caseData?.clientId) && isCurrentReportStatus(report))
+  const returnTo = `/tasks/${taskEvent?.id ?? id ?? ''}`
 
   async function handleAddNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!id || !content.trim()) return
+    if (!caseId || !content.trim()) return
     setErrorMessage(undefined)
     try {
-      await createNote.mutateAsync({ caseId: id, content, followUp })
+      await createNote.mutateAsync({ caseId, content, followUp })
       setContent('')
       setFollowUp('')
       await refetchNotes()
@@ -79,11 +163,11 @@ export function TaskDetailPage() {
     }
   }
 
-  if (isLoading) {
+  if (isTaskLoading || isLoading) {
     return <div className="task-page"><PageHeader title={t('common.loading')} /></div>
   }
 
-  if (!caseData) {
+  if (!taskEvent || !caseData) {
     return (
       <div className="task-page">
         <BackButton onClick={() => navigate('/tasks')} />
@@ -97,30 +181,32 @@ export function TaskDetailPage() {
   return (
     <div className="task-page">
       <BackButton onClick={() => navigate('/tasks')} />
-      <PageHeader title={caseData.caseNo} subtitle={`${clientName} · ${caseData.tradition}`} />
+      <PageHeader title={taskEvent.title} subtitle={`${clientName} · ${caseData.tradition}`} />
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
-      <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Case overview" bodyPadding>
+      <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Request" bodyPadding>
         <div className="task-overview-grid">
-          <Info label={t('cases.overview.dateOpened')} value={caseData.dateOpened} />
-          <Info label={t('cases.overview.status')} value={caseData.status} />
-          <Info label={t('cases.overview.caseworker')} value={caseData.socialWorker || '-'} />
-          <Info label={t('cases.overview.intensity')} value={t(CASE_COLOR_KEYS[caseData.colorCode])} />
-          <Info label={t('cases.overview.comments')} value={caseData.comments || '-'} wide />
-          <Info label={t('cases.overview.remarks')} value={caseData.remarks || '-'} wide />
+          <Info label={t('tasks.request.subject')} value={taskEvent.serviceName} />
+          <Info label={t('tasks.request.time')} value={taskEvent.scheduledStart} />
+          <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
+          <Info label={t('tasks.request.todo')} value={caseData.comments || '-'} wide />
+          <Info label={t('tasks.request.notes')} value={caseData.remarks || '-'} wide />
         </div>
       </SectionCard>
 
       <div className="task-detail-grid">
         <SectionCard title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
+          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&caseId=${caseData.id}&returnTo=${encodeURIComponent(returnTo)}&clientName=${encodeURIComponent(clientName)}`)}>
+            {t('tasks.submitReport')}
+          </button>
           {myReports.length === 0 ? (
             <div className="task-empty compact">{t('tasks.noReports')}</div>
           ) : (
             <div className="task-sub-list">
               {myReports.map((report) => (
-                <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports?selected=${report.id}`)}>
-                  <span>RPT-{String(report.id).padStart(4, '0')}</span>
-                  <span>{formatDate(report.dateOfVisit)} · {report.typeOfVisit ?? t('reports.detail.title')} · {t(`reports.status.${reportStatusKey(report)}`)}</span>
+                <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports/${report.id}?returnTo=${encodeURIComponent(returnTo)}`)}>
+                  <span>{report.typeOfVisit || report.programmeName || t('reports.detail.title')}</span>
+                  <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report)}`)}</span>
                 </button>
               ))}
             </div>

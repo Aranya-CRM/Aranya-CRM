@@ -56,12 +56,15 @@ public class DashboardResponse {
     public static class Item {
         private String id;
         private String clientId;
+        private String clientAbbr;
         private String clientNameChn;
         private String clientNameEn;
         private String caseCode;
         private String statusCode;
         private String colorCode;
         private String openedAt;
+        private String location;
+        private String programmeName;
         private String reportType;
         private String dateOfVisit;
         private String createdAt;

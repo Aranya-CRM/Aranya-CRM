@@ -2,9 +2,12 @@ export type ReportStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED'
 
 export interface ReportSummary {
   id: number
+  caseId?: number | null
   clientId?: number | null
+  clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  caseCode?: string | null
   createdById?: number | null
   createdByName?: string | null
   staffName?: string | null
@@ -33,6 +36,7 @@ export interface ReportDetail extends ReportSummary {
 
 export type CreateReportPayload = {
   clientId: number
+  caseId?: number
   dateOfVisit: string
   timeOfVisit?: string
   durationOfVisit?: string

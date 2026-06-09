@@ -42,7 +42,7 @@ class CaseServiceTest {
     void listCases_noFilters_callsFindAll() {
         when(caseRepository.findAllByOrderByOpenedAtDescIdDesc()).thenReturn(List.of());
 
-        caseService.listCases(null, null);
+        caseService.listCases(null, null, null);
 
         verify(caseRepository).findAllByOrderByOpenedAtDescIdDesc();
     }
@@ -52,7 +52,7 @@ class CaseServiceTest {
     void listCases_queryOnly_callsSearchCasesWithQuery() {
         when(caseRepository.searchCases("nyanatiloka")).thenReturn(List.of());
 
-        caseService.listCases("nyanatiloka", "  ");
+        caseService.listCases("nyanatiloka", "  ", null);
 
         verify(caseRepository).searchCases("nyanatiloka");
     }
@@ -62,7 +62,7 @@ class CaseServiceTest {
     void listCases_statusOnly_callsFindByStatus() {
         when(caseRepository.findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc("OPEN")).thenReturn(List.of());
 
-        caseService.listCases(null, "OPEN");
+        caseService.listCases(null, "OPEN", null);
 
         verify(caseRepository).findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc("OPEN");
     }
@@ -72,7 +72,7 @@ class CaseServiceTest {
     void listCases_bothFilters_callsSearchCasesWithBoth() {
         when(caseRepository.searchCases("tan", "OPEN")).thenReturn(List.of());
 
-        caseService.listCases(" tan ", " OPEN ");
+        caseService.listCases(" tan ", " OPEN ", null);
 
         verify(caseRepository).searchCases("tan", "OPEN");
     }
@@ -84,7 +84,7 @@ class CaseServiceTest {
 
         when(caseRepository.findAllByOrderByOpenedAtDescIdDesc()).thenReturn(List.of(clientCase));
 
-        List<CaseSummaryResponse> result = caseService.listCases(null, null);
+        List<CaseSummaryResponse> result = caseService.listCases(null, null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(1L);

@@ -21,59 +21,76 @@ export interface CaseTask {
   completedAt?: string
 }
 
+export interface ServiceEvent {
+  id: number
+  caseId: number
+  clientId: number
+  clientAbbr?: string | null
+  clientNameEn?: string | null
+  clientNameChn?: string | null
+  caseCode?: string | null
+  serviceKey: keyof CaseServices
+  serviceName: string
+  title: string
+  location?: string | null
+  scheduledStart: string
+  assignedUserId?: number | null
+  assignedUserName?: string | null
+}
+
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
-  housingSupport:        'practical',
-  financialAssistance:   'practical',
-  medicalTransportation: 'practical',
-  foodAssistance:        'practical',
-  legalAid:              'practical',
-  immigrationSupport:    'practical',
-  counselling:           'emotional',
-  befriending:           'emotional',
-  crisisIntervention:    'emotional',
-  familyMediation:       'emotional',
-  governmentLiaison:     'admin',
-  hospitalLiaison:       'admin',
-  documentAssistance:    'admin',
-  interpreterService:    'admin',
-  templeLiaison:         'spiritual',
-  communityReferral:     'spiritual',
-  religiousSupport:      'spiritual',
+  accommodationArrangement: 'housing',
+  deepCleaning:             'housing',
+  relocationAssistance:     'housing',
+  dailyCleaning:            'housing',
+  pestControl:              'housing',
+  homeRepair:               'housing',
+  dailyExpenseSubsidy:      'financial',
+  cpfAssistance:            'financial',
+  mealDelivery:             'food',
+  lunchSupport:             'food',
+  monasticSupport:          'other',
+  monasticEscort:           'other',
+  legalAid:                 'other',
+  volunteerVisit:           'other',
+  digitalSupport:           'other',
 }
 
 export interface CaseServices {
-  // Practical support
-  housingSupport: boolean
-  financialAssistance: boolean
-  medicalTransportation: boolean
-  foodAssistance: boolean
+  // Housing & accommodation
+  accommodationArrangement: boolean
+  deepCleaning: boolean
+  relocationAssistance: boolean
+  dailyCleaning: boolean
+  pestControl: boolean
+  homeRepair: boolean
+  // Financial aid
+  dailyExpenseSubsidy: boolean
+  cpfAssistance: boolean
+  // Food assistance
+  mealDelivery: boolean
+  lunchSupport: boolean
+  // Other services
+  monasticSupport: boolean
+  monasticEscort: boolean
   legalAid: boolean
-  immigrationSupport: boolean
-  // Emotional / social
-  counselling: boolean
-  befriending: boolean
-  crisisIntervention: boolean
-  familyMediation: boolean
-  // Administrative
-  governmentLiaison: boolean
-  hospitalLiaison: boolean
-  documentAssistance: boolean
-  interpreterService: boolean
-  // Spiritual / community
-  templeLiaison: boolean
-  communityReferral: boolean
-  religiousSupport: boolean
+  volunteerVisit: boolean
+  digitalSupport: boolean
 }
 
 export interface Case {
   id: string
   caseNo: string
+  title?: string
   dateOpened: string
   closedAt?: string
   clientId: string
+  clientAbbr?: string
   clientNameEn: string
   clientNameChn: string
+  venue?: string
   tradition: string
+  socialWorkerId?: string
   socialWorker: string
   assignedVolunteer?: string
   lastModifiedAt?: string
@@ -83,6 +100,7 @@ export interface Case {
   comments: string
   remarks: string
   services: CaseServices
+  serviceEvents?: ServiceEvent[]
   tasks?: CaseTask[]
 }
 
@@ -129,6 +147,38 @@ export interface AuditLogEntry {
   at: string
   detail?: string
   meta?: Record<string, string>
+}
+
+export interface ServiceCalendarEvent {
+  id: string
+  title: string
+  start: string
+  end?: string
+  color?: string
+  extendedProps?: {
+    serviceType?: keyof CaseServices
+    note?: string
+  }
+}
+
+export function emptyCaseServices(): CaseServices {
+  return {
+    accommodationArrangement: false,
+    deepCleaning: false,
+    relocationAssistance: false,
+    dailyCleaning: false,
+    pestControl: false,
+    homeRepair: false,
+    dailyExpenseSubsidy: false,
+    cpfAssistance: false,
+    mealDelivery: false,
+    lunchSupport: false,
+    monasticSupport: false,
+    monasticEscort: false,
+    legalAid: false,
+    volunteerVisit: false,
+    digitalSupport: false,
+  }
 }
 
 export type FlagSeverity = 'LOW' | 'MEDIUM' | 'HIGH'

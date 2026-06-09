@@ -6,7 +6,7 @@ import { useAccess } from '../../../shared/auth'
 import { EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
-import { useClient, useClients, useCreateClient, useUpdateClient } from '../hooks'
+import { useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
 import './clients.css'
 
@@ -20,6 +20,7 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Bhikkhu',
   'Bhikkhuni',
   'Samanera',
+  'Samaneri',
   'Sikkhamana',
   'Sayalay',
 ]
@@ -54,7 +55,7 @@ const initialNewClientForm: NewClientForm = {
 
 export function ClientListPage() {
   const { t } = useTranslation()
-  const { canFeature } = useAccess()
+  const { resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
   const { id: routeClientId } = useParams<{ id: string }>()
@@ -62,6 +63,7 @@ export function ClientListPage() {
   const { data: clients = [], isLoading } = useClients()
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
+  const deleteClient = useDeleteClient()
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -71,10 +73,13 @@ export function ClientListPage() {
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
 
   const selectedClientId = searchParams.get('client') ?? routeClientId
-  const canCreateClient = canFeature('clients.create')
-  const canUpdateClient = canFeature('clients.update')
-  const canDeleteClient = canFeature('clients.delete') || canUpdateClient
-  const canViewDetailedProfile = canFeature('clients.view.full')
+  const canCreateClient = resolve('clients:create')
+  const canUpdateClient = resolve('clients:update')
+  const canDeleteClient = resolve('clients:delete')
+  const canViewDetailedProfile = resolve('clients:view.full')
+  const canConvertToCase = resolve('clients:convert_to_case')
+  const canConvertToClient = resolve('members:convert_to_client')
+  const isManager = resolve('cases:audit')
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
@@ -196,6 +201,20 @@ export function ClientListPage() {
     }
   }
 
+  async function confirmDeleteClient() {
+    if (!profileClient) return
+    await deleteClient.mutateAsync(profileClient.id)
+    setShowDeleteConfirm(false)
+    setEditingClientId(null)
+    setEditForm(null)
+    const nextClient = filtered.find((client) => client.id !== profileClient.id)
+    if (nextClient) {
+      setSearchParams({ client: nextClient.id }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }
+
   const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
 
   return (
@@ -215,6 +234,7 @@ export function ClientListPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          {!isManager ? (
           <div className="client-directory-filters">
             <select
               className="filter-select"
@@ -228,6 +248,7 @@ export function ClientListPage() {
               ))}
             </select>
           </div>
+          ) : null}
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
               + {t('clients.addBtn')}
@@ -249,12 +270,7 @@ export function ClientListPage() {
                 onClick={() => selectClient(client.id)}
               >
                 <div className="client-directory-name">
-                  <strong>{client.nameChn}</strong>
-                  <span>{client.abbr}</span>
-                </div>
-                <div className="client-directory-en">{client.nameEn}</div>
-                <div className="client-directory-meta">
-                  {client.buddhistTradition} · {client.areaDistrict}
+                  <strong>{client.abbr}</strong>
                 </div>
               </button>
             ))
@@ -292,8 +308,13 @@ export function ClientListPage() {
                 canUpdateClient={canUpdateClient}
                 canDeleteClient={canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
+                canConvertToCase={!isManager && canConvertToCase}
+                canConvertToClient={!isManager && canConvertToClient}
+                deleting={deleteClient.isPending}
+                deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
                 showDeleteConfirm={showDeleteConfirm}
                 onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
+                onConfirmDelete={() => void confirmDeleteClient()}
                 onEdit={() => beginEditClient(profileClient)}
               />
             )}
@@ -449,8 +470,13 @@ interface ClientProfilePanelProps {
   canUpdateClient: boolean
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
+  canConvertToCase: boolean
+  canConvertToClient: boolean
+  deleting: boolean
+  deleteError?: string
   showDeleteConfirm: boolean
   onToggleDeleteConfirm: () => void
+  onConfirmDelete: () => void
   onEdit: () => void
 }
 
@@ -459,8 +485,13 @@ function ClientProfilePanel({
   canUpdateClient,
   canDeleteClient,
   canViewDetailedProfile,
+  canConvertToCase,
+  canConvertToClient,
+  deleting,
+  deleteError,
   showDeleteConfirm,
   onToggleDeleteConfirm,
+  onConfirmDelete,
   onEdit,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
@@ -476,18 +507,29 @@ function ClientProfilePanel({
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
-          <button className="btn-secondary" type="button">
-            {t('clients.profile.linkContacts')}
-          </button>
-          {canUpdateClient ? (
-            <button className="btn-edit" type="button" onClick={onEdit}>
-              {t('clients.profile.editProfile')}
+          {canConvertToClient ? (
+            <button className="btn-primary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
+              {t('clients.profile.convertToClient')}
             </button>
           ) : null}
-          {canDeleteClient ? (
-            <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
-              {t('clients.profile.delete')}
-            </button>
+          {canViewDetailedProfile ? (
+            <>
+              {canConvertToCase ? (
+                <button className="btn-secondary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
+                  {t('clients.profile.convertToCase')}
+                </button>
+              ) : null}
+              {canUpdateClient ? (
+                <button className="btn-edit" type="button" onClick={onEdit}>
+                  {t('clients.profile.editProfile')}
+                </button>
+              ) : null}
+              {canDeleteClient ? (
+                <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
+                  {t('clients.profile.delete')}
+                </button>
+              ) : null}
+            </>
           ) : null}
         </div>
       </header>
@@ -498,8 +540,12 @@ function ClientProfilePanel({
           <button className="btn-secondary btn-compact" type="button" onClick={onToggleDeleteConfirm}>
             {t('clients.profile.cancel')}
           </button>
+          <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onConfirmDelete}>
+            {deleting ? t('common.saving') : t('clients.profile.delete')}
+          </button>
         </div>
       ) : null}
+      {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
 
       <ProfileSection title={t('clients.profile.section.basicInfo')}>
         <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} />
@@ -553,11 +599,7 @@ function ClientProfilePanel({
             <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide />
           </ProfileSection>
         </>
-      ) : (
-        <div className="volunteer-notice">
-          {t('clients.profile.volunteerNotice')}
-        </div>
-      )}
+      ) : null}
     </article>
   )
 }

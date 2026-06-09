@@ -4,6 +4,7 @@ import aranya.crm.dto.request.CreateReportRequest;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.ReportService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,16 +32,31 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
     public ResponseEntity<List<ReportSummaryResponse>> listReports(
             @CurrentUser User currentUser,
-            @RequestParam(defaultValue = "false") boolean mine
+            Authentication authentication,
+            @RequestParam(defaultValue = "false") boolean mine,
+            @RequestParam(required = false) Long caseId
     ) {
         if (mine) {
-            return ResponseEntity.ok(reportService.listOwnReports(currentUser));
+            return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId));
         }
-        return ResponseEntity.ok(reportService.listReports());
+        // MOCK: Social Workers only see reports submitted by volunteers (eventually scoped
+        // to the tasks they are responsible for). Other reviewers (e.g. Manager) see all.
+        boolean volunteerAuthorsOnly = hasRole(authentication, "SOCIAL_WORKER");
+        return ResponseEntity.ok(reportService.listReviewableReports(currentUser, volunteerAuthorsOnly));
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null) {
+            return false;
+        }
+        String authority = "ROLE_" + role;
+        return authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 
     @GetMapping("/{id}")
@@ -73,12 +90,23 @@ public class ReportController {
         return ResponseEntity.ok(reportService.submitReport(id, currentUser));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReport(
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("@capEval.hasCap(authentication, 'reports:approve_archive')")
+    public ResponseEntity<ReportDetailResponse> approveReport(
             @CurrentUser User currentUser,
             @PathVariable Long id
     ) {
-        reportService.deleteReport(id, currentUser);
+        return ResponseEntity.ok(reportService.approveReport(id, currentUser));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteReport(
+            @CurrentUser User currentUser,
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
+        reportService.deleteReport(id, currentUser, canDeleteAny);
         return ResponseEntity.noContent().build();
     }
 }

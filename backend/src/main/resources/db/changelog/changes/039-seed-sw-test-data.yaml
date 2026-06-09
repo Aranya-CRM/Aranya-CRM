@@ -1,0 +1,258 @@
+databaseChangeLog:
+  - changeSet:
+      id: 039-seed-sw-test-data
+      author: ShiDu
+      context: dev, test
+      comment: "Seed Social Worker user infotech@aranya.sg (Firebase UID x74uHVipDYbblaQUXKs3441RnVx2), own its sample cases, and seed SW + extra volunteer visit reports for SW frontend verification"
+      changes:
+        # 1) Seed the real Social Worker Firebase account and SOCIAL_WORKER role
+        - sql:
+            sql: >
+              INSERT INTO users (firebase_uid, username, full_name, email, email_verified, status)
+              VALUES (
+                'x74uHVipDYbblaQUXKs3441RnVx2',
+                'infotech_aranya',
+                'Aranya Info Tech',
+                'infotech@aranya.sg',
+                true,
+                'ACTIVE'
+              )
+              ON CONFLICT (email) DO UPDATE SET
+                firebase_uid   = EXCLUDED.firebase_uid,
+                username       = EXCLUDED.username,
+                full_name      = EXCLUDED.full_name,
+                email_verified = EXCLUDED.email_verified,
+                status         = EXCLUDED.status,
+                updated_at     = NOW();
+
+        - sql:
+            sql: >
+              INSERT INTO user_role (user_id, role_id, assigned_at, assigned_by)
+              SELECT u.id, r.id, NOW(), NULL
+              FROM users u
+              JOIN role r ON r.name = 'SOCIAL_WORKER'
+              WHERE u.email = 'infotech@aranya.sg'
+              ON CONFLICT (user_id, role_id) DO NOTHING;
+
+        # 2) Re-own the existing sample cases to this SW so cases:view (OWN) and the
+        #    SW dashboard stats (createdBy-scoped) have data.
+        - sql:
+            sql: >
+              UPDATE "case"
+              SET created_by = sw.id
+              FROM users sw
+              WHERE sw.email = 'infotech@aranya.sg'
+                AND case_code IN ('CASE-2026-001', 'CASE-2026-002', 'CASE-2026-003', 'CASE-2026-004');
+
+        # 3) SW-authored DRAFT report #1 (HM001) -> Mine tab draft + dashboard myDraftReports
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                environment_observations, sangha_observations, other_observations,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, sw.id, sw.full_name, TIMESTAMP '2026-05-28 10:30:00',
+                DATE '2026-05-28', '10:30', '45 minutes', 'Bright Hill Road',
+                'Medical Welfare Visit', 'Social Worker Visit',
+                'Follow up on specialist appointment logistics.',
+                'Confirmed transport arrangements and reviewed medication schedule.',
+                'Living space tidy; mobility aids in place.',
+                'Member in good spirits, cooperative.',
+                'No additional concerns raised.',
+                'Draft pending final review before submission.',
+                'Confirm next clinic date with the monastery contact.',
+                'None.',
+                'DRAFT', TIMESTAMP '2026-05-28 10:45:00', TIMESTAMP '2026-05-28 10:45:00'
+              FROM client c
+              JOIN users sw ON sw.email = 'infotech@aranya.sg'
+              WHERE c.abbr = 'HM001'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = sw.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-05-28' AND vr.status = 'DRAFT'
+                );
+
+        # 4) SW-authored DRAFT report #2 (DL004)
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                environment_observations, sangha_observations, other_observations,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, sw.id, sw.full_name, TIMESTAMP '2026-06-01 14:00:00',
+                DATE '2026-06-01', '14:00', '1 hour', 'Hougang Avenue 3',
+                'Legal Aid Follow-up', 'Social Worker Visit',
+                'Collect documents for the legal aid referral.',
+                'Reviewed required forms and explained the consent process.',
+                'Home visit completed; hearing-support needs noted.',
+                'Member appreciative of assistance.',
+                'Pending document copies from next of kin.',
+                'Draft to be completed after documents are received.',
+                'Schedule consent form signing before the next home visit.',
+                'Legal issue flag active on profile.',
+                'DRAFT', TIMESTAMP '2026-06-01 14:20:00', TIMESTAMP '2026-06-01 14:20:00'
+              FROM client c
+              JOIN users sw ON sw.email = 'infotech@aranya.sg'
+              WHERE c.abbr = 'DL004'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = sw.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-06-01' AND vr.status = 'DRAFT'
+                );
+
+        # 5) SW-authored SUBMITTED report #1 (SN002)
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                environment_observations, sangha_observations, other_observations,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, sw.id, sw.full_name, TIMESTAMP '2026-05-15 11:00:00',
+                DATE '2026-05-15', '11:00', '1 hour 15 minutes', 'Jalan Eunos',
+                'Housing Assessment', 'Social Worker Visit',
+                'Assess current living arrangement and financial support needs.',
+                'Documented housing condition and remittance support requirements.',
+                'Housing situation under review; basic amenities adequate.',
+                'Member calm, prefers quiet phone communication.',
+                'Awaiting updated overseas travel dates.',
+                'Housing review should resume once member returns to Singapore.',
+                'Reopen the suspended case after the member returns.',
+                'Monitor financial stability.',
+                'SUBMITTED', TIMESTAMP '2026-05-15 11:20:00', TIMESTAMP '2026-05-15 11:20:00'
+              FROM client c
+              JOIN users sw ON sw.email = 'infotech@aranya.sg'
+              WHERE c.abbr = 'SN002'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = sw.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-05-15' AND vr.status = 'SUBMITTED'
+                );
+
+        # 6) SW-authored SUBMITTED report #2 (TY003)
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                environment_observations, sangha_observations, other_observations,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, sw.id, sw.full_name, TIMESTAMP '2026-05-22 09:30:00',
+                DATE '2026-05-22', '09:30', '50 minutes', 'Lorong 24A Geylang',
+                'Counselling Review', 'Social Worker Visit',
+                'Confirm counselling completion and archive the support plan.',
+                'Reviewed counselling outcomes and closed the support plan.',
+                'Large-print materials provided for visual needs.',
+                'Member stable; support plan completed.',
+                'Case can remain closed unless reopened on request.',
+                'Counselling support concluded successfully.',
+                'No further action unless the member requests follow-up.',
+                'None.',
+                'SUBMITTED', TIMESTAMP '2026-05-22 09:50:00', TIMESTAMP '2026-05-22 09:50:00'
+              FROM client c
+              JOIN users sw ON sw.email = 'infotech@aranya.sg'
+              WHERE c.abbr = 'TY003'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = sw.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-05-22' AND vr.status = 'SUBMITTED'
+                );
+
+        # 7) Extra volunteer report from volunteer@test.com (SN002) for Volunteer-tab grouping
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, vol.id, vol.full_name, TIMESTAMP '2026-05-25 16:30:00',
+                DATE '2026-05-25', '16:30', '40 minutes', 'Jalan Eunos',
+                'Volunteer Companionship', 'Volunteer Report',
+                'Friendly check-in and companionship visit.',
+                'Spent time chatting and confirmed the member''s wellbeing.',
+                'Member appreciated the company.',
+                'Social Worker to confirm housing review progress.',
+                'No urgent issue.',
+                'SUBMITTED', TIMESTAMP '2026-05-25 16:45:00', TIMESTAMP '2026-05-25 16:45:00'
+              FROM client c
+              JOIN users vol ON vol.email = 'volunteer@test.com'
+              WHERE c.abbr = 'SN002'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = vol.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-05-25'
+                    AND vr.programme_name = 'Volunteer Companionship'
+                );
+
+        # 8) Extra volunteer report from 326854903@qq.com (DL004)
+        - sql:
+            sql: >
+              INSERT INTO visit_report (
+                client_id, created_by, staff_name, report_timestamp,
+                date_of_visit, time_of_visit, duration_of_visit, location,
+                programme_name, type_of_visit, purpose_of_visit, what_was_done,
+                personal_reflections, recommendations, matters_to_highlight,
+                status, created_at, updated_at
+              )
+              SELECT
+                c.id, vol.id, vol.full_name, TIMESTAMP '2026-05-30 13:00:00',
+                DATE '2026-05-30', '13:00', '1 hour', 'Hougang Avenue 3',
+                'Volunteer Transport', 'Volunteer Report',
+                'Provide transport support to a medical appointment.',
+                'Accompanied the member to the clinic and back home safely.',
+                'Member was tired but reached home safely.',
+                'Social Worker to confirm the next transport date.',
+                'No urgent issue.',
+                'SUBMITTED', TIMESTAMP '2026-05-30 13:15:00', TIMESTAMP '2026-05-30 13:15:00'
+              FROM client c
+              JOIN users vol ON vol.email = '326854903@qq.com'
+              WHERE c.abbr = 'DL004'
+                AND NOT EXISTS (
+                  SELECT 1 FROM visit_report vr
+                  WHERE vr.created_by = vol.id AND vr.client_id = c.id
+                    AND vr.date_of_visit = DATE '2026-05-30'
+                    AND vr.programme_name = 'Volunteer Transport'
+                );
+
+      rollback:
+        - sql:
+            sql: >
+              DELETE FROM visit_report
+              WHERE created_by IN (
+                SELECT id FROM users WHERE email = 'infotech@aranya.sg'
+              )
+              AND date_of_visit IN (DATE '2026-05-28', DATE '2026-06-01', DATE '2026-05-15', DATE '2026-05-22');
+        - sql:
+            sql: >
+              DELETE FROM visit_report
+              WHERE created_by IN (SELECT id FROM users WHERE email = 'volunteer@test.com')
+                AND date_of_visit = DATE '2026-05-25'
+                AND programme_name = 'Volunteer Companionship';
+        - sql:
+            sql: >
+              DELETE FROM visit_report
+              WHERE created_by IN (SELECT id FROM users WHERE email = '326854903@qq.com')
+                AND date_of_visit = DATE '2026-05-30'
+                AND programme_name = 'Volunteer Transport';

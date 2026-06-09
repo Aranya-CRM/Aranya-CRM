@@ -224,7 +224,7 @@ function OrdinationStep({ form, updateField }: StepProps) {
       <SelectField
         label="戒别 / Ordination Status"
         value={form.ordinationStatus}
-        options={['Bhikkhu', 'Bhikkhuni', 'Samanera', 'Sikkhamana', 'Sayalay']}
+        options={['Bhikkhu', 'Bhikkhuni', 'Samanera', 'Samaneri', 'Sikkhamana', 'Sayalay']}
         onChange={(value) => updateField('ordinationStatus', value as Client['ordinationStatus'])}
       />
       <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateOfTonsure} onChange={(value) => updateField('dateOfTonsure', value)} />

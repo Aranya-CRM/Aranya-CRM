@@ -12,12 +12,12 @@ export const caseRoutes: AppRouteConfig[] = [
   },
   {
     path: '/cases/new',
-    routeId: 'cases.create',
+    routeId: 'route:cases',
     element: <CaseFormPage />,
   },
   {
     path: '/cases/:id',
-    routeId: 'cases.detail',
+    routeId: 'route:cases',
     element: <CaseDetailPage />,
   },
 ]

@@ -10,6 +10,7 @@ import aranya.crm.service.ClientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,13 +41,18 @@ public class ClientController {
         return ResponseEntity.ok(clientService.listClients(q, membershipStatus));
     }
 
+    @GetMapping("/without-case")
+    public ResponseEntity<List<ClientSummaryResponse>> listClientsWithoutCase() {
+        return ResponseEntity.ok(clientService.listClientsWithoutCase());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ClientDetailResponse> getClientDetail(@PathVariable Long id) {
         return ResponseEntity.ok(clientService.getClientDetail(id));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:create')")
     public ResponseEntity<ClientDetailResponse> createClient(
             @Valid @RequestBody CreateClientRequest req,
             @CurrentUser User currentUser
@@ -60,11 +66,18 @@ public class ClientController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:update')")
     public ResponseEntity<ClientDetailResponse> updateClient(
             @PathVariable Long id,
             @Valid @RequestBody UpdateClientRequest req
     ) {
         return ResponseEntity.ok(clientService.updateClient(id, req));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:delete')")
+    public ResponseEntity<Void> deleteClient(@PathVariable Long id) {
+        clientService.deleteClient(id);
+        return ResponseEntity.noContent().build();
     }
 }

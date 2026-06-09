@@ -1,6 +1,6 @@
 import { http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseStatus, CaseStatusChange } from '../types'
+import { emptyCaseServices, type AuditLogEntry, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -14,12 +14,42 @@ type BackendCase = {
   openedAt?: string | null
   closedAt?: string | null
   clientId?: number | string | null
+  clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  venue?: string | null
   createdById?: number | string | null
   createdByName?: string | null
   comments?: string | null
   remarks?: string | null
+  services?: Partial<Record<keyof CaseServices, boolean>> | null
+  serviceEvents?: ServiceEvent[] | null
+}
+
+export interface UpdateCasePayload {
+  status?: CaseStatus
+  colorCode?: CaseColorCode
+  socialWorkerId?: string | number
+  comments?: string
+  remarks?: string
+}
+
+export interface CreateCasePayload {
+  clientId: string | number
+  socialWorkerId?: string | number
+  openedAt: string
+  status: CaseStatus
+  colorCode: CaseColorCode
+  comments?: string
+  remarks?: string
+  services: Array<keyof CaseServices>
+}
+
+export interface CreateServiceEventPayload {
+  serviceKey: keyof CaseServices
+  assignedUserId: string | number
+  scheduledStart: string
+  location?: string
 }
 
 function getDataMode(): 'mock' | 'api' | 'auto' {
@@ -54,24 +84,78 @@ export async function fetchCaseById(id: string): Promise<Case | undefined> {
   }
 }
 
-export async function createCase(data: Omit<Case, 'id'>): Promise<Case> {
+export async function createCase(data: CreateCasePayload): Promise<Case> {
   const mode = getDataMode()
   if (mode === 'mock') {
-    const newCase = { ...data, id: `case-${Date.now()}` } as Case
+    const newCase = { ...data, id: `case-${Date.now()}`, caseNo: `CASE-${Date.now()}`, dateOpened: data.openedAt, clientId: String(data.clientId), clientNameEn: '', clientNameChn: '', tradition: '', socialWorker: '', services: servicesFromKeys(data.services) } as Case
     caseMockData.push(newCase)
     return newCase
   }
 
   try {
-    const res = await http.post<Case>('/v1/cases', data)
-    return res.data
+    const res = await http.post<BackendCase>('/v1/cases', data)
+    return mapBackendCase(res.data)
   } catch {
     if (mode === 'auto') {
-      const newCase = { ...data, id: `case-${Date.now()}` } as Case
+      const newCase = { ...data, id: `case-${Date.now()}`, caseNo: `CASE-${Date.now()}`, dateOpened: data.openedAt, clientId: String(data.clientId), clientNameEn: '', clientNameChn: '', tradition: '', socialWorker: '', services: servicesFromKeys(data.services) } as Case
       caseMockData.push(newCase)
       return newCase
     }
     throw new Error('Failed to create case')
+  }
+}
+
+export async function updateCaseServices(id: string, services: Array<keyof CaseServices>): Promise<Case> {
+  const res = await http.patch<BackendCase>(`/v1/cases/${id}/services`, services)
+  return mapBackendCase(res.data)
+}
+
+export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ServiceEvent> {
+  const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events`, data)
+  return res.data
+}
+
+export async function fetchAssignedServiceEvents(): Promise<ServiceEvent[]> {
+  const res = await http.get<ServiceEvent[]>('/v1/tasks')
+  return res.data
+}
+
+export async function updateCase(id: string, data: UpdateCasePayload): Promise<Case> {
+  const mode = getDataMode()
+  if (mode === 'mock') {
+    const idx = caseMockData.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error('Case not found')
+    const updated = {
+      ...caseMockData[idx],
+      status: data.status ?? caseMockData[idx].status,
+      colorCode: data.colorCode ?? caseMockData[idx].colorCode,
+      socialWorkerId: data.socialWorkerId ? String(data.socialWorkerId) : caseMockData[idx].socialWorkerId,
+      comments: data.comments ?? caseMockData[idx].comments,
+      remarks: data.remarks ?? caseMockData[idx].remarks,
+    }
+    caseMockData[idx] = updated
+    return updated
+  }
+
+  try {
+    const res = await http.patch<BackendCase>(`/v1/cases/${id}`, data)
+    return mapBackendCase(res.data)
+  } catch {
+    if (mode === 'auto') {
+      const idx = caseMockData.findIndex((c) => c.id === id)
+      if (idx === -1) throw new Error('Case not found')
+      const updated = {
+        ...caseMockData[idx],
+        status: data.status ?? caseMockData[idx].status,
+        colorCode: data.colorCode ?? caseMockData[idx].colorCode,
+        socialWorkerId: data.socialWorkerId ? String(data.socialWorkerId) : caseMockData[idx].socialWorkerId,
+        comments: data.comments ?? caseMockData[idx].comments,
+        remarks: data.remarks ?? caseMockData[idx].remarks,
+      }
+      caseMockData[idx] = updated
+      return updated
+    }
+    throw new Error('Failed to update case')
   }
 }
 
@@ -178,18 +262,23 @@ function mapBackendCase(source: BackendCase): Case {
   return {
     id: String(source.id),
     caseNo: text(source.caseCode),
+    title: text(source.title),
     dateOpened: toDateOnly(source.openedAt),
     closedAt: source.closedAt ? toDateOnly(source.closedAt) : undefined,
     clientId: text(source.clientId),
+    clientAbbr: text(source.clientAbbr),
     clientNameEn: text(source.clientNameEn),
     clientNameChn: text(source.clientNameChn),
+    venue: text(source.venue),
     tradition: text(source.tradition),
+    socialWorkerId: text(source.createdById),
     socialWorker: text(source.createdByName),
     status: mapCaseStatus(source.status),
     colorCode: mapCaseColorCode(source.colorCode),
     comments: text(source.comments ?? source.description),
     remarks: text(source.remarks),
-    services: emptyServices(),
+    services: { ...emptyCaseServices(), ...(source.services ?? {}) },
+    serviceEvents: source.serviceEvents ?? [],
   }
 }
 
@@ -222,24 +311,10 @@ function mapCaseColorCode(value: string | null | undefined): CaseColorCode {
   return 'GREEN'
 }
 
-function emptyServices(): Case['services'] {
-  return {
-    housingSupport: false,
-    financialAssistance: false,
-    medicalTransportation: false,
-    foodAssistance: false,
-    legalAid: false,
-    immigrationSupport: false,
-    counselling: false,
-    befriending: false,
-    crisisIntervention: false,
-    familyMediation: false,
-    governmentLiaison: false,
-    hospitalLiaison: false,
-    documentAssistance: false,
-    interpreterService: false,
-    templeLiaison: false,
-    communityReferral: false,
-    religiousSupport: false,
-  }
+function servicesFromKeys(keys: Array<keyof CaseServices>): CaseServices {
+  const services = emptyCaseServices()
+  keys.forEach((key) => {
+    services[key] = true
+  })
+  return services
 }

@@ -36,7 +36,7 @@ export interface Client {
   membershipRemarks: string
   // Ordination
   buddhistTradition: 'Mahayana' | 'Theravada' | 'Vajrayana'
-  ordinationStatus: 'Bhikkhu' | 'Bhikkhuni' | 'Samanera' | 'Sikkhamana' | 'Sayalay'
+  ordinationStatus: 'Bhikkhu' | 'Bhikkhuni' | 'Samanera' | 'Samaneri' | 'Sikkhamana' | 'Sayalay' | (string & {})
   dateOfTonsure: string
   countryOfTonsure: string
   placeOfTonsure: string

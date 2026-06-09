@@ -1,10 +1,10 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "clients": "Clients",
+    "clients": "Member",
     "cases": "Cases",
     "reports": "Reports",
-    "tasks": "Tasks",
+    "tasks": "Help with",
     "users": "Users"
   },
   "layout": {
@@ -18,11 +18,13 @@
     "loading": "Loading...",
     "cancel": "Cancel",
     "save": "Save",
+    "edit": "Edit",
     "back": "← Back to List",
     "actions": "Actions",
     "comingSoon": "Coming soon",
     "saving": "Saving...",
-    "by": "by"
+    "by": "by",
+    "delete": "Delete"
   },
   "dashboard": {
     "pageTitle": "Dashboard",
@@ -31,13 +33,13 @@
     "unnamedMonastic": "Unnamed monastic",
     "stat": {
       "activeMonastics": "Active Monastics",
-      "activeMonastics_footnote": "Active members",
+      "myAssignedClients": "My Assigned Monastics",
+      "myOpenCases": "My Open Cases",
+      "myUrgentCases": "My Urgent Cases",
+      "myDraftReports": "Draft Reports",
       "openCases": "Open Cases",
-      "openCases_footnote": "Non-closed",
       "urgentCases": "Urgent Cases",
-      "urgentCases_footnote": "RED / ORANGE",
       "pendingReports": "Pending Reports",
-      "pendingReports_footnote": "Flagged urgent",
       "assignedTaskCount": "Assigned Tasks",
       "assignedTaskCount_footnote": "Current volunteer",
       "myReportCount": "My Reports",
@@ -63,7 +65,7 @@
   "cases": {
     "table": {
       "intensity": "Intensity",
-      "caseNo": "Case No.",
+      "caseNo": "Case Number",
       "monastic": "Monastic",
       "tradition": "Tradition",
       "caseworker": "Caseworker",
@@ -84,30 +86,52 @@
       "GREY": "Grey · Low Activity",
       "BLACK": "Black · Closed"
     },
+    "status": {
+      "OPEN": "Open",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "IN_REVIEW": "In Review",
+      "SUSPENDED": "Suspended",
+      "CLOSED": "Closed"
+    },
+    "filter": {
+      "allStatus": "All statuses",
+      "search": "Search cases or members"
+    },
     "service": {
-      "housingSupport": "Housing Support",
-      "financialAssistance": "Financial Assistance",
-      "medicalTransportation": "Medical Transportation",
-      "foodAssistance": "Food Assistance",
+      "accommodationArrangement": "Accommodation Arrangement",
+      "deepCleaning": "Deep Cleaning",
+      "relocationAssistance": "Relocation Assistance",
+      "dailyCleaning": "Daily Cleaning",
+      "pestControl": "Pest Control",
+      "homeRepair": "Home Repair",
+      "dailyExpenseSubsidy": "Daily Expense Subsidy",
+      "cpfAssistance": "CPF Assistance",
+      "mealDelivery": "Meal Delivery",
+      "lunchSupport": "Lunch Support",
+      "monasticSupport": "Monastic Support",
+      "monasticEscort": "Monastic Escort",
       "legalAid": "Legal Aid",
-      "immigrationSupport": "Immigration Support",
-      "counselling": "Counselling",
-      "befriending": "Befriending",
-      "crisisIntervention": "Crisis Intervention",
-      "familyMediation": "Family Mediation",
-      "governmentLiaison": "Government Liaison",
-      "hospitalLiaison": "Hospital Liaison",
-      "documentAssistance": "Document Assistance",
-      "interpreterService": "Interpreter Service",
-      "templeLiaison": "Temple Liaison",
-      "communityReferral": "Community Referral",
-      "religiousSupport": "Religious Support"
+      "volunteerVisit": "Volunteer Visit",
+      "digitalSupport": "Digital Support"
+    },
+    "services": {
+      "calendarTitle": "Service Calendar",
+      "calendarPlaceholder": "No service events",
+      "addEvent": "Add Service Event",
+      "service": "Service",
+      "selectService": "Select service",
+      "assignee": "Assignee",
+      "selectAssignee": "Select assignee",
+      "time": "Specific Time",
+      "location": "Location",
+      "createEvent": "Create Event"
     },
     "serviceGroup": {
-      "practical": "Practical Support",
-      "emotional": "Emotional / Social",
-      "admin": "Administrative",
-      "spiritual": "Spiritual / Community"
+      "housing": "Housing & Accommodation",
+      "financial": "Financial Aid",
+      "food": "Food Assistance",
+      "other": "Other Services"
     },
     "tab": {
       "overview": "Overview",
@@ -138,7 +162,10 @@
     "notes": {
       "empty": "No notes yet.",
       "by": "By",
-      "followup": "Follow-up"
+      "followup": "Follow-up",
+      "addNote": "Add Note",
+      "placeholder": "Add a case note",
+      "followupPlaceholder": "Follow-up (optional)"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -198,17 +225,42 @@
       }
     },
     "form": {
-      "newCase": "New Case"
+      "newCase": "New Case",
+      "loadError": "Failed to load data for the new case.",
+      "saveError": "Failed to create case. Check the details and try again.",
+      "coreInfo": "Core Information",
+      "client": "Member",
+      "selectClient": "Select member",
+      "openedAt": "Date Opened",
+      "caseworker": "Caseworker",
+      "unassigned": "Unassigned",
+      "status": "Status",
+      "comments": "Comments",
+      "remarks": "Remarks",
+      "intensity": "Case Intensity",
+      "services": "Service Modules"
     },
     "list": {
       "count": "{{count}} cases",
       "auditView": "Audit View",
       "newCase": "+ New Case"
+    },
+    "reports": {
+      "count": "{{count}} report(s)",
+      "empty": "No visit reports yet",
+      "newBtn": "+ New Report",
+      "col": {
+        "date": "Visit Date",
+        "type": "Type",
+        "duration": "Duration",
+        "submitter": "Submitted By",
+        "status": "Status"
+      }
     }
   },
-  "clients": {
-    "pageTitle": "Client Profiles",
-    "pageSubtitle": "Client Profiles",
+    "clients": {
+    "pageTitle": "Member Profiles",
+    "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
     "filterAll": "Tradition · All",
     "addBtn": "New Monastic",
@@ -248,7 +300,8 @@
       "create": "Create Monastic ->"
     },
     "profile": {
-      "linkContacts": "Link Contacts",
+      "convertToClient": "Convert to Client",
+      "convertToCase": "Convert to Case Client",
       "editProfile": "Edit Profile",
       "delete": "Delete",
       "editTitle": "Edit Profile",
@@ -463,11 +516,15 @@
       "urgent": "Urgent",
       "resolveFlag": "Resolve Flag",
       "approve": "Approve",
+      "approving": "Approving...",
+      "approveError": "Failed to approve the report. Please try again.",
       "archive": "Archive",
       "edit": "Edit",
       "deleting": "Deleting...",
       "delete": "Delete",
       "deleteDraft": "Delete Draft",
+      "export": "Export Report",
+      "exportTooltip": "Export feature coming soon",
       "confirmDelete": "Delete report {{id}}?",
       "urgentBanner": "This report was marked URGENT by {{name}}.",
       "markResolved": "Mark Resolved",
@@ -507,17 +564,43 @@
     ,
     "statusFilter": {
       "all": "All statuses"
+    },
+    "overview": {
+      "title": "Documents",
+      "tabVolunteer": "Volunteer Reports",
+      "tabMine": "My Reports",
+      "emptyVolunteer": "No volunteer reports",
+      "emptyMine": "No reports from you",
+      "selectHint": "Select a report to view details",
+      "selectVolunteer": "Select a volunteer to view their submissions",
+      "searchVolunteer": "Search volunteer name…",
+      "reportCount": "{{count}} reports",
+      "lastDate": "Last: ",
+      "volunteerCount": "{{count}} volunteers",
+      "freshness": {
+        "recent": "Active",
+        "medium": "Moderate",
+        "old": "Follow up"
+      }
     }
   },
   "tasks": {
-    "title": "Tasks",
-    "count": "{{count}} tasks",
+    "title": "Help with",
+    "count": "{{count}} requests",
     "loadError": "Failed to load tasks.",
     "empty": "No tasks assigned to you",
     "open": "Open",
     "notFound": "Task Not Found",
-    "caseOverview": "Case Overview",
+    "caseOverview": "Request",
+    "submitReport": "Submit report",
     "myReports": "My Uploaded Reports",
+    "request": {
+      "subject": "Subject",
+      "time": "Time",
+      "location": "Location",
+      "todo": "What is needed",
+      "notes": "Supplementary notes"
+    },
     "myNotes": "My Notes",
     "noReports": "No reports uploaded by you",
     "noNotes": "No notes uploaded by you",

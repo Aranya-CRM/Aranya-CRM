@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 040-add-case-service-selection-and-seed-service-catalog
+      author: codex
+      changes:
+        - createTable:
+            tableName: case_service_selection
+            columns:
+              - column:
+                  name: case_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_case_service_selection_case
+                    references: case(id)
+              - column:
+                  name: service_key
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: case_service_selection
+            columnNames: case_id, service_key
+            constraintName: pk_case_service_selection
+        - sql:
+            sql: |
+              INSERT INTO service_category (name, description)
+              VALUES
+                ('housing', 'Living accommodation services'),
+                ('financial', 'Financial assistance services'),
+                ('food', 'Food assistance services'),
+                ('other', 'Other support services')
+              ON CONFLICT (name) DO NOTHING;
+
+              INSERT INTO service_type (category_id, name, description)
+              SELECT c.id, v.name, v.service_key
+              FROM (
+                VALUES
+                  ('housing', 'accommodationArrangement', 'Lodging'),
+                  ('housing', 'deepCleaning', 'Spring Cleaning'),
+                  ('housing', 'relocationAssistance', 'Relocation'),
+                  ('housing', 'dailyCleaning', 'Home Cleaning'),
+                  ('housing', 'pestControl', 'Pest Control'),
+                  ('housing', 'homeRepair', 'Handyman'),
+                  ('financial', 'dailyExpenseSubsidy', 'Daily Expense Subsidy'),
+                  ('financial', 'cpfAssistance', 'CPF Assistance'),
+                  ('food', 'mealDelivery', 'Meal Delivery'),
+                  ('food', 'lunchSupport', 'Lunch Support'),
+                  ('other', 'monasticSupport', 'Monastic Support'),
+                  ('other', 'monasticEscort', 'Monastic Escort'),
+                  ('other', 'legalAid', 'Legal Aid'),
+                  ('other', 'volunteerVisit', 'Volunteer Visit'),
+                  ('other', 'digitalSupport', 'Digital Support')
+              ) AS v(category_name, service_key, name)
+              JOIN service_category c ON c.name = v.category_name
+              ON CONFLICT (category_id, name) DO NOTHING;
+      rollback:
+        - dropTable:
+            tableName: case_service_selection

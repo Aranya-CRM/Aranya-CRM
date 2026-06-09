@@ -122,7 +122,7 @@ class CaseNoteServiceTest {
         CaseNote note = note(22L, clientCase(12L), creator);
         when(caseNoteRepository.findByIdAndCreatedById(22L, 9L)).thenReturn(Optional.of(note));
 
-        caseNoteService.deleteOwnCaseNote(22L, creator);
+        caseNoteService.deleteCaseNote(22L, creator, false);
 
         verify(caseNoteRepository).delete(note);
     }
@@ -133,7 +133,7 @@ class CaseNoteServiceTest {
         User creator = user(9L, "Volunteer User");
         when(caseNoteRepository.findByIdAndCreatedById(404L, 9L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> caseNoteService.deleteOwnCaseNote(404L, creator))
+        assertThatThrownBy(() -> caseNoteService.deleteCaseNote(404L, creator, false))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Case note not found: 404");
     }

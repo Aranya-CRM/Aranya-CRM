@@ -41,4 +41,14 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             ORDER BY c.createdAt DESC
             """)
     List<Client> searchClients(@Param("q") String q);
+
+    @Query("""
+            SELECT c FROM Client c
+            WHERE NOT EXISTS (
+                SELECT 1 FROM ClientCase cc WHERE cc.client = c
+            )
+            AND LOWER(c.membershipStatus) = 'active'
+            ORDER BY c.createdAt DESC
+            """)
+    List<Client> findActiveClientsWithoutCase();
 }

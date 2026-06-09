@@ -47,11 +47,17 @@ public class DashboardService {
             sections.add(volunteerRecentReports(currentUser.getId()));
             sections.add(volunteerQuickActions());
         }
-        if (roles.contains("SOCIAL_WORKER") || roles.contains("MANAGER")) {
-            sections.add(socialWorkerStats());
-            sections.add(socialWorkerRecentCases());
-            sections.add(socialWorkerRecentReports());
-            sections.add(socialWorkerQuickActions());
+        if (roles.contains("MANAGER")) {
+            sections.add(managerStats());
+            sections.add(managerRecentCases());
+            sections.add(managerRecentReports());
+            sections.add(managerQuickActions());
+        }
+        if (roles.contains("SOCIAL_WORKER") && currentUser != null) {
+            sections.add(swOwnStats(currentUser.getId()));
+            sections.add(swRecentCases(currentUser.getId()));
+            sections.add(swRecentReports(currentUser.getId()));
+            sections.add(swQuickActions());
         }
 
         return DashboardResponse.builder()
@@ -112,7 +118,7 @@ public class DashboardService {
                 .build();
     }
 
-    private DashboardResponse.Section socialWorkerStats() {
+    private DashboardResponse.Section managerStats() {
         return DashboardResponse.Section.builder()
                 .id("sw.stats")
                 .stats(List.of(
@@ -124,7 +130,7 @@ public class DashboardService {
                 .build();
     }
 
-    private DashboardResponse.Section socialWorkerRecentCases() {
+    private DashboardResponse.Section managerRecentCases() {
         List<DashboardResponse.Item> items = caseService.getActiveCases(DASHBOARD_LIST_LIMIT)
                 .stream()
                 .map(this::toCaseItem)
@@ -136,7 +142,7 @@ public class DashboardService {
                 .build();
     }
 
-    private DashboardResponse.Section socialWorkerRecentReports() {
+    private DashboardResponse.Section managerRecentReports() {
         List<DashboardResponse.Item> items = visitReportRepository
                 .findAllByOrderByCreatedAtDescIdDesc(PageRequest.of(0, DASHBOARD_LIST_LIMIT))
                 .stream()
@@ -149,10 +155,54 @@ public class DashboardService {
                 .build();
     }
 
-    private DashboardResponse.Section socialWorkerQuickActions() {
+    private DashboardResponse.Section managerQuickActions() {
         return DashboardResponse.Section.builder()
                 .id("sw.quick_actions")
-                .actions(List.of(action("new_case"), action("add_client")))
+                .actions(List.of(action("new_case"), action("add_client"), action("submit_report")))
+                .build();
+    }
+
+    private DashboardResponse.Section swOwnStats(Long userId) {
+        return DashboardResponse.Section.builder()
+                .id("sw.stats")
+                .stats(List.of(
+                        stat("myAssignedClients", caseService.countDistinctActiveClientsByCreatedBy(userId)),
+                        stat("myOpenCases", caseService.countActiveCasesByCreatedBy(userId)),
+                        stat("myUrgentCases", caseService.countUrgentCasesByCreatedBy(userId)),
+                        stat("myDraftReports", visitReportRepository.countByCreatedByIdAndStatusIgnoreCase(userId, "DRAFT"))
+                ))
+                .build();
+    }
+
+    private DashboardResponse.Section swRecentCases(Long userId) {
+        List<DashboardResponse.Item> items = caseService.getActiveCasesByCreatedBy(userId, DASHBOARD_LIST_LIMIT)
+                .stream()
+                .map(this::toCaseItem)
+                .toList();
+
+        return DashboardResponse.Section.builder()
+                .id("sw.recent_cases")
+                .items(items)
+                .build();
+    }
+
+    private DashboardResponse.Section swRecentReports(Long userId) {
+        List<DashboardResponse.Item> items = visitReportRepository
+                .findByCreatedByIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, DASHBOARD_LIST_LIMIT))
+                .stream()
+                .map(this::toReportItem)
+                .toList();
+
+        return DashboardResponse.Section.builder()
+                .id("sw.recent_reports")
+                .items(items)
+                .build();
+    }
+
+    private DashboardResponse.Section swQuickActions() {
+        return DashboardResponse.Section.builder()
+                .id("sw.quick_actions")
+                .actions(List.of(action("new_case"), action("add_client"), action("submit_report")))
                 .build();
     }
 
@@ -161,12 +211,15 @@ public class DashboardService {
         return DashboardResponse.Item.builder()
                 .id(String.valueOf(clientCase.getId()))
                 .clientId(client != null ? String.valueOf(client.getId()) : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .caseCode(clientCase.getCaseCode())
                 .statusCode(clientCase.getStatus())
                 .colorCode(clientCase.getColorCode())
                 .openedAt(clientCase.getOpenedAt() != null ? clientCase.getOpenedAt().toString() : null)
+                .location(resolveClientVenue(client))
+                .programmeName(clientCase.getTitle())
                 .build();
     }
 
@@ -176,14 +229,36 @@ public class DashboardService {
         return DashboardResponse.Item.builder()
                 .id(String.valueOf(report.getId()))
                 .clientId(client != null ? String.valueOf(client.getId()) : null)
+                .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
+                .caseCode(findReportCaseCode(client))
                 .reportType(report.getTypeOfVisit())
                 .dateOfVisit(report.getDateOfVisit() != null ? report.getDateOfVisit().toString() : null)
+                .location(report.getLocation())
+                .programmeName(report.getProgrammeName())
                 .createdAt(report.getCreatedAt() != null ? report.getCreatedAt().toString() : null)
                 .createdById(createdBy != null ? String.valueOf(createdBy.getId()) : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
+                .statusCode(report.getStatus())
                 .build();
+    }
+
+    private String resolveClientVenue(Client client) {
+        if (client == null) {
+            return null;
+        }
+        if (client.getViharaType() != null && !client.getViharaType().isBlank()) {
+            return client.getViharaType();
+        }
+        return client.getAreaDistrict();
+    }
+
+    private String findReportCaseCode(Client client) {
+        if (client == null || client.getId() == null) {
+            return null;
+        }
+        return caseService.findLatestCaseCodeForClient(client.getId());
     }
 
     private DashboardResponse.Stat stat(String id, long value) {

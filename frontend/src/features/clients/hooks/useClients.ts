@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createClient,
+  deleteClient,
   fetchClientById,
   fetchClients,
   updateClient,
@@ -50,6 +51,21 @@ export function useUpdateClient() {
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client)
+    },
+  })
+}
+
+export function useDeleteClient() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => deleteClient(id),
+    onSuccess: (_result, id) => {
+      queryClient.setQueryData<Client[]>(clientQueryKeys.list(), (current) => (
+        current ? current.filter((client) => client.id !== id) : current
+      ))
+      queryClient.removeQueries({ queryKey: clientQueryKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
     },
   })
 }

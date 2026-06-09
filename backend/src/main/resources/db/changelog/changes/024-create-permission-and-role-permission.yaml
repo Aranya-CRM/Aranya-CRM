@@ -251,6 +251,7 @@ databaseChangeLog:
   - changeSet:
       id: 024-8-seed-volunteer-task-route
       author: Codex
+      validCheckSum: ANY
       comment: "Allow volunteers to access the task module"
       changes:
         - sql:
