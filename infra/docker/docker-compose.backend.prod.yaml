@@ -1,0 +1,24 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: aranya_crm_backend_prod
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_PATH: file:/run/secrets/firebase-service-account.json
+      JWT_SECRET: ${JWT_SECRET}
+      TWO_FACTOR_ENCRYPTION_KEY: ${TWO_FACTOR_ENCRYPTION_KEY}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      TZ: ${TZ:-Asia/Singapore}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - type: bind
+        source: ./secrets/firebase-service-account.json
+        target: /run/secrets/firebase-service-account.json
+        read_only: true
