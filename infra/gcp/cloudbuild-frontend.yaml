@@ -12,6 +12,7 @@ substitutions:
   _REPO: aranya-crm
   _SERVICE: aranya-frontend
   _BACKEND_URL: "http://127.0.0.1:9"
+  _VITE_API_BASE_URL: ""   # 后端 dev 地址,直连+CORS;留空则前端走相对 /api
   _FIREBASE_API_KEY: ""
   _FIREBASE_AUTH_DOMAIN: ""
   _FIREBASE_PROJECT_ID: ""
@@ -34,6 +35,8 @@ steps:
       - VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
       - --build-arg
       - VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - --build-arg
+      - VITE_API_BASE_URL=${_VITE_API_BASE_URL}
       - frontend          # 构建上下文（相对仓库根目录），Dockerfile 在 frontend/Dockerfile
 
   # 2. 推送镜像
