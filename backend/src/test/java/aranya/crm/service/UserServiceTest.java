@@ -9,6 +9,7 @@ import aranya.crm.entity.UserRole;
 import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
+import com.google.firebase.auth.FirebaseToken;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -73,6 +75,31 @@ class UserServiceTest {
         assertThat(result.getId()).isEqualTo(2L);
         assertThat(result.getEmail()).isEqualTo("volunteer@test.com");
         assertThat(result.getFullName()).isEqualTo("Volunteer User");
+    }
+
+    @Test
+    @DisplayName("syncFromFirebase keeps the role-loaded user instance after saving profile changes")
+    void syncFromFirebase_keepsRoleLoadedUserAfterSavingProfileChanges() {
+        User roleLoadedUser = user(2L, "manager", "manager@test.com", "Old Name", "ACTIVE");
+        roleLoadedUser.setEmailVerified(false);
+        roleLoadedUser.getUserRoles().add(userRole(roleLoadedUser, role("MANAGER"), 1L));
+
+        User savedWithoutRoleGraph = user(2L, "manager", "manager@test.com", "Firebase Name", "ACTIVE");
+        savedWithoutRoleGraph.setEmailVerified(true);
+
+        FirebaseToken token = mock(FirebaseToken.class);
+        when(token.isEmailVerified()).thenReturn(true);
+        when(token.getName()).thenReturn("Firebase Name");
+        when(userRepository.save(roleLoadedUser)).thenReturn(savedWithoutRoleGraph);
+
+        User result = userService.syncFromFirebase(roleLoadedUser, token);
+
+        assertThat(result).isSameAs(roleLoadedUser);
+        assertThat(result.getFullName()).isEqualTo("Firebase Name");
+        assertThat(result.isEmailVerified()).isTrue();
+        assertThat(result.getUserRoles())
+                .extracting(userRole -> userRole.getRole().getName())
+                .containsExactly("MANAGER");
     }
 
     @Test
