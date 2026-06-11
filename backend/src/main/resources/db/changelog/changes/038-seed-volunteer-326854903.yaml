@@ -2,7 +2,8 @@ databaseChangeLog:
   - changeSet:
       id: 038-seed-volunteer-326854903
       author: ShiDu
-      comment: "Seed volunteer user 326854903@qq.com with Firebase UID 5RJDJbsgdgcF2RH8XQ3tJGbXDFz1"
+      context: dev, test
+      comment: "DEV/TEST: Seed volunteer user 326854903@qq.com with Firebase UID 5RJDJbsgdgcF2RH8XQ3tJGbXDFz1. Excluded from prod."
       changes:
         - sql:
             sql: >
