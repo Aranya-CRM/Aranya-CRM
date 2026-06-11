@@ -12,7 +12,7 @@ ARG VITE_FIREBASE_API_KEY=
 ARG VITE_FIREBASE_AUTH_DOMAIN=
 ARG VITE_FIREBASE_PROJECT_ID=
 ARG VITE_FIREBASE_APP_ID=
-COPY package*.json .
+COPY package*.json ./
 RUN npm ci
 COPY . .
 # 仅当传入了构建参数时才写 .env（云端场景）；本地构建参数为空则跳过，保留已有 .env

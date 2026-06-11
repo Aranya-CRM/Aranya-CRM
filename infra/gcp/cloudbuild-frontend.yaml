@@ -9,7 +9,7 @@
 
 substitutions:
   _REGION: asia-southeast1
-  _REPO: aranya
+  _REPO: aranya-crm
   _SERVICE: aranya-frontend
   _BACKEND_URL: "http://127.0.0.1:9"
   _FIREBASE_API_KEY: ""
