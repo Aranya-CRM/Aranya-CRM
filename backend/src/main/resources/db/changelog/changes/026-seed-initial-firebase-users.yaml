@@ -2,7 +2,8 @@ databaseChangeLog:
   - changeSet:
       id: 026-seed-initial-firebase-users
       author: Codex
-      comment: "Seed initial Firebase-linked users and role assignments"
+      context: dev, test
+      comment: "Seed initial Firebase-linked DEV/TEST users (admin + test accounts, dev Firebase UIDs). Excluded from prod — seed the real prod admin separately."
       changes:
         - sql:
             sql: >
