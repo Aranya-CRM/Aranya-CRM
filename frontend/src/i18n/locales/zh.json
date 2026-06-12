@@ -450,6 +450,18 @@
       "ARCHIVED": "已归档",
       "RETURNED": "已退回"
     },
+    "folder": {
+      "DRAFT": "草稿",
+      "SUBMITTED": "待审批",
+      "ARCHIVED": "已审批",
+      "RETURNED": "退回"
+    },
+    "mailbox": {
+      "title": "报告",
+      "empty": "暂无报告",
+      "waitingApproval": "等待审批中",
+      "selectHint": "从左侧选择一份报告查看"
+    },
     "list": {
       "title": "探访报告",
       "myTitle": "我的探访报告",
