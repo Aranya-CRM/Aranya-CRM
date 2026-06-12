@@ -1,21 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth/useAccess'
+import { useAuth } from '../../../contexts/AuthContext'
 import { ErrorBanner } from '../../../shared/ui'
 import { approveReport, deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
-import type { ReportDetail, ReportSummary } from '../types'
+import type { ReportDetail, ReportStatus, ReportSummary } from '../types'
 import './reports.css'
 
-type ActiveTab = 'volunteer' | 'mine'
+type T = (key: string, opts?: Record<string, unknown>) => string
 
-type VolunteerSummary = {
-  name: string
-  count: number
-  lastDate: string | null
-  reports: ReportSummary[]
-}
+// 文件夹（状态分类）展示顺序：待审批 → 草稿 → 退回 → 已审批
+const FOLDER_ORDER: ReportStatus[] = ['SUBMITTED', 'DRAFT', 'RETURNED', 'ARCHIVED']
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '-'
@@ -24,112 +21,90 @@ function formatDate(value: string | null | undefined): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function displayName(report: ReportSummary | ReportDetail, isZh: boolean): string {
-  const zh = report.clientNameChn?.trim()
-  const en = report.clientNameEn?.trim()
-  if (isZh) return zh || en || ''
-  return en || zh || ''
+/** 用于排序的时间：最近活动优先（创建时间 > 报告时间 > 探访日期）。 */
+function reportTime(r: ReportSummary): string {
+  return r.createdAt ?? r.reportTimestamp ?? r.dateOfVisit ?? ''
 }
 
-function daysSince(dateStr: string | null): number {
-  if (!dateStr) return Infinity
-  return (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-}
-
-function volunteerStatusClass(lastDate: string | null): string {
-  const d = daysSince(lastDate)
-  if (d <= 30) return 'recent'
-  if (d <= 90) return 'medium'
-  return 'old'
-}
-
-function groupByVolunteer(reports: ReportSummary[]): VolunteerSummary[] {
-  const map: Record<string, VolunteerSummary> = {}
+function groupByStatus(reports: ReportSummary[]): Record<ReportStatus, ReportSummary[]> {
+  const groups: Record<ReportStatus, ReportSummary[]> = { DRAFT: [], SUBMITTED: [], ARCHIVED: [], RETURNED: [] }
   for (const r of reports) {
-    const name = r.createdByName?.trim() || '-'
-    if (!map[name]) map[name] = { name, count: 0, lastDate: null, reports: [] }
-    map[name].count++
-    map[name].reports.push(r)
-    if (!map[name].lastDate || (r.dateOfVisit ?? '') > (map[name].lastDate ?? '')) {
-      map[name].lastDate = r.dateOfVisit ?? null
-    }
+    const status = (r.status ?? 'SUBMITTED') as ReportStatus
+    ;(groups[status] ?? groups.SUBMITTED).push(r)
   }
-  return Object.values(map).sort((a, b) => (b.lastDate ?? '') > (a.lastDate ?? '') ? 1 : -1)
+  for (const status of Object.keys(groups) as ReportStatus[]) {
+    // 每个文件夹内按时间倒序，最新在最上
+    groups[status].sort((a, b) => {
+      const ta = reportTime(a)
+      const tb = reportTime(b)
+      return tb > ta ? 1 : tb < ta ? -1 : 0
+    })
+  }
+  return groups
 }
 
 export function ReportOverviewPage() {
-  const { t, i18n } = useTranslation()
-  const isZh = i18n.language === 'zh'
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getCap } = useAccess()
-  const isManagerView = getCap('reports:view') !== 'OWN'
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
+  const myId = user?.id ?? null
 
-  const rawTab = searchParams.get('tab')
-  const activeTab: ActiveTab = rawTab === 'mine' ? 'mine' : 'volunteer'
+  // ── 能力字典驱动（去角色化）：不判断身份，只读能力键 ──
+  const canCreate = getCap('reports:create') !== 'NO'
+  const canApprove = getCap('reports:approve_archive') !== 'NO'
+  const canUpdate = getCap('reports:update') !== 'NO'
+  const canDeleteAny = getCap('reports:delete') !== 'NO'
 
-  const [allReports, setAllReports] = useState<ReportSummary[]>([])
-  const [myReports, setMyReports] = useState<ReportSummary[]>([])
-
-  // Volunteer tab state
-  const [selectedVolunteer, setSelectedVolunteer] = useState<VolunteerSummary | undefined>()
-  const [volSearch, setVolSearch] = useState('')
-
-  // Mine tab state
+  const [reports, setReports] = useState<ReportSummary[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportDetail | undefined>()
-  const [mineSearch, setMineSearch] = useState('')
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [isLoadingList, setIsLoadingList] = useState(true)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
-
-  const [isLoadingList, setIsLoadingList] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
 
-  const canDeleteOwn = getCap('reports:delete') !== 'NO'
-
+  // ── 取数：自己的全状态报告 ∪（有审批权时）待审批队列，按 id 去重 ──
   useEffect(() => {
     let active = true
     setIsLoadingList(true)
-    setSelectedVolunteer(undefined)
     setSelectedReport(undefined)
 
     async function load() {
       try {
-        if (isManagerView) {
-          const data = (await fetchReports()).filter((report) => report.status === 'SUBMITTED' || !report.status)
-          if (!active) return
-          setAllReports(data)
-          if (data[0]) {
-            setIsLoadingDetail(true)
-            try {
-              const detail = await fetchReportById(data[0].id)
-              if (active) setSelectedReport(detail)
-            } finally {
-              if (active) setIsLoadingDetail(false)
-            }
+        const own = await fetchReports({ mine: true })
+        let queue: ReportSummary[] = []
+        if (canApprove) {
+          try {
+            queue = await fetchReports()
+          } catch {
+            queue = []
           }
-          setErrorMessage(undefined)
-          return
         }
-        const mine = activeTab === 'mine'
-        const data = await fetchReports({ mine })
         if (!active) return
-        if (mine) {
-          setMyReports(data)
-          if (data[0]) {
+
+        const byId = new Map<number, ReportSummary>()
+        for (const r of [...own, ...queue]) byId.set(r.id, r)
+        const merged = [...byId.values()]
+        setReports(merged)
+
+        // 默认展开第一个非空文件夹，并选中其最新一份
+        const grouped = groupByStatus(merged)
+        const firstFolder = FOLDER_ORDER.find((s) => grouped[s].length > 0)
+        if (firstFolder) {
+          setExpanded({ [firstFolder]: true })
+          const first = grouped[firstFolder][0]
+          if (first) {
             setIsLoadingDetail(true)
             try {
-              const detail = await fetchReportById(data[0].id)
+              const detail = await fetchReportById(first.id)
               if (active) setSelectedReport(detail)
             } finally {
               if (active) setIsLoadingDetail(false)
             }
           }
-        } else {
-          setAllReports(data)
-          const groups = groupByVolunteer(data)
-          if (groups[0]) setSelectedVolunteer(groups[0])
         }
         setErrorMessage(undefined)
       } catch {
@@ -140,11 +115,20 @@ export function ReportOverviewPage() {
     }
 
     void load()
-    return () => { active = false }
-  }, [activeTab, isManagerView, t])
+    return () => {
+      active = false
+    }
+  }, [canApprove, t])
 
-  async function handleSelectMineReport(id: number) {
+  const grouped = useMemo(() => groupByStatus(reports), [reports])
+
+  function toggleFolder(status: ReportStatus) {
+    setExpanded((prev) => ({ ...prev, [status]: !prev[status] }))
+  }
+
+  async function selectReport(id: number) {
     setIsLoadingDetail(true)
+    setErrorMessage(undefined)
     try {
       const detail = await fetchReportById(id)
       setSelectedReport(detail)
@@ -155,59 +139,33 @@ export function ReportOverviewPage() {
     }
   }
 
-  async function handleApproveSelectedReport() {
+  function patchStatus(id: number, status: ReportStatus) {
+    setReports((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)))
+  }
+
+  async function handleApprove() {
     if (!selectedReport) return
     setIsApproving(true)
     setErrorMessage(undefined)
     try {
-      await approveReport(selectedReport.id)
-      const remaining = allReports.filter((report) => report.id !== selectedReport.id)
-      setAllReports(remaining)
-      setSelectedReport(undefined)
-      if (remaining[0]) void handleSelectMineReport(remaining[0].id)
+      const updated = await approveReport(selectedReport.id)
+      setSelectedReport(updated)
+      patchStatus(updated.id, (updated.status ?? 'ARCHIVED') as ReportStatus)
     } catch {
-      setErrorMessage(t('reports.form.submitError'))
+      setErrorMessage(t('reports.detail.approveError'))
     } finally {
       setIsApproving(false)
     }
   }
 
-  async function handleDeleteSelectedReport() {
-    if (!selectedReport) return
-    if (!window.confirm(t('reports.detail.confirmDelete', { id: `RPT-${String(selectedReport.id).padStart(4, '0')}` }))) return
-    setIsDeleting(true)
-    setErrorMessage(undefined)
-    try {
-      await deleteReport(selectedReport.id)
-      const remaining = allReports.filter((report) => report.id !== selectedReport.id)
-      setAllReports(remaining)
-      setSelectedReport(undefined)
-      if (remaining[0]) void handleSelectMineReport(remaining[0].id)
-    } catch {
-      setErrorMessage(t('reports.deleteError'))
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  function switchTab(tab: ActiveTab) {
-    setSelectedVolunteer(undefined)
-    setSelectedReport(undefined)
-    setVolSearch('')
-    setMineSearch('')
-    setSearchParams({ tab }, { replace: true })
-  }
-
-  async function handleSubmitDraft() {
+  async function handleSubmit() {
     if (!selectedReport) return
     setIsSaving(true)
     setErrorMessage(undefined)
     try {
       const updated = await submitReport(selectedReport.id)
       setSelectedReport(updated)
-      setMyReports((prev) =>
-        prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status } : r)),
-      )
+      patchStatus(updated.id, (updated.status ?? 'SUBMITTED') as ReportStatus)
     } catch {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
@@ -215,24 +173,16 @@ export function ReportOverviewPage() {
     }
   }
 
-  async function handleDeleteDraft() {
+  async function handleDelete() {
     if (!selectedReport) return
-    if (
-      !window.confirm(
-        t('reports.detail.confirmDelete', {
-          id: `RPT-${String(selectedReport.id).padStart(4, '0')}`,
-        }),
-      )
-    )
-      return
+    if (!window.confirm(t('reports.detail.confirmDelete', { id: `RPT-${String(selectedReport.id).padStart(4, '0')}` }))) return
     setIsDeleting(true)
     setErrorMessage(undefined)
     try {
       await deleteReport(selectedReport.id)
-      const remaining = myReports.filter((r) => r.id !== selectedReport.id)
-      setMyReports(remaining)
+      const remainingId = selectedReport.id
+      setReports((prev) => prev.filter((r) => r.id !== remainingId))
       setSelectedReport(undefined)
-      if (remaining[0]) void handleSelectMineReport(remaining[0].id)
     } catch {
       setErrorMessage(t('reports.deleteError'))
     } finally {
@@ -240,472 +190,207 @@ export function ReportOverviewPage() {
     }
   }
 
-  // ── Volunteer tab derived state ──
-  const volunteerGroups = useMemo(() => groupByVolunteer(allReports), [allReports])
-  const filteredVolunteers = useMemo(() => {
-    const kw = volSearch.trim().toLowerCase()
-    if (!kw) return volunteerGroups
-    return volunteerGroups.filter((v) => v.name.toLowerCase().includes(kw))
-  }, [volunteerGroups, volSearch])
-
-  // ── Mine tab derived state ──
-  const filteredMyReports = useMemo(() => {
-    const kw = mineSearch.trim().toLowerCase()
-    if (!kw) return myReports
-    return myReports.filter((r) => {
-      const text = [r.clientNameChn, r.clientNameEn, r.typeOfVisit, r.dateOfVisit]
-        .filter(Boolean).join(' ').toLowerCase()
-      return text.includes(kw)
-    })
-  }, [myReports, mineSearch])
-
-  const isDraftSelected = selectedReport?.status === 'DRAFT'
-
   return (
-    <div className="report-workspace">
+    <div className="report-mailbox">
       <div className="report-workspace-header">
-        <h1>{t('reports.overview.title')}</h1>
-        {!isManagerView ? (
-        <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
-          {t('reports.list.newBtn')}
-        </button>
+        <h1>{t('reports.mailbox.title')}</h1>
+        {canCreate ? (
+          <button className="btn-primary" type="button" onClick={() => navigate('/reports/new')}>
+            {t('reports.list.newBtn')}
+          </button>
         ) : null}
       </div>
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
-      {isManagerView ? (
-        <ManagerReportContent
-          isLoading={isLoadingList}
-          isLoadingDetail={isLoadingDetail}
-          reports={allReports}
-          selectedReport={selectedReport}
-          onSelect={(id) => void handleSelectMineReport(id)}
-          onApprove={() => void handleApproveSelectedReport()}
-          onDelete={() => void handleDeleteSelectedReport()}
-          isApproving={isApproving}
-          isDeleting={isDeleting}
-          isZh={isZh}
-          t={t}
-        />
-      ) : (
-      <>
-      <div className="report-overview-tabs">
-        <button
-          type="button"
-          className={'report-overview-tab-btn' + (activeTab === 'volunteer' ? ' active' : '')}
-          onClick={() => switchTab('volunteer')}
-        >
-          {t('reports.overview.tabVolunteer')}
-          {volunteerGroups.length > 0 && (
-            <span className="report-tab-count">{volunteerGroups.length}</span>
-          )}
-        </button>
-        <button
-          type="button"
-          className={'report-overview-tab-btn' + (activeTab === 'mine' ? ' active' : '')}
-          onClick={() => switchTab('mine')}
-        >
-          {t('reports.overview.tabMine')}
-          {myReports.length > 0 && (
-            <span className="report-tab-count">{myReports.length}</span>
-          )}
-        </button>
-      </div>
-
-      {activeTab === 'volunteer' ? (
-        <VolunteerTabContent
-          isLoading={isLoadingList}
-          volunteers={filteredVolunteers}
-          allCount={volunteerGroups.length}
-          selected={selectedVolunteer}
-          search={volSearch}
-          onSearchChange={setVolSearch}
-          onSelect={setSelectedVolunteer}
-          t={t}
-          navigate={navigate}
-        />
-      ) : (
-        <MineTabContent
-          isLoading={isLoadingList}
-          isLoadingDetail={isLoadingDetail}
-          reports={filteredMyReports}
-          totalCount={myReports.length}
-          selectedReport={selectedReport}
-          search={mineSearch}
-          onSearchChange={setMineSearch}
-          onSelect={(id) => void handleSelectMineReport(id)}
-          isDraftSelected={isDraftSelected}
-          canDeleteOwn={canDeleteOwn}
-          isSaving={isSaving}
-          isDeleting={isDeleting}
-          onEdit={() => selectedReport && navigate(`/reports/${selectedReport.id}/edit`)}
-          onSubmit={() => void handleSubmitDraft()}
-          onDelete={() => void handleDeleteDraft()}
-          t={t}
-        />
-      )}
-      </>
-      )}
-    </div>
-  )
-}
-
-function ManagerReportContent({
-  isLoading,
-  isLoadingDetail,
-  reports,
-  selectedReport,
-  onSelect,
-  onApprove,
-  onDelete,
-  isApproving,
-  isDeleting,
-  isZh,
-  t,
-}: {
-  isLoading: boolean
-  isLoadingDetail: boolean
-  reports: ReportSummary[]
-  selectedReport: ReportDetail | undefined
-  onSelect: (id: number) => void
-  onApprove: () => void
-  onDelete: () => void
-  isApproving: boolean
-  isDeleting: boolean
-  isZh: boolean
-  t: (key: string, opts?: Record<string, unknown>) => string
-}) {
-  return (
-    <div className="report-split-layout">
-      <aside className="report-master-list" aria-label="Submitted reports">
-        {isLoading ? (
-          <div className="report-master-state">{t('reports.list.loading')}</div>
-        ) : reports.length === 0 ? (
-          <div className="report-master-state">{t('reports.list.empty')}</div>
-        ) : (
-          reports.map((report) => {
-            const isSelected = selectedReport?.id === report.id
-            return (
-              <button
-                key={report.id}
-                type="button"
-                className={'report-master-item' + (isSelected ? ' active' : '')}
-                onClick={() => onSelect(report.id)}
-              >
-                <span className="report-master-name">
-                  {displayName(report, isZh) || t('reports.unnamedMonastic')}
-                </span>
-                <span className="report-master-en">{report.createdByName ?? report.staffName ?? '-'}</span>
-                <span className="report-master-date">{formatDate(report.dateOfVisit)}</span>
-              </button>
-            )
-          })
-        )}
-        <div className="report-master-count">{t('reports.list.count', { count: reports.length })}</div>
-      </aside>
-
-      <main className="report-reader" aria-label="Report detail">
-        {isLoadingDetail ? (
-          <div className="report-reader-state">{t('reports.loading')}</div>
-        ) : !selectedReport ? (
-          <div className="report-reader-state">{t('reports.overview.selectHint')}</div>
-        ) : (
-          <>
-            <ReportDetailReadView report={selectedReport} showStatus={false} />
-            <div className="report-inline-actions">
-              <button className="report-delete-link" type="button" disabled={isDeleting || isApproving} onClick={onDelete}>
-                {isDeleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
-              </button>
-              <button className="btn-primary" type="button" disabled={isDeleting || isApproving} onClick={onApprove}>
-                {isApproving ? t('common.saving') : t('reports.detail.approve')}
-              </button>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
-  )
-}
-
-// ── Volunteer tab ────────────────────────────────────────────────────────────
-
-function VolunteerTabContent({
-  isLoading,
-  volunteers,
-  allCount,
-  selected,
-  search,
-  onSearchChange,
-  onSelect,
-  t,
-  navigate,
-}: {
-  isLoading: boolean
-  volunteers: VolunteerSummary[]
-  allCount: number
-  selected: VolunteerSummary | undefined
-  search: string
-  onSearchChange: (v: string) => void
-  onSelect: (v: VolunteerSummary) => void
-  t: (key: string, opts?: Record<string, unknown>) => string
-  navigate: (path: string) => void
-}) {
-  return (
-    <>
-      <div className="report-filter-bar" style={{ gridTemplateColumns: '1fr' }}>
-        <input
-          className="report-search-input"
-          value={search}
-          placeholder={t('reports.overview.searchVolunteer')}
-          onChange={(e) => onSearchChange(e.target.value)}
-          aria-label={t('reports.overview.searchVolunteer')}
-        />
-      </div>
-
-      <div className="report-split-layout">
-        {/* Left: volunteer list */}
-        <aside className="report-master-list" aria-label="Volunteer list">
-          {isLoading ? (
-            <div className="report-master-state">{t('reports.list.loading')}</div>
-          ) : volunteers.length === 0 ? (
-            <div className="report-master-state">{t('reports.overview.emptyVolunteer')}</div>
-          ) : (
-            volunteers.map((vol) => {
-              const statusKey = volunteerStatusClass(vol.lastDate)
-              const isSelected = selected?.name === vol.name
-              return (
-                <button
-                  key={vol.name}
-                  type="button"
-                  className={'report-volunteer-item' + (isSelected ? ' active' : '')}
-                  onClick={() => onSelect(vol)}
-                >
-                  <div className="report-volunteer-row">
-                    <span className="report-volunteer-name">{vol.name}</span>
-                    <span className={`report-volunteer-tag report-volunteer-tag-${statusKey}`}>
-                      {t(`reports.overview.freshness.${statusKey}`)}
-                    </span>
-                  </div>
-                  <div className="report-volunteer-meta">
-                    <span>{t('reports.overview.reportCount', { count: vol.count })}</span>
-                    <span>{t('reports.overview.lastDate')}{formatDate(vol.lastDate)}</span>
-                  </div>
-                </button>
-              )
-            })
-          )}
-          <div className="report-master-count">
-            {t('reports.overview.volunteerCount', { count: allCount })}
-          </div>
+      <div className="report-mailbox-body">
+        <aside className="report-folders" aria-label={t('reports.mailbox.title')}>
+          {FOLDER_ORDER.map((status) => (
+            <CategorySection
+              key={status}
+              status={status}
+              reports={grouped[status]}
+              expanded={!!expanded[status]}
+              isLoading={isLoadingList}
+              selectedId={selectedReport?.id}
+              onToggle={() => toggleFolder(status)}
+              onSelect={(id) => void selectReport(id)}
+              t={t}
+            />
+          ))}
         </aside>
 
-        {/* Right: selected volunteer's report list */}
-        <main className="report-reader" aria-label="Volunteer reports">
-          {!selected ? (
-            <div className="report-reader-state">{t('reports.overview.selectVolunteer')}</div>
+        <main className="report-reader" aria-label={t('reports.detail.title')}>
+          {isLoadingDetail ? (
+            <div className="report-reader-state">{t('reports.loading')}</div>
+          ) : !selectedReport ? (
+            <div className="report-reader-state">{t('reports.mailbox.selectHint')}</div>
           ) : (
-            <VolunteerReportList
-              volunteer={selected}
+            <DetailPane
+              report={selectedReport}
+              myId={myId}
+              canApprove={canApprove}
+              canUpdate={canUpdate}
+              canDeleteAny={canDeleteAny}
+              isSaving={isSaving}
+              isDeleting={isDeleting}
+              isApproving={isApproving}
+              onEdit={() => navigate(`/reports/${selectedReport.id}/edit`)}
+              onSubmit={() => void handleSubmit()}
+              onDelete={() => void handleDelete()}
+              onApprove={() => void handleApprove()}
               t={t}
-              navigate={navigate}
             />
           )}
         </main>
       </div>
-    </>
-  )
-}
-
-function VolunteerReportList({
-  volunteer,
-  t,
-  navigate,
-}: {
-  volunteer: VolunteerSummary
-  t: (key: string, opts?: Record<string, unknown>) => string
-  navigate: (path: string) => void
-}) {
-  const statusKey = volunteerStatusClass(volunteer.lastDate)
-  return (
-    <div className="report-vol-panel">
-      <div className="report-vol-panel-header">
-        <div className="report-vol-panel-title">
-          <strong>{volunteer.name}</strong>
-          <span className={`report-volunteer-tag report-volunteer-tag-${statusKey}`}>
-            {t(`reports.overview.freshness.${statusKey}`)}
-          </span>
-          <span className="report-vol-count-label">
-            {t('reports.overview.reportCount', { count: volunteer.count })}
-          </span>
-        </div>
-        <span className="report-vol-panel-sub">
-          {t('reports.overview.lastDate')}{formatDate(volunteer.lastDate)}
-        </span>
-      </div>
-
-      <div className="report-vol-list">
-        {volunteer.reports
-          .slice()
-          .sort((a, b) => (b.dateOfVisit ?? '') > (a.dateOfVisit ?? '') ? 1 : -1)
-          .map((r) => {
-            const status = r.status ?? 'SUBMITTED'
-            return (
-              <button
-                key={r.id}
-                type="button"
-                className="report-vol-row"
-                onClick={() => navigate(`/reports/${r.id}`)}
-              >
-                <span className="report-vol-date">{formatDate(r.dateOfVisit)}</span>
-                <span className="report-vol-client">
-                  {formatServiceTitle(r) || t('reports.unnamedMonastic')}
-                </span>
-                <span className="report-vol-type">{r.typeOfVisit ?? '-'}</span>
-                <span
-                  className={`report-master-status report-master-status-${status.toLowerCase()}`}
-                >
-                  {t(`reports.status.${status}`)}
-                </span>
-                <span className="report-vol-arrow">›</span>
-              </button>
-            )
-          })}
-      </div>
     </div>
   )
 }
 
-// ── Mine tab ─────────────────────────────────────────────────────────────────
-
-function MineTabContent({
-  isLoading,
-  isLoadingDetail,
+// ── 左栏：可折叠状态文件夹（邮箱式手风琴），报告简略块内嵌 ───────────────────────
+function CategorySection({
+  status,
   reports,
-  totalCount,
-  selectedReport,
-  search,
-  onSearchChange,
+  expanded,
+  isLoading,
+  selectedId,
+  onToggle,
   onSelect,
-  isDraftSelected,
-  canDeleteOwn,
+  t,
+}: {
+  status: ReportStatus
+  reports: ReportSummary[]
+  expanded: boolean
+  isLoading: boolean
+  selectedId: number | undefined
+  onToggle: () => void
+  onSelect: (id: number) => void
+  t: T
+}) {
+  return (
+    <div className={'report-folder' + (expanded ? ' open' : '')}>
+      <button className="report-folder-header" type="button" onClick={onToggle} aria-expanded={expanded}>
+        <span className="report-folder-caret">{expanded ? '▾' : '▸'}</span>
+        <span className="report-folder-name">{t(`reports.folder.${status}`)}</span>
+        <span className="report-folder-count">{reports.length}</span>
+      </button>
+      {expanded ? (
+        <div className="report-folder-body">
+          {isLoading ? (
+            <div className="report-folder-state">{t('reports.list.loading')}</div>
+          ) : reports.length === 0 ? (
+            <div className="report-folder-state">{t('reports.mailbox.empty')}</div>
+          ) : (
+            reports.map((r) => (
+              <ReportSummaryCard
+                key={r.id}
+                report={r}
+                active={r.id === selectedId}
+                onClick={() => onSelect(r.id)}
+                t={t}
+              />
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ReportSummaryCard({
+  report,
+  active,
+  onClick,
+  t,
+}: {
+  report: ReportSummary
+  active: boolean
+  onClick: () => void
+  t: T
+}) {
+  return (
+    <button className={'report-card' + (active ? ' active' : '')} type="button" onClick={onClick}>
+      <span className="report-card-date">{formatDate(report.dateOfVisit)}</span>
+      <span className="report-card-title">{formatServiceTitle(report) || t('reports.unnamedMonastic')}</span>
+      <span className="report-card-sub">{report.caseCode ?? report.createdByName ?? report.staffName ?? '-'}</span>
+    </button>
+  )
+}
+
+// ── 右栏：详情 + 上下文动作（能力 × 状态 驱动） ──────────────────────────────────
+function DetailPane({
+  report,
+  myId,
+  canApprove,
+  canUpdate,
+  canDeleteAny,
   isSaving,
   isDeleting,
+  isApproving,
   onEdit,
   onSubmit,
   onDelete,
+  onApprove,
   t,
 }: {
-  isLoading: boolean
-  isLoadingDetail: boolean
-  reports: ReportSummary[]
-  totalCount: number
-  selectedReport: ReportDetail | undefined
-  search: string
-  onSearchChange: (v: string) => void
-  onSelect: (id: number) => void
-  isDraftSelected: boolean
-  canDeleteOwn: boolean
+  report: ReportDetail
+  myId: number | null
+  canApprove: boolean
+  canUpdate: boolean
+  canDeleteAny: boolean
   isSaving: boolean
   isDeleting: boolean
+  isApproving: boolean
   onEdit: () => void
   onSubmit: () => void
   onDelete: () => void
-  t: (key: string, opts?: Record<string, unknown>) => string
+  onApprove: () => void
+  t: T
 }) {
+  const status = (report.status ?? 'SUBMITTED') as ReportStatus
+  const isOwn = report.createdById != null && report.createdById === myId
+  const isEditable = status === 'DRAFT' || status === 'RETURNED'
+
+  const showEdit = isOwn && isEditable && canUpdate
+  const showSubmit = isOwn && isEditable
+  const showDelete = (isOwn && status === 'DRAFT') || canDeleteAny
+  const showApprove = status === 'SUBMITTED' && canApprove
+  const busy = isSaving || isDeleting || isApproving
+
   return (
     <>
-      <div className="report-filter-bar" style={{ gridTemplateColumns: '1fr' }}>
-        <input
-          className="report-search-input"
-          value={search}
-          placeholder={t('reports.list.search')}
-          onChange={(e) => onSearchChange(e.target.value)}
-          aria-label={t('reports.list.search')}
-        />
-      </div>
-
-      <div className="report-split-layout">
-        <aside className="report-master-list" aria-label="My reports">
-          {isLoading ? (
-            <div className="report-master-state">{t('reports.list.loading')}</div>
-          ) : reports.length === 0 ? (
-            <div className="report-master-state">{t('reports.overview.emptyMine')}</div>
-          ) : (
-            reports.map((r) => {
-              const isSelected = selectedReport?.id === r.id
-              const status = r.status ?? 'SUBMITTED'
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  className={'report-master-item' + (isSelected ? ' active' : '')}
-                  onClick={() => onSelect(r.id)}
-                >
-                  <span className="report-master-name">
-                    {formatServiceTitle(r) || t('reports.unnamedMonastic')}
-                  </span>
-                  <span className="report-master-date">{formatDate(r.dateOfVisit)}</span>
-                  <span className={`report-master-status report-master-status-${status.toLowerCase()}`}>
-                    {t(`reports.status.${status}`)}
-                  </span>
-                </button>
-              )
-            })
-          )}
-          <div className="report-master-count">
-            {t('reports.list.count', { count: totalCount })}
-          </div>
-        </aside>
-
-        <main className="report-reader" aria-label="Report detail">
-          {isLoadingDetail ? (
-            <div className="report-reader-state">{t('reports.loading')}</div>
-          ) : !selectedReport ? (
-            <div className="report-reader-state">{t('reports.overview.selectHint')}</div>
-          ) : (
-            <>
-              <ReportDetailReadView report={selectedReport} />
-              {isDraftSelected && (
-                <div className="report-inline-actions">
-                  {canDeleteOwn && (
-                    <button
-                      className="report-delete-link"
-                      type="button"
-                      disabled={isSaving || isDeleting}
-                      onClick={onDelete}
-                    >
-                      {isDeleting ? t('reports.detail.deleting') : t('reports.detail.deleteDraft')}
-                    </button>
-                  )}
-                  <button
-                    className="btn-secondary"
-                    type="button"
-                    disabled={isSaving || isDeleting}
-                    onClick={onEdit}
-                  >
-                    {t('reports.detail.edit')}
-                  </button>
-                  <button
-                    className="btn-primary"
-                    type="button"
-                    disabled={isSaving || isDeleting}
-                    onClick={onSubmit}
-                  >
-                    {isSaving ? t('reports.form.submitting') : t('reports.form.submitFinal')}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </main>
+      <ReportDetailReadView report={report} />
+      <div className="report-inline-actions">
+        {status === 'SUBMITTED' && !canApprove ? (
+          <span className="report-waiting-hint">{t('reports.mailbox.waitingApproval')}</span>
+        ) : null}
+        {showDelete ? (
+          <button className="report-delete-link" type="button" disabled={busy} onClick={onDelete}>
+            {isDeleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
+          </button>
+        ) : null}
+        {showEdit ? (
+          <button className="btn-secondary" type="button" disabled={busy} onClick={onEdit}>
+            {t('reports.detail.edit')}
+          </button>
+        ) : null}
+        {showSubmit ? (
+          <button className="btn-primary" type="button" disabled={busy} onClick={onSubmit}>
+            {isSaving ? t('reports.form.submitting') : t('reports.form.submitFinal')}
+          </button>
+        ) : null}
+        {showApprove ? (
+          <button className="btn-primary" type="button" disabled={busy} onClick={onApprove}>
+            {isApproving ? t('reports.detail.approving') : t('reports.detail.approve')}
+          </button>
+        ) : null}
       </div>
     </>
   )
 }
 
-// ── Shared detail view ────────────────────────────────────────────────────────
-
+// ── 共享：报告详情只读视图 ────────────────────────────────────────────────────
 function FieldView({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
     <div className={'report-reader-field' + (wide ? ' wide' : '')}>
@@ -715,16 +400,14 @@ function FieldView({ label, value, wide = false }: { label: string; value: strin
   )
 }
 
-function ReportDetailReadView({ report, showStatus = true }: { report: ReportDetail; showStatus?: boolean }) {
+function ReportDetailReadView({ report }: { report: ReportDetail }) {
   const { t } = useTranslation()
-  const status = report.status ?? 'SUBMITTED'
+  const status = (report.status ?? 'SUBMITTED') as ReportStatus
   return (
     <section className="report-reader-card report-reader-card-continuous">
-      {showStatus ? (
-        <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>
+      <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>
         {t(`reports.status.${status}`)}
       </span>
-      ) : null}
       <div className="report-reader-grid continuous">
         <FieldView label={t('reports.form.staffName')} value={report.createdByName ?? report.staffName ?? ''} />
         <FieldView label={t('reports.form.dateOfVisit')} value={formatDate(report.dateOfVisit)} />

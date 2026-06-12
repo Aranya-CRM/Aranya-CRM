@@ -2,8 +2,8 @@ databaseChangeLog:
   - changeSet:
       id: 039-clear-dev-client-case-report-data
       author: codex
-      context: dev, test
-      comment: "Clear dev sample client, case, and report data so business lists start empty"
+      context: test
+      comment: "TEST-only: clear sample client/case/report data so integration tests start empty. Excluded from dev (devs keep seed data) and prod."
       changes:
         - sql:
             splitStatements: false

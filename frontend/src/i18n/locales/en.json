@@ -450,6 +450,18 @@
       "ARCHIVED": "Archived",
       "RETURNED": "Returned"
     },
+    "folder": {
+      "DRAFT": "Draft",
+      "SUBMITTED": "Pending",
+      "ARCHIVED": "Approved",
+      "RETURNED": "Returned"
+    },
+    "mailbox": {
+      "title": "Reports",
+      "empty": "No reports",
+      "waitingApproval": "Awaiting approval",
+      "selectHint": "Select a report to view"
+    },
     "list": {
       "title": "Reports",
       "myTitle": "My Visit Reports",
