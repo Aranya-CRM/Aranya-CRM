@@ -1,5 +1,6 @@
 package aranya.crm.service;
 
+import aranya.crm.common.exception.ConflictException;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.dto.request.InviteUserRequest;
 import aranya.crm.dto.response.MeResponse;
@@ -9,7 +10,9 @@ import aranya.crm.entity.UserRole;
 import aranya.crm.repository.RoleRepository;
 import aranya.crm.repository.UserRepository;
 import aranya.crm.repository.UserRoleRepository;
-import com.google.firebase.auth.FirebaseToken;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +20,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -78,37 +82,12 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("syncFromFirebase keeps the role-loaded user instance after saving profile changes")
-    void syncFromFirebase_keepsRoleLoadedUserAfterSavingProfileChanges() {
-        User roleLoadedUser = user(2L, "manager", "manager@test.com", "Old Name", "ACTIVE");
-        roleLoadedUser.setEmailVerified(false);
-        roleLoadedUser.getUserRoles().add(userRole(roleLoadedUser, role("MANAGER"), 1L));
-
-        User savedWithoutRoleGraph = user(2L, "manager", "manager@test.com", "Firebase Name", "ACTIVE");
-        savedWithoutRoleGraph.setEmailVerified(true);
-
-        FirebaseToken token = mock(FirebaseToken.class);
-        when(token.isEmailVerified()).thenReturn(true);
-        when(token.getName()).thenReturn("Firebase Name");
-        when(userRepository.save(roleLoadedUser)).thenReturn(savedWithoutRoleGraph);
-
-        User result = userService.syncFromFirebase(roleLoadedUser, token);
-
-        assertThat(result).isSameAs(roleLoadedUser);
-        assertThat(result.getFullName()).isEqualTo("Firebase Name");
-        assertThat(result.isEmailVerified()).isTrue();
-        assertThat(result.getUserRoles())
-                .extracting(userRole -> userRole.getRole().getName())
-                .containsExactly("MANAGER");
-    }
-
-    @Test
-    @DisplayName("invite creates an active pending-Firebase user and assigns one requested role")
-    void invite_createsActiveUserAndAssignsRequestedRoles() {
+    @DisplayName("invite creates an INVITED user with a real Firebase UID and assigns one requested role")
+    void invite_createsInvitedUserAndAssignsRequestedRoles() throws FirebaseAuthException {
         InviteUserRequest request = inviteRequest(List.of("MANAGER"));
         Role manager = role("MANAGER");
 
-        when(userRepository.existsByEmail("new.user@test.com")).thenReturn(false);
+        when(userRepository.findByEmail("new.user@test.com")).thenReturn(Optional.empty());
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(roleRepository.findByName("MANAGER")).thenReturn(Optional.of(manager));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -117,27 +96,35 @@ class UserServiceTest {
             return saved;
         });
 
-        UserSummaryDto result = userService.invite(request, 99L);
+        try (MockedStatic<FirebaseAuth> firebaseAuthStatic = Mockito.mockStatic(FirebaseAuth.class)) {
+            FirebaseAuth firebaseAuth = Mockito.mock(FirebaseAuth.class);
+            UserRecord record = Mockito.mock(UserRecord.class);
+            when(record.getUid()).thenReturn("firebase-uid-123");
+            when(firebaseAuth.createUser(any(UserRecord.CreateRequest.class))).thenReturn(record);
+            firebaseAuthStatic.when(FirebaseAuth::getInstance).thenReturn(firebaseAuth);
 
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
+            UserSummaryDto result = userService.invite(request, 99L);
 
-        assertThat(savedUser.getUsername()).isEqualTo("newuser");
-        assertThat(savedUser.getFullName()).isEqualTo("New User");
-        assertThat(savedUser.getEmail()).isEqualTo("new.user@test.com");
-        assertThat(savedUser.getPhone()).isEqualTo("91234567");
-        assertThat(savedUser.getStatus()).isEqualTo("ACTIVE");
-        assertThat(savedUser.getFirebaseUid()).startsWith("pending:");
-        assertThat(savedUser.getUserRoles()).hasSize(1);
-        assertThat(savedUser.getUserRoles())
-                .extracting(userRole -> userRole.getRole().getName())
-                .containsExactly("MANAGER");
-        assertThat(savedUser.getUserRoles())
-                .allSatisfy(userRole -> assertThat(userRole.getAssignedBy()).isEqualTo(99L));
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(userCaptor.capture());
+            User savedUser = userCaptor.getValue();
 
-        assertThat(result.getId()).isEqualTo(10L);
-        assertThat(result.getRoles()).containsExactly("MANAGER");
+            assertThat(savedUser.getUsername()).isEqualTo("newuser");
+            assertThat(savedUser.getFullName()).isEqualTo("New User");
+            assertThat(savedUser.getEmail()).isEqualTo("new.user@test.com");
+            assertThat(savedUser.getPhone()).isEqualTo("91234567");
+            assertThat(savedUser.getStatus()).isEqualTo("INVITED");
+            assertThat(savedUser.getFirebaseUid()).isEqualTo("firebase-uid-123");
+            assertThat(savedUser.getUserRoles()).hasSize(1);
+            assertThat(savedUser.getUserRoles())
+                    .extracting(userRole -> userRole.getRole().getName())
+                    .containsExactly("MANAGER");
+            assertThat(savedUser.getUserRoles())
+                    .allSatisfy(userRole -> assertThat(userRole.getAssignedBy()).isEqualTo(99L));
+
+            assertThat(result.getId()).isEqualTo(10L);
+            assertThat(result.getRoles()).containsExactly("MANAGER");
+        }
     }
 
     @Test
@@ -151,14 +138,30 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("invite rejects duplicate email before resolving roles")
+    @DisplayName("invite rejects an ACTIVE duplicate email with ALREADY_EXISTS before resolving roles")
     void invite_rejectsDuplicateEmailBeforeResolvingRoles() {
         InviteUserRequest request = inviteRequest(List.of("MANAGER"));
-        when(userRepository.existsByEmail("new.user@test.com")).thenReturn(true);
+        User existing = user(5L, "existing", "new.user@test.com", "Existing User", "ACTIVE");
+        when(userRepository.findByEmail("new.user@test.com")).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> userService.invite(request, 99L))
-                .isInstanceOf(DataIntegrityViolationException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Email already in use");
+
+        verify(userRepository, never()).save(any());
+        verifyNoInteractions(roleRepository);
+    }
+
+    @Test
+    @DisplayName("invite rejects an INVITED duplicate email with ALREADY_INVITED")
+    void invite_rejectsAlreadyInvitedEmail() {
+        InviteUserRequest request = inviteRequest(List.of("MANAGER"));
+        User existing = user(6L, "pending", "new.user@test.com", "Pending User", "INVITED");
+        when(userRepository.findByEmail("new.user@test.com")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> userService.invite(request, 99L))
+                .isInstanceOf(ConflictException.class)
+                .satisfies(ex -> assertThat(((ConflictException) ex).getCode()).isEqualTo("ALREADY_INVITED"));
 
         verify(userRepository, never()).save(any());
         verifyNoInteractions(roleRepository);

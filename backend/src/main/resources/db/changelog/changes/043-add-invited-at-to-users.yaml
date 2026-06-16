@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 043-add-invited-at-to-users
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: invited_at
+                  type: JAVA.SQL.Types.TIMESTAMP_WITH_TIMEZONE

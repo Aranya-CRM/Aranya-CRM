@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
+import { sendInviteSetupEmail } from '../../auth/api/auth'
+import { getApiErrorCode } from '../../../shared/api'
 import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
+import { inviteErrorKey } from '../inviteErrors'
 import {
   useDeleteUser,
   useInviteUser,
@@ -88,18 +91,27 @@ export function UsersPage() {
       return
     }
 
+    const email = inviteForm.email.trim()
     try {
       await inviteUser.mutateAsync({
         ...inviteForm,
-        username: inviteForm.username.trim(),
-        fullName: inviteForm.fullName.trim(),
-        email: inviteForm.email.trim(),
+        username: inviteForm.username?.trim() || undefined,
+        fullName: inviteForm.fullName?.trim() || undefined,
+        email,
         phone: inviteForm.phone?.trim() || undefined,
       })
-      closeInviteModal()
-    } catch {
-      setFormError(t('users.error.invite'))
+    } catch (error) {
+      setFormError(t(inviteErrorKey(getApiErrorCode(error))))
+      return
     }
+
+    // 账号已创建,触发 Firebase 发送"设置密码"邮件(失败不阻断,可让 MANAGER 重发邀请)
+    try {
+      await sendInviteSetupEmail(email)
+    } catch {
+      window.alert(t('users.error.inviteEmail'))
+    }
+    closeInviteModal()
   }
 
   function openRoleEditor(user: UserSummary) {
@@ -252,6 +264,11 @@ export function UsersPage() {
                         <span className={`users-status-badge users-status-${user.status.toLowerCase()}`}>
                           {t(`users.status.${user.status}`)}
                         </span>
+                        {user.inviteStale ? (
+                          <span className="users-invite-stale" title={t('users.invite.staleHint')}>
+                            {t('users.invite.stale')}
+                          </span>
+                        ) : null}
                       </td>
                       <td><span className="users-cell-main">-</span></td>
                       <td>
@@ -312,13 +329,13 @@ export function UsersPage() {
           <UserTextField
             label={t('users.modal.username')}
             required
-            value={inviteForm.username}
+            value={inviteForm.username ?? ''}
             onChange={(value) => setInviteForm((current) => ({ ...current, username: value }))}
           />
           <UserTextField
             label={t('users.modal.fullName')}
             required
-            value={inviteForm.fullName}
+            value={inviteForm.fullName ?? ''}
             onChange={(value) => setInviteForm((current) => ({ ...current, fullName: value }))}
           />
           <UserTextField
