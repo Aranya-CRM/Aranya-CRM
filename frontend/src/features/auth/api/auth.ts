@@ -40,7 +40,10 @@ export async function signInWithPassword(email: string, password: string): Promi
 
 export async function signInWithGoogle(): Promise<PrimarySignInResult> {
   try {
-    const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
+    const provider = new GoogleAuthProvider()
+    // 每次都强制弹出 Google 账号选择，而不是静默沿用上次登录的账号
+    provider.setCustomParameters({ prompt: 'select_account' })
+    const credential = await signInWithPopup(firebaseAuth, provider)
     return { status: 'signed-in', user: credential.user }
   } catch (error) {
     if (isMultiFactorRequired(error)) {

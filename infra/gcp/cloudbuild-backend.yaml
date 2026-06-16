@@ -1,0 +1,68 @@
+# Cloud Build 配置：构建后端镜像 -> 推送 Artifact Registry -> 部署到 Cloud Run
+#
+# 与 cloudbuild-frontend.yaml 对称,由 Cloud Build「触发器」在 push 时自动运行。
+#
+# 前置(一次性,跑一次即可,不在本流水线里做):
+#   Cloud SQL 实例 + 库 + 用户、Secret Manager 三个密钥、运行服务账号授权。
+#   用 scripts/deploy-dev-backend.sh 跑一次,或手动建好。
+#
+# 在触发器「替换变量」里必须填:
+#   _CLOUD_SQL_CONN  —— Cloud SQL 连接名,形如 aranya-crm-dev:asia-southeast1:aranya-crm-dev-db
+# 部署完前端后再补:
+#   _CORS_ORIGINS    —— 前端 dev 地址,如 https://aranya-frontend-xxxx.run.app
+#
+# 可选覆盖:_REGION / _REPO / _SERVICE / _DB_NAME / _DB_USER / _FIREBASE_PROJECT_ID
+#
+# 依赖的固定命名密钥(由 bootstrap 创建):
+#   firebase-sa-dev / db-pass-dev / jwt-secret-dev
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPO: aranya-crm
+  _SERVICE: backend-dev
+  _DB_NAME: aranya_crm
+  _DB_USER: aranya_admin
+  _FIREBASE_PROJECT_ID: aranya-crm-dev
+  _CLOUD_SQL_CONN: ""
+  _CORS_ORIGINS: ""
+
+steps:
+  # 1. 构建镜像(后端构建不需要 .env,运行期靠环境变量/密钥)
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest
+      - backend          # 构建上下文(相对仓库根目录),Dockerfile 在 backend/Dockerfile
+
+  # 2. 推送镜像
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend
+
+  # 3. 部署到 Cloud Run(挂 Cloud SQL、注入环境变量与密钥)
+  #    --set-env-vars 用 ^##^ 自定义分隔符,避免数据源 URL 的 & 和 CORS 多值逗号被误解析
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --add-cloudsql-instances=${_CLOUD_SQL_CONN}
+      - --set-env-vars=^##^SPRING_PROFILES_ACTIVE=dev##FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}##FIREBASE_SERVICE_ACCOUNT_PATH=file:/secrets/firebase.json##SPRING_DATASOURCE_URL=jdbc:postgresql:///${_DB_NAME}?cloudSqlInstance=${_CLOUD_SQL_CONN}&socketFactory=com.google.cloud.sql.postgres.SocketFactory##SPRING_DATASOURCE_USERNAME=${_DB_USER}##APP_CORS_ALLOWED_ORIGINS=${_CORS_ORIGINS}
+      - --set-secrets=/secrets/firebase.json=firebase-sa-dev:latest,SPRING_DATASOURCE_PASSWORD=db-pass-dev:latest,JWT_SECRET=jwt-secret-dev:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
