@@ -72,7 +72,7 @@ public class UserService {
         }
 
         if (changed){
-            return userRepository.save(user);
+            userRepository.save(user);
         }
         return user;
     }
