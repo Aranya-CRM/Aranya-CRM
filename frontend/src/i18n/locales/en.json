@@ -4,6 +4,7 @@
     "clients": "Member",
     "cases": "Cases",
     "reports": "Reports",
+    "approvals": "Approvals",
     "tasks": "Help with",
     "users": "Users"
   },
@@ -25,6 +26,38 @@
     "saving": "Saving...",
     "by": "by",
     "delete": "Delete"
+  },
+  "approvals": {
+    "title": "Approvals",
+    "subtitle": "Review pending case, service, and deletion requests.",
+    "loadError": "Failed to load approvals.",
+    "actionError": "Failed to update approval request.",
+    "pending": "Pending",
+    "empty": "No pending approvals.",
+    "selectPrompt": "Select an approval request.",
+    "listLabel": "Approval request list",
+    "detailLabel": "Approval request detail",
+    "payload": "Request Payload",
+    "noPayload": "No payload details.",
+    "comment": "Decision Comment",
+    "commentPlaceholder": "Optional comment",
+    "approve": "Approve",
+    "reject": "Reject",
+    "fields": {
+      "requestedBy": "Requested By",
+      "createdAt": "Created At",
+      "target": "Target",
+      "status": "Status"
+    },
+    "type": {
+      "CASE_CREATE": "Create Case",
+      "CASE_SERVICE_UPDATE": "Update Case Services",
+      "SERVICE_EVENT_CREATE": "Create Service Event",
+      "DELETE_CLIENT": "Delete Member",
+      "DELETE_REPORT": "Delete Report",
+      "DELETE_CASE_NOTE": "Delete Case Note",
+      "DELETE_USER": "Delete User"
+    }
   },
   "dashboard": {
     "pageTitle": "Dashboard",
@@ -125,7 +158,8 @@
       "selectAssignee": "Select assignee",
       "time": "Specific Time",
       "location": "Location",
-      "createEvent": "Create Event"
+      "createEvent": "Create Event",
+      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval."
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -227,6 +261,7 @@
     "form": {
       "newCase": "New Case",
       "loadError": "Failed to load data for the new case.",
+      "clientUnavailable": "This member already has a case or is no longer available for case creation.",
       "saveError": "Failed to create case. Check the details and try again.",
       "coreInfo": "Core Information",
       "client": "Member",
@@ -238,7 +273,12 @@
       "comments": "Comments",
       "remarks": "Remarks",
       "intensity": "Case Intensity",
-      "services": "Service Modules"
+      "services": "Service Modules",
+      "approvalSubmitted": "Case request submitted for manager approval.",
+      "approvalSubmittedWithId": "Approval request #{{id}} submitted. The case will appear after manager approval.",
+      "approvalSubmittedButton": "Submitted for Approval",
+      "submittingApproval": "Submitting...",
+      "submitForApproval": "Submit for Approval"
     },
     "list": {
       "count": "{{count}} cases",
@@ -301,7 +341,7 @@
     },
     "profile": {
       "convertToClient": "Convert to Client",
-      "convertToCase": "Convert to Case Client",
+      "convertToCase": "Create Case",
       "editProfile": "Edit Profile",
       "delete": "Delete",
       "editTitle": "Edit Profile",

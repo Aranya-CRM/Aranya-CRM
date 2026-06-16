@@ -1,7 +1,7 @@
 import { http } from '../../../shared/api'
-import type { UiManifest } from '../../../types/uiManifest'
+import type { CapsManifest } from '../../../types/capManifest'
 
-export async function getUiManifest(): Promise<UiManifest> {
-  const { data } = await http.get<UiManifest>('/v1/ui/manifest')
+export async function getUiManifest(): Promise<CapsManifest> {
+  const { data } = await http.get<CapsManifest>('/ui/manifest')
   return data
 }

@@ -30,8 +30,7 @@ class BusinessEntityMappingTest {
                 Map.entry(CaseChangeLog.class, "case_change_log"),
                 Map.entry(CaseDocument.class, "case_document"),
                 Map.entry(VisitReport.class, "visit_report"),
-                Map.entry(Permission.class, "permission"),
-                Map.entry(RolePermission.class, "role_permission")
+                Map.entry(ApprovalRequest.class, "approval_request")
         );
 
         mappings.forEach((entityClass, tableName) -> {
@@ -52,7 +51,8 @@ class BusinessEntityMappingTest {
         assertManyToOne(CaseAssignment.class, "user", "user_id", false);
         assertManyToOne(ServiceAppointment.class, "serviceType", "service_type_id", false);
         assertManyToOne(CaseDocument.class, "document", "document_id", false);
-        assertManyToOne(RolePermission.class, "permission", "permission_id", false);
+        assertManyToOne(ApprovalRequest.class, "requestedBy", "requested_by", false);
+        assertManyToOne(ApprovalRequest.class, "decidedBy", "decided_by", true);
     }
 
     @Test
@@ -67,7 +67,7 @@ class BusinessEntityMappingTest {
         assertThat(new CaseNote().getVisibility()).isEqualTo("INTERNAL");
         assertThat(new ServiceAppointment().getStatus()).isEqualTo("SCHEDULED");
         assertThat(new Document().getStatus()).isEqualTo("ACTIVE");
-        assertThat(new Permission().getType()).isNull();
+        assertThat(new ApprovalRequest().getStatus()).isEqualTo("PENDING");
     }
 
     private static void assertManyToOne(

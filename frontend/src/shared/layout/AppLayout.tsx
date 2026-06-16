@@ -32,13 +32,11 @@ export function AppLayout({ children }: AppLayoutProps) {
     },
   })
 
-  const isManager = resolve('cases:audit')
-  const isVolunteerOnly = canRoute('tasks.list')
-    && !canRoute('clients.list')
-    && !canRoute('cases.list')
+  const isVolunteerOnly = resolve('route:tasks')
+    && !resolve('route:clients')
+    && !resolve('route:cases')
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
     if (isVolunteerOnly && item.id !== 'tasks') return false
-    if (isManager && item.id === 'tasks') return false
     return resolve(item.routeId) || canRoute(item.routeId)
   })
 

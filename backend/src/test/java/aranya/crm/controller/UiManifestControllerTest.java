@@ -18,16 +18,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
 import java.util.Map;
 
 @WebMvcTest(controllers = UiManifestController.class)
@@ -56,34 +52,29 @@ class UiManifestControllerTest {
     private UserService userService;
 
     @Test
-    @DisplayName("Manifest returns capability ids without role or layout fields")
+    @DisplayName("Manifest returns cap scopes without role or layout fields")
     @WithMockUser(username = "volunteer@test.com", roles = "VOLUNTEER")
     void manifest_returnsCapabilityIds_withoutRoleOrLayoutFields() throws Exception {
-        when(uiManifestService.buildManifest(any())).thenReturn(Map.of(
-                "routes", List.of("dashboard", "reports.list", "reports.create"),
-                "features", List.of("dashboard.view", "reports.create", "reports.view.own", "reports.update.own"),
-                "widgets", List.of("dashboard.myReports")
+        when(uiManifestService.buildCaps(any())).thenReturn(Map.of(
+                "route:tasks", "YES",
+                "tasks.list", "YES"
         ));
 
-        mockMvc.perform(get("/api/v1/ui/manifest"))
+        mockMvc.perform(get("/api/ui/manifest"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.routes[0]").value("dashboard"))
-                .andExpect(jsonPath("$.features[1]").value("reports.create"))
-                .andExpect(jsonPath("$.features[3]").value("reports.update.own"))
-                .andExpect(jsonPath("$.widgets[0]").value("dashboard.myReports"))
+                .andExpect(jsonPath("$.caps['route:tasks']").value("YES"))
+                .andExpect(jsonPath("$.caps['tasks.list']").value("YES"))
                 .andExpect(jsonPath("$.navigation").doesNotExist())
                 .andExpect(jsonPath("$.pages").doesNotExist())
                 .andExpect(jsonPath("$.sharedRegistry").doesNotExist())
                 .andExpect(jsonPath("$.session").doesNotExist())
-                .andExpect(jsonPath("$.roles").doesNotExist())
-                .andExpect(content().string(not(containsString("clients."))))
-                .andExpect(content().string(not(containsString("VOLUNTEER"))));
+                .andExpect(jsonPath("$.roles").doesNotExist());
     }
 
     @Test
     @DisplayName("Anonymous manifest request returns 403")
     void manifest_returns403_forAnonymous() throws Exception {
-        mockMvc.perform(get("/api/v1/ui/manifest"))
+        mockMvc.perform(get("/api/ui/manifest"))
                 .andExpect(status().isForbidden());
     }
 }

@@ -12,10 +12,10 @@ import './login.css'
 
 export function LoginPage() {
   const loginFlow = useFirebaseLoginFlow()
-  const { manifest, caps } = useAuth()
+  const { caps } = useAuth()
 
   if (loginFlow.authenticated) {
-    return <Navigate to={getDefaultRoute(manifest, caps)} replace />
+    return <Navigate to={getDefaultRoute(caps)} replace />
   }
 
   function renderStep() {

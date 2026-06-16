@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/ui")
+@RequestMapping("/api/ui")
 @RequiredArgsConstructor
 public class UiManifestController {
 
@@ -21,6 +21,8 @@ public class UiManifestController {
     @GetMapping("/manifest")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> getManifest(Authentication authentication) {
-        return ResponseEntity.ok(uiManifestService.buildManifest(authentication));
+        return ResponseEntity.ok(Map.of(
+                "caps", uiManifestService.buildCaps(authentication)
+        ));
     }
 }
