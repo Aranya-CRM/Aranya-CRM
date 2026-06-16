@@ -1,6 +1,6 @@
 export type ScopeValue = 'ALL' | 'OWN' | 'TEAM' | 'YES' | 'NO' | 'WORKFLOW'
 
-/** Response shape from GET /api/v2/ui/manifest */
+/** Response shape from GET /api/ui/manifest */
 export interface CapsManifest {
   caps: Record<string, ScopeValue>
 }

@@ -2,13 +2,16 @@ package aranya.crm.controller;
 
 import aranya.crm.dto.request.CreateClientRequest;
 import aranya.crm.dto.request.UpdateClientRequest;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.annotation.CurrentUser;
+import aranya.crm.service.ApprovalService;
 import aranya.crm.service.ClientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,6 +35,7 @@ import java.util.List;
 public class ClientController {
 
     private final ClientService clientService;
+    private final ApprovalService approvalService;
 
     @GetMapping
     public ResponseEntity<List<ClientSummaryResponse>> listClients(
@@ -76,8 +80,17 @@ public class ClientController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:delete')")
-    public ResponseEntity<Void> deleteClient(@PathVariable Long id) {
-        clientService.deleteClient(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApprovalRequestResponse> deleteClient(
+            @PathVariable Long id,
+            @CurrentUser User currentUser
+    ) {
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "DELETE_CLIENT",
+                "CLIENT",
+                id,
+                null,
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 }

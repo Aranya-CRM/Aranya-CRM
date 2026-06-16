@@ -5,9 +5,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { getDefaultRoute } from '../shared/auth/defaultRoute'
 
 function DefaultRedirect() {
-  const { loading, authenticated, manifest, caps } = useAuth()
+  const { loading, authenticated, caps } = useAuth()
   if (loading) return null
-  return <Navigate to={authenticated ? getDefaultRoute(manifest, caps) : '/login'} replace />
+  return <Navigate to={authenticated ? getDefaultRoute(caps) : '/login'} replace />
 }
 
 function App() {

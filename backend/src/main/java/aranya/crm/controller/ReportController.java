@@ -1,11 +1,13 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.request.CreateReportRequest;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
+import aranya.crm.service.ApprovalService;
 import aranya.crm.service.ReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final ApprovalService approvalService;
     private final CapPermissionEvaluator capEval;
 
     @GetMapping
@@ -100,13 +103,26 @@ public class ReportController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReport(
+    public ResponseEntity<?> deleteReport(
             @CurrentUser User currentUser,
             @PathVariable Long id,
             Authentication authentication
     ) {
         boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
-        reportService.deleteReport(id, currentUser, canDeleteAny);
+        if (canDeleteAny) {
+            ApprovalRequestResponse approval = approvalService.createRequest(
+                    "DELETE_REPORT",
+                    "REPORT",
+                    id,
+                    null,
+                    currentUser
+            );
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
+        }
+        if (!reportService.isOwnDraft(id, currentUser)) {
+            throw new org.springframework.security.access.AccessDeniedException("Only draft reports can be deleted directly");
+        }
+        reportService.deleteOwnDraftReport(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

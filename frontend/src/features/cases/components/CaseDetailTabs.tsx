@@ -391,16 +391,19 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const [location, setLocation] = useState(caseData.venue ?? '')
   const updateServices = useUpdateCaseServices(caseData.id)
   const createEvent = useCreateServiceEvent(caseData.id)
-  const canAssignEvent = resolve('cases:assign') || resolve('cases:reassign')
+  const canRequestServices = resolve('cases:services.create')
+  const canCreateEvent = resolve('cases:services.create')
+  const [approvalMessage, setApprovalMessage] = useState('')
 
   useEffect(() => {
-    if (!canAssignEvent) return
+    if (!canCreateEvent) return
     fetchUsers()
       .then((items) => setUsers(items.filter((user) => user.status === 'ACTIVE')))
       .catch(() => {})
-  }, [canAssignEvent])
+  }, [canCreateEvent])
 
   const selectedServiceKeys = (Object.keys(serviceState) as Array<keyof CaseServices>).filter((key) => serviceState[key])
+  const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
   const assignableUsers = users.filter((user) => (
     isManager
       ? user.roles.includes('VOLUNTEER') || user.roles.includes('SOCIAL_WORKER')
@@ -422,6 +425,8 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
 
   async function saveServices() {
     await updateServices.mutateAsync(selectedServiceKeys)
+    setServiceState(caseData.services)
+    setApprovalMessage(t('cases.services.approvalSubmitted'))
     setIsEditing(false)
   }
 
@@ -434,6 +439,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       scheduledStart,
       location: location.trim() || undefined,
     })
+    setApprovalMessage(t('cases.services.approvalSubmitted'))
     setEventServiceKey('')
     setAssignedUserId('')
     setScheduledStart('')
@@ -441,7 +447,9 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
 
   return (
     <>
-      {isManager ? (
+      {approvalMessage ? <div className="case-placeholder-text">{approvalMessage}</div> : null}
+
+      {canRequestServices ? (
         <div className="case-services-actions">
           {isEditing ? (
             <>
@@ -501,14 +509,14 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
         <CaseServiceCalendar events={calendarEvents} />
       </div>
 
-      {canAssignEvent && selectedServiceKeys.length > 0 ? (
+      {canCreateEvent && approvedServiceKeys.length > 0 ? (
         <form className="case-event-form" onSubmit={(event) => void submitEvent(event)}>
           <h3>{t('cases.services.addEvent')}</h3>
           <label>
             <span>{t('cases.services.service')}</span>
             <select value={eventServiceKey} required onChange={(event) => setEventServiceKey(event.target.value as keyof CaseServices)}>
               <option value="">{t('cases.services.selectService')}</option>
-              {selectedServiceKeys.map((key) => (
+              {approvedServiceKeys.map((key) => (
                 <option key={key} value={key}>{t(`cases.service.${key}`)}</option>
               ))}
             </select>

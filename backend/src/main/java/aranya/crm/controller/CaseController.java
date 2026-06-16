@@ -4,6 +4,7 @@ import aranya.crm.dto.request.CreateCaseRequest;
 import aranya.crm.dto.request.CreateCaseNoteRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
@@ -13,8 +14,10 @@ import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.CaseNoteService;
 import aranya.crm.service.CaseService;
+import aranya.crm.service.ApprovalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/cases")
@@ -38,6 +42,7 @@ public class CaseController {
 
     private final CaseService caseService;
     private final CaseNoteService caseNoteService;
+    private final ApprovalService approvalService;
     private final CapPermissionEvaluator capEval;
 
     @GetMapping
@@ -59,11 +64,18 @@ public class CaseController {
 
     @PostMapping
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:create')")
-    public ResponseEntity<CaseDetailResponse> createCase(
+    public ResponseEntity<ApprovalRequestResponse> createCase(
             @Valid @RequestBody CreateCaseRequest request,
             @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.createCase(request, currentUser));
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "CASE_CREATE",
+                "CLIENT",
+                request.getClientId(),
+                request,
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @PatchMapping("/{id}")
@@ -76,12 +88,20 @@ public class CaseController {
     }
 
     @PatchMapping("/{id}/services")
-    @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:reassign')")
-    public ResponseEntity<CaseDetailResponse> updateCaseServices(
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<ApprovalRequestResponse> updateCaseServices(
             @PathVariable Long id,
-            @RequestBody List<String> serviceKeys
+            @RequestBody List<String> serviceKeys,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.updateCaseServices(id, serviceKeys));
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "CASE_SERVICE_UPDATE",
+                "CASE",
+                id,
+                Map.of("caseId", id, "serviceKeys", serviceKeys == null ? List.of() : serviceKeys),
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @GetMapping("/{id}/service-events")
@@ -90,13 +110,20 @@ public class CaseController {
     }
 
     @PostMapping("/{id}/service-events")
-    @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:reassign')")
-    public ResponseEntity<ServiceEventResponse> createServiceEvent(
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<ApprovalRequestResponse> createServiceEvent(
             @PathVariable Long id,
             @Valid @RequestBody CreateServiceEventRequest request,
             @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.createServiceEvent(id, request, currentUser));
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "SERVICE_EVENT_CREATE",
+                "CASE",
+                id,
+                Map.of("caseId", id, "serviceEvent", request),
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @GetMapping("/{id}/notes")
@@ -124,11 +151,9 @@ public class CaseController {
     public ResponseEntity<Void> deleteOwnCaseNote(
             @PathVariable Long caseId,
             @PathVariable Long noteId,
-            @CurrentUser User currentUser,
-            Authentication authentication
+            @CurrentUser User currentUser
     ) {
-        boolean canDeleteAny = capEval.hasCap(authentication, "cases:notes.delete");
-        caseNoteService.deleteCaseNote(noteId, currentUser, canDeleteAny);
+        caseNoteService.deleteOwnCaseNote(caseId, noteId, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

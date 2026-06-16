@@ -3,6 +3,7 @@ databaseChangeLog:
       id: 041-trim-cases-one-per-client
       author: ShiDu
       context: dev, test
+      validCheckSum: 9:518aa8d32ae10ace0164f3eea25310ee
       comment: "Enforce one-case-per-client: keep CASE-2026-001 (VXA) and CASE-2026-002 (VKB), remove the extra cases, and drop the grey/black intensity case"
       changes:
         # Remove child rows of the cases being deleted first (FK is NO ACTION / RESTRICT)

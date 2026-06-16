@@ -2,8 +2,10 @@ package aranya.crm.controller;
 
 import aranya.crm.config.WebMvcConfig;
 import aranya.crm.dto.UserSummaryDto;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.annotation.CurrentUserArgumentResolver;
+import aranya.crm.service.ApprovalService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,6 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -63,6 +64,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private ApprovalService approvalService;
 
     // ── GET /api/v1/users ──────────────────────────────────────────────────────
 
@@ -244,13 +248,16 @@ class UserControllerTest {
     // ── DELETE /api/v1/users/{id} ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("Manager can delete another user — 204")
+    @DisplayName("Manager delete submits approval request — 202")
     @WithMockUser(roles = "MANAGER")
-    void delete_returns204_forManager() throws Exception {
-        doNothing().when(userService).deleteUser(eq(42L));
+    void delete_returns202_forManager() throws Exception {
+        when(approvalService.createRequest(eq("DELETE_USER"), eq("USER"), eq(42L), any(), any()))
+                .thenReturn(approvalResponse(90L, "DELETE_USER"));
 
         mockMvc.perform(delete("/api/v1/users/42"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(90))
+                .andExpect(jsonPath("$.type").value("DELETE_USER"));
     }
 
     @Test
@@ -284,5 +291,13 @@ class UserControllerTest {
     private static UsernamePasswordAuthenticationToken authFor(User user, String authority) {
         return new UsernamePasswordAuthenticationToken(
                 user, null, List.of(new SimpleGrantedAuthority(authority)));
+    }
+
+    private static ApprovalRequestResponse approvalResponse(Long id, String type) {
+        return ApprovalRequestResponse.builder()
+                .id(id)
+                .type(type)
+                .status("PENDING")
+                .build();
     }
 }

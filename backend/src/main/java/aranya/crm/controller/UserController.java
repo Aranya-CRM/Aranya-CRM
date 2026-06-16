@@ -4,8 +4,10 @@ import aranya.crm.dto.request.InviteUserRequest;
 import aranya.crm.dto.request.UpdateRolesRequest;
 import aranya.crm.dto.request.UpdateUserStatusRequest;
 import aranya.crm.dto.UserSummaryDto;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.annotation.CurrentUser;
+import aranya.crm.service.ApprovalService;
 import aranya.crm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ApprovalService approvalService;
 
     /**
      * 当前已认证用户的角色信息。
@@ -69,11 +72,17 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@CurrentUser User currentUser, @PathVariable Long id) {
+    public ResponseEntity<ApprovalRequestResponse> delete(@CurrentUser User currentUser, @PathVariable Long id) {
         if (currentUser != null && currentUser.getId().equals(id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Managers cannot remove their own account");
         }
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "DELETE_USER",
+                "USER",
+                id,
+                null,
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 }
