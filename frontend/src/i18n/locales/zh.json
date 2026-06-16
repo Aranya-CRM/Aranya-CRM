@@ -373,12 +373,15 @@
     "pageTitle": "用户管理",
     "managerView": "管理员视图",
     "managerDesc": "您可以创建、编辑、停用或移除用户账号。",
-    "addBtn": "新增用户",
+    "addBtn": "邀请用户",
     "search": "搜索姓名、邮箱或角色",
     "error": {
       "load": "用户列表加载失败，请稍后重试。",
       "action": "用户操作失败，请刷新后重试。",
       "invite": "用户邀请失败，请检查信息后重试。",
+      "alreadyInvited": "该邮箱已被邀请。",
+      "alreadyExists": "该邮箱的账号已存在。",
+      "inviteEmail": "账号已创建，但设置密码邮件发送失败，请稍后重新邀请该用户。",
       "roles": "角色更新失败，请稍后重试。",
       "roleRequired": "请至少选择一个角色。"
     },
@@ -409,7 +412,12 @@
     },
     "status": {
       "ACTIVE": "活跃",
-      "INACTIVE": "停用"
+      "INACTIVE": "停用",
+      "INVITED": "已邀请"
+    },
+    "invite": {
+      "stale": "邀请已超时",
+      "staleHint": "邀请已超过 3 天未接受,请手动删除该账户。"
     },
     "summary": {
       "total": "总用户数",
@@ -417,7 +425,7 @@
       "volunteers": "义工"
     },
     "modal": {
-      "addTitle": "新增用户",
+      "addTitle": "邀请用户",
       "editTitle": "编辑角色",
       "username": "用户名",
       "fullName": "姓名",
@@ -425,8 +433,8 @@
       "phone": "电话",
       "roles": "角色",
       "cancel": "取消",
-      "creating": "创建中...",
-      "createBtn": "创建用户",
+      "creating": "发送邀请中...",
+      "createBtn": "发送邀请",
       "saving": "保存中...",
       "saveBtn": "保存角色"
     },

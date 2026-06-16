@@ -180,6 +180,24 @@
   color: #667085;
 }
 
+.users-status-invited {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.users-invite-stale {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #fef3f2;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: help;
+}
+
 .users-row-actions {
   display: flex;
   align-items: center;

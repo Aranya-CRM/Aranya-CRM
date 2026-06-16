@@ -5,6 +5,7 @@ import {
   multiFactor,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -93,6 +94,14 @@ export function hasTotpFactor(user: User): boolean {
 
 export async function sendVerificationEmail(user: User): Promise<void> {
   await sendEmailVerification(user)
+}
+
+/**
+ * 给被邀请的用户发送"设置密码"邮件(复用 Firebase 密码重置邮件)。
+ * 由 MANAGER 邀请成功后触发;不影响当前登录会话。
+ */
+export async function sendInviteSetupEmail(email: string): Promise<void> {
+  await sendPasswordResetEmail(firebaseAuth, email)
 }
 
 export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {

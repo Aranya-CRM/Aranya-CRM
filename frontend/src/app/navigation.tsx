@@ -110,6 +110,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,
   },
+  // 用户管理入口暂时隐藏 — 邀请功能已移至 Dashboard;路由 /users 仍保留可直接访问。
 ]
 
 export const NAVIGATION_BY_ID = Object.fromEntries(

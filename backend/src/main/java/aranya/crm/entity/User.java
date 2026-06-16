@@ -41,6 +41,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
+    @Column(name = "invited_at")
+    private OffsetDateTime invitedAt; // 仅 INVITED 用户写入,用于超期未接受邀请的提醒
+
     @CreationTimestamp
     @Column(name="created_at",nullable = false,updatable = false)
     private OffsetDateTime createdAt;

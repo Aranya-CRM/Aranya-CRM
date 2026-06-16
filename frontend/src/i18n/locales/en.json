@@ -373,12 +373,15 @@
     "pageTitle": "User Management",
     "managerView": "Manager View",
     "managerDesc": "You can create, edit, deactivate, or remove user accounts.",
-    "addBtn": "Add User",
+    "addBtn": "Invite User",
     "search": "Search name, email or role",
     "error": {
       "load": "Failed to load users.",
       "action": "User action failed. Please refresh and try again.",
       "invite": "Failed to invite user.",
+      "alreadyInvited": "This email has already been invited.",
+      "alreadyExists": "An account with this email already exists.",
+      "inviteEmail": "Account created, but the set-password email failed to send. Please re-invite the user.",
       "roles": "Failed to update roles.",
       "roleRequired": "Select at least one role."
     },
@@ -409,7 +412,12 @@
     },
     "status": {
       "ACTIVE": "Active",
-      "INACTIVE": "Inactive"
+      "INACTIVE": "Inactive",
+      "INVITED": "Invited"
+    },
+    "invite": {
+      "stale": "Invite expired",
+      "staleHint": "Invitation not accepted within 3 days. Please remove this account manually."
     },
     "summary": {
       "total": "Total Users",
@@ -417,7 +425,7 @@
       "volunteers": "Volunteers"
     },
     "modal": {
-      "addTitle": "Add User",
+      "addTitle": "Invite User",
       "editTitle": "Edit Roles",
       "username": "Username",
       "fullName": "Full Name",
@@ -425,8 +433,8 @@
       "phone": "Phone",
       "roles": "Roles",
       "cancel": "Cancel",
-      "creating": "Creating...",
-      "createBtn": "Create User",
+      "creating": "Sending invite...",
+      "createBtn": "Send Invite",
       "saving": "Saving...",
       "saveBtn": "Save Roles"
     },
