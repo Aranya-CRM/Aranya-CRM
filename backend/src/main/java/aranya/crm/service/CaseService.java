@@ -98,7 +98,7 @@ public class CaseService {
     }
 
     @Transactional
-    public CaseDetailResponse createCase(CreateCaseRequest request, User createdBy) {
+    public CaseDetailResponse executeApprovedCreateCase(CreateCaseRequest request, User createdBy) {
         Client client = clientRepository.findById(request.getClientId())
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
         if (caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId()).isPresent()) {
@@ -150,7 +150,7 @@ public class CaseService {
     }
 
     @Transactional
-    public CaseDetailResponse updateCaseServices(Long caseId, List<String> serviceKeys) {
+    public CaseDetailResponse executeApprovedUpdateCaseServices(Long caseId, List<String> serviceKeys) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         replaceSelectedServices(caseId, serviceKeys);
@@ -158,7 +158,7 @@ public class CaseService {
     }
 
     @Transactional
-    public ServiceEventResponse createServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
+    public ServiceEventResponse executeApprovedCreateServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         Set<String> selected = selectedServiceKeySet(caseId);

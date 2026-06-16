@@ -12,7 +12,6 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
 import java.sql.ResultSet;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,64 +34,57 @@ class UiManifestServiceTest {
     private UiManifestService uiManifestService;
 
     @Test
-    @DisplayName("buildManifest returns empty capabilities when authentication has no roles")
-    void buildManifest_returnsEmptyCapabilitiesWhenAuthenticationHasNoRoles() {
+    @DisplayName("buildCaps returns empty caps when authentication has no roles")
+    void buildCaps_returnsEmptyCapsWhenAuthenticationHasNoRoles() {
         Authentication authentication = new TestingAuthenticationToken(
                 "user@test.com",
                 "n/a",
                 "SCOPE_profile"
         );
 
-        Map<String, Object> result = uiManifestService.buildManifest(authentication);
+        Map<String, String> result = uiManifestService.buildCaps(authentication);
 
-        assertThat(result.get("routes")).isEqualTo(List.of());
-        assertThat(result.get("features")).isEqualTo(List.of());
-        assertThat(result.get("widgets")).isEqualTo(List.of());
+        assertThat(result).isEmpty();
         verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
-    @DisplayName("buildManifest queries role permissions and groups capability ids by type")
-    void buildManifest_queriesRolePermissionsAndGroupsCapabilityIdsByType() {
+    @DisplayName("buildCaps queries role caps and applies volunteer route correction")
+    void buildCaps_queriesRoleCapsAndAppliesVolunteerRouteCorrection() {
         Authentication authentication = new TestingAuthenticationToken(
-                "manager@test.com",
+                "volunteer@test.com",
                 "n/a",
-                "ROLE_MANAGER",
-                "ROLE_SOCIAL_WORKER",
-                "SCOPE_ignored"
+                "ROLE_VOLUNTEER"
         );
 
         doAnswer(invocation -> {
             RowCallbackHandler handler = invocation.getArgument(1);
-            handler.processRow(resultSet("ROUTE", "dashboard"));
-            handler.processRow(resultSet("FEATURE", "clients.update"));
-            handler.processRow(resultSet("WIDGET", "dashboard.activeCases"));
-            handler.processRow(resultSet("UNKNOWN", "future.capability"));
+            handler.processRow(resultSet("route:dashboard", "YES"));
+            handler.processRow(resultSet("route:reports", "YES"));
+            handler.processRow(resultSet("route:tasks", "YES"));
             return null;
         }).when(jdbcTemplate).query(
                 anyString(),
                 any(RowCallbackHandler.class),
-                eq("MANAGER"),
-                eq("SOCIAL_WORKER")
+                eq("VOLUNTEER")
         );
 
-        Map<String, Object> result = uiManifestService.buildManifest(authentication);
+        Map<String, String> result = uiManifestService.buildCaps(authentication);
 
-        assertThat(result.get("routes")).isEqualTo(List.of("dashboard"));
-        assertThat(result.get("features")).isEqualTo(List.of("clients.update"));
-        assertThat(result.get("widgets")).isEqualTo(List.of("dashboard.activeCases"));
+        assertThat(result).containsEntry("route:tasks", "YES");
+        assertThat(result).containsEntry("tasks.list", "YES");
+        assertThat(result).doesNotContainKeys("route:dashboard", "route:reports");
         verify(jdbcTemplate).query(
                 anyString(),
                 any(RowCallbackHandler.class),
-                eq("MANAGER"),
-                eq("SOCIAL_WORKER")
+                eq("VOLUNTEER")
         );
     }
 
-    private ResultSet resultSet(String type, String code) throws Exception {
+    private ResultSet resultSet(String capKey, String scope) throws Exception {
         ResultSet resultSet = mock(ResultSet.class);
-        when(resultSet.getString("type")).thenReturn(type);
-        when(resultSet.getString("code")).thenReturn(code);
+        when(resultSet.getString("cap_key")).thenReturn(capKey);
+        when(resultSet.getString("effective_scope")).thenReturn(scope);
         return resultSet;
     }
 }

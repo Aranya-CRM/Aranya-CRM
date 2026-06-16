@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 043-create-approval-request-table
+      author: codex
+      validCheckSum: 9:5ec1d745a3c0b7f34b13fa7cb4fdb2a5
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE approval_request (
+                id BIGSERIAL PRIMARY KEY,
+                type VARCHAR(60) NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                target_type VARCHAR(60),
+                target_id BIGINT,
+                payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+                idempotency_key VARCHAR(64),
+                requested_by BIGINT NOT NULL,
+                decided_by BIGINT,
+                decision_comment TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                decided_at TIMESTAMP,
+                CONSTRAINT fk_approval_request_requested_by
+                  FOREIGN KEY (requested_by) REFERENCES users(id),
+                CONSTRAINT fk_approval_request_decided_by
+                  FOREIGN KEY (decided_by) REFERENCES users(id),
+                CONSTRAINT ck_approval_request_status
+                  CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
+              );
+
+              CREATE INDEX idx_approval_request_status_created
+                ON approval_request (status, created_at, id);
+
+              CREATE INDEX idx_approval_request_target
+                ON approval_request (target_type, target_id);
+
+              CREATE UNIQUE INDEX ux_approval_request_pending_idempotency
+                ON approval_request (idempotency_key)
+                WHERE status = 'PENDING'
+                  AND idempotency_key IS NOT NULL;
+      rollback:
+        - sql:
+            sql: DROP TABLE approval_request;

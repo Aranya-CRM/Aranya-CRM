@@ -77,9 +77,7 @@ export function ClientListPage() {
   const canUpdateClient = resolve('clients:update')
   const canDeleteClient = resolve('clients:delete')
   const canViewDetailedProfile = resolve('clients:view.full')
-  const canConvertToCase = resolve('clients:convert_to_case')
-  const canConvertToClient = resolve('members:convert_to_client')
-  const isManager = resolve('cases:audit')
+  const canConvertToCase = resolve('cases:create')
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
@@ -234,7 +232,6 @@ export function ClientListPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          {!isManager ? (
           <div className="client-directory-filters">
             <select
               className="filter-select"
@@ -248,7 +245,6 @@ export function ClientListPage() {
               ))}
             </select>
           </div>
-          ) : null}
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
               + {t('clients.addBtn')}
@@ -308,14 +304,14 @@ export function ClientListPage() {
                 canUpdateClient={canUpdateClient}
                 canDeleteClient={canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={!isManager && canConvertToCase}
-                canConvertToClient={!isManager && canConvertToClient}
+                canConvertToCase={canConvertToCase}
                 deleting={deleteClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
                 showDeleteConfirm={showDeleteConfirm}
                 onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
                 onConfirmDelete={() => void confirmDeleteClient()}
                 onEdit={() => beginEditClient(profileClient)}
+                onCreateCase={() => navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`)}
               />
             )}
           </>
@@ -471,13 +467,13 @@ interface ClientProfilePanelProps {
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
   canConvertToCase: boolean
-  canConvertToClient: boolean
   deleting: boolean
   deleteError?: string
   showDeleteConfirm: boolean
   onToggleDeleteConfirm: () => void
   onConfirmDelete: () => void
   onEdit: () => void
+  onCreateCase: () => void
 }
 
 function ClientProfilePanel({
@@ -486,13 +482,13 @@ function ClientProfilePanel({
   canDeleteClient,
   canViewDetailedProfile,
   canConvertToCase,
-  canConvertToClient,
   deleting,
   deleteError,
   showDeleteConfirm,
   onToggleDeleteConfirm,
   onConfirmDelete,
   onEdit,
+  onCreateCase,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
 
@@ -507,15 +503,10 @@ function ClientProfilePanel({
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
-          {canConvertToClient ? (
-            <button className="btn-primary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
-              {t('clients.profile.convertToClient')}
-            </button>
-          ) : null}
           {canViewDetailedProfile ? (
             <>
               {canConvertToCase ? (
-                <button className="btn-secondary" type="button" onClick={() => window.alert(t('common.comingSoon'))}>
+                <button className="btn-primary" type="button" onClick={onCreateCase}>
                   {t('clients.profile.convertToCase')}
                 </button>
               ) : null}

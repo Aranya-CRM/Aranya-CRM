@@ -364,9 +364,31 @@ class ReportServiceTest {
         report.setStatus("DRAFT");
         when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
 
-        reportService.deleteReport(1L, creator);
+        reportService.deleteOwnDraftReport(1L, creator);
 
         verify(visitReportRepository).delete(report);
+    }
+
+    @Test
+    @DisplayName("isOwnDraft returns true only for current user's draft report")
+    void isOwnDraft_returnsTrueForCurrentUsersDraft() {
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), creator);
+        report.setStatus("DRAFT");
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        assertThat(reportService.isOwnDraft(1L, creator)).isTrue();
+    }
+
+    @Test
+    @DisplayName("isOwnDraft returns false for submitted report")
+    void isOwnDraft_returnsFalseForSubmittedReport() {
+        User creator = user(9L, "YiKai Kong");
+        VisitReport report = report(1L, client(5L, "Venerable Dev Test", "测试法师"), creator);
+        report.setStatus("SUBMITTED");
+        when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        assertThat(reportService.isOwnDraft(1L, creator)).isFalse();
     }
 
     @Test
@@ -377,7 +399,7 @@ class ReportServiceTest {
         report.setStatus("SUBMITTED");
         when(visitReportRepository.findById(1L)).thenReturn(Optional.of(report));
 
-        assertThatThrownBy(() -> reportService.deleteReport(1L, creator))
+        assertThatThrownBy(() -> reportService.deleteOwnDraftReport(1L, creator))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Only draft reports can be deleted");
     }
@@ -387,7 +409,7 @@ class ReportServiceTest {
     void deleteReport_throwsWhenReportDoesNotExist() {
         when(visitReportRepository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reportService.deleteReport(404L, user(9L, "YiKai Kong")))
+        assertThatThrownBy(() -> reportService.deleteOwnDraftReport(404L, user(9L, "YiKai Kong")))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Report not found: 404");
     }

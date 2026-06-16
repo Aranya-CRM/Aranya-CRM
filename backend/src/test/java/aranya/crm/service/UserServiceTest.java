@@ -222,7 +222,7 @@ class UserServiceTest {
         User user = user(10L, "newuser", "new.user@test.com", "New User", "ACTIVE");
         when(userRepository.findById(10L)).thenReturn(Optional.of(user));
 
-        userService.deleteUser(10L);
+        userService.executeApprovedDeleteUser(10L);
 
         assertThat(user.getStatus()).isEqualTo("DELETED");
     }

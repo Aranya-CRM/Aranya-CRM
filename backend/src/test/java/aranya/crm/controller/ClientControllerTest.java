@@ -4,8 +4,11 @@ import aranya.crm.config.WebMvcConfig;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
+import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUserArgumentResolver;
+import aranya.crm.service.ApprovalService;
 import aranya.crm.service.ClientService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -68,7 +72,13 @@ class ClientControllerTest {
     private ClientService clientService;
 
     @MockitoBean
+    private ApprovalService approvalService;
+
+    @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private CapPermissionEvaluator capEval;
 
     @Test
     @DisplayName("Authenticated user can list clients")
@@ -149,6 +159,7 @@ class ClientControllerTest {
     @Test
     @DisplayName("Manager can create a client — 201 with Location header")
     void createClient_returns201_forManager() throws Exception {
+        when(capEval.hasCap(any(), eq("clients:create"))).thenReturn(true);
         when(clientService.createClient(any(), any())).thenReturn(
                 ClientDetailResponse.builder()
                         .id(20L)
@@ -215,6 +226,7 @@ class ClientControllerTest {
     @DisplayName("Manager can update a client — 200")
     @WithMockUser(roles = "MANAGER")
     void updateClient_returns200_forManager() throws Exception {
+        when(capEval.hasCap(any(), eq("clients:update"))).thenReturn(true);
         when(clientService.updateClient(eq(10L), any())).thenReturn(
                 ClientDetailResponse.builder()
                         .id(10L)
@@ -271,16 +283,47 @@ class ClientControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("Manager delete submits client deletion approval — 202")
+    void deleteClient_returns202_forManager() throws Exception {
+        User manager = managerUser(1L);
+        when(capEval.hasCap(any(), eq("clients:delete"))).thenReturn(true);
+        when(approvalService.createRequest(eq("DELETE_CLIENT"), eq("CLIENT"), eq(10L), any(), eq(manager)))
+                .thenReturn(approvalResponse(91L, "DELETE_CLIENT"));
+
+        mockMvc.perform(delete("/api/v1/clients/10")
+                        .with(authentication(authFor(manager, "ROLE_MANAGER"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(91))
+                .andExpect(jsonPath("$.type").value("DELETE_CLIENT"));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static UsernamePasswordAuthenticationToken managerAuth(Long id) {
+        return authFor(managerUser(id), "ROLE_MANAGER");
+    }
+
+    private static User managerUser(Long id) {
         User user = new User();
         user.setId(id);
         user.setUsername("manager");
         user.setEmail("manager@test.com");
         user.setFullName("Manager User");
         user.setStatus("ACTIVE");
+        return user;
+    }
+
+    private static UsernamePasswordAuthenticationToken authFor(User user, String authority) {
         return new UsernamePasswordAuthenticationToken(
-                user, null, List.of(new SimpleGrantedAuthority("ROLE_MANAGER")));
+                user, null, List.of(new SimpleGrantedAuthority(authority)));
+    }
+
+    private static ApprovalRequestResponse approvalResponse(Long id, String type) {
+        return ApprovalRequestResponse.builder()
+                .id(id)
+                .type(type)
+                .status("PENDING")
+                .build();
     }
 }

@@ -88,6 +88,17 @@ public class ReportService {
         return toReportDetailResponse(report);
     }
 
+    public boolean isOwnDraft(Long reportId, User currentUser) {
+        VisitReport report = visitReportRepository.findById(reportId)
+                .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        Long ownerId = report.getCreatedBy() != null ? report.getCreatedBy().getId() : null;
+        return currentUserId != null
+                && ownerId != null
+                && currentUserId.equals(ownerId)
+                && STATUS_DRAFT.equalsIgnoreCase(report.getStatus());
+    }
+
     @Transactional
     public ReportDetailResponse createReport(CreateReportRequest request, User createdBy) {
         Client client = clientRepository.findById(request.getClientId())
@@ -143,12 +154,16 @@ public class ReportService {
     }
 
     @Transactional
-    public void deleteReport(Long reportId, User currentUser) {
+    public void deleteOwnDraftReport(Long reportId, User currentUser) {
         deleteReport(reportId, currentUser, false);
     }
 
     @Transactional
-    public void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
+    public void executeApprovedDeleteReport(Long reportId, User approvedBy) {
+        deleteReport(reportId, approvedBy, true);
+    }
+
+    private void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         if (!canDeleteAny) {

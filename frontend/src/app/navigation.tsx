@@ -56,6 +56,16 @@ function TasksIcon() {
   )
 }
 
+function ApprovalsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 11l2 2 4-5" />
+      <path d="M5 4h14v16H5z" />
+      <path d="M8 17h8" />
+    </svg>
+  )
+}
+
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -98,7 +108,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     id: 'tasks',
-    routeId: 'tasks.list',
+    routeId: 'route:tasks',
     path: '/tasks',
     labelKey: 'nav.tasks',
     icon: <TasksIcon />,
@@ -110,7 +120,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,
   },
-  // 用户管理入口暂时隐藏 — 邀请功能已移至 Dashboard;路由 /users 仍保留可直接访问。
+  {
+    id: 'approvals',
+    routeId: 'route:approvals',
+    path: '/approvals',
+    labelKey: 'nav.approvals',
+    icon: <ApprovalsIcon />,
+  },
 ]
 
 export const NAVIGATION_BY_ID = Object.fromEntries(

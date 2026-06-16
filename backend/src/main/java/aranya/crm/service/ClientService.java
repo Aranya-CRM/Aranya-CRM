@@ -129,7 +129,7 @@ public class ClientService {
     }
 
     @Transactional
-    public void deleteClient(Long clientId) {
+    public void executeApprovedDeleteClient(Long clientId) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
         client.setMembershipStatus("DELETED");

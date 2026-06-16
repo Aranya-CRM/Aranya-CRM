@@ -17,4 +17,7 @@ public interface CaseNoteRepository extends JpaRepository<CaseNote, Long> {
 
     @EntityGraph(attributePaths = {"clientCase", "createdBy"})
     Optional<CaseNote> findByIdAndCreatedById(Long id, Long createdById);
+
+    @EntityGraph(attributePaths = {"clientCase", "createdBy"})
+    Optional<CaseNote> findByIdAndClientCaseIdAndCreatedById(Long id, Long caseId, Long createdById);
 }

@@ -88,9 +88,8 @@ export function useCreateCase() {
 
   return useMutation({
     mutationFn: (data: CreateCasePayload) => createCase(data),
-    onSuccess: (item) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
-      queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
     },
   })
 }
@@ -100,9 +99,10 @@ export function useUpdateCaseServices(caseId: string | undefined) {
 
   return useMutation({
     mutationFn: (services: Array<keyof CaseServices>) => updateCaseServices(caseId!, services),
-    onSuccess: (item) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
-      queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
     },
   })
 }

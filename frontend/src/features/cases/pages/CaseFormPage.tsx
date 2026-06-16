@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import { fetchClientsWithoutCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
@@ -17,10 +17,12 @@ const SERVICE_GROUP_KEYS = ['housing', 'financial', 'food', 'other'] as const
 export function CaseFormPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedClientId = searchParams.get('clientId') ?? ''
   const createCase = useCreateCase()
   const [clients, setClients] = useState<Client[]>([])
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
-  const [clientId, setClientId] = useState('')
+  const [clientId, setClientId] = useState(requestedClientId)
   const [socialWorkerId, setSocialWorkerId] = useState('')
   const [openedAt, setOpenedAt] = useState(new Date().toISOString().slice(0, 10))
   const [status, setStatus] = useState<CaseStatus>('OPEN')
@@ -29,15 +31,42 @@ export function CaseFormPage() {
   const [remarks, setRemarks] = useState('')
   const [services, setServices] = useState<CaseServices>(emptyCaseServices())
   const [errorMessage, setErrorMessage] = useState<string>()
+  const [successMessage, setSuccessMessage] = useState<string>()
+  const [submittedApprovalId, setSubmittedApprovalId] = useState<number>()
+  const approvalSubmitted = submittedApprovalId !== undefined
 
   useEffect(() => {
-    void Promise.all([fetchClientsWithoutCase(), fetchUsers()])
-      .then(([clientData, userData]) => {
+    setClientId(requestedClientId)
+  }, [requestedClientId])
+
+  useEffect(() => {
+    let active = true
+
+    void fetchClientsWithoutCase()
+      .then((clientData) => {
+        if (!active) return
         setClients(clientData)
+        if (requestedClientId && !clientData.some((client) => client.id === requestedClientId)) {
+          setErrorMessage(t('cases.form.clientUnavailable'))
+        }
+      })
+      .catch(() => {
+        if (active) setErrorMessage(t('cases.form.loadError'))
+      })
+
+    void fetchUsers()
+      .then((userData) => {
+        if (!active) return
         setSocialWorkers(userData.filter((user) => user.status === 'ACTIVE' && user.roles.includes('SOCIAL_WORKER')))
       })
-      .catch(() => setErrorMessage(t('cases.form.loadError')))
-  }, [t])
+      .catch(() => {
+        if (active) setSocialWorkers([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [requestedClientId, t])
 
   const selectedServices = useMemo(
     () => (Object.keys(services) as Array<keyof CaseServices>).filter((key) => services[key]),
@@ -50,10 +79,11 @@ export function CaseFormPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!clientId) return
+    if (!clientId || approvalSubmitted) return
     setErrorMessage(undefined)
+    setSuccessMessage(undefined)
     try {
-      const created = await createCase.mutateAsync({
+      const approval = await createCase.mutateAsync({
         clientId,
         socialWorkerId: socialWorkerId || undefined,
         openedAt,
@@ -63,7 +93,8 @@ export function CaseFormPage() {
         remarks,
         services: selectedServices,
       })
-      navigate(`/cases/${created.id}`)
+      setSubmittedApprovalId(approval.id)
+      setSuccessMessage(t('cases.form.approvalSubmittedWithId', { id: approval.id }))
     } catch {
       setErrorMessage(t('cases.form.saveError'))
     }
@@ -74,12 +105,13 @@ export function CaseFormPage() {
       <BackButton onClick={() => navigate('/cases')} />
       <PageHeader title={t('cases.form.newCase')} />
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
+      {successMessage ? <div className="case-profile-loading">{successMessage}</div> : null}
       <form className="case-form-stack" onSubmit={(event) => void handleSubmit(event)}>
         <SectionCard title={t('cases.form.coreInfo')} bodyPadding>
           <div className="case-form-grid">
             <label className="case-form-field">
               <span>{t('cases.form.client')} *</span>
-              <select required value={clientId} onChange={(event) => setClientId(event.target.value)}>
+              <select required value={clientId} disabled={approvalSubmitted} onChange={(event) => setClientId(event.target.value)}>
                 <option value="">{t('cases.form.selectClient')}</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>{client.abbr} - {client.nameEn}</option>
@@ -88,11 +120,11 @@ export function CaseFormPage() {
             </label>
             <label className="case-form-field">
               <span>{t('cases.form.openedAt')} *</span>
-              <input required type="date" value={openedAt} onChange={(event) => setOpenedAt(event.target.value)} />
+              <input required type="date" value={openedAt} disabled={approvalSubmitted} onChange={(event) => setOpenedAt(event.target.value)} />
             </label>
             <label className="case-form-field">
               <span>{t('cases.form.caseworker')}</span>
-              <select value={socialWorkerId} onChange={(event) => setSocialWorkerId(event.target.value)}>
+              <select value={socialWorkerId} disabled={approvalSubmitted} onChange={(event) => setSocialWorkerId(event.target.value)}>
                 <option value="">{t('cases.form.unassigned')}</option>
                 {socialWorkers.map((worker) => (
                   <option key={worker.id} value={worker.id}>{worker.fullName}</option>
@@ -101,17 +133,17 @@ export function CaseFormPage() {
             </label>
             <label className="case-form-field">
               <span>{t('cases.form.status')} *</span>
-              <select required value={status} onChange={(event) => setStatus(event.target.value as CaseStatus)}>
+              <select required value={status} disabled={approvalSubmitted} onChange={(event) => setStatus(event.target.value as CaseStatus)}>
                 {STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
             </label>
             <label className="case-form-field wide">
               <span>{t('cases.form.comments')}</span>
-              <textarea value={comments} onChange={(event) => setComments(event.target.value)} />
+              <textarea value={comments} disabled={approvalSubmitted} onChange={(event) => setComments(event.target.value)} />
             </label>
             <label className="case-form-field wide">
               <span>{t('cases.form.remarks')}</span>
-              <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} />
+              <textarea value={remarks} disabled={approvalSubmitted} onChange={(event) => setRemarks(event.target.value)} />
             </label>
           </div>
         </SectionCard>
@@ -120,7 +152,7 @@ export function CaseFormPage() {
           <div className="case-form-color-grid">
             {COLOR_OPTIONS.map((option) => (
               <label key={option} className="case-form-color-option">
-                <input type="radio" checked={colorCode === option} onChange={() => setColorCode(option)} />
+                <input type="radio" checked={colorCode === option} disabled={approvalSubmitted} onChange={() => setColorCode(option)} />
                 <span>{t(CASE_COLOR_KEYS[option])}</span>
               </label>
             ))}
@@ -142,6 +174,7 @@ export function CaseFormPage() {
                         type="checkbox"
                         className="service-check"
                         checked={services[key]}
+                        disabled={approvalSubmitted}
                         onChange={() => toggleService(key)}
                       />
                       {t(`cases.service.${key}`)}
@@ -157,8 +190,12 @@ export function CaseFormPage() {
           <button className="btn-secondary" type="button" onClick={() => navigate('/cases')}>
             {t('common.cancel')}
           </button>
-          <button className="btn-primary" type="submit" disabled={!clientId || createCase.isPending}>
-            {createCase.isPending ? t('common.saving') : t('common.save')}
+          <button className="btn-primary" type="submit" disabled={!clientId || createCase.isPending || approvalSubmitted}>
+            {approvalSubmitted
+              ? t('cases.form.approvalSubmittedButton')
+              : createCase.isPending
+                ? t('cases.form.submittingApproval')
+                : t('cases.form.submitForApproval')}
           </button>
         </div>
       </form>

@@ -26,6 +26,18 @@ type BackendCase = {
   serviceEvents?: ServiceEvent[] | null
 }
 
+export interface ApprovalRequest {
+  id: number
+  type: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  targetType?: string | null
+  targetId?: number | null
+  payloadJson?: string | null
+  requestedById?: number | null
+  requestedByName?: string | null
+  createdAt?: string | null
+}
+
 export interface UpdateCasePayload {
   status?: CaseStatus
   colorCode?: CaseColorCode
@@ -84,34 +96,30 @@ export async function fetchCaseById(id: string): Promise<Case | undefined> {
   }
 }
 
-export async function createCase(data: CreateCasePayload): Promise<Case> {
+export async function createCase(data: CreateCasePayload): Promise<ApprovalRequest> {
   const mode = getDataMode()
   if (mode === 'mock') {
-    const newCase = { ...data, id: `case-${Date.now()}`, caseNo: `CASE-${Date.now()}`, dateOpened: data.openedAt, clientId: String(data.clientId), clientNameEn: '', clientNameChn: '', tradition: '', socialWorker: '', services: servicesFromKeys(data.services) } as Case
-    caseMockData.push(newCase)
-    return newCase
+    return mockApproval('CASE_CREATE', 'CLIENT', Number(data.clientId))
   }
 
   try {
-    const res = await http.post<BackendCase>('/v1/cases', data)
-    return mapBackendCase(res.data)
+    const res = await http.post<ApprovalRequest>('/v1/cases', data)
+    return res.data
   } catch {
     if (mode === 'auto') {
-      const newCase = { ...data, id: `case-${Date.now()}`, caseNo: `CASE-${Date.now()}`, dateOpened: data.openedAt, clientId: String(data.clientId), clientNameEn: '', clientNameChn: '', tradition: '', socialWorker: '', services: servicesFromKeys(data.services) } as Case
-      caseMockData.push(newCase)
-      return newCase
+      return mockApproval('CASE_CREATE', 'CLIENT', Number(data.clientId))
     }
     throw new Error('Failed to create case')
   }
 }
 
-export async function updateCaseServices(id: string, services: Array<keyof CaseServices>): Promise<Case> {
-  const res = await http.patch<BackendCase>(`/v1/cases/${id}/services`, services)
-  return mapBackendCase(res.data)
+export async function updateCaseServices(id: string, services: Array<keyof CaseServices>): Promise<ApprovalRequest> {
+  const res = await http.patch<ApprovalRequest>(`/v1/cases/${id}/services`, services)
+  return res.data
 }
 
-export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ServiceEvent> {
-  const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events`, data)
+export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ApprovalRequest> {
+  const res = await http.post<ApprovalRequest>(`/v1/cases/${caseId}/service-events`, data)
   return res.data
 }
 
@@ -311,10 +319,15 @@ function mapCaseColorCode(value: string | null | undefined): CaseColorCode {
   return 'GREEN'
 }
 
-function servicesFromKeys(keys: Array<keyof CaseServices>): CaseServices {
-  const services = emptyCaseServices()
-  keys.forEach((key) => {
-    services[key] = true
-  })
-  return services
+function mockApproval(type: string, targetType: string, targetId: number): ApprovalRequest {
+  return {
+    id: Date.now(),
+    type,
+    status: 'PENDING',
+    targetType,
+    targetId,
+    payloadJson: '{}',
+    requestedByName: 'Current User',
+    createdAt: new Date().toISOString(),
+  }
 }

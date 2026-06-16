@@ -68,7 +68,26 @@ public class CaseNoteService {
     }
 
     @Transactional
-    public void deleteCaseNote(Long noteId, User currentUser, boolean canDeleteAny) {
+    public void executeApprovedDeleteCaseNote(Long noteId, User approvedBy) {
+        if (!caseNoteRepository.existsById(noteId)) {
+            return;
+        }
+        deleteCaseNote(noteId, approvedBy, true);
+    }
+
+    @Transactional
+    public void deleteOwnCaseNote(Long caseId, Long noteId, User currentUser) {
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        if (currentUserId == null) {
+            throw new EntityNotFoundException("Case note not found: " + noteId);
+        }
+
+        CaseNote note = caseNoteRepository.findByIdAndClientCaseIdAndCreatedById(noteId, caseId, currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("Case note not found: " + noteId));
+        caseNoteRepository.delete(note);
+    }
+
+    void deleteCaseNote(Long noteId, User currentUser, boolean canDeleteAny) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null && !canDeleteAny) {
             throw new EntityNotFoundException("Case note not found: " + noteId);

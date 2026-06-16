@@ -4,16 +4,14 @@ import { resolve as resolveEngine } from './evaluationEngine'
 import type { DataObject, ScopeValue } from '../../types/capManifest'
 
 export function useAccess() {
-  const { manifest, caps, user } = useAuth()
+  const { caps, user } = useAuth()
   const userId = user?.id ?? 0
 
   return useMemo(() => ({
-    // ── v1 legacy (dot-notation feature codes) ────────────────────────────────
-    canRoute:   (routeId: string)   => Boolean(manifest?.routes.includes(routeId)),
-    canFeature: (featureId: string) => Boolean(manifest?.features.includes(featureId)),
-    canWidget:  (widgetId: string)  => Boolean(manifest?.widgets.includes(widgetId)),
+    canRoute: (routeId: string) => resolveEngine(caps, userId, routeId) === 'GRANT',
+    canFeature: (featureId: string) => resolveEngine(caps, userId, featureId) === 'GRANT',
+    canWidget: (widgetId: string) => resolveEngine(caps, userId, widgetId) === 'GRANT',
 
-    // ── v2 cap-key API ────────────────────────────────────────────────────────
     /** Raw scope value for a cap key. Returns 'NO' when absent. */
     getCap: (capKey: string): ScopeValue => (caps[capKey] ?? 'NO') as ScopeValue,
 
@@ -26,5 +24,5 @@ export function useAccess() {
      */
     resolve: (capKey: string, object?: DataObject): boolean =>
       resolveEngine(caps, userId, capKey, object) === 'GRANT',
-  }), [manifest, caps, userId])
+  }), [caps, userId])
 }
