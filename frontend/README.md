@@ -4,7 +4,6 @@ Aranya CRM 前端使用 React、TypeScript、Vite、Ant Design、Firebase Auth �
 
 当前代码采用 feature-first 结构：`app` 负责应用组装，`features` 负责业务模块，`shared` 放跨模块复用能力。
 
-支持部署到GCP
 
 ## 快速开始
 

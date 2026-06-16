@@ -12,16 +12,24 @@ ARG VITE_FIREBASE_API_KEY=
 ARG VITE_FIREBASE_AUTH_DOMAIN=
 ARG VITE_FIREBASE_PROJECT_ID=
 ARG VITE_FIREBASE_APP_ID=
+# 后端 API 基址。云端(两个独立 Cloud Run 服务,直连+CORS)传后端 URL;
+# 本地留空 → 前端走相对 /api(由 nginx 反代到 docker 内的 backend)。
+ARG VITE_API_BASE_URL=
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# 仅当传入了构建参数时才写 .env（云端场景）；本地构建参数为空则跳过，保留已有 .env
+# 仅当传入了构建参数时才写 .env（云端场景）；本地构建参数为空则跳过，保留 COPY 进来的 .env。
+# 关键：build 前 unset 这些变量，避免空的 ARG 作为 process.env 覆盖掉 .env 里的真值
+# （Vite 优先级：已存在的环境变量 > .env 文件）。这样 .env 始终是唯一来源。
 RUN if [ -n "$VITE_FIREBASE_API_KEY" ]; then \
       { echo "VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY"; \
         echo "VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN"; \
         echo "VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID"; \
         echo "VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID"; } > .env; \
-    fi && npm run build:docker
+    fi; \
+    if [ -n "$VITE_API_BASE_URL" ]; then echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" >> .env; fi; \
+    unset VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_API_BASE_URL; \
+    npm run build:docker
 
 # 运行阶段，用 Nginx 托管静态文件
 FROM nginx:alpine
