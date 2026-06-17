@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { BackButton, PageHeader } from '../../../shared/ui'
+import { ApprovalConfirmModal, BackButton, PageHeader } from '../../../shared/ui'
 import {
   ClientFormStepContent,
   ClientWizardFooter,
@@ -10,7 +10,7 @@ import {
   type ClientFormData,
   type SpecialNeedKey,
 } from '../components'
-import { useClient, useCreateClient, useUpdateClient } from '../hooks'
+import { isClientResult, useClient, useCreateClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
 import './clients.css'
 
@@ -88,6 +88,7 @@ export function ClientFormPage() {
 
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<ClientFormData>(emptyClient())
+  const [showApprovalConfirm, setShowApprovalConfirm] = useState(false)
   const { data: client, isLoading } = useClient(id)
   const createClientMutation = useCreateClient()
   const updateClientMutation = useUpdateClient()
@@ -132,14 +133,31 @@ export function ClientFormPage() {
     }))
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
+    setShowApprovalConfirm(true)
+  }
+
+  async function submitApproval() {
     try {
+      const result = isEdit && id
+        ? await updateClientMutation.mutateAsync({ id, data: form as Partial<Client> })
+        : await createClientMutation.mutateAsync(form)
+      setShowApprovalConfirm(false)
       if (isEdit && id) {
-        await updateClientMutation.mutateAsync({ id, data: form as Partial<Client> })
+        if (isClientResult(result)) {
+          navigate(`/clients/${result.id}`)
+        } else {
+          alert(t('clients.approvalSubmittedWithId', { id: result.id }))
+          navigate(`/clients/${id}`)
+        }
       } else {
-        await createClientMutation.mutateAsync(form)
+        if (isClientResult(result)) {
+          navigate(`/clients/${result.id}`)
+        } else {
+          alert(t('clients.approvalSubmittedWithId', { id: result.id }))
+          navigate('/clients')
+        }
       }
-      navigate('/clients')
     } catch {
       alert(t('clients.saveError'))
     }
@@ -172,6 +190,17 @@ export function ClientFormPage() {
         onPrevious={() => setStep((current) => current - 1)}
         onNext={() => setStep((current) => current + 1)}
         onSubmit={handleSubmit}
+      />
+
+      <ApprovalConfirmModal
+        open={showApprovalConfirm}
+        title={t('approvalConfirm.title')}
+        message={t(isEdit ? 'approvalConfirm.clientUpdate' : 'approvalConfirm.clientCreate')}
+        confirmLabel={saving ? t('common.saving') : t('approvalConfirm.confirm')}
+        cancelLabel={t('approvalConfirm.cancel')}
+        pending={saving}
+        onCancel={() => setShowApprovalConfirm(false)}
+        onConfirm={() => void submitApproval()}
       />
     </>
   )

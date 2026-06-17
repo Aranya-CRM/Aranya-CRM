@@ -3,10 +3,10 @@ import type { FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { EmptyState } from '../../../shared/ui'
+import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
-import { useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
+import { isClientResult, useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
 import './clients.css'
 
@@ -53,6 +53,8 @@ const initialNewClientForm: NewClientForm = {
   areaDistrict: '',
 }
 
+type ClientApprovalIntent = 'create' | 'update' | 'delete'
+
 export function ClientListPage() {
   const { t } = useTranslation()
   const { resolve } = useAccess()
@@ -71,6 +73,8 @@ export function ClientListPage() {
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
+  const [approvalMessage, setApprovalMessage] = useState('')
+  const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
 
   const selectedClientId = searchParams.get('client') ?? routeClientId
   const canCreateClient = resolve('clients:create')
@@ -122,15 +126,25 @@ export function ClientListPage() {
 
   function selectClient(clientId: string) {
     setShowDeleteConfirm(false)
+    setApprovalMessage('')
     setSearchParams({ client: clientId })
   }
 
-  async function submitNewClient(event: FormEvent<HTMLFormElement>) {
+  function submitNewClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const created = await createClient.mutateAsync(buildNewClientPayload(newClientForm))
+    setApprovalIntent('create')
+  }
+
+  async function confirmCreateClient() {
+    const result = await createClient.mutateAsync(buildNewClientPayload(newClientForm))
     setNewClientForm(initialNewClientForm)
     setShowCreateModal(false)
-    setSearchParams({ client: created.id })
+    setApprovalIntent(null)
+    if (isClientResult(result)) {
+      setSearchParams({ client: String(result.id) })
+    } else {
+      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
+    }
   }
 
   function updateNewClientField<Key extends keyof NewClientForm>(key: Key, value: NewClientForm[Key]) {
@@ -139,6 +153,7 @@ export function ClientListPage() {
 
   function closeCreateModal() {
     if (createClient.isPending) return
+    setApprovalIntent(null)
     setShowCreateModal(false)
     setNewClientForm(initialNewClientForm)
   }
@@ -189,31 +204,51 @@ export function ClientListPage() {
     ))
   }
 
-  async function saveEditClient() {
+  function saveEditClient() {
     if (!editingClientId || !editForm) return
-    await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client> })
+    setApprovalIntent('update')
+  }
+
+  async function confirmUpdateClient() {
+    if (!editingClientId || !editForm) return
+    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client> })
+    const savedClientId = editingClientId
     setEditingClientId(null)
     setEditForm(null)
+    setApprovalIntent(null)
+    if (!isClientResult(result)) {
+      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
+    }
     if (routeWantsEdit) {
-      navigate(`/clients/${editingClientId}`, { replace: true })
+      navigate(`/clients/${savedClientId}`, { replace: true })
     }
   }
 
-  async function confirmDeleteClient() {
+  function confirmDeleteClient() {
     if (!profileClient) return
-    await deleteClient.mutateAsync(profileClient.id)
+    setApprovalIntent('delete')
+  }
+
+  async function submitDeleteClient() {
+    if (!profileClient) return
+    const result = await deleteClient.mutateAsync(profileClient.id)
     setShowDeleteConfirm(false)
     setEditingClientId(null)
     setEditForm(null)
-    const nextClient = filtered.find((client) => client.id !== profileClient.id)
-    if (nextClient) {
-      setSearchParams({ client: nextClient.id }, { replace: true })
-    } else {
-      setSearchParams({}, { replace: true })
+    setApprovalIntent(null)
+    if (result && 'id' in result) {
+      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
     }
   }
 
   const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
+  const approvalPending = createClient.isPending || updateClient.isPending || deleteClient.isPending
+  const approvalMessageKey =
+    approvalIntent === 'create'
+      ? 'approvalConfirm.clientCreate'
+      : approvalIntent === 'update'
+        ? 'approvalConfirm.clientUpdate'
+        : 'approvalConfirm.clientDelete'
 
   return (
     <div className="client-workspace">
@@ -285,6 +320,11 @@ export function ClientListPage() {
                 {t('clients.profileError')}
               </div>
             ) : null}
+            {approvalMessage ? (
+              <div className="client-profile-loading client-profile-warning">
+                {approvalMessage}
+              </div>
+            ) : null}
             {isEditingProfile && editForm ? (
               <ClientProfileEditPanel
                 client={profileClient}
@@ -330,6 +370,21 @@ export function ClientListPage() {
           onFieldChange={updateNewClientField}
         />
       ) : null}
+
+      <ApprovalConfirmModal
+        open={approvalIntent !== null}
+        title={t('approvalConfirm.title')}
+        message={t(approvalMessageKey)}
+        confirmLabel={approvalPending ? t('common.saving') : t('approvalConfirm.confirm')}
+        cancelLabel={t('approvalConfirm.cancel')}
+        pending={approvalPending}
+        onCancel={() => setApprovalIntent(null)}
+        onConfirm={() => {
+          if (approvalIntent === 'create') void confirmCreateClient()
+          if (approvalIntent === 'update') void confirmUpdateClient()
+          if (approvalIntent === 'delete') void submitDeleteClient()
+        }}
+      />
     </div>
   )
 }
@@ -503,13 +558,13 @@ function ClientProfilePanel({
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
+          {canConvertToCase ? (
+            <button className="btn-primary" type="button" onClick={onCreateCase}>
+              {t('clients.profile.convertToCase')}
+            </button>
+          ) : null}
           {canViewDetailedProfile ? (
             <>
-              {canConvertToCase ? (
-                <button className="btn-primary" type="button" onClick={onCreateCase}>
-                  {t('clients.profile.convertToCase')}
-                </button>
-              ) : null}
               {canUpdateClient ? (
                 <button className="btn-edit" type="button" onClick={onEdit}>
                   {t('clients.profile.editProfile')}

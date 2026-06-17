@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader } from '../../../shared/ui'
-import { useAccess } from '../../../shared/auth/useAccess'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
-import { approveReport, deleteReport, fetchReportById, submitReport } from '../api/report.api'
+import { deleteReport, fetchReportById, submitReport } from '../api/report.api'
 import type { ReportDetail } from '../types'
 import './reports.css'
 
@@ -28,7 +27,6 @@ export function ReportDetailPage() {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language === 'zh'
   const navigate = useNavigate()
-  const { getCap } = useAccess()
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const returnTo = searchParams.get('returnTo') || '/reports'
@@ -36,10 +34,7 @@ export function ReportDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>()
-
-  const canApprove = getCap('reports:approve_archive') !== 'NO'
 
   useEffect(() => {
     if (!id) {
@@ -81,20 +76,6 @@ export function ReportDetailPage() {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  async function handleApprove() {
-    if (!report) return
-    setIsApproving(true)
-    setErrorMessage(undefined)
-    try {
-      const approved = await approveReport(report.id)
-      setReport(approved)
-    } catch {
-      setErrorMessage(t('reports.detail.approveError'))
-    } finally {
-      setIsApproving(false)
     }
   }
 
@@ -178,12 +159,6 @@ export function ReportDetailPage() {
             </button>
             <button className="btn-primary" type="button" onClick={() => void handleSubmitDraft()} disabled={isSubmitting || isDeleting}>
               {isSubmitting ? t('reports.form.submitting') : t('reports.form.submitFinal')}
-            </button>
-          </div>
-        ) : status === 'SUBMITTED' && canApprove ? (
-          <div className="report-form-actions">
-            <button className="btn-primary" type="button" onClick={() => void handleApprove()} disabled={isApproving}>
-              {isApproving ? t('reports.detail.approving') : t('reports.detail.approve')}
             </button>
           </div>
         ) : null}

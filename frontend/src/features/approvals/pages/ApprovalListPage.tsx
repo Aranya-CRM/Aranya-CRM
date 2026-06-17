@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ErrorBanner, PageHeader } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../api/approval.api'
@@ -34,6 +35,20 @@ function payloadRows(payload: ParsedPayload): Array<[string, string]> {
   return Object.entries(payload).map(([key, value]) => [key, stringifyValue(value)])
 }
 
+function targetHref(targetType: string | null | undefined, targetId: number | null | undefined): string | undefined {
+  if (targetType === 'CLIENT') return targetId == null ? '/clients' : `/clients/${targetId}`
+  if (targetType === 'CASE') return targetId == null ? '/cases' : `/cases/${targetId}`
+  if (targetType === 'REPORT') return targetId == null ? '/reports' : `/reports/${targetId}`
+  return undefined
+}
+
+function targetLabel(item: { targetType?: string | null; targetId?: number | null; targetLabel?: string | null }): string {
+  if (item.targetLabel) return item.targetLabel
+  if (item.targetType === 'REPORT' && item.targetId != null) return `RPT-${item.targetId}`
+  if (item.targetType && item.targetId != null) return `${item.targetType} ${item.targetId}`
+  return '-'
+}
+
 export function ApprovalListPage() {
   const { t } = useTranslation()
   const { data = [], isLoading, isError } = usePendingApprovals()
@@ -50,6 +65,7 @@ export function ApprovalListPage() {
 
   const selectedPayload = useMemo(() => parsePayload(selected?.payloadJson), [selected])
   const selectedPayloadRows = useMemo(() => payloadRows(selectedPayload), [selectedPayload])
+  const selectedTargetHref = targetHref(selected?.targetType, selected?.targetId)
   const isMutating = approveRequest.isPending || rejectRequest.isPending
 
   async function decide(decision: 'approve' | 'reject') {
@@ -103,7 +119,7 @@ export function ApprovalListPage() {
               >
                 <span className="approval-item-type">{t(`approvals.type.${item.type}`, { defaultValue: item.type })}</span>
                 <span className="approval-item-meta">{item.requestedByName ?? '-'} · {formatDateTime(item.createdAt)}</span>
-                <span className="approval-item-target">{item.targetType ?? '-'} #{item.targetId ?? '-'}</span>
+                <span className="approval-item-target">{targetLabel(item)}</span>
               </button>
             ))
           )}
@@ -125,9 +141,14 @@ export function ApprovalListPage() {
               <div className="approval-meta-grid">
                 <InfoCell label={t('approvals.fields.requestedBy')} value={selected.requestedByName ?? '-'} />
                 <InfoCell label={t('approvals.fields.createdAt')} value={formatDateTime(selected.createdAt)} />
-                <InfoCell label={t('approvals.fields.target')} value={`${selected.targetType ?? '-'} #${selected.targetId ?? '-'}`} />
+                <InfoCell label={t('approvals.fields.target')} value={targetLabel(selected)} />
                 <InfoCell label={t('approvals.fields.status')} value={selected.status} />
               </div>
+              {selectedTargetHref ? (
+                <Link className="approval-target-link" to={selectedTargetHref}>
+                  {t('approvals.openTarget')}
+                </Link>
+              ) : null}
 
               <section className="approval-payload">
                 <h3>{t('approvals.payload')}</h3>

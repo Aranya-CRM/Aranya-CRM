@@ -1,11 +1,14 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { BackButton } from '../../../shared/ui'
+import { ApprovalConfirmModal, BackButton } from '../../../shared/ui'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
-import { useCaseAuditLog, useCaseFlags, useCase, useCaseNotes } from '../hooks'
+import { useCaseAuditLog, useCaseFlags, useCase, useCaseNotes, useDeleteCase } from '../hooks'
 import './cases.css'
 
 export function CaseDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { resolve } = useAccess()
@@ -14,8 +17,11 @@ export function CaseDetailPage() {
   const { data: notes = [] } = useCaseNotes(id)
   const { data: auditLog = [] } = useCaseAuditLog(id)
   const { data: flags = [] } = useCaseFlags(id)
+  const deleteCase = useDeleteCase()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const isManager = resolve('cases:audit')
+  const canDeleteCase = resolve('cases:delete')
 
   if (isLoading) {
     return (
@@ -50,9 +56,32 @@ export function CaseDetailPage() {
       <BackButton onClick={() => navigate('/cases')} />
 
       <div className="case-detail-card">
+        {canDeleteCase ? (
+          <div className="case-detail-top-actions">
+            <button className="btn-danger" type="button" onClick={() => setShowDeleteConfirm(true)}>
+              {t('cases.detail.delete')}
+            </button>
+          </div>
+        ) : null}
         <CaseDetailHeader caseData={caseData} />
         <CaseDetailTabs caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} isManager={isManager} />
       </div>
+
+      <ApprovalConfirmModal
+        open={showDeleteConfirm}
+        title={t('approvalConfirm.title')}
+        message={t('approvalConfirm.caseDelete')}
+        confirmLabel={deleteCase.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
+        cancelLabel={t('approvalConfirm.cancel')}
+        pending={deleteCase.isPending}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={async () => {
+          if (!caseData) return
+          await deleteCase.mutateAsync(caseData.id)
+          setShowDeleteConfirm(false)
+          navigate('/cases')
+        }}
+      />
     </div>
   )
 }

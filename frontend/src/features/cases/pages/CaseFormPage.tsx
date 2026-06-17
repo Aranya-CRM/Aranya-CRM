@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
+import { ApprovalConfirmModal, BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import { fetchClientsWithoutCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { fetchUsers } from '../../users/api/userManagement.api'
@@ -33,6 +33,7 @@ export function CaseFormPage() {
   const [errorMessage, setErrorMessage] = useState<string>()
   const [successMessage, setSuccessMessage] = useState<string>()
   const [submittedApprovalId, setSubmittedApprovalId] = useState<number>()
+  const [showApprovalConfirm, setShowApprovalConfirm] = useState(false)
   const approvalSubmitted = submittedApprovalId !== undefined
 
   useEffect(() => {
@@ -73,13 +74,20 @@ export function CaseFormPage() {
     [services],
   )
 
-  function toggleService(key: keyof CaseServices) {
-    setServices((current) => ({ ...current, [key]: !current[key] }))
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!clientId || approvalSubmitted) return
+    setErrorMessage(undefined)
+    setSuccessMessage(undefined)
+    if (selectedServices.length === 0) {
+      setErrorMessage(t('cases.form.serviceRequired'))
+      return
+    }
+    setShowApprovalConfirm(true)
+  }
+
+  async function submitApproval() {
+    if (!clientId || approvalSubmitted || selectedServices.length === 0) return
     setErrorMessage(undefined)
     setSuccessMessage(undefined)
     try {
@@ -95,6 +103,7 @@ export function CaseFormPage() {
       })
       setSubmittedApprovalId(approval.id)
       setSuccessMessage(t('cases.form.approvalSubmittedWithId', { id: approval.id }))
+      setShowApprovalConfirm(false)
     } catch {
       setErrorMessage(t('cases.form.saveError'))
     }
@@ -160,30 +169,43 @@ export function CaseFormPage() {
         </SectionCard>
 
         <SectionCard title={t('cases.form.services')} bodyPadding>
-          {SERVICE_GROUP_KEYS.map((groupKey) => {
-            const items = (Object.keys(CASE_SERVICE_GROUPS) as Array<keyof CaseServices>).filter(
-              (key) => CASE_SERVICE_GROUPS[key] === groupKey,
-            )
-            return (
-              <div className="case-form-service-group" key={groupKey}>
-                <h3>{t(`cases.serviceGroup.${groupKey}`)}</h3>
-                <div className="case-services-grid">
-                  {items.map((key) => (
-                    <label key={key} className="case-services-item">
-                      <input
-                        type="checkbox"
-                        className="service-check"
-                        checked={services[key]}
-                        disabled={approvalSubmitted}
-                        onChange={() => toggleService(key)}
-                      />
-                      {t(`cases.service.${key}`)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+          <div className="case-form-field">
+            <span>{t('cases.form.services')} *</span>
+            <div className="case-service-check-panel">
+              {SERVICE_GROUP_KEYS.map((groupKey) => {
+                const groupServices = (Object.keys(CASE_SERVICE_GROUPS) as Array<keyof CaseServices>)
+                  .filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
+                return (
+                  <section className="case-service-check-group" key={groupKey}>
+                    <h3>{t(`cases.serviceGroup.${groupKey}`)}</h3>
+                    <div className="case-service-check-grid">
+                      {groupServices.map((key) => (
+                        <label className="case-service-check-option" key={key}>
+                          <input
+                            type="checkbox"
+                            checked={services[key]}
+                            disabled={approvalSubmitted}
+                            onChange={(event) => {
+                              const checked = event.target.checked
+                              setServices((current) => ({ ...current, [key]: checked }))
+                            }}
+                          />
+                          <span>{t(`cases.service.${key}`)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          </div>
+          <div className="case-service-selected-row">
+            {selectedServices.length === 0 ? (
+              <span>{t('cases.form.serviceRequired')}</span>
+            ) : selectedServices.map((key) => (
+              <span key={key} className="case-service-chip">{t(`cases.service.${key}`)}</span>
+            ))}
+          </div>
         </SectionCard>
 
         <div className="case-form-actions">
@@ -199,6 +221,16 @@ export function CaseFormPage() {
           </button>
         </div>
       </form>
+      <ApprovalConfirmModal
+        open={showApprovalConfirm}
+        title={t('approvalConfirm.title')}
+        message={t('approvalConfirm.caseCreate')}
+        confirmLabel={createCase.isPending ? t('cases.form.submittingApproval') : t('approvalConfirm.confirm')}
+        cancelLabel={t('approvalConfirm.cancel')}
+        pending={createCase.isPending}
+        onCancel={() => setShowApprovalConfirm(false)}
+        onConfirm={() => void submitApproval()}
+      />
     </div>
   )
 }

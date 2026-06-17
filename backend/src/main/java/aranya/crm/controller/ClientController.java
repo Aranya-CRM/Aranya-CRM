@@ -23,9 +23,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -57,25 +54,35 @@ public class ClientController {
 
     @PostMapping
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:create')")
-    public ResponseEntity<ClientDetailResponse> createClient(
+    public ResponseEntity<ApprovalRequestResponse> createClient(
             @Valid @RequestBody CreateClientRequest req,
             @CurrentUser User currentUser
     ) {
-        ClientDetailResponse created = clientService.createClient(req, currentUser);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(created.getId())
-                .toUri();
-        return ResponseEntity.created(location).body(created);
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "CLIENT_CREATE",
+                "CLIENT",
+                null,
+                req,
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:update')")
-    public ResponseEntity<ClientDetailResponse> updateClient(
+    public ResponseEntity<ApprovalRequestResponse> updateClient(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateClientRequest req
+            @Valid @RequestBody UpdateClientRequest req,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(clientService.updateClient(id, req));
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "CLIENT_UPDATE",
+                "CLIENT",
+                id,
+                req,
+                currentUser
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @DeleteMapping("/{id}")

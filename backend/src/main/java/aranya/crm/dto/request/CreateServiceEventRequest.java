@@ -22,6 +22,13 @@ public class CreateServiceEventRequest {
     @NotNull
     private LocalDateTime scheduledStart;
 
+    @NotBlank
+    @Size(max = 2000)
+    private String workDescription;
+
+    @Size(max = 2000)
+    private String notes;
+
     @Size(max = 255)
     private String location;
 }

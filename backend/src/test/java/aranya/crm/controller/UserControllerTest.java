@@ -4,10 +4,12 @@ import aranya.crm.config.WebMvcConfig;
 import aranya.crm.dto.UserSummaryDto;
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUserArgumentResolver;
 import aranya.crm.service.ApprovalService;
 import aranya.crm.service.UserService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -68,6 +70,23 @@ class UserControllerTest {
     @MockitoBean
     private ApprovalService approvalService;
 
+    @MockitoBean
+    private CapPermissionEvaluator capEval;
+
+    @BeforeEach
+    void setUpCaps() {
+        when(capEval.hasCap(any(), eq("admin:users.manage"))).thenAnswer(invocation -> {
+            Object auth = invocation.getArgument(0);
+            return auth instanceof org.springframework.security.core.Authentication authentication
+                    && authentication.getAuthorities().stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()));
+        });
+        when(capEval.hasCap(any(), eq("cases:services.create"))).thenAnswer(invocation -> {
+            Object auth = invocation.getArgument(0);
+            return auth instanceof org.springframework.security.core.Authentication authentication
+                    && authentication.getAuthorities().stream().anyMatch(a -> "ROLE_SOCIAL_WORKER".equals(a.getAuthority()));
+        });
+    }
+
     // ── GET /api/v1/users ──────────────────────────────────────────────────────
 
     @Test
@@ -101,11 +120,23 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Social Worker cannot list users — 403")
+    @DisplayName("Social Worker can list users for service assignment — 200")
     @WithMockUser(roles = "SOCIAL_WORKER")
-    void list_returns403_forSocialWorker() throws Exception {
+    void list_returns200_forSocialWorker() throws Exception {
+        when(userService.listUsers()).thenReturn(List.of(
+                UserSummaryDto.builder()
+                        .id(2L)
+                        .username("volunteer")
+                        .email("v@x.com")
+                        .fullName("Volunteer")
+                        .status("ACTIVE")
+                        .roles(List.of("VOLUNTEER"))
+                        .build()
+        ));
+
         mockMvc.perform(get("/api/v1/users"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].roles[0]").value("VOLUNTEER"));
     }
 
     // ── POST /api/v1/users/invite ──────────────────────────────────────────────

@@ -1,5 +1,6 @@
 export {
   clientQueryKeys,
+  isClientResult,
   useClient,
   useClients,
   useCreateClient,

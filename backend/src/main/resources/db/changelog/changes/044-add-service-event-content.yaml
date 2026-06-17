@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 044-add-service-event-content
+      author: Codex
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: work_description
+                  type: TEXT
+              - column:
+                  name: notes
+                  type: TEXT
+      rollback:
+        - dropColumn:
+            tableName: service_appointment
+            columnName: work_description
+        - dropColumn:
+            tableName: service_appointment
+            columnName: notes

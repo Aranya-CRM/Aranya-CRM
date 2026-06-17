@@ -40,7 +40,10 @@ public class ApprovalActionRegistry {
                 "CASE_CREATE", this::executeCaseCreate,
                 "CASE_SERVICE_UPDATE", this::executeCaseServiceUpdate,
                 "SERVICE_EVENT_CREATE", this::executeServiceEventCreate,
+                "CLIENT_CREATE", this::executeClientCreate,
+                "CLIENT_UPDATE", this::executeClientUpdate,
                 "DELETE_CLIENT", (request, _decidedBy) -> clientService.executeApprovedDeleteClient(request.getTargetId()),
+                "DELETE_CASE", (request, _decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId()),
                 "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy),
                 "DELETE_CASE_NOTE", (request, decidedBy) -> caseNoteService.executeApprovedDeleteCaseNote(request.getTargetId(), decidedBy),
                 "DELETE_USER", (request, _decidedBy) -> userService.executeApprovedDeleteUser(request.getTargetId())
@@ -69,6 +72,20 @@ public class ApprovalActionRegistry {
                 request.getTargetId(),
                 objectMapper.convertValue(request.getPayloadJson().path("serviceEvent"), CreateServiceEventRequest.class),
                 request.getRequestedBy()
+        );
+    }
+
+    private void executeClientCreate(ApprovalRequest request, User ignoredDecidedBy) {
+        clientService.executeApprovedCreateClient(
+                objectMapper.convertValue(request.getPayloadJson(), aranya.crm.dto.request.CreateClientRequest.class),
+                request.getRequestedBy()
+        );
+    }
+
+    private void executeClientUpdate(ApprovalRequest request, User ignoredDecidedBy) {
+        clientService.executeApprovedUpdateClient(
+                request.getTargetId(),
+                objectMapper.convertValue(request.getPayloadJson(), aranya.crm.dto.request.UpdateClientRequest.class)
         );
     }
 }

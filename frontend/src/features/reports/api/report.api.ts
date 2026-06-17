@@ -49,10 +49,3 @@ export async function deleteReport(id: string | number): Promise<void> {
     headers: await authHeaders(),
   })
 }
-
-export async function approveReport(id: string | number): Promise<ReportDetail> {
-  const res = await http.post<ReportDetail>(`/v1/reports/${id}/approve`, undefined, {
-    headers: await authHeaders(),
-  })
-  return res.data
-}

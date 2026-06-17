@@ -42,6 +42,12 @@ public class ServiceAppointment {
     @Column(name = "location")
     private String location;
 
+    @Column(name = "work_description", columnDefinition = "TEXT")
+    private String workDescription;
+
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")
     private User assignedUser;

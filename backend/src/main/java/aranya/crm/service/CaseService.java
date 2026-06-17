@@ -34,6 +34,7 @@ import java.util.Set;
 public class CaseService {
 
     private static final String CLOSED_STATUS = "CLOSED";
+    private static final String DELETED_STATUS = "DELETED";
     private static final List<String> URGENT_COLOR_CODES = List.of("RED", "ORANGE");
     private static final List<String> SERVICE_KEYS = List.of(
             "accommodationArrangement",
@@ -86,6 +87,7 @@ public class CaseService {
         }
 
         return cases.stream()
+                .filter(clientCase -> !DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus()))
                 .map(this::toCaseSummaryResponse)
                 .toList();
     }
@@ -93,6 +95,9 @@ public class CaseService {
     public CaseDetailResponse getCaseDetail(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
 
         return toCaseDetailResponse(clientCase);
     }
@@ -180,13 +185,23 @@ public class CaseService {
                     service_type_id,
                     scheduled_start,
                     location,
+                    work_description,
+                    notes,
                     assigned_user_id,
                     created_by,
                     status
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
                 RETURNING id
-                """, Long.class, caseId, serviceTypeId, request.getScheduledStart(), venue, assigned.getId(), createdBy.getId());
+                """, Long.class,
+                caseId,
+                serviceTypeId,
+                request.getScheduledStart(),
+                venue,
+                normalizeText(request.getWorkDescription()),
+                normalizeText(request.getNotes()),
+                assigned.getId(),
+                createdBy.getId());
 
         return findServiceEventById(eventId);
     }
@@ -199,6 +214,27 @@ public class CaseService {
     public List<ServiceEventResponse> listAssignedServiceEvents(Long assignedUserId) {
         return jdbcTemplate.query(serviceEventSql("WHERE assigned_user_id = ? ORDER BY scheduled_start ASC, id ASC"),
                 serviceEventMapper(), assignedUserId);
+    }
+
+    @Transactional
+    public void deleteServiceEvent(Long caseId, Long eventId) {
+        int deleted = jdbcTemplate.update(
+                "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId,
+                caseId
+        );
+        if (deleted == 0) {
+            throw new EntityNotFoundException("Service event not found: " + eventId);
+        }
+    }
+
+    @Transactional
+    public void executeApprovedDeleteCase(Long caseId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        clientCase.setStatus(DELETED_STATUS);
+        clientCase.setClosedAt(LocalDateTime.now());
+        caseRepository.save(clientCase);
     }
 
     public List<ClientCase> getActiveCases(int limit) {
@@ -314,17 +350,25 @@ public class CaseService {
     }
 
     private void replaceSelectedServices(Long caseId, List<String> serviceKeys) {
-        jdbcTemplate.update("DELETE FROM case_service_selection WHERE case_id = ?", caseId);
-        if (serviceKeys == null) {
-            return;
+        Set<String> nextKeys = serviceKeys == null
+                ? Set.of()
+                : serviceKeys.stream()
+                    .map(this::trimToNull)
+                    .filter(key -> key != null && SERVICE_KEYS.contains(key))
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<String> removedKeys = new java.util.LinkedHashSet<>(selectedServiceKeySet(caseId));
+        removedKeys.removeAll(nextKeys);
+        for (String removedKey : removedKeys) {
+            jdbcTemplate.update(
+                    "DELETE FROM service_appointment WHERE case_id = ? AND service_type_id IN (SELECT id FROM service_type WHERE description = ?)",
+                    caseId,
+                    removedKey
+            );
         }
-        serviceKeys.stream()
-                .map(this::trimToNull)
-                .filter(key -> key != null && SERVICE_KEYS.contains(key))
-                .distinct()
-                .forEach(key -> jdbcTemplate.update(
-                        "INSERT INTO case_service_selection (case_id, service_key) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                        caseId, key));
+        jdbcTemplate.update("DELETE FROM case_service_selection WHERE case_id = ?", caseId);
+        nextKeys.forEach(key -> jdbcTemplate.update(
+                "INSERT INTO case_service_selection (case_id, service_key) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                caseId, key));
     }
 
     private Map<String, Boolean> selectedServices(Long caseId) {
@@ -372,6 +416,8 @@ public class CaseService {
                     st.description AS service_key,
                     st.name AS service_name,
                     sa.location,
+                    sa.work_description,
+                    sa.notes,
                     sa.scheduled_start,
                     au.id AS assigned_user_id,
                     au.full_name AS assigned_user_name,
@@ -404,17 +450,18 @@ public class CaseService {
                 .title(rs.getString("title"))
                 .location(rs.getString("location"))
                 .scheduledStart(rs.getObject("scheduled_start", LocalDateTime.class))
+                .workDescription(rs.getString("work_description"))
+                .notes(rs.getString("notes"))
                 .assignedUserId(rs.getObject("assigned_user_id", Long.class))
                 .assignedUserName(rs.getString("assigned_user_name"))
                 .build();
     }
 
     private void requireAssignable(User actor, User assigned) {
-        boolean actorManager = hasRole(actor, "MANAGER");
+        boolean actorManager = hasRole(actor, "MANAGER") || hasRole(actor, "FULL_MANAGER") || hasRole(actor, "TEAM_LEAD");
         boolean actorSocialWorker = hasRole(actor, "SOCIAL_WORKER");
         boolean assignedVolunteer = hasRole(assigned, "VOLUNTEER");
-        boolean assignedSocialWorker = hasRole(assigned, "SOCIAL_WORKER");
-        if (actorManager && (assignedVolunteer || assignedSocialWorker)) {
+        if (actorManager && "ACTIVE".equals(assigned.getStatus())) {
             return;
         }
         if (actorSocialWorker && assignedVolunteer) {
@@ -451,6 +498,10 @@ public class CaseService {
 
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? null : value.trim();
     }
 
     private String normalizeFilter(String value) {
