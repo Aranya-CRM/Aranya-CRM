@@ -11,11 +11,9 @@ import java.util.List;
 @Data
 public class InviteUserRequest {
 
-    @NotBlank
     @Size(max = 50)
     private String username;
 
-    @NotBlank
     @Size(max = 100)
     private String fullName;
 

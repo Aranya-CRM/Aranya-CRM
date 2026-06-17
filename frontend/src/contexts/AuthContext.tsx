@@ -13,8 +13,6 @@ import {
 } from '../features/auth/api/auth'
 import { getCurrentUser, type MeResponse } from '../features/auth/api/user.api'
 import { getUiManifest } from '../features/auth/api/uiManifest.api'
-import { getUiManifestV2 } from '../features/auth/api/uiManifestV2.api'
-import type { UiManifest } from '../types/uiManifest'
 import type { ScopeValue } from '../types/capManifest'
 
 interface AuthContextValue {
@@ -22,10 +20,9 @@ interface AuthContextValue {
   loading: boolean
   authenticated: boolean
   user: MeResponse | null
-  manifest: UiManifest | null
-  /** v2 cap-key → scope-value map. Empty when not loaded or unauthenticated. */
+  /** cap-key → scope-value map. Empty when not loaded or unauthenticated. */
   caps: Record<string, ScopeValue>
-  /** Re-fetch profile + UI manifests. Call this after a successful Firebase login. */
+  /** Re-fetch profile + UI manifest. Call this after a successful Firebase login. */
   refreshUser: () => Promise<void>
   logout: () => Promise<void>
 }
@@ -37,22 +34,18 @@ const EMPTY_CAPS: Record<string, ScopeValue> = {}
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<MeResponse | null>(null)
-  const [manifest, setManifest] = useState<UiManifest | null>(null)
   const [caps, setCaps] = useState<Record<string, ScopeValue>>(EMPTY_CAPS)
 
   const refreshUser = useCallback(async () => {
     try {
-      const [me, uiManifest, capsManifest] = await Promise.all([
+      const [me, capsManifest] = await Promise.all([
         getCurrentUser(),
         getUiManifest(),
-        getUiManifestV2().catch((err) => { console.error('[caps] v2 manifest failed:', err); return { caps: EMPTY_CAPS } }),
       ])
       setUser(me)
-      setManifest(uiManifest)
       setCaps(capsManifest.caps)
     } catch {
       setUser(null)
-      setManifest(null)
       setCaps(EMPTY_CAPS)
     }
   }, [])
@@ -63,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!firebaseUser) {
         setUser(null)
-        setManifest(null)
         setCaps(EMPTY_CAPS)
         setLoading(false)
         return
@@ -76,20 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => {
     return {
       loading,
-      authenticated: user !== null && manifest !== null,
+      authenticated: user !== null,
       user,
-      manifest,
       caps,
       refreshUser,
       logout: async () => {
         await logoutFirebase()
         setUser(null)
-        setManifest(null)
         setCaps(EMPTY_CAPS)
         window.location.href = '/login'
       },
     }
-  }, [loading, user, manifest, caps, refreshUser])
+  }, [loading, user, caps, refreshUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

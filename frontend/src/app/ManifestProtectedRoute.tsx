@@ -13,7 +13,7 @@ interface ManifestProtectedRouteProps {
 }
 
 export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedRouteProps) {
-  const { loading, authenticated, manifest, caps } = useAuth()
+  const { loading, authenticated, caps } = useAuth()
   const { canRoute, resolve } = useAccess()
 
   if (loading) {
@@ -28,9 +28,9 @@ export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedR
     return <Navigate to="/login" replace />
   }
 
-  const allowed = resolve(routeId) || canRoute(routeId)
+  const allowed = caps[routeId] !== undefined || resolve(routeId) || canRoute(routeId)
   if (!allowed) {
-    return <Navigate to={getDefaultRoute(manifest, caps)} replace />
+    return <Navigate to={getDefaultRoute(caps)} replace />
   }
 
   return <AppLayout>{children}</AppLayout>

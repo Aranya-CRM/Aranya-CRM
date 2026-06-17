@@ -6,7 +6,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,53 +16,67 @@ public class UiManifestService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public Map<String, Object> buildManifest(Authentication authentication) {
+    public Map<String, String> buildCaps(Authentication authentication) {
         List<String> roleNames = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .filter(authority -> authority.startsWith("ROLE_"))
-                .map(authority -> authority.substring("ROLE_".length()))
+                .filter(a -> a.startsWith("ROLE_"))
+                .map(a -> a.substring("ROLE_".length()))
                 .toList();
 
-        Map<String, List<String>> capabilities = new LinkedHashMap<>();
-        capabilities.put("routes", new ArrayList<>());
-        capabilities.put("features", new ArrayList<>());
-        capabilities.put("widgets", new ArrayList<>());
-
         if (roleNames.isEmpty()) {
-            return mapOf(capabilities);
+            return Map.of();
         }
 
-        String placeholders = String.join(",", roleNames.stream().map(_ignored -> "?").toList());
+        String placeholders = String.join(",", roleNames.stream().map(_i -> "?").toList());
         String sql = """
-                SELECT DISTINCT p.code, p.type
-                FROM permission p
-                JOIN role_permission rp ON rp.permission_id = p.id
-                JOIN role r ON r.id = rp.role_id
+                SELECT cd.cap_key,
+                  CASE
+                    WHEN BOOL_OR(rc.scope_value = 'ALL')      THEN 'ALL'
+                    WHEN BOOL_OR(rc.scope_value = 'YES')      THEN 'YES'
+                    WHEN BOOL_OR(rc.scope_value = 'OWN')      THEN 'OWN'
+                    WHEN BOOL_OR(rc.scope_value = 'TEAM')     THEN 'TEAM'
+                    WHEN BOOL_OR(rc.scope_value = 'WORKFLOW') THEN 'WORKFLOW'
+                    ELSE 'NO'
+                  END AS effective_scope
+                FROM role_cap rc
+                JOIN cap_definition cd ON cd.id = rc.cap_def_id
+                JOIN role r ON r.id = rc.role_id
                 WHERE r.name IN (%s)
-                ORDER BY p.type, p.code
+                GROUP BY cd.cap_key
+                ORDER BY cd.cap_key
                 """.formatted(placeholders);
 
+        Map<String, String> caps = new LinkedHashMap<>();
         jdbcTemplate.query(sql, rs -> {
-            String type = rs.getString("type");
-            String code = rs.getString("code");
-            switch (type) {
-                case "ROUTE" -> capabilities.get("routes").add(code);
-                case "FEATURE" -> capabilities.get("features").add(code);
-                case "WIDGET" -> capabilities.get("widgets").add(code);
-                default -> {
-                    // Ignore unknown capability types so old clients are not broken by future types.
-                }
+            String scope = rs.getString("effective_scope");
+            if (scope != null && !scope.equals("NO")) {
+                caps.put(rs.getString("cap_key"), scope);
             }
         }, roleNames.toArray());
 
-        return mapOf(capabilities);
+        applyRoleCorrections(roleNames, caps);
+        return caps;
     }
 
-    private Map<String, Object> mapOf(Map<String, List<String>> capabilities) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("routes", capabilities.get("routes"));
-        response.put("features", capabilities.get("features"));
-        response.put("widgets", capabilities.get("widgets"));
-        return response;
+    private void applyRoleCorrections(List<String> roleNames, Map<String, String> caps) {
+        if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
+            caps.keySet().removeIf(capKey -> capKey.startsWith("route:") && !capKey.equals("route:tasks"));
+            caps.put("route:tasks", "YES");
+            caps.put("tasks.list", "YES");
+            return;
+        }
+
+        if (roleNames.contains("SOCIAL_WORKER")) {
+            caps.put("cases:create", "WORKFLOW");
+            caps.put("approvals:create", "YES");
+        }
+
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+            caps.put("route:approvals", "YES");
+            caps.put("approvals:view", "YES");
+            caps.put("approvals:decide", "YES");
+            caps.put("approvals:create", "YES");
+            caps.put("cases:create", "ALL");
+        }
     }
 }

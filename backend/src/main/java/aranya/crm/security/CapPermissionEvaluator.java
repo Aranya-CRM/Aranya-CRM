@@ -29,14 +29,15 @@ public class CapPermissionEvaluator {
             return false;
         }
 
-        List<String> roleNames = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(a -> a.startsWith("ROLE_"))
-                .map(a -> a.substring("ROLE_".length()))
-                .toList();
+        List<String> roleNames = roleNames(authentication);
 
         if (roleNames.isEmpty()) {
             return false;
+        }
+
+        String correctedScope = correctedScope(roleNames, capKey);
+        if (correctedScope != null) {
+            return !correctedScope.equals("NO");
         }
 
         String placeholders = String.join(",", roleNames.stream().map(_i -> "?").toList());
@@ -69,14 +70,15 @@ public class CapPermissionEvaluator {
             return "NO";
         }
 
-        List<String> roleNames = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(a -> a.startsWith("ROLE_"))
-                .map(a -> a.substring("ROLE_".length()))
-                .toList();
+        List<String> roleNames = roleNames(authentication);
 
         if (roleNames.isEmpty()) {
             return "NO";
+        }
+
+        String correctedScope = correctedScope(roleNames, capKey);
+        if (correctedScope != null) {
+            return correctedScope;
         }
 
         String placeholders = String.join(",", roleNames.stream().map(_i -> "?").toList());
@@ -102,5 +104,47 @@ public class CapPermissionEvaluator {
 
         String scope = jdbcTemplate.queryForObject(sql, String.class, params.toArray());
         return scope != null ? scope : "NO";
+    }
+
+    private List<String> roleNames(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> a.startsWith("ROLE_"))
+                .map(a -> a.substring("ROLE_".length()))
+                .toList();
+    }
+
+    private String correctedScope(List<String> roleNames, String capKey) {
+        if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
+            if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
+                return "YES";
+            }
+            if (capKey.startsWith("route:")) {
+                return "NO";
+            }
+        }
+
+        if (roleNames.contains("SOCIAL_WORKER")) {
+            if (capKey.equals("cases:create")) {
+                return "WORKFLOW";
+            }
+            if (capKey.equals("approvals:create")) {
+                return "YES";
+            }
+        }
+
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+            if (capKey.equals("route:approvals")
+                    || capKey.equals("approvals:view")
+                    || capKey.equals("approvals:decide")
+                    || capKey.equals("approvals:create")) {
+                return "YES";
+            }
+            if (capKey.equals("cases:create")) {
+                return "ALL";
+            }
+        }
+
+        return null;
     }
 }

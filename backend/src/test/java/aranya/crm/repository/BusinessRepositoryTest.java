@@ -17,6 +17,7 @@ class BusinessRepositoryTest {
     void coreBusinessRepositories_extendSpringDataJpa() {
         assertThat(JpaRepository.class).isAssignableFrom(ClientRepository.class);
         assertThat(JpaRepository.class).isAssignableFrom(RelatedContactRepository.class);
+        assertThat(JpaRepository.class).isAssignableFrom(ApprovalRequestRepository.class);
     }
 
     @Test
@@ -35,6 +36,12 @@ class BusinessRepositoryTest {
     void relatedContactRepository_exposesClientScopedMethods() throws Exception {
         assertMethod(RelatedContactRepository.class, "findByClientIdOrderByPrimaryDescCreatedAtAsc", List.class, Long.class);
         assertMethod(RelatedContactRepository.class, "deleteByClientId", int.class, Long.class);
+    }
+
+    @Test
+    @DisplayName("ApprovalRequestRepository exposes pending approval queue lookup")
+    void approvalRequestRepository_exposesPendingQueueLookup() throws Exception {
+        assertMethod(ApprovalRequestRepository.class, "findByStatusOrderByCreatedAtAscIdAsc", List.class, String.class);
     }
 
     private static void assertMethod(

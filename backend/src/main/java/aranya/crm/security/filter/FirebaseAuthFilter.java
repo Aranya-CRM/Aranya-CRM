@@ -102,11 +102,17 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            if(!user.getStatus().equals("ACTIVE")) {
-                log.warn("User {} is disabled",uid);
+            String status = user.getStatus();
+            if (!"ACTIVE".equals(status) && !"INVITED".equals(status)) {
+                log.warn("User {} is not allowed to access (status={})", uid, status);
                 writeErrorResponse(response,request,HttpServletResponse.SC_FORBIDDEN,
                         "USER_DISABLED","Your account has been disabled");
                 return;
+            }
+
+            // 首次完整登录(已过 emailVerified + totp 两关)= 注册完成 → 自动激活 INVITED 用户
+            if ("INVITED".equals(status)) {
+                user = userService.activateInvitedUser(user);
             }
 
             user = userService.syncFromFirebase(user,decodedToken);

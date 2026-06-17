@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Data
@@ -16,4 +17,6 @@ public class UserSummaryDto {
     private String fullName;
     private String status;
     private List<String> roles;
+    private OffsetDateTime invitedAt;
+    private boolean inviteStale; // 邀请已超阈值天数仍未接受(提醒 MANAGER 手动清理)
 }

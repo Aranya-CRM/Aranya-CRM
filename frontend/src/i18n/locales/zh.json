@@ -4,6 +4,7 @@
     "clients": "会员",
     "cases": "个案管理",
     "reports": "文档管理",
+    "approvals": "审批",
     "tasks": "协助",
     "users": "用户管理"
   },
@@ -25,6 +26,38 @@
     "saving": "保存中...",
     "by": "by",
     "delete": "删除"
+  },
+  "approvals": {
+    "title": "审批",
+    "subtitle": "处理待审批的个案、服务与删除申请。",
+    "loadError": "审批列表加载失败，请稍后重试。",
+    "actionError": "审批操作失败，请稍后重试。",
+    "pending": "待处理",
+    "empty": "暂无待审批申请。",
+    "selectPrompt": "请选择一个审批申请。",
+    "listLabel": "审批申请列表",
+    "detailLabel": "审批申请详情",
+    "payload": "申请内容",
+    "noPayload": "无详细内容。",
+    "comment": "审批意见",
+    "commentPlaceholder": "可填写审批意见",
+    "approve": "通过",
+    "reject": "拒绝",
+    "fields": {
+      "requestedBy": "申请人",
+      "createdAt": "申请时间",
+      "target": "对象",
+      "status": "状态"
+    },
+    "type": {
+      "CASE_CREATE": "创建个案",
+      "CASE_SERVICE_UPDATE": "更新个案服务",
+      "SERVICE_EVENT_CREATE": "创建服务事件",
+      "DELETE_CLIENT": "删除会员",
+      "DELETE_REPORT": "删除报告",
+      "DELETE_CASE_NOTE": "删除个案笔记",
+      "DELETE_USER": "删除用户"
+    }
   },
   "dashboard": {
     "pageTitle": "工作台",
@@ -125,7 +158,8 @@
       "selectAssignee": "请选择负责人",
       "time": "具体时间",
       "location": "地点",
-      "createEvent": "创建事件"
+      "createEvent": "创建事件",
+      "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。"
     },
     "serviceGroup": {
       "housing": "居住与住宿",
@@ -227,6 +261,7 @@
     "form": {
       "newCase": "新建个案",
       "loadError": "新建个案所需数据加载失败，请稍后重试。",
+      "clientUnavailable": "该会员已有关联个案，或暂时不能创建个案。",
       "saveError": "个案创建失败，请检查信息后重试。",
       "coreInfo": "基本信息",
       "client": "会员",
@@ -238,7 +273,12 @@
       "comments": "备注",
       "remarks": "补充说明",
       "intensity": "个案强度",
-      "services": "服务模块"
+      "services": "服务模块",
+      "approvalSubmitted": "个案申请已提交，等待经理审批。",
+      "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，经理通过后个案才会显示。",
+      "approvalSubmittedButton": "已提交审批",
+      "submittingApproval": "提交审批中...",
+      "submitForApproval": "提交审批"
     },
     "list": {
       "count": "{{count}} 个个案",
@@ -301,7 +341,7 @@
     },
     "profile": {
       "convertToClient": "转为客户",
-      "convertToCase": "转为个案客户",
+      "convertToCase": "创建个案",
       "editProfile": "编辑档案",
       "delete": "删除档案",
       "editTitle": "编辑档案",
@@ -373,12 +413,15 @@
     "pageTitle": "用户管理",
     "managerView": "管理员视图",
     "managerDesc": "您可以创建、编辑、停用或移除用户账号。",
-    "addBtn": "新增用户",
+    "addBtn": "邀请用户",
     "search": "搜索姓名、邮箱或角色",
     "error": {
       "load": "用户列表加载失败，请稍后重试。",
       "action": "用户操作失败，请刷新后重试。",
       "invite": "用户邀请失败，请检查信息后重试。",
+      "alreadyInvited": "该邮箱已被邀请。",
+      "alreadyExists": "该邮箱的账号已存在。",
+      "inviteEmail": "账号已创建，但设置密码邮件发送失败，请稍后重新邀请该用户。",
       "roles": "角色更新失败，请稍后重试。",
       "roleRequired": "请至少选择一个角色。"
     },
@@ -409,7 +452,12 @@
     },
     "status": {
       "ACTIVE": "活跃",
-      "INACTIVE": "停用"
+      "INACTIVE": "停用",
+      "INVITED": "已邀请"
+    },
+    "invite": {
+      "stale": "邀请已超时",
+      "staleHint": "邀请已超过 3 天未接受,请手动删除该账户。"
     },
     "summary": {
       "total": "总用户数",
@@ -417,7 +465,7 @@
       "volunteers": "义工"
     },
     "modal": {
-      "addTitle": "新增用户",
+      "addTitle": "邀请用户",
       "editTitle": "编辑角色",
       "username": "用户名",
       "fullName": "姓名",
@@ -425,8 +473,8 @@
       "phone": "电话",
       "roles": "角色",
       "cancel": "取消",
-      "creating": "创建中...",
-      "createBtn": "创建用户",
+      "creating": "发送邀请中...",
+      "createBtn": "发送邀请",
       "saving": "保存中...",
       "saveBtn": "保存角色"
     },
