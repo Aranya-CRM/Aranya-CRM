@@ -111,16 +111,35 @@ public class CaseController {
 
     @PostMapping("/{id}/service-events")
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
-    public ResponseEntity<ApprovalRequestResponse> createServiceEvent(
+    public ResponseEntity<ServiceEventResponse> createServiceEvent(
             @PathVariable Long id,
             @Valid @RequestBody CreateServiceEventRequest request,
             @CurrentUser User currentUser
     ) {
+        return ResponseEntity.ok(caseService.executeApprovedCreateServiceEvent(id, request, currentUser));
+    }
+
+    @DeleteMapping("/{id}/service-events/{eventId}")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<Void> deleteServiceEvent(
+            @PathVariable Long id,
+            @PathVariable Long eventId
+    ) {
+        caseService.deleteServiceEvent(id, eventId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
+    public ResponseEntity<ApprovalRequestResponse> deleteCase(
+            @PathVariable Long id,
+            @CurrentUser User currentUser
+    ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
-                "SERVICE_EVENT_CREATE",
+                "DELETE_CASE",
                 "CASE",
                 id,
-                Map.of("caseId", id, "serviceEvent", request),
+                null,
                 currentUser
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);

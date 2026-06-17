@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { http } from '../../../shared/api'
+import { caseQueryKeys } from '../../cases/hooks'
+import { clientQueryKeys } from '../../clients/hooks'
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
@@ -9,6 +11,7 @@ export interface ApprovalRequest {
   status: ApprovalStatus
   targetType?: string | null
   targetId?: number | null
+  targetLabel?: string | null
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
@@ -57,6 +60,8 @@ export function useApproveRequest() {
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => approveRequest(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
     },
   })
 }
@@ -68,6 +73,8 @@ export function useRejectRequest() {
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => rejectRequest(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
     },
   })
 }

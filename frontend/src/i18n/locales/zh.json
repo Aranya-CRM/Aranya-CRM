@@ -27,6 +27,18 @@
     "by": "by",
     "delete": "删除"
   },
+  "approvalConfirm": {
+    "title": "需要提交审批",
+    "confirm": "确定提交",
+    "cancel": "撤销",
+    "caseCreate": "创建个案需要经理审批。确认后会提交审批申请，审批通过后个案才会显示。",
+    "caseDelete": "删除个案需要经理审批。确认后会提交审批申请，审批通过后个案会从列表移除。",
+    "serviceUpdate": "添加服务需要审批。确认后会提交审批申请，经理通过后服务会显示在服务模块。",
+    "serviceRemove": "删除 {{service}} 需要审批。确认后会提交审批申请，经理通过后该服务会从服务模块移除。",
+    "clientCreate": "新增会员需要审批。确认后会提交审批申请，审批通过后会员才会显示。",
+    "clientUpdate": "编辑会员档案需要审批。确认后会提交审批申请，审批通过后修改才会生效。",
+    "clientDelete": "删除会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。"
+  },
   "approvals": {
     "title": "审批",
     "subtitle": "处理待审批的个案、服务与删除申请。",
@@ -49,11 +61,15 @@
       "target": "对象",
       "status": "状态"
     },
+    "openTarget": "打开对象页面",
     "type": {
       "CASE_CREATE": "创建个案",
       "CASE_SERVICE_UPDATE": "更新个案服务",
       "SERVICE_EVENT_CREATE": "创建服务事件",
+      "CLIENT_CREATE": "新增会员",
+      "CLIENT_UPDATE": "编辑会员",
       "DELETE_CLIENT": "删除会员",
+      "DELETE_CASE": "删除个案",
       "DELETE_REPORT": "删除报告",
       "DELETE_CASE_NOTE": "删除个案笔记",
       "DELETE_USER": "删除用户"
@@ -151,6 +167,8 @@
     "services": {
       "calendarTitle": "服务日历",
       "calendarPlaceholder": "暂无服务事件",
+      "empty": "暂无已添加服务。",
+      "addService": "添加服务",
       "addEvent": "新增服务事件",
       "service": "服务",
       "selectService": "请选择服务",
@@ -158,7 +176,14 @@
       "selectAssignee": "请选择负责人",
       "time": "具体时间",
       "location": "地点",
+      "workDescription": "需要做什么",
+      "eventNotes": "补充说明（可选）",
       "createEvent": "创建事件",
+      "requestService": "提交审批",
+      "removeService": "删除服务",
+      "noEvents": "暂无服务事件，可在下方创建并分配负责人。",
+      "eventCreated": "服务事件已创建。",
+      "removeApprovalSubmitted": "删除服务的审批申请已提交，经理通过后服务会被移除。",
       "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。"
     },
     "serviceGroup": {
@@ -170,6 +195,7 @@
     "tab": {
       "overview": "概览",
       "services": "服务模块",
+      "calendar": "日历",
       "notes": "案例笔记",
       "documents": "文件",
       "reports": "探访报告",
@@ -192,6 +218,9 @@
       "title": "任务清单",
       "due": "截止",
       "done": "完成"
+    },
+    "detail": {
+      "delete": "删除个案"
     },
     "notes": {
       "empty": "暂无案例笔记",
@@ -274,6 +303,7 @@
       "remarks": "补充说明",
       "intensity": "个案强度",
       "services": "服务模块",
+      "serviceRequired": "请至少添加一个服务后再提交审批。",
       "approvalSubmitted": "个案申请已提交，等待经理审批。",
       "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，经理通过后个案才会显示。",
       "approvalSubmittedButton": "已提交审批",
@@ -314,6 +344,7 @@
     "accessDenied": "权限不足",
     "accessDeniedMsg": "当前账户不可创建或编辑会员档案。",
     "saveError": "保存失败",
+    "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，审批通过后变更才会显示。",
     "form": {
       "newTitle": "新建会员档案",
       "editTitle": "编辑会员档案"
@@ -500,7 +531,7 @@
     },
     "folder": {
       "DRAFT": "草稿",
-      "SUBMITTED": "待审批",
+      "SUBMITTED": "已提交",
       "ARCHIVED": "已审批",
       "RETURNED": "退回"
     },

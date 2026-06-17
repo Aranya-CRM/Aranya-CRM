@@ -11,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class ApprovalService {
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ObjectMapper objectMapper;
     private final ApprovalActionRegistry approvalActionRegistry;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional
     public ApprovalRequestResponse createRequest(
@@ -206,6 +208,7 @@ public class ApprovalService {
                 .status(request.getStatus())
                 .targetType(request.getTargetType())
                 .targetId(request.getTargetId())
+                .targetLabel(resolveTargetLabel(request))
                 .payloadJson(request.getPayloadJson() != null ? request.getPayloadJson().toString() : "{}")
                 .requestedById(requestedBy != null ? requestedBy.getId() : null)
                 .requestedByName(requestedBy != null ? requestedBy.getFullName() : null)
@@ -215,5 +218,42 @@ public class ApprovalService {
                 .createdAt(request.getCreatedAt())
                 .decidedAt(request.getDecidedAt())
                 .build();
+    }
+
+    private String resolveTargetLabel(ApprovalRequest request) {
+        String targetType = request.getTargetType();
+        Long targetId = request.getTargetId();
+        if (targetType == null || targetId == null) {
+            return null;
+        }
+
+        if ("CASE".equals(targetType)) {
+            return queryLabel("SELECT case_code FROM \"case\" WHERE id = ?", targetId);
+        }
+        if ("CLIENT".equals(targetType)) {
+            String label = queryLabel("SELECT CONCAT(COALESCE(NULLIF(abbr, ''), name_en), ' · ', name_en) FROM client WHERE id = ?", targetId);
+            return label != null ? label : readPayloadText(request, "clientName");
+        }
+        if ("REPORT".equals(targetType)) {
+            return "RPT-" + targetId;
+        }
+        if ("USER".equals(targetType)) {
+            return queryLabel("SELECT full_name FROM users WHERE id = ?", targetId);
+        }
+        return targetType + " #" + targetId;
+    }
+
+    private String queryLabel(String sql, Long id) {
+        List<String> labels = jdbcTemplate.queryForList(sql, String.class, id);
+        return labels.isEmpty() || labels.get(0) == null || labels.get(0).isBlank() ? null : labels.get(0);
+    }
+
+    private String readPayloadText(ApprovalRequest request, String fieldName) {
+        JsonNode payloadJson = request.getPayloadJson();
+        if (payloadJson == null || !payloadJson.hasNonNull(fieldName)) {
+            return null;
+        }
+        String value = payloadJson.get(fieldName).asText();
+        return value == null || value.isBlank() ? null : value;
     }
 }

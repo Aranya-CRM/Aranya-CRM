@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, createServiceEvent, deleteCaseNote, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, updateCase, updateCaseServices } from '../api/case.api'
+import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseNote, deleteServiceEvent, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, updateCase, updateCaseServices } from '../api/case.api'
 import type { CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload } from '../api/case.api'
 import type { CaseServices } from '../types'
 
@@ -94,6 +94,17 @@ export function useCreateCase() {
   })
 }
 
+export function useDeleteCase() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => deleteCase(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+    },
+  })
+}
+
 export function useUpdateCaseServices(caseId: string | undefined) {
   const queryClient = useQueryClient()
 
@@ -112,6 +123,18 @@ export function useCreateServiceEvent(caseId: string | undefined) {
 
   return useMutation({
     mutationFn: (data: CreateServiceEventPayload) => createServiceEvent(caseId!, data),
+    onSuccess: () => {
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+    },
+  })
+}
+
+export function useDeleteServiceEvent(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (eventId: string | number) => deleteServiceEvent(caseId!, eventId),
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })

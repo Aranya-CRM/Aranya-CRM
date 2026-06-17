@@ -15,6 +15,7 @@ public class ApprovalRequestResponse {
     private String status;
     private String targetType;
     private Long targetId;
+    private String targetLabel;
     private String payloadJson;
     private Long requestedById;
     private String requestedByName;

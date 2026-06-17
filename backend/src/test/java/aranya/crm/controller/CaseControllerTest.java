@@ -2,6 +2,7 @@ package aranya.crm.controller;
 
 import aranya.crm.config.WebMvcConfig;
 import aranya.crm.dto.response.ApprovalRequestResponse;
+import aranya.crm.dto.response.ServiceEventResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUserArgumentResolver;
@@ -124,12 +125,19 @@ class CaseControllerTest {
     }
 
     @Test
-    @DisplayName("createServiceEvent submits an approval request instead of creating an appointment")
-    void createServiceEvent_submitsApprovalRequest() throws Exception {
+    @DisplayName("createServiceEvent creates an appointment immediately")
+    void createServiceEvent_createsAppointmentImmediately() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:services.create"))).thenReturn(true);
-        when(approvalService.createRequest(eq("SERVICE_EVENT_CREATE"), eq("CASE"), eq(7L), any(), eq(requester)))
-                .thenReturn(approvalResponse(102L, "SERVICE_EVENT_CREATE", "CASE", 7L));
+        when(caseService.executeApprovedCreateServiceEvent(eq(7L), any(), eq(requester)))
+                .thenReturn(ServiceEventResponse.builder()
+                        .id(33L)
+                        .caseId(7L)
+                        .serviceKey("mealDelivery")
+                        .assignedUserId(12L)
+                        .scheduledStart(LocalDateTime.of(2026, 6, 20, 10, 0))
+                        .title("1 Meal Delivery: C001@Office")
+                        .build());
 
         mockMvc.perform(post("/api/v1/cases/7/service-events")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -138,31 +146,29 @@ class CaseControllerTest {
                                   "serviceKey": "mealDelivery",
                                   "assignedUserId": 12,
                                   "scheduledStart": "2026-06-20T10:00:00",
+                                  "workDescription": "Deliver lunch and check if follow-up is needed.",
                                   "location": "Office"
                                 }
                                 """)
                         .with(authentication(auth(requester, "SOCIAL_WORKER"))))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.id").value(102))
-                .andExpect(jsonPath("$.type").value("SERVICE_EVENT_CREATE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(33))
+                .andExpect(jsonPath("$.serviceKey").value("mealDelivery"));
 
-        verify(caseService, never()).executeApprovedCreateServiceEvent(any(), any(), any());
+        verify(approvalService, never()).createRequest(eq("SERVICE_EVENT_CREATE"), any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("deleteCaseNote submits an approval request instead of deleting immediately")
-    void deleteCaseNote_submitsApprovalRequest() throws Exception {
+    @DisplayName("deleteCaseNote deletes immediately")
+    void deleteCaseNote_deletesImmediately() throws Exception {
         User requester = user(10L, "Social Worker");
-        when(approvalService.createRequest(eq("DELETE_CASE_NOTE"), eq("CASE_NOTE"), eq(22L), any(), eq(requester)))
-                .thenReturn(approvalResponse(103L, "DELETE_CASE_NOTE", "CASE_NOTE", 22L));
 
         mockMvc.perform(delete("/api/v1/cases/7/notes/22")
                         .with(authentication(auth(requester, "SOCIAL_WORKER"))))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.id").value(103))
-                .andExpect(jsonPath("$.type").value("DELETE_CASE_NOTE"));
+                .andExpect(status().isNoContent());
 
-        verify(caseNoteService, never()).executeApprovedDeleteCaseNote(any(), any());
+        verify(caseNoteService).deleteOwnCaseNote(7L, 22L, requester);
+        verify(approvalService, never()).createRequest(eq("DELETE_CASE_NOTE"), any(), any(), any(), any());
     }
 
     private static ApprovalRequestResponse approvalResponse(Long id, String type, String targetType, Long targetId) {

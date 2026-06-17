@@ -2,6 +2,20 @@ import { http } from '../../../shared/api'
 import { clientMockData } from '../../../mocks/client.mock'
 import type { Client } from '../types'
 
+export interface ApprovalRequest {
+  id: number
+  type: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  targetType?: string | null
+  targetId?: number | null
+  payloadJson?: string | null
+  requestedById?: number | null
+  requestedByName?: string | null
+  createdAt?: string | null
+}
+
+export type ClientWriteResult = Client | ApprovalRequest
+
 type BackendClientSummary = {
   id: number | string
   abbr?: string | null
@@ -75,7 +89,7 @@ const emptySpecialNeeds = {
 }
 
 function getDataMode(): 'mock' | 'api' | 'auto' {
-  const mode = (import.meta.env.VITE_DATA_MODE ?? 'auto').toLowerCase()
+  const mode = (import.meta.env.VITE_DATA_MODE ?? 'api').toLowerCase()
   if (mode === 'mock' || mode === 'api') return mode
   return 'auto'
 }
@@ -111,7 +125,7 @@ export async function fetchClientById(id: string): Promise<Client | undefined> {
   }
 }
 
-export async function createClient(data: Omit<Client, 'id'>): Promise<Client> {
+export async function createClient(data: Omit<Client, 'id'>): Promise<ClientWriteResult> {
   const mode = getDataMode()
   if (mode === 'mock') {
     const newClient = { ...data, id: `client-${Date.now()}` } as Client
@@ -120,8 +134,8 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<Client> {
   }
 
   try {
-    const res = await http.post<BackendClientDetail>('/v1/clients', data)
-    return mapBackendClient(res.data)
+    const res = await http.post<ApprovalRequest>('/v1/clients', data)
+    return res.data
   } catch {
     if (mode === 'auto') {
       const newClient = { ...data, id: `client-${Date.now()}` } as Client
@@ -132,7 +146,7 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<Client> {
   }
 }
 
-export async function updateClient(id: string, data: Partial<Client>): Promise<Client> {
+export async function updateClient(id: string, data: Partial<Client>): Promise<ClientWriteResult> {
   const mode = getDataMode()
   const payload = toBackendClientPayload(data)
   if (mode === 'mock') {
@@ -144,8 +158,8 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 
   try {
-    const res = await http.patch<BackendClientDetail>(`/v1/clients/${id}`, payload)
-    return mapBackendClient(res.data)
+    const res = await http.patch<ApprovalRequest>(`/v1/clients/${id}`, payload)
+    return res.data
   } catch {
     if (mode === 'auto') {
       const idx = clientMockData.findIndex((c) => c.id === id)
@@ -158,7 +172,7 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 }
 
-export async function deleteClient(id: string): Promise<void> {
+export async function deleteClient(id: string): Promise<ApprovalRequest | void> {
   const mode = getDataMode()
   const removeMockClient = () => {
     const idx = clientMockData.findIndex((c) => c.id === id)
@@ -171,7 +185,8 @@ export async function deleteClient(id: string): Promise<void> {
   }
 
   try {
-    await http.delete(`/v1/clients/${id}`)
+    const res = await http.delete<ApprovalRequest>(`/v1/clients/${id}`)
+    return res.data
   } catch {
     if (mode === 'auto') {
       removeMockClient()

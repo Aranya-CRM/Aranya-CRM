@@ -136,6 +136,19 @@
   line-height: 1.45;
 }
 
+.approval-target-link {
+  display: inline-flex;
+  margin-top: 12px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.approval-target-link:hover {
+  text-decoration: underline;
+}
+
 .approval-payload {
   margin-top: 20px;
 }

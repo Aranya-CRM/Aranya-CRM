@@ -189,8 +189,8 @@ export function TaskDetailPage() {
           <Info label={t('tasks.request.subject')} value={taskEvent.serviceName} />
           <Info label={t('tasks.request.time')} value={taskEvent.scheduledStart} />
           <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
-          <Info label={t('tasks.request.todo')} value={caseData.comments || '-'} wide />
-          <Info label={t('tasks.request.notes')} value={caseData.remarks || '-'} wide />
+          <Info label={t('tasks.request.todo')} value={taskEvent.workDescription || '-'} wide />
+          <Info label={t('tasks.request.notes')} value={taskEvent.notes || '-'} wide />
         </div>
       </SectionCard>
 

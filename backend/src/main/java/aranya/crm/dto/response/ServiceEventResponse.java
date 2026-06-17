@@ -22,6 +22,8 @@ public class ServiceEventResponse {
     private String title;
     private String location;
     private LocalDateTime scheduledStart;
+    private String workDescription;
+    private String notes;
     private Long assignedUserId;
     private String assignedUserName;
 }
