@@ -714,6 +714,10 @@
       "generic": "登录失败，请稍后再试。",
       "authenticatorLinked": "认证器已绑定，请重新登录并输入验证码。",
       "verificationSent": "验证邮件已发送。"
+    },
+    "notice": {
+      "linkGoogle": "该邮箱已通过密码登录。请输入密码完成登录，随后会自动将 Google 登录绑定到同一账号。",
+      "googleLinked": "Google 登录已绑定到你的账号。"
     }
   }
 }
