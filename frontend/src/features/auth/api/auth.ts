@@ -1,7 +1,9 @@
+import { FirebaseError } from 'firebase/app'
 import {
   GoogleAuthProvider,
   TotpMultiFactorGenerator,
   getMultiFactorResolver,
+  linkWithCredential,
   multiFactor,
   onAuthStateChanged,
   sendEmailVerification,
@@ -9,6 +11,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  type AuthCredential,
   type MultiFactorError,
   type MultiFactorResolver,
   type TotpSecret,
@@ -19,6 +22,11 @@ import { firebaseAuth } from './firebase'
 export type PrimarySignInResult =
   | { status: 'signed-in'; user: User }
   | { status: 'mfa-required'; resolver: MultiFactorResolver }
+
+export type GoogleSignInResult =
+  | PrimarySignInResult
+  // 同邮箱已存在其它登录方式(如密码),需先用既有方式登录再链接 Google
+  | { status: 'link-required'; credential: AuthCredential; email: string }
 
 function isMultiFactorRequired(error: unknown): boolean {
   return typeof error === 'object'
@@ -39,7 +47,7 @@ export async function signInWithPassword(email: string, password: string): Promi
   }
 }
 
-export async function signInWithGoogle(): Promise<PrimarySignInResult> {
+export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   try {
     const provider = new GoogleAuthProvider()
     // 每次都强制弹出 Google 账号选择，而不是静默沿用上次登录的账号
@@ -50,8 +58,32 @@ export async function signInWithGoogle(): Promise<PrimarySignInResult> {
     if (isMultiFactorRequired(error)) {
       return { status: 'mfa-required', resolver: getMultiFactorResolver(firebaseAuth, error as MultiFactorError) }
     }
+    // 邮箱已存在其它 provider(项目设置为"同邮箱合并"时抛此错)→ 返回待链接凭证
+    const pending = extractPendingGoogleCredential(error)
+    if (pending) {
+      return { status: 'link-required', credential: pending.credential, email: pending.email }
+    }
     throw error
   }
+}
+
+/** 从 account-exists-with-different-credential 错误中取出待链接的 Google 凭证与邮箱。 */
+function extractPendingGoogleCredential(
+  error: unknown,
+): { credential: AuthCredential; email: string } | null {
+  if (error instanceof FirebaseError && error.code === 'auth/account-exists-with-different-credential') {
+    const credential = GoogleAuthProvider.credentialFromError(error)
+    const email = (error.customData?.email as string | undefined) ?? ''
+    if (credential) {
+      return { credential, email }
+    }
+  }
+  return null
+}
+
+/** 把待链接的凭证(如 Google)绑定到已登录用户,使其与既有账号共用同一 UID。 */
+export async function linkPendingCredential(user: User, credential: AuthCredential): Promise<void> {
+  await linkWithCredential(user, credential)
 }
 
 export async function completeTotpSignIn(resolver: MultiFactorResolver, code: string): Promise<User> {

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { FirebaseError } from 'firebase/app'
-import type { MultiFactorResolver, TotpSecret, User } from 'firebase/auth'
+import type { AuthCredential, MultiFactorResolver, TotpSecret, User } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
 import i18n from '../../../i18n'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -8,6 +8,7 @@ import {
   completeTotpSignIn,
   finishTotpEnrollment,
   hasTotpFactor,
+  linkPendingCredential,
   logoutFirebase,
   sendVerificationEmail,
   signInWithGoogle,
@@ -60,6 +61,7 @@ export function useFirebaseLoginFlow() {
   const [totpCode, setTotpCode] = useState('')
   const [setupCode, setSetupCode] = useState('')
   const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null)
+  const [pendingGoogleCred, setPendingGoogleCred] = useState<AuthCredential | null>(null)
   const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null)
   const [totpSecretKey, setTotpSecretKey] = useState('')
   const [totpQrUri, setTotpQrUri] = useState('')
@@ -69,6 +71,18 @@ export function useFirebaseLoginFlow() {
   const totpQrDataUrl = useTotpQrCode(totpQrUri)
 
   async function finishBackendCheck(user: User) {
+    // 完整登录后(MFA 已解析、currentUser 就绪)再把待链接的 Google 凭证绑到同一 UID
+    if (pendingGoogleCred) {
+      try {
+        await linkPendingCredential(user, pendingGoogleCred)
+        setNoticeMessage(i18n.t('auth.notice.googleLinked'))
+      } catch (error) {
+        // 链接失败不阻断本次登录(例如凭证已被链接);仅记录
+        console.warn('Failed to link Google credential', error)
+      } finally {
+        setPendingGoogleCred(null)
+      }
+    }
     await user.getIdToken(true)
     await refreshUser()
     navigate('/', { replace: true })
@@ -126,6 +140,15 @@ export function useFirebaseLoginFlow() {
       if (result.status === 'mfa-required') {
         setMfaResolver(result.resolver)
         setStep('totp-challenge')
+        return
+      }
+
+      if (result.status === 'link-required') {
+        // 同邮箱已有密码登录 → 暂存 Google 凭证,引导用户用密码登录后自动链接
+        setPendingGoogleCred(result.credential)
+        if (result.email) setEmail(result.email)
+        setStep('credentials')
+        setNoticeMessage(i18n.t('auth.notice.linkGoogle'))
         return
       }
 
@@ -212,6 +235,7 @@ export function useFirebaseLoginFlow() {
     setTotpCode('')
     setSetupCode('')
     setMfaResolver(null)
+    setPendingGoogleCred(null)
     setTotpSecret(null)
     setTotpSecretKey('')
     setTotpQrUri('')
