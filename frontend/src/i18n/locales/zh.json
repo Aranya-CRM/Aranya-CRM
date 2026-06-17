@@ -32,7 +32,7 @@
     "confirm": "确定提交",
     "cancel": "撤销",
     "caseCreate": "创建个案需要经理审批。确认后会提交审批申请，审批通过后个案才会显示。",
-    "caseDelete": "删除个案需要经理审批。确认后会提交审批申请，审批通过后个案会从列表移除。",
+    "caseDelete": "关闭个案需要经理审批。确认后会提交审批申请，审批通过后个案会关闭。",
     "serviceUpdate": "添加服务需要审批。确认后会提交审批申请，经理通过后服务会显示在服务模块。",
     "serviceRemove": "删除 {{service}} 需要审批。确认后会提交审批申请，经理通过后该服务会从服务模块移除。",
     "clientCreate": "新增会员需要审批。确认后会提交审批申请，审批通过后会员才会显示。",
@@ -69,7 +69,7 @@
       "CLIENT_CREATE": "新增会员",
       "CLIENT_UPDATE": "编辑会员",
       "DELETE_CLIENT": "删除会员",
-      "DELETE_CASE": "删除个案",
+      "DELETE_CASE": "关闭个案",
       "DELETE_REPORT": "删除报告",
       "DELETE_CASE_NOTE": "删除个案笔记",
       "DELETE_USER": "删除用户"
@@ -177,11 +177,15 @@
       "time": "具体时间",
       "location": "地点",
       "workDescription": "需要做什么",
-      "eventNotes": "补充说明（可选）",
+      "contact": "联系方式",
       "createEvent": "创建事件",
+      "hideEventPanel": "收起事件",
       "requestService": "提交审批",
+      "applyService": "申请服务",
       "removeService": "删除服务",
-      "noEvents": "暂无服务事件，可在下方创建并分配负责人。",
+      "addPending": "新增审批中",
+      "removePending": "删除审批中",
+      "noEvents": "暂无服务事件。",
       "eventCreated": "服务事件已创建。",
       "removeApprovalSubmitted": "删除服务的审批申请已提交，经理通过后服务会被移除。",
       "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。"
@@ -220,7 +224,8 @@
       "done": "完成"
     },
     "detail": {
-      "delete": "删除个案"
+      "delete": "关闭个案",
+      "closePending": "关闭审批中"
     },
     "notes": {
       "empty": "暂无案例笔记",
@@ -690,7 +695,8 @@
       "time": "时间",
       "location": "地点",
       "todo": "需要做什么",
-      "notes": "补充说明"
+      "notes": "补充说明",
+      "contact": "联系方式"
     },
     "myNotes": "我的笔记",
     "noReports": "暂无我上传的报告",
