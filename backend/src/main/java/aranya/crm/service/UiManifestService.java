@@ -67,7 +67,12 @@ public class UiManifestService {
         }
 
         if (roleNames.contains("SOCIAL_WORKER")) {
+            caps.put("clients:create", "WORKFLOW");
+            caps.remove("clients:update");
+            caps.remove("clients:delete");
+            caps.put("cases:view", "ALL");
             caps.put("cases:create", "WORKFLOW");
+            caps.put("cases:services.create", "WORKFLOW");
             caps.put("approvals:create", "YES");
         }
 
@@ -76,7 +81,12 @@ public class UiManifestService {
             caps.put("approvals:view", "YES");
             caps.put("approvals:decide", "YES");
             caps.put("approvals:create", "YES");
-            caps.put("cases:create", "ALL");
+            caps.put("clients:create", "WORKFLOW");
+            caps.put("clients:update", "WORKFLOW");
+            caps.put("clients:delete", "WORKFLOW");
+            caps.put("cases:create", "WORKFLOW");
+            caps.put("cases:services.create", "WORKFLOW");
+            caps.put("cases:delete", "WORKFLOW");
         }
     }
 }

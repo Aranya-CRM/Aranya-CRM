@@ -57,6 +57,11 @@ public class ClientService {
 
     @Transactional
     public ClientDetailResponse createClient(CreateClientRequest req, User createdBy) {
+        return executeApprovedCreateClient(req, createdBy);
+    }
+
+    @Transactional
+    public ClientDetailResponse executeApprovedCreateClient(CreateClientRequest req, User createdBy) {
         Client client = new Client();
         client.setNameEn(req.getNameEn());
         client.setNameChn(req.getNameChn());
@@ -73,6 +78,11 @@ public class ClientService {
 
     @Transactional
     public ClientDetailResponse updateClient(Long clientId, UpdateClientRequest req) {
+        return executeApprovedUpdateClient(clientId, req);
+    }
+
+    @Transactional
+    public ClientDetailResponse executeApprovedUpdateClient(Long clientId, UpdateClientRequest req) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
 

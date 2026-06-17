@@ -34,6 +34,8 @@ export interface ServiceEvent {
   title: string
   location?: string | null
   scheduledStart: string
+  workDescription?: string | null
+  notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
 }

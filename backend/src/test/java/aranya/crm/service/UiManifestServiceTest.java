@@ -81,6 +81,75 @@ class UiManifestServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("buildCaps limits social worker member actions to create approval")
+    void buildCaps_limitsSocialWorkerMemberActions() {
+        Authentication authentication = new TestingAuthenticationToken(
+                "sw@test.com",
+                "n/a",
+                "ROLE_SOCIAL_WORKER"
+        );
+
+        doAnswer(invocation -> {
+            RowCallbackHandler handler = invocation.getArgument(1);
+            handler.processRow(resultSet("clients:create", "YES"));
+            handler.processRow(resultSet("clients:update", "ALL"));
+            handler.processRow(resultSet("clients:delete", "WORKFLOW"));
+            handler.processRow(resultSet("cases:view", "OWN"));
+            handler.processRow(resultSet("cases:create", "YES"));
+            handler.processRow(resultSet("cases:services.create", "NO"));
+            return null;
+        }).when(jdbcTemplate).query(
+                anyString(),
+                any(RowCallbackHandler.class),
+                eq("SOCIAL_WORKER")
+        );
+
+        Map<String, String> result = uiManifestService.buildCaps(authentication);
+
+        assertThat(result).containsEntry("clients:create", "WORKFLOW");
+        assertThat(result).containsEntry("cases:view", "ALL");
+        assertThat(result).containsEntry("cases:create", "WORKFLOW");
+        assertThat(result).containsEntry("cases:services.create", "WORKFLOW");
+        assertThat(result).doesNotContainKeys("clients:update", "clients:delete");
+    }
+
+    @Test
+    @DisplayName("buildCaps marks manager member and case writes as workflow actions")
+    void buildCaps_marksManagerWritesAsWorkflow() {
+        Authentication authentication = new TestingAuthenticationToken(
+                "manager@test.com",
+                "n/a",
+                "ROLE_MANAGER"
+        );
+
+        doAnswer(invocation -> {
+            RowCallbackHandler handler = invocation.getArgument(1);
+            handler.processRow(resultSet("clients:create", "ALL"));
+            handler.processRow(resultSet("clients:update", "ALL"));
+            handler.processRow(resultSet("clients:delete", "WORKFLOW"));
+            handler.processRow(resultSet("cases:create", "ALL"));
+            handler.processRow(resultSet("cases:services.create", "ALL"));
+            handler.processRow(resultSet("cases:delete", "ALL"));
+            return null;
+        }).when(jdbcTemplate).query(
+                anyString(),
+                any(RowCallbackHandler.class),
+                eq("MANAGER")
+        );
+
+        Map<String, String> result = uiManifestService.buildCaps(authentication);
+
+        assertThat(result).containsEntry("clients:create", "WORKFLOW");
+        assertThat(result).containsEntry("clients:update", "WORKFLOW");
+        assertThat(result).containsEntry("clients:delete", "WORKFLOW");
+        assertThat(result).containsEntry("cases:create", "WORKFLOW");
+        assertThat(result).containsEntry("cases:services.create", "WORKFLOW");
+        assertThat(result).containsEntry("cases:delete", "WORKFLOW");
+        assertThat(result).containsEntry("approvals:view", "YES");
+        assertThat(result).containsEntry("approvals:decide", "YES");
+    }
+
     private ResultSet resultSet(String capKey, String scope) throws Exception {
         ResultSet resultSet = mock(ResultSet.class);
         when(resultSet.getString("cap_key")).thenReturn(capKey);

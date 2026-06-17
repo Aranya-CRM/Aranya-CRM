@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +27,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,8 +46,17 @@ class ApprovalServiceTest {
     @Mock
     private ApprovalActionRegistry approvalActionRegistry;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     @InjectMocks
     private ApprovalService approvalService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(jdbcTemplate.queryForList(anyString(), eq(String.class), any()))
+                .thenReturn(List.of("C001 · Test Client"));
+    }
 
     @Test
     @DisplayName("createRequest stores a pending approval request with serialized payload")
@@ -78,6 +91,22 @@ class ApprovalServiceTest {
         assertThat(saved.getRequestedBy()).isSameAs(requester);
         assertThat(result.getId()).isEqualTo(99L);
         assertThat(result.getRequestedByName()).isEqualTo("Social Worker");
+        assertThat(result.getTargetLabel()).isEqualTo("C001 · Test Client");
+    }
+
+    @Test
+    @DisplayName("listPending exposes case code as target label")
+    void listPending_exposesCaseCodeAsTargetLabel() {
+        ApprovalRequest request = request(7L, "DELETE_CASE", "PENDING", user(10L, "Requester"));
+        request.setTargetType("CASE");
+        request.setTargetId(12L);
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(12L))).thenReturn(List.of("ASDFL/2026/C/012"));
+        when(approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc("PENDING")).thenReturn(List.of(request));
+
+        List<ApprovalRequestResponse> result = approvalService.listPending();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getTargetLabel()).isEqualTo("ASDFL/2026/C/012");
     }
 
     @Test

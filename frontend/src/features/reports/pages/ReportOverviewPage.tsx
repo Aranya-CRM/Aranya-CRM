@@ -4,15 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ErrorBanner } from '../../../shared/ui'
-import { approveReport, deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
+import { deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import type { ReportDetail, ReportStatus, ReportSummary } from '../types'
 import './reports.css'
 
 type T = (key: string, opts?: Record<string, unknown>) => string
 
-// 文件夹（状态分类）展示顺序：待审批 → 草稿 → 退回 → 已审批
-const FOLDER_ORDER: ReportStatus[] = ['SUBMITTED', 'DRAFT', 'RETURNED', 'ARCHIVED']
+const FOLDER_ORDER: ReportStatus[] = ['DRAFT', 'SUBMITTED']
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '-'
@@ -30,7 +29,9 @@ function groupByStatus(reports: ReportSummary[]): Record<ReportStatus, ReportSum
   const groups: Record<ReportStatus, ReportSummary[]> = { DRAFT: [], SUBMITTED: [], ARCHIVED: [], RETURNED: [] }
   for (const r of reports) {
     const status = (r.status ?? 'SUBMITTED') as ReportStatus
-    ;(groups[status] ?? groups.SUBMITTED).push(r)
+    if (status === 'DRAFT' || status === 'SUBMITTED') {
+      groups[status].push(r)
+    }
   }
   for (const status of Object.keys(groups) as ReportStatus[]) {
     // 每个文件夹内按时间倒序，最新在最上
@@ -52,9 +53,7 @@ export function ReportOverviewPage() {
 
   // ── 能力字典驱动（去角色化）：不判断身份，只读能力键 ──
   const canCreate = getCap('reports:create') !== 'NO'
-  const canApprove = getCap('reports:approve_archive') !== 'NO'
   const canUpdate = getCap('reports:update') !== 'NO'
-  const canDeleteAny = getCap('reports:delete') !== 'NO'
 
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportDetail | undefined>()
@@ -63,10 +62,8 @@ export function ReportOverviewPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>()
 
-  // ── 取数：自己的全状态报告 ∪（有审批权时）待审批队列，按 id 去重 ──
   useEffect(() => {
     let active = true
     setIsLoadingList(true)
@@ -75,18 +72,10 @@ export function ReportOverviewPage() {
     async function load() {
       try {
         const own = await fetchReports({ mine: true })
-        let queue: ReportSummary[] = []
-        if (canApprove) {
-          try {
-            queue = await fetchReports()
-          } catch {
-            queue = []
-          }
-        }
         if (!active) return
 
         const byId = new Map<number, ReportSummary>()
-        for (const r of [...own, ...queue]) byId.set(r.id, r)
+        for (const r of own) byId.set(r.id, r)
         const merged = [...byId.values()]
         setReports(merged)
 
@@ -118,7 +107,7 @@ export function ReportOverviewPage() {
     return () => {
       active = false
     }
-  }, [canApprove, t])
+  }, [t])
 
   const grouped = useMemo(() => groupByStatus(reports), [reports])
 
@@ -141,21 +130,6 @@ export function ReportOverviewPage() {
 
   function patchStatus(id: number, status: ReportStatus) {
     setReports((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)))
-  }
-
-  async function handleApprove() {
-    if (!selectedReport) return
-    setIsApproving(true)
-    setErrorMessage(undefined)
-    try {
-      const updated = await approveReport(selectedReport.id)
-      setSelectedReport(updated)
-      patchStatus(updated.id, (updated.status ?? 'ARCHIVED') as ReportStatus)
-    } catch {
-      setErrorMessage(t('reports.detail.approveError'))
-    } finally {
-      setIsApproving(false)
-    }
   }
 
   async function handleSubmit() {
@@ -229,16 +203,12 @@ export function ReportOverviewPage() {
             <DetailPane
               report={selectedReport}
               myId={myId}
-              canApprove={canApprove}
               canUpdate={canUpdate}
-              canDeleteAny={canDeleteAny}
               isSaving={isSaving}
               isDeleting={isDeleting}
-              isApproving={isApproving}
               onEdit={() => navigate(`/reports/${selectedReport.id}/edit`)}
               onSubmit={() => void handleSubmit()}
               onDelete={() => void handleDelete()}
-              onApprove={() => void handleApprove()}
               t={t}
             />
           )}
@@ -322,49 +292,37 @@ function ReportSummaryCard({
 function DetailPane({
   report,
   myId,
-  canApprove,
   canUpdate,
-  canDeleteAny,
   isSaving,
   isDeleting,
-  isApproving,
   onEdit,
   onSubmit,
   onDelete,
-  onApprove,
   t,
 }: {
   report: ReportDetail
   myId: number | null
-  canApprove: boolean
   canUpdate: boolean
-  canDeleteAny: boolean
   isSaving: boolean
   isDeleting: boolean
-  isApproving: boolean
   onEdit: () => void
   onSubmit: () => void
   onDelete: () => void
-  onApprove: () => void
   t: T
 }) {
   const status = (report.status ?? 'SUBMITTED') as ReportStatus
   const isOwn = report.createdById != null && report.createdById === myId
-  const isEditable = status === 'DRAFT' || status === 'RETURNED'
+  const isEditable = status === 'DRAFT'
 
   const showEdit = isOwn && isEditable && canUpdate
   const showSubmit = isOwn && isEditable
-  const showDelete = (isOwn && status === 'DRAFT') || canDeleteAny
-  const showApprove = status === 'SUBMITTED' && canApprove
-  const busy = isSaving || isDeleting || isApproving
+  const showDelete = isOwn && status === 'DRAFT'
+  const busy = isSaving || isDeleting
 
   return (
     <>
       <ReportDetailReadView report={report} />
       <div className="report-inline-actions">
-        {status === 'SUBMITTED' && !canApprove ? (
-          <span className="report-waiting-hint">{t('reports.mailbox.waitingApproval')}</span>
-        ) : null}
         {showDelete ? (
           <button className="report-delete-link" type="button" disabled={busy} onClick={onDelete}>
             {isDeleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
@@ -378,11 +336,6 @@ function DetailPane({
         {showSubmit ? (
           <button className="btn-primary" type="button" disabled={busy} onClick={onSubmit}>
             {isSaving ? t('reports.form.submitting') : t('reports.form.submitFinal')}
-          </button>
-        ) : null}
-        {showApprove ? (
-          <button className="btn-primary" type="button" disabled={busy} onClick={onApprove}>
-            {isApproving ? t('reports.detail.approving') : t('reports.detail.approve')}
           </button>
         ) : null}
       </div>

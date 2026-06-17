@@ -32,6 +32,7 @@ export interface ApprovalRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
   targetType?: string | null
   targetId?: number | null
+  targetLabel?: string | null
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
@@ -61,11 +62,13 @@ export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
   assignedUserId: string | number
   scheduledStart: string
+  workDescription: string
+  notes?: string
   location?: string
 }
 
 function getDataMode(): 'mock' | 'api' | 'auto' {
-  const mode = (import.meta.env.VITE_DATA_MODE ?? 'auto').toLowerCase()
+  const mode = (import.meta.env.VITE_DATA_MODE ?? 'api').toLowerCase()
   if (mode === 'mock' || mode === 'api') return mode
   return 'auto'
 }
@@ -118,9 +121,18 @@ export async function updateCaseServices(id: string, services: Array<keyof CaseS
   return res.data
 }
 
-export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ApprovalRequest> {
-  const res = await http.post<ApprovalRequest>(`/v1/cases/${caseId}/service-events`, data)
+export async function deleteCase(id: string): Promise<ApprovalRequest> {
+  const res = await http.delete<ApprovalRequest>(`/v1/cases/${id}`)
   return res.data
+}
+
+export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ServiceEvent> {
+  const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events`, data)
+  return res.data
+}
+
+export async function deleteServiceEvent(caseId: string, eventId: string | number): Promise<void> {
+  await http.delete(`/v1/cases/${caseId}/service-events/${eventId}`)
 }
 
 export async function fetchAssignedServiceEvents(): Promise<ServiceEvent[]> {

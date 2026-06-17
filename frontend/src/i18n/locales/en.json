@@ -27,6 +27,18 @@
     "by": "by",
     "delete": "Delete"
   },
+  "approvalConfirm": {
+    "title": "Approval Required",
+    "confirm": "Submit Approval",
+    "cancel": "Cancel",
+    "caseCreate": "Creating a case requires manager approval. After confirmation, the case appears only after approval.",
+    "caseDelete": "Deleting a case requires manager approval. After confirmation, the case will be removed from the list after approval.",
+    "serviceUpdate": "Adding services requires approval. After confirmation, approved services will appear in the service module.",
+    "serviceRemove": "Removing {{service}} requires approval. After confirmation, the service will be removed after manager approval.",
+    "clientCreate": "Creating a member requires approval. After confirmation, the member appears only after approval.",
+    "clientUpdate": "Editing a member profile requires approval. After confirmation, changes take effect after approval.",
+    "clientDelete": "Deleting a member profile requires approval. After confirmation, the profile is removed from the active list after approval."
+  },
   "approvals": {
     "title": "Approvals",
     "subtitle": "Review pending case, service, and deletion requests.",
@@ -49,11 +61,15 @@
       "target": "Target",
       "status": "Status"
     },
+    "openTarget": "Open target page",
     "type": {
       "CASE_CREATE": "Create Case",
       "CASE_SERVICE_UPDATE": "Update Case Services",
       "SERVICE_EVENT_CREATE": "Create Service Event",
+      "CLIENT_CREATE": "Create Member",
+      "CLIENT_UPDATE": "Edit Member",
       "DELETE_CLIENT": "Delete Member",
+      "DELETE_CASE": "Delete Case",
       "DELETE_REPORT": "Delete Report",
       "DELETE_CASE_NOTE": "Delete Case Note",
       "DELETE_USER": "Delete User"
@@ -151,6 +167,8 @@
     "services": {
       "calendarTitle": "Service Calendar",
       "calendarPlaceholder": "No service events",
+      "empty": "No services added yet.",
+      "addService": "Add Service",
       "addEvent": "Add Service Event",
       "service": "Service",
       "selectService": "Select service",
@@ -158,7 +176,14 @@
       "selectAssignee": "Select assignee",
       "time": "Specific Time",
       "location": "Location",
+      "workDescription": "What needs to be done",
+      "eventNotes": "Notes (optional)",
       "createEvent": "Create Event",
+      "requestService": "Submit for Approval",
+      "removeService": "Remove Service",
+      "noEvents": "No service events yet. Create one below and assign an owner.",
+      "eventCreated": "Service event created.",
+      "removeApprovalSubmitted": "Service removal request submitted. The service will be removed after manager approval.",
       "approvalSubmitted": "Approval request submitted. The change will appear after manager approval."
     },
     "serviceGroup": {
@@ -170,6 +195,7 @@
     "tab": {
       "overview": "Overview",
       "services": "Services",
+      "calendar": "Calendar",
       "notes": "Notes",
       "documents": "Documents",
       "reports": "Reports",
@@ -192,6 +218,9 @@
       "title": "Task List",
       "due": "Due",
       "done": "Done"
+    },
+    "detail": {
+      "delete": "Delete Case"
     },
     "notes": {
       "empty": "No notes yet.",
@@ -274,6 +303,7 @@
       "remarks": "Remarks",
       "intensity": "Case Intensity",
       "services": "Service Modules",
+      "serviceRequired": "Select at least one service before submitting for approval.",
       "approvalSubmitted": "Case request submitted for manager approval.",
       "approvalSubmittedWithId": "Approval request #{{id}} submitted. The case will appear after manager approval.",
       "approvalSubmittedButton": "Submitted for Approval",
@@ -314,6 +344,7 @@
     "accessDenied": "Access Denied",
     "accessDeniedMsg": "Your current access does not allow creating or editing client profiles.",
     "saveError": "Failed to save.",
+    "approvalSubmittedWithId": "Approval request #{{id}} submitted. The change will appear after approval.",
     "form": {
       "newTitle": "New Client",
       "editTitle": "Edit Client"
@@ -500,7 +531,7 @@
     },
     "folder": {
       "DRAFT": "Draft",
-      "SUBMITTED": "Pending",
+      "SUBMITTED": "Submitted",
       "ARCHIVED": "Approved",
       "RETURNED": "Returned"
     },

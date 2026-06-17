@@ -1,4 +1,5 @@
 export { BackButton } from './BackButton'
+export { ApprovalConfirmModal } from './ApprovalConfirmModal'
 export { EmptyState, EmptyTableRow, ErrorBanner } from './Feedback'
 export { PageHeader } from './PageHeader'
 export { SectionCard } from './SectionCard'

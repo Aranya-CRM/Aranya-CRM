@@ -29,7 +29,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
+@PreAuthorize("isAuthenticated()")
 public class UserController {
 
     private final UserService userService;
@@ -41,11 +41,13 @@ public class UserController {
      * 这是前端 AuthContext 在初始化和登录后获取角色的入口。
      */
     @GetMapping
+    @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage') or @capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<List<UserSummaryDto>> list() {
         return ResponseEntity.ok(userService.listUsers());
     }
 
     @PostMapping("/invite")
+    @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
     public ResponseEntity<UserSummaryDto> invite(
             @CurrentUser User currentUser,
             @Valid @RequestBody InviteUserRequest request) {
@@ -53,6 +55,7 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/roles")
+    @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
     public ResponseEntity<UserSummaryDto> updateRoles(
             @CurrentUser User currentUser,
             @PathVariable Long id,
@@ -61,6 +64,7 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
     public ResponseEntity<UserSummaryDto> updateStatus(
             @CurrentUser User currentUser,
             @PathVariable Long id,
@@ -72,6 +76,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
     public ResponseEntity<ApprovalRequestResponse> delete(@CurrentUser User currentUser, @PathVariable Long id) {
         if (currentUser != null && currentUser.getId().equals(id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Managers cannot remove their own account");

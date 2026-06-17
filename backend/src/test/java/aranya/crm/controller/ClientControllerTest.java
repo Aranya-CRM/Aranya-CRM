@@ -35,6 +35,8 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -157,38 +159,39 @@ class ClientControllerTest {
             """;
 
     @Test
-    @DisplayName("Manager can create a client — 201 with Location header")
-    void createClient_returns201_forManager() throws Exception {
+    @DisplayName("Manager create client submits approval request — 202")
+    void createClient_returns202Approval_forManager() throws Exception {
+        User manager = managerUser(1L);
         when(capEval.hasCap(any(), eq("clients:create"))).thenReturn(true);
-        when(clientService.createClient(any(), any())).thenReturn(
-                ClientDetailResponse.builder()
-                        .id(20L)
-                        .abbr("JS")
-                        .nameEn("John Smith")
-                        .membershipStatus("ACTIVE")
-                        .createdAt(LocalDateTime.of(2026, 5, 21, 10, 0))
-                        .relatedContacts(List.of())
-                        .build()
-        );
+        when(approvalService.createRequest(eq("CLIENT_CREATE"), eq("CLIENT"), eq(null), any(), eq(manager)))
+                .thenReturn(approvalResponse(90L, "CLIENT_CREATE"));
 
         mockMvc.perform(post("/api/v1/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_CREATE_BODY)
-                        .with(authentication(managerAuth(1L))))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/v1/clients/20")))
-                .andExpect(jsonPath("$.id").value(20))
-                .andExpect(jsonPath("$.abbr").value("JS"));
+                        .with(authentication(authFor(manager, "ROLE_MANAGER"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(90))
+                .andExpect(jsonPath("$.type").value("CLIENT_CREATE"));
+
+        verify(clientService, never()).createClient(any(), any());
     }
 
     @Test
-    @DisplayName("Social Worker cannot create a client — 403")
-    @WithMockUser(roles = "SOCIAL_WORKER")
-    void createClient_returns403_forSocialWorker() throws Exception {
+    @DisplayName("Social Worker create client submits approval request — 202")
+    void createClient_returns202Approval_forSocialWorker() throws Exception {
+        User socialWorker = socialWorkerUser(2L);
+        when(capEval.hasCap(any(), eq("clients:create"))).thenReturn(true);
+        when(approvalService.createRequest(eq("CLIENT_CREATE"), eq("CLIENT"), eq(null), any(), eq(socialWorker)))
+                .thenReturn(approvalResponse(92L, "CLIENT_CREATE"));
+
         mockMvc.perform(post("/api/v1/clients")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_CREATE_BODY))
-                .andExpect(status().isForbidden());
+                        .content(VALID_CREATE_BODY)
+                        .with(authentication(authFor(socialWorker, "ROLE_SOCIAL_WORKER"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(92))
+                .andExpect(jsonPath("$.type").value("CLIENT_CREATE"));
     }
 
     @Test
@@ -223,29 +226,24 @@ class ClientControllerTest {
     // ── updateClient ─────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Manager can update a client — 200")
-    @WithMockUser(roles = "MANAGER")
-    void updateClient_returns200_forManager() throws Exception {
+    @DisplayName("Manager update client submits approval request — 202")
+    void updateClient_returns202Approval_forManager() throws Exception {
+        User manager = managerUser(1L);
         when(capEval.hasCap(any(), eq("clients:update"))).thenReturn(true);
-        when(clientService.updateClient(eq(10L), any())).thenReturn(
-                ClientDetailResponse.builder()
-                        .id(10L)
-                        .abbr("C001")
-                        .nameEn("Updated Name")
-                        .membershipStatus("ACTIVE")
-                        .createdAt(LocalDateTime.of(2026, 5, 7, 9, 30))
-                        .relatedContacts(List.of())
-                        .build()
-        );
+        when(approvalService.createRequest(eq("CLIENT_UPDATE"), eq("CLIENT"), eq(10L), any(), eq(manager)))
+                .thenReturn(approvalResponse(93L, "CLIENT_UPDATE"));
 
         mockMvc.perform(patch("/api/v1/clients/10")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nameEn":"Updated Name"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(10))
-                .andExpect(jsonPath("$.nameEn").value("Updated Name"));
+                                """)
+                        .with(authentication(authFor(manager, "ROLE_MANAGER"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(93))
+                .andExpect(jsonPath("$.type").value("CLIENT_UPDATE"));
+
+        verify(clientService, never()).updateClient(any(), any());
     }
 
     @Test
@@ -310,6 +308,16 @@ class ClientControllerTest {
         user.setUsername("manager");
         user.setEmail("manager@test.com");
         user.setFullName("Manager User");
+        user.setStatus("ACTIVE");
+        return user;
+    }
+
+    private static User socialWorkerUser(Long id) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername("social-worker");
+        user.setEmail("sw@test.com");
+        user.setFullName("Social Worker");
         user.setStatus("ACTIVE");
         return user;
     }

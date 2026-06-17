@@ -125,7 +125,19 @@ public class CapPermissionEvaluator {
         }
 
         if (roleNames.contains("SOCIAL_WORKER")) {
+            if (capKey.equals("clients:create")) {
+                return "WORKFLOW";
+            }
+            if (capKey.equals("clients:update") || capKey.equals("clients:delete")) {
+                return "NO";
+            }
             if (capKey.equals("cases:create")) {
+                return "WORKFLOW";
+            }
+            if (capKey.equals("cases:view")) {
+                return "ALL";
+            }
+            if (capKey.equals("cases:services.create")) {
                 return "WORKFLOW";
             }
             if (capKey.equals("approvals:create")) {
@@ -140,8 +152,13 @@ public class CapPermissionEvaluator {
                     || capKey.equals("approvals:create")) {
                 return "YES";
             }
-            if (capKey.equals("cases:create")) {
-                return "ALL";
+            if (capKey.equals("clients:create")
+                    || capKey.equals("clients:update")
+                    || capKey.equals("clients:delete")
+                    || capKey.equals("cases:create")
+                    || capKey.equals("cases:services.create")
+                    || capKey.equals("cases:delete")) {
+                return "WORKFLOW";
             }
         }
 
