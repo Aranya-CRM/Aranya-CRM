@@ -714,6 +714,10 @@
       "generic": "Unable to sign in. Please try again.",
       "authenticatorLinked": "Authenticator linked. Please sign in again.",
       "verificationSent": "Verification email sent."
+    },
+    "notice": {
+      "linkGoogle": "This email already signs in with a password. Enter your password to finish signing in — Google sign-in will then be linked to the same account.",
+      "googleLinked": "Google sign-in has been linked to your account."
     }
   }
 }
