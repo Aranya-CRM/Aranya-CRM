@@ -32,7 +32,7 @@
     "confirm": "Submit Approval",
     "cancel": "Cancel",
     "caseCreate": "Creating a case requires manager approval. After confirmation, the case appears only after approval.",
-    "caseDelete": "Deleting a case requires manager approval. After confirmation, the case will be removed from the list after approval.",
+    "caseDelete": "Closing a case requires manager approval. After confirmation, the case will be closed after approval.",
     "serviceUpdate": "Adding services requires approval. After confirmation, approved services will appear in the service module.",
     "serviceRemove": "Removing {{service}} requires approval. After confirmation, the service will be removed after manager approval.",
     "clientCreate": "Creating a member requires approval. After confirmation, the member appears only after approval.",
@@ -69,7 +69,7 @@
       "CLIENT_CREATE": "Create Member",
       "CLIENT_UPDATE": "Edit Member",
       "DELETE_CLIENT": "Delete Member",
-      "DELETE_CASE": "Delete Case",
+      "DELETE_CASE": "Close Case",
       "DELETE_REPORT": "Delete Report",
       "DELETE_CASE_NOTE": "Delete Case Note",
       "DELETE_USER": "Delete User"
@@ -177,11 +177,15 @@
       "time": "Specific Time",
       "location": "Location",
       "workDescription": "What needs to be done",
-      "eventNotes": "Notes (optional)",
+      "contact": "Contact",
       "createEvent": "Create Event",
+      "hideEventPanel": "Hide Events",
       "requestService": "Submit for Approval",
+      "applyService": "Apply for Service",
       "removeService": "Remove Service",
-      "noEvents": "No service events yet. Create one below and assign an owner.",
+      "addPending": "Add pending",
+      "removePending": "Removal pending",
+      "noEvents": "No service events yet.",
       "eventCreated": "Service event created.",
       "removeApprovalSubmitted": "Service removal request submitted. The service will be removed after manager approval.",
       "approvalSubmitted": "Approval request submitted. The change will appear after manager approval."
@@ -220,7 +224,8 @@
       "done": "Done"
     },
     "detail": {
-      "delete": "Delete Case"
+      "delete": "Close Case",
+      "closePending": "Close Pending"
     },
     "notes": {
       "empty": "No notes yet.",
@@ -690,7 +695,8 @@
       "time": "Time",
       "location": "Location",
       "todo": "What is needed",
-      "notes": "Supplementary notes"
+      "notes": "Supplementary notes",
+      "contact": "Contact"
     },
     "myNotes": "My Notes",
     "noReports": "No reports uploaded by you",
