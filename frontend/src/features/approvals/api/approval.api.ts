@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { http } from '../../../shared/api'
+import { removeLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { caseQueryKeys } from '../../cases/hooks'
 import { clientQueryKeys } from '../../clients/hooks'
 
@@ -58,7 +59,8 @@ export function useApproveRequest() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => approveRequest(id, data),
-    onSuccess: () => {
+    onSuccess: (approval) => {
+      removeLocalPendingApproval(approval.id)
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
@@ -71,7 +73,8 @@ export function useRejectRequest() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => rejectRequest(id, data),
-    onSuccess: () => {
+    onSuccess: (approval) => {
+      removeLocalPendingApproval(approval.id)
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })

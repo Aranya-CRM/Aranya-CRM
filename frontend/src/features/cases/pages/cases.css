@@ -397,23 +397,28 @@
 
 .case-detail-card {
   margin-top: 16px;
-  padding: 28px 32px 36px;
+  padding: 20px 32px 36px;
   border: 1px solid #e1e6ef;
   border-radius: 12px;
   background: #ffffff;
 }
 
-.case-detail-top-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-}
-
 /* Header */
 
 .case-detail-header {
-  padding-bottom: 20px;
+  padding-bottom: 18px;
   border-bottom: 1px solid #e8ebf0;
+}
+
+.case-detail-header-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.case-detail-heading {
+  min-width: 0;
 }
 
 .case-detail-title-row {
@@ -440,9 +445,16 @@
 
 .case-detail-subtitle {
   margin-top: 7px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+.case-detail-header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .case-detail-actions {
@@ -878,13 +890,19 @@
 }
 
 .case-service-request-form {
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
   align-items: end;
-  margin: 0 0 22px;
+  margin: 14px 0 22px;
   padding: 16px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fafafa;
+}
+
+.case-service-request-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 16px;
 }
 
 .case-service-card-grid {
@@ -903,6 +921,11 @@
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.case-service-card.pending {
+  border-color: #bfdbfe;
+  background: #f8fbff;
 }
 
 .case-service-card-header {
@@ -927,6 +950,31 @@
   margin: 3px 0 0;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+.case-service-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.case-service-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-top: 7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.case-service-pending-badge.remove {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .case-service-icon {
@@ -962,6 +1010,13 @@
 .case-service-remove-btn {
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+.case-service-event-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef1f5;
 }
 
 .case-service-event-list {
@@ -1017,8 +1072,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 14px;
-  border-top: 1px solid #eef1f5;
 }
 
 .case-service-event-form label {
