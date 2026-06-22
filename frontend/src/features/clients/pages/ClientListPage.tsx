@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
+import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
@@ -66,6 +67,7 @@ export function ClientListPage() {
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
+  const approvalAssignees = useApprovalAssigneeOptions()
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -135,8 +137,8 @@ export function ClientListPage() {
     setApprovalIntent('create')
   }
 
-  async function confirmCreateClient() {
-    const result = await createClient.mutateAsync(buildNewClientPayload(newClientForm))
+  async function confirmCreateClient(approverId?: number) {
+    const result = await createClient.mutateAsync({ data: buildNewClientPayload(newClientForm), approverId })
     setNewClientForm(initialNewClientForm)
     setShowCreateModal(false)
     setApprovalIntent(null)
@@ -209,9 +211,9 @@ export function ClientListPage() {
     setApprovalIntent('update')
   }
 
-  async function confirmUpdateClient() {
+  async function confirmUpdateClient(approverId?: number) {
     if (!editingClientId || !editForm) return
-    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client> })
+    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client>, approverId })
     const savedClientId = editingClientId
     setEditingClientId(null)
     setEditForm(null)
@@ -229,9 +231,9 @@ export function ClientListPage() {
     setApprovalIntent('delete')
   }
 
-  async function submitDeleteClient() {
+  async function submitDeleteClient(approverId?: number) {
     if (!profileClient) return
-    const result = await deleteClient.mutateAsync(profileClient.id)
+    const result = await deleteClient.mutateAsync({ id: profileClient.id, approverId })
     setShowDeleteConfirm(false)
     setEditingClientId(null)
     setEditForm(null)
@@ -378,11 +380,14 @@ export function ClientListPage() {
         confirmLabel={approvalPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={approvalPending}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setApprovalIntent(null)}
-        onConfirm={() => {
-          if (approvalIntent === 'create') void confirmCreateClient()
-          if (approvalIntent === 'update') void confirmUpdateClient()
-          if (approvalIntent === 'delete') void submitDeleteClient()
+        onConfirm={(approverId) => {
+          if (approvalIntent === 'create') void confirmCreateClient(approverId)
+          if (approvalIntent === 'update') void confirmUpdateClient(approverId)
+          if (approvalIntent === 'delete') void submitDeleteClient(approverId)
         }}
       />
     </div>

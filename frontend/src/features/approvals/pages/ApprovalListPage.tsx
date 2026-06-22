@@ -32,7 +32,9 @@ function stringifyValue(value: unknown): string {
 }
 
 function payloadRows(payload: ParsedPayload): Array<[string, string]> {
-  return Object.entries(payload).map(([key, value]) => [key, stringifyValue(value)])
+  return Object.entries(payload)
+    .filter(([key]) => key !== '_approval')
+    .map(([key, value]) => [key, stringifyValue(value)])
 }
 
 function targetHref(targetType: string | null | undefined, targetId: number | null | undefined): string | undefined {

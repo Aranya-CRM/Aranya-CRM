@@ -7,7 +7,7 @@ import {
   updateClient,
 } from '../api/client.api'
 import type { Client } from '../types'
-import type { ClientWriteResult } from '../api/client.api'
+import type { ApprovalOptions, ClientWriteResult } from '../api/client.api'
 
 export const clientQueryKeys = {
   all: ['clients'] as const,
@@ -40,7 +40,8 @@ export function useCreateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Omit<Client, 'id'>) => createClient(data),
+    mutationFn: ({ data, approverId }: { data: Omit<Client, 'id'> } & ApprovalOptions) =>
+      createClient(data, { approverId }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
       if (!isClientResult(client)) return
@@ -53,7 +54,8 @@ export function useUpdateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Client> }) => updateClient(id, data),
+    mutationFn: ({ id, data, approverId }: { id: string; data: Partial<Client> } & ApprovalOptions) =>
+      updateClient(id, data, { approverId }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
       if (!isClientResult(client)) return
@@ -66,7 +68,7 @@ export function useDeleteClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => deleteClient(id),
+    mutationFn: ({ id, approverId }: { id: string } & ApprovalOptions) => deleteClient(id, { approverId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
     },

@@ -190,7 +190,7 @@ export function TaskDetailPage() {
           <Info label={t('tasks.request.time')} value={taskEvent.scheduledStart} />
           <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
           <Info label={t('tasks.request.todo')} value={taskEvent.workDescription || '-'} wide />
-          <Info label={t('tasks.request.notes')} value={taskEvent.notes || '-'} wide />
+          <Info label={t('tasks.request.contact')} value={taskEvent.notes || '-'} wide />
         </div>
       </SectionCard>
 

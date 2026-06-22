@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,6 +31,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class ClientController {
+    private static final String APPROVER_HEADER = "X-Approver-Id";
 
     private final ClientService clientService;
     private final ApprovalService approvalService;
@@ -56,14 +58,16 @@ public class ClientController {
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:create')")
     public ResponseEntity<ApprovalRequestResponse> createClient(
             @Valid @RequestBody CreateClientRequest req,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CLIENT_CREATE",
                 "CLIENT",
                 null,
                 req,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -73,14 +77,16 @@ public class ClientController {
     public ResponseEntity<ApprovalRequestResponse> updateClient(
             @PathVariable Long id,
             @Valid @RequestBody UpdateClientRequest req,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CLIENT_UPDATE",
                 "CLIENT",
                 id,
                 req,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -89,14 +95,16 @@ public class ClientController {
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:delete')")
     public ResponseEntity<ApprovalRequestResponse> deleteClient(
             @PathVariable Long id,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CLIENT",
                 "CLIENT",
                 id,
                 null,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }

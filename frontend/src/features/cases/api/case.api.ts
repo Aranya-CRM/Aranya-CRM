@@ -36,7 +36,13 @@ export interface ApprovalRequest {
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
+  assignedApproverId?: number | null
+  assignedApproverName?: string | null
   createdAt?: string | null
+}
+
+export interface ApprovalOptions {
+  approverId?: number
 }
 
 export interface UpdateCasePayload {
@@ -100,14 +106,18 @@ export async function fetchCaseById(id: string): Promise<Case | undefined> {
   }
 }
 
-export async function createCase(data: CreateCasePayload): Promise<ApprovalRequest> {
+function approvalRequestConfig(options?: ApprovalOptions) {
+  return options?.approverId ? { headers: { 'X-Approver-Id': String(options.approverId) } } : undefined
+}
+
+export async function createCase(data: CreateCasePayload, options?: ApprovalOptions): Promise<ApprovalRequest> {
   const mode = getDataMode()
   if (mode === 'mock') {
     return mockApproval('CASE_CREATE', 'CLIENT', Number(data.clientId))
   }
 
   try {
-    const res = await http.post<ApprovalRequest>('/v1/cases', data)
+    const res = await http.post<ApprovalRequest>('/v1/cases', data, approvalRequestConfig(options))
     return res.data
   } catch {
     if (mode === 'auto') {
@@ -117,13 +127,13 @@ export async function createCase(data: CreateCasePayload): Promise<ApprovalReque
   }
 }
 
-export async function updateCaseServices(id: string, services: Array<keyof CaseServices>): Promise<ApprovalRequest> {
-  const res = await http.patch<ApprovalRequest>(`/v1/cases/${id}/services`, services)
+export async function updateCaseServices(id: string, services: Array<keyof CaseServices>, options?: ApprovalOptions): Promise<ApprovalRequest> {
+  const res = await http.patch<ApprovalRequest>(`/v1/cases/${id}/services`, services, approvalRequestConfig(options))
   return res.data
 }
 
-export async function deleteCase(id: string): Promise<ApprovalRequest> {
-  const res = await http.delete<ApprovalRequest>(`/v1/cases/${id}`)
+export async function deleteCase(id: string, options?: ApprovalOptions): Promise<ApprovalRequest> {
+  const res = await http.delete<ApprovalRequest>(`/v1/cases/${id}`, approvalRequestConfig(options))
   return res.data
 }
 
