@@ -158,67 +158,87 @@
 .btn-edit,
 .btn-secondary,
 .btn-audit,
-.btn-danger {
+.btn-danger,
+.btn-warn,
+.btn-link-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 36px;
   padding: 0 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-btn);
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
-/* 新增 — black bg, white text */
+/* 主操作 / 审批 — 实心 Teal */
 .btn-primary {
-  border: 1px solid #1a1a1a;
-  background: #1a1a1a;
-  color: #ffffff;
+  border: 1px solid var(--btn-primary-bg);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
 }
-.btn-primary:hover:not(:disabled) { background: #333333; border-color: #333333; }
+.btn-primary:hover:not(:disabled) { background: var(--brand-strong); border-color: var(--brand-strong); }
 
-/* 编辑 — dark gray bg, white text */
+/* 编辑 — 实心蓝(高频,视觉权重最高) */
 .btn-edit {
-  border: 1px solid #4b5563;
-  background: #4b5563;
-  color: #ffffff;
+  border: 1px solid var(--btn-edit-bg);
+  background: var(--btn-edit-bg);
+  color: var(--btn-edit-fg);
 }
-.btn-edit:hover:not(:disabled) { background: #374151; border-color: #374151; }
+.btn-edit:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); }
 
-/* 中性操作 — white bg, border */
+/* 次要 / 取消 — 浅灰底 */
 .btn-secondary {
-  border: 1px solid #d7dce5;
-  background: #ffffff;
-  color: #344054;
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
 }
-.btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
+.btn-secondary:hover:not(:disabled) { filter: brightness(0.97); }
 
-/* 审计 — purple bg, black text */
+/* Audit View — 浅紫专属 */
 .btn-audit {
-  border: 1px solid #6d28d9;
-  background: #6d28d9;
-  color: #ffffff;
+  border: 1px solid var(--btn-audit-border);
+  background: var(--btn-audit-bg);
+  color: var(--btn-audit-fg);
 }
-.btn-audit:hover:not(:disabled) { background: #5b21b6; border-color: #5b21b6; }
+.btn-audit:hover:not(:disabled) { filter: brightness(0.97); }
 
-/* 删除 — red bg, black text */
+/* 删除 / 关闭个案 — 浅红底(警示但不抢眼) */
 .btn-danger {
-  border: 1px solid #dc2626;
-  background: #dc2626;
-  color: #ffffff;
+  border: 1px solid var(--btn-danger-border);
+  background: var(--btn-danger-bg);
+  color: var(--btn-danger-fg);
 }
-.btn-danger:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.97); }
+
+/* 归档 / 标记 / 停用 — 琥珀底(可逆谨慎操作) */
+.btn-warn {
+  border: 1px solid var(--btn-warn-border);
+  background: var(--btn-warn-bg);
+  color: var(--btn-warn-fg);
+}
+.btn-warn:hover:not(:disabled) { filter: brightness(0.97); }
+
+/* 链接 / 关联 — 浅蓝底 */
+.btn-link-action {
+  border: 1px solid var(--btn-link-border);
+  background: var(--btn-link-bg);
+  color: var(--btn-link-fg);
+}
+.btn-link-action:hover:not(:disabled) { filter: brightness(0.97); }
 
 /* 通用禁用态 */
 .btn-primary:disabled,
 .btn-edit:disabled,
 .btn-secondary:disabled,
 .btn-audit:disabled,
-.btn-danger:disabled {
+.btn-danger:disabled,
+.btn-warn:disabled,
+.btn-link-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

@@ -184,6 +184,7 @@
       "location": "Location",
       "workDescription": "What needs to be done",
       "contact": "Contact",
+      "eventNotes": "Notes (optional)",
       "createEvent": "Create Event",
       "hideEventPanel": "Hide Events",
       "requestService": "Submit for Approval",

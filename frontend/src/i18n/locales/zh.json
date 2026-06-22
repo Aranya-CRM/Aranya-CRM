@@ -184,6 +184,7 @@
       "location": "地点",
       "workDescription": "需要做什么",
       "contact": "联系方式",
+      "eventNotes": "备注（可选）",
       "createEvent": "创建事件",
       "hideEventPanel": "收起事件",
       "requestService": "提交审批",
