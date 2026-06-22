@@ -1,6 +1,6 @@
 import { http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type AuditLogEntry, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent } from '../types'
+import { emptyCaseServices, type AuditLogEntry, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -149,6 +149,26 @@ export async function deleteServiceEvent(caseId: string, eventId: string | numbe
 export async function fetchAssignedServiceEvents(): Promise<ServiceEvent[]> {
   const res = await http.get<ServiceEvent[]>('/v1/tasks')
   return res.data
+}
+
+/**
+ * 拉取 Google 共享日历在 [from, to] 区间内的事件(后端已排除本 case 自己的事件)。
+ * mock 模式或集成未启用时安全返回空数组。
+ */
+export async function fetchSharedCalendarEvents(
+  caseId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<SharedCalendarEvent[]> {
+  if (getDataMode() === 'mock') return []
+  try {
+    const res = await http.get<SharedCalendarEvent[]>(`/v1/cases/${caseId}/calendar-events`, {
+      params: { from: fromIso, to: toIso },
+    })
+    return res.data ?? []
+  } catch {
+    return []
+  }
 }
 
 export async function updateCase(id: string, data: UpdateCasePayload): Promise<Case> {

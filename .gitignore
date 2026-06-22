@@ -41,6 +41,8 @@ infra/docker/.env
 *google-application-credentials*.json
 backend/src/main/resources/firebase-service-account-*.json
 firebase-service-account-*.json
+backend/src/main/resources/google-calendar-sa-*.json
+google-calendar-sa-*.json
 
 # Java / Maven (backend)
 backend/target/

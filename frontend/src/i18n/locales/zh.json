@@ -6,7 +6,21 @@
     "reports": "文档管理",
     "approvals": "审批",
     "tasks": "协助",
-    "users": "用户管理"
+    "users": "用户管理",
+    "profile": "查看个人主页"
+  },
+  "profile": {
+    "title": "个人主页",
+    "subtitle": "你的个人账号信息",
+    "verified": "已验证",
+    "unverified": "未验证",
+    "fields": {
+      "email": "邮箱",
+      "username": "用户名",
+      "phone": "电话",
+      "status": "账号状态",
+      "memberSince": "加入时间"
+    }
   },
   "layout": {
     "brandTitle": "阿兰若个案管理系统",

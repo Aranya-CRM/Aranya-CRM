@@ -6,7 +6,21 @@
     "reports": "Reports",
     "approvals": "Approvals",
     "tasks": "Help with",
-    "users": "Users"
+    "users": "Users",
+    "profile": "View profile"
+  },
+  "profile": {
+    "title": "My Profile",
+    "subtitle": "Your personal account information",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "fields": {
+      "email": "Email",
+      "username": "Username",
+      "phone": "Phone",
+      "status": "Account status",
+      "memberSince": "Member since"
+    }
   },
   "layout": {
     "brandTitle": "Aranya Case Management",
