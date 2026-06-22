@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
+import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, BackButton, PageHeader } from '../../../shared/ui'
 import {
   ClientFormStepContent,
@@ -92,6 +93,7 @@ export function ClientFormPage() {
   const { data: client, isLoading } = useClient(id)
   const createClientMutation = useCreateClient()
   const updateClientMutation = useUpdateClient()
+  const approvalAssignees = useApprovalAssigneeOptions()
   const canWriteClient = isEdit ? resolve('clients:update') : resolve('clients:create')
 
   useEffect(() => {
@@ -137,11 +139,11 @@ export function ClientFormPage() {
     setShowApprovalConfirm(true)
   }
 
-  async function submitApproval() {
+  async function submitApproval(approverId?: number) {
     try {
       const result = isEdit && id
-        ? await updateClientMutation.mutateAsync({ id, data: form as Partial<Client> })
-        : await createClientMutation.mutateAsync(form)
+        ? await updateClientMutation.mutateAsync({ id, data: form as Partial<Client>, approverId })
+        : await createClientMutation.mutateAsync({ data: form, approverId })
       setShowApprovalConfirm(false)
       if (isEdit && id) {
         if (isClientResult(result)) {
@@ -199,8 +201,11 @@ export function ClientFormPage() {
         confirmLabel={saving ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={saving}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowApprovalConfirm(false)}
-        onConfirm={() => void submitApproval()}
+        onConfirm={(approverId) => void submitApproval(approverId)}
       />
     </>
   )

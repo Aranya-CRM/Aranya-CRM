@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
 import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
+import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal } from '../../../shared/ui'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
@@ -429,6 +430,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const canCreateEvent = resolve('cases:services.create')
   const [approvalMessage, setApprovalMessage] = useState('')
   const pendingCaseApprovals = useLocalPendingApprovals('CASE', caseData.id)
+  const approvalAssignees = useApprovalAssigneeOptions()
 
   useEffect(() => {
     if (!canCreateEvent) return
@@ -482,10 +484,10 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     setShowServiceApprovalConfirm(true)
   }
 
-  async function requestAddServices() {
+  async function requestAddServices(approverId?: number) {
     if (servicesToAdd.length === 0) return
     const nextServices = uniqueServiceKeys([...approvedServiceKeys, ...pendingAddKeys, ...servicesToAdd])
-    const approval = await updateServices.mutateAsync(nextServices)
+    const approval = await updateServices.mutateAsync({ services: nextServices, approverId })
     addLocalPendingApproval({
       ...approval,
       targetType: approval.targetType ?? 'CASE',
@@ -499,11 +501,11 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     setShowServiceApprovalConfirm(false)
   }
 
-  async function requestRemoveService() {
+  async function requestRemoveService(approverId?: number) {
     if (!serviceToRemove) return
     const serviceKey = serviceToRemove
     const nextServices = uniqueServiceKeys([...approvedServiceKeys, ...pendingAddKeys]).filter((key) => key !== serviceKey)
-    const approval = await updateServices.mutateAsync(nextServices)
+    const approval = await updateServices.mutateAsync({ services: nextServices, approverId })
     addLocalPendingApproval({
       ...approval,
       targetType: approval.targetType ?? 'CASE',
@@ -736,8 +738,11 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
         confirmLabel={updateServices.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={updateServices.isPending}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowServiceApprovalConfirm(false)}
-        onConfirm={() => void requestAddServices()}
+        onConfirm={(approverId) => void requestAddServices(approverId)}
       />
       <ApprovalConfirmModal
         open={serviceToRemove !== null}
@@ -748,8 +753,11 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
         confirmLabel={updateServices.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={updateServices.isPending}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setServiceToRemove(null)}
-        onConfirm={() => void requestRemoveService()}
+        onConfirm={(approverId) => void requestRemoveService(approverId)}
       />
     </>
   )
