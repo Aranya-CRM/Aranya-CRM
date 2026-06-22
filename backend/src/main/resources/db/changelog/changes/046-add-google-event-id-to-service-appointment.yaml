@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 046-add-google-event-id-to-service-appointment
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: google_event_id
+                  type: VARCHAR(1024)
+                  remarks: "镜像到 Google 共享日历后返回的事件 ID(可空;同步失败或集成关闭时为 null)"

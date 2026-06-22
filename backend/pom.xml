@@ -34,6 +34,13 @@
             <artifactId>firebase-admin</artifactId>
             <version>9.8.0</version>
         </dependency>
+
+        <!-- Google Calendar API (Service Account) -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-calendar</artifactId>
+            <version>v3-rev20240906-2.0.0</version>
+        </dependency>
         <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

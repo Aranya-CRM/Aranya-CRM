@@ -2,30 +2,18 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { sendInviteSetupEmail } from '../../auth/api/auth'
-import { getApiErrorCode } from '../../../shared/api'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
-import { inviteErrorKey } from '../inviteErrors'
 import {
   useDeleteUser,
-  useInviteUser,
   useUpdateUserRoles,
   useUpdateUserStatus,
   useUsers,
 } from '../hooks'
-import type { InviteUserPayload, UserRole, UserStatus, UserSummary } from '../types'
+import type { UserRole, UserStatus, UserSummary } from '../types'
+import { InviteUserModal } from '../components/InviteUserModal'
+import { RoleCheckboxGroup, UserModal } from '../components/UserModal'
 import './users.css'
-
-const ROLE_VALUES: UserRole[] = ['MANAGER', 'SOCIAL_WORKER', 'VOLUNTEER']
-
-const initialInviteForm: InviteUserPayload = {
-  username: '',
-  fullName: '',
-  email: '',
-  phone: '',
-  roles: ['VOLUNTEER'],
-}
 
 function normalizeText(value: string | null | undefined, fallback = '-'): string {
   const text = value?.trim()
@@ -36,14 +24,12 @@ export function UsersPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
   const { data: users = [], isLoading, isError } = useUsers()
-  const inviteUser = useInviteUser()
   const updateRoles = useUpdateUserRoles()
   const updateStatus = useUpdateUserStatus()
   const deleteUser = useDeleteUser()
   const approvalAssignees = useApprovalAssigneeOptions()
   const [search, setSearch] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [inviteForm, setInviteForm] = useState<InviteUserPayload>(initialInviteForm)
   const [editingUser, setEditingUser] = useState<UserSummary>()
   const [deleteTargetUser, setDeleteTargetUser] = useState<UserSummary>()
   const [editingRoles, setEditingRoles] = useState<UserRole[]>([])
@@ -71,51 +57,6 @@ export function UsersPage() {
     () => users.filter((user) => user.roles.includes('VOLUNTEER')).length,
     [users],
   )
-
-  function openInviteModal() {
-    setFormError(undefined)
-    setInviteForm(initialInviteForm)
-    setShowInviteModal(true)
-  }
-
-  function closeInviteModal() {
-    if (inviteUser.isPending) return
-    setShowInviteModal(false)
-    setFormError(undefined)
-    setInviteForm(initialInviteForm)
-  }
-
-  async function submitInvite(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError(undefined)
-
-    if (inviteForm.roles.length === 0) {
-      setFormError(t('users.error.roleRequired'))
-      return
-    }
-
-    const email = inviteForm.email.trim()
-    try {
-      await inviteUser.mutateAsync({
-        ...inviteForm,
-        username: inviteForm.username?.trim() || undefined,
-        fullName: inviteForm.fullName?.trim() || undefined,
-        email,
-        phone: inviteForm.phone?.trim() || undefined,
-      })
-    } catch (error) {
-      setFormError(t(inviteErrorKey(getApiErrorCode(error))))
-      return
-    }
-
-    // 账号已创建,触发 Firebase 发送"设置密码"邮件(失败不阻断,可让 MANAGER 重发邀请)
-    try {
-      await sendInviteSetupEmail(email)
-    } catch {
-      window.alert(t('users.error.inviteEmail'))
-    }
-    closeInviteModal()
-  }
 
   function openRoleEditor(user: UserSummary) {
     setFormError(undefined)
@@ -184,7 +125,7 @@ export function UsersPage() {
       <PageHeader
         title={t('users.pageTitle')}
         actions={(
-          <button className="users-primary-button" type="button" onClick={openInviteModal}>
+          <button className="users-primary-button" type="button" onClick={() => setShowInviteModal(true)}>
             + {t('users.addBtn')}
           </button>
         )}
@@ -319,45 +260,7 @@ export function UsersPage() {
         <SummaryCard titleKey="users.summary.volunteers" value={volunteers} />
       </div>
 
-      {showInviteModal ? (
-        <UserModal
-          titleKey="users.modal.addTitle"
-          error={formError}
-          submitting={inviteUser.isPending}
-          submitLabel={inviteUser.isPending ? t('users.modal.creating') : t('users.modal.createBtn')}
-          onClose={closeInviteModal}
-          onSubmit={submitInvite}
-        >
-          <UserTextField
-            label={t('users.modal.username')}
-            required
-            value={inviteForm.username ?? ''}
-            onChange={(value) => setInviteForm((current) => ({ ...current, username: value }))}
-          />
-          <UserTextField
-            label={t('users.modal.fullName')}
-            required
-            value={inviteForm.fullName ?? ''}
-            onChange={(value) => setInviteForm((current) => ({ ...current, fullName: value }))}
-          />
-          <UserTextField
-            label={t('users.modal.email')}
-            required
-            type="email"
-            value={inviteForm.email}
-            onChange={(value) => setInviteForm((current) => ({ ...current, email: value }))}
-          />
-          <UserTextField
-            label={t('users.modal.phone')}
-            value={inviteForm.phone ?? ''}
-            onChange={(value) => setInviteForm((current) => ({ ...current, phone: value }))}
-          />
-          <RoleCheckboxGroup
-            roles={inviteForm.roles}
-            onSelect={(role) => setInviteForm((current) => ({ ...current, roles: [role] }))}
-          />
-        </UserModal>
-      ) : null}
+      <InviteUserModal open={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
       {editingUser ? (
         <UserModal
@@ -400,117 +303,5 @@ function SummaryCard({ titleKey, value }: { titleKey: string; value: number }) {
       <span>{t(titleKey)}</span>
       <strong>{value}</strong>
     </div>
-  )
-}
-
-interface UserModalProps {
-  titleKey: string
-  titleSuffix?: string
-  error?: string
-  submitting: boolean
-  submitLabel: string
-  children: React.ReactNode
-  onClose: () => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-}
-
-function UserModal({
-  titleKey,
-  titleSuffix,
-  error,
-  submitting,
-  submitLabel,
-  children,
-  onClose,
-  onSubmit,
-}: UserModalProps) {
-  const { t } = useTranslation()
-
-  return (
-    <div className="users-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <form
-        className="users-modal"
-        onMouseDown={(event) => event.stopPropagation()}
-        onSubmit={onSubmit}
-      >
-        <header className="users-modal-header">
-          <div>
-            <h2>{t(titleKey)}{titleSuffix ? ` — ${titleSuffix}` : ''}</h2>
-          </div>
-          <button className="users-modal-close" type="button" aria-label="Close" onClick={onClose}>
-            x
-          </button>
-        </header>
-
-        <div className="users-modal-body">{children}</div>
-        {error ? <div className="users-form-error">{error}</div> : null}
-
-        <footer className="users-modal-footer">
-          <button className="users-secondary-button" type="button" disabled={submitting} onClick={onClose}>
-            {t('users.modal.cancel')}
-          </button>
-          <button className="users-primary-button" type="submit" disabled={submitting}>
-            {submitLabel}
-          </button>
-        </footer>
-      </form>
-    </div>
-  )
-}
-
-function UserTextField({
-  label,
-  value,
-  onChange,
-  required = false,
-  type = 'text',
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  required?: boolean
-  type?: string
-}) {
-  return (
-    <label className="users-form-field">
-      <span>{label}</span>
-      <input
-        className="users-form-input"
-        required={required}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  )
-}
-
-function RoleCheckboxGroup({
-  roles,
-  onSelect,
-}: {
-  roles: UserRole[]
-  onSelect: (role: UserRole) => void
-}) {
-  const { t } = useTranslation()
-  const selectedRole = roles[0]
-
-  return (
-    <fieldset className="users-role-fieldset">
-      <legend>{t('users.modal.roles')}</legend>
-      <div className="users-role-options">
-        {ROLE_VALUES.map((role) => (
-          <label className="users-role-option" key={role}>
-            <input
-              type="radio"
-              name="user-role"
-              checked={selectedRole === role}
-              onChange={() => onSelect(role)}
-            />
-            <span>{t(`users.role.${role}`)}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
   )
 }

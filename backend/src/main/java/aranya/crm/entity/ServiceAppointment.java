@@ -51,6 +51,9 @@ public class ServiceAppointment {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "google_event_id", length = 1024)
+    private String googleEventId; // 镜像到 Google 共享日历后的事件 ID(可空)
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")
     private User assignedUser;

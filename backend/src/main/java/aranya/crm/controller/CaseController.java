@@ -5,6 +5,7 @@ import aranya.crm.dto.request.CreateCaseNoteRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
 import aranya.crm.dto.response.ApprovalRequestResponse;
+import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
@@ -31,7 +32,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -113,6 +116,16 @@ public class CaseController {
     @GetMapping("/{id}/service-events")
     public ResponseEntity<List<ServiceEventResponse>> listServiceEvents(@PathVariable Long id) {
         return ResponseEntity.ok(caseService.listServiceEvents(id));
+    }
+
+    /** 读取 Google 共享日历在 [from, to] 区间内的事件(排除本 case 自己的,作为日历背景上下文)。 */
+    @GetMapping("/{id}/calendar-events")
+    public ResponseEntity<List<CalendarEventResponse>> listSharedCalendarEvents(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        return ResponseEntity.ok(caseService.listSharedCalendarEvents(id, from, to));
     }
 
     @PostMapping("/{id}/service-events")

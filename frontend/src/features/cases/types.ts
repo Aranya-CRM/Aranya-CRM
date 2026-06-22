@@ -160,10 +160,27 @@ export interface ServiceCalendarEvent {
   start: string
   end?: string
   color?: string
+  backgroundColor?: string
+  borderColor?: string
+  textColor?: string
   extendedProps?: {
     serviceType?: keyof CaseServices
     note?: string
+    source?: CalendarEventSource
   }
+}
+
+export type CalendarEventSource = 'OWN_CASE' | 'OTHER_CASE' | 'EXTERNAL'
+
+/** 从后端 /calendar-events 读回的 Google 共享日历事件 */
+export interface SharedCalendarEvent {
+  id: string
+  title: string | null
+  start: string | null
+  end: string | null
+  allDay: boolean
+  source: 'OTHER_CASE' | 'EXTERNAL'
+  caseId: number | null
 }
 
 export function emptyCaseServices(): CaseServices {
