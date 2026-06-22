@@ -66,6 +66,7 @@
 .case-table tbody tr {
   height: 62px;
   border-bottom: 1px solid #eef1f5;
+  background: var(--case-row-bg);
 }
 
 .case-table tbody tr:last-child {
@@ -129,58 +130,58 @@
 
 .case-intensity-dot {
   display: inline-block;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
-.case-intensity-red { background: #dc3545; }
-.case-intensity-orange { background: #f97316; }
-.case-intensity-yellow { background: #fbbf24; }
-.case-intensity-green { background: #22a849; }
-.case-intensity-grey,
-.case-intensity-black { background: #8a949b; }
+.case-intensity-red { background: var(--intensity-red); }
+.case-intensity-orange { background: var(--intensity-orange); }
+.case-intensity-yellow { background: var(--intensity-yellow); }
+.case-intensity-green { background: var(--intensity-green); }
+.case-intensity-grey { background: var(--intensity-grey); }
+.case-intensity-black { background: var(--intensity-black); }
 
 .case-status-badge {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
-  padding: 3px 9px;
-  border-radius: 5px;
-  font-size: 12px;
-  font-weight: 900;
+  padding: 2px 9px;
+  border-radius: var(--radius-badge);
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
 }
 
 .case-status-open {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--status-open-bg);
+  color: var(--status-open-fg);
 }
 
 .case-status-weekly {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: var(--status-homevisit-bg);
+  color: var(--status-homevisit-fg);
 }
 
 .case-status-monthly {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--status-suspended-bg);
+  color: var(--status-suspended-fg);
 }
 
 .case-status-in-review {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--status-submitted-bg);
+  color: var(--status-submitted-fg);
 }
 
 .case-status-suspended {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--status-suspended-bg);
+  color: var(--status-suspended-fg);
 }
 
 .case-status-closed {
-  background: #eeeeee;
-  color: #a3a3a3;
+  background: var(--status-closed-bg);
+  color: var(--status-closed-fg);
 }
 
 .case-action-group {
@@ -821,7 +822,7 @@
 }
 
 .service-calendar-wrap .fc-col-header {
-  background: #f5f2ff;
+  background: var(--case-row-bg);
   border-radius: 8px 8px 0 0;
   overflow: hidden;
 }
@@ -831,9 +832,26 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #6c47ff;
+  color: var(--cal-case-fg);
   text-decoration: none;
   padding: 8px 0;
+}
+
+/* Case event 统一紫色系(归属识别色) */
+.service-calendar-wrap .fc-daygrid-event,
+.service-calendar-wrap .fc-event {
+  background: var(--cal-case-bg);
+  border: none;
+  color: var(--cal-case-fg);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.service-calendar-wrap .fc-event .fc-event-title,
+.service-calendar-wrap .fc-event .fc-event-time {
+  color: var(--cal-case-fg);
 }
 
 .service-calendar-wrap .fc-daygrid-day-frame {
@@ -848,7 +866,7 @@
 }
 
 .service-calendar-wrap .fc-day-today .fc-daygrid-day-number {
-  background: #6c47ff;
+  background: var(--cal-today-ring);
   color: #fff;
   border-radius: 50%;
   width: 24px;

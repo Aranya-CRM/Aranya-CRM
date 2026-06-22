@@ -44,7 +44,7 @@
 
 .stat-value {
   margin-top: 18px;
-  color: #111827;
+  color: var(--stat-primary);
   font-size: 29px;
   font-weight: 800;
   line-height: 1;
