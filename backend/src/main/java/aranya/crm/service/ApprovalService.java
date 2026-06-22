@@ -4,9 +4,11 @@ import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.User;
 import aranya.crm.repository.ApprovalRequestRepository;
+import aranya.crm.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,11 +31,14 @@ public class ApprovalService {
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
+    private static final String APPROVAL_META_FIELD = "_approval";
+    private static final String ASSIGNED_APPROVER_ID_FIELD = "assignedApproverId";
 
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ObjectMapper objectMapper;
     private final ApprovalActionRegistry approvalActionRegistry;
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
     @Transactional
     public ApprovalRequestResponse createRequest(
@@ -43,19 +48,35 @@ public class ApprovalService {
             Object payload,
             User requestedBy
     ) {
+        return createRequest(type, targetType, targetId, payload, requestedBy, null);
+    }
+
+    @Transactional
+    public ApprovalRequestResponse createRequest(
+            String type,
+            String targetType,
+            Long targetId,
+            Object payload,
+            User requestedBy,
+            Long assignedApproverId
+    ) {
         requireUser(requestedBy, "Requester is required");
+        User requester = loadUserWithRoles(requestedBy);
         String normalizedType = normalizeRequired(type, "Approval type is required");
         if (!approvalActionRegistry.supports(normalizedType)) {
             throw new IllegalArgumentException("Unsupported approval type: " + normalizedType);
         }
         String normalizedTargetType = normalizeOptional(targetType);
         JsonNode payloadJson = parsePayload(payload);
+        if (assignedApproverId != null) {
+            payloadJson = withAssignedApprover(payloadJson, requester, assignedApproverId);
+        }
         String idempotencyKey = buildIdempotencyKey(
                 normalizedType,
                 normalizedTargetType,
                 targetId,
                 payloadJson,
-                requestedBy
+                requester
         );
 
         ApprovalRequest existing = approvalRequestRepository
@@ -72,7 +93,7 @@ public class ApprovalService {
         request.setTargetId(targetId);
         request.setPayloadJson(payloadJson);
         request.setIdempotencyKey(idempotencyKey);
-        request.setRequestedBy(requestedBy);
+        request.setRequestedBy(requester);
 
         try {
             return toResponse(approvalRequestRepository.save(request));
@@ -82,6 +103,15 @@ public class ApprovalService {
                     .map(this::toResponse)
                     .orElseThrow(() -> ex);
         }
+    }
+
+    public List<ApprovalRequestResponse> listPending(User currentUser) {
+        requireUser(currentUser, "Current user is required");
+        User viewer = loadUserWithRoles(currentUser);
+        return approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc(STATUS_PENDING).stream()
+                .filter((request) -> canViewPendingRequest(request, viewer))
+                .map(this::toResponse)
+                .toList();
     }
 
     public List<ApprovalRequestResponse> listPending() {
@@ -102,18 +132,105 @@ public class ApprovalService {
 
     private ApprovalRequestResponse decide(Long approvalId, User decidedBy, String decisionStatus, String comment) {
         requireUser(decidedBy, "Decision user is required");
+        User decisionUser = loadUserWithRoles(decidedBy);
         ApprovalRequest request = approvalRequestRepository.findById(approvalId)
                 .orElseThrow(() -> new EntityNotFoundException("Approval request not found: " + approvalId));
         requirePending(request);
+        requireAllowedDecisionUser(request, decisionUser);
 
         request.setStatus(decisionStatus);
-        request.setDecidedBy(decidedBy);
+        request.setDecidedBy(decisionUser);
         request.setDecisionComment(normalizeOptional(comment));
         request.setDecidedAt(LocalDateTime.now());
         if (STATUS_APPROVED.equals(decisionStatus)) {
-            approvalActionRegistry.execute(request, decidedBy);
+            approvalActionRegistry.execute(request, decisionUser);
         }
         return toResponse(request);
+    }
+
+    private User loadUserWithRoles(User user) {
+        return userRepository.findByIdWithRoles(user.getId())
+                .orElseThrow(() -> new AccessDeniedException("Current user not found"));
+    }
+
+    private JsonNode withAssignedApprover(JsonNode payloadJson, User requestedBy, Long assignedApproverId) {
+        User assignedApprover = userRepository.findByIdWithRoles(assignedApproverId)
+                .orElseThrow(() -> new EntityNotFoundException("Assigned approver not found: " + assignedApproverId));
+        requireValidAssignedApprover(requestedBy, assignedApprover);
+
+        ObjectNode objectPayload;
+        if (payloadJson == null || payloadJson.isNull()) {
+            objectPayload = objectMapper.createObjectNode();
+        } else if (payloadJson.isObject()) {
+            objectPayload = payloadJson.deepCopy();
+        } else {
+            throw new IllegalArgumentException("Approval payload must be a JSON object");
+        }
+
+        ObjectNode meta = objectMapper.createObjectNode();
+        meta.put(ASSIGNED_APPROVER_ID_FIELD, assignedApprover.getId());
+        objectPayload.set(APPROVAL_META_FIELD, meta);
+        return objectPayload;
+    }
+
+    private void requireValidAssignedApprover(User requestedBy, User assignedApprover) {
+        if (assignedApprover.getId().equals(requestedBy.getId())) {
+            throw new AccessDeniedException("Requester cannot approve their own request");
+        }
+        if (!"ACTIVE".equals(assignedApprover.getStatus())) {
+            throw new AccessDeniedException("Assigned approver must be active");
+        }
+
+        boolean requesterIsManager = hasRole(requestedBy, "MANAGER");
+        boolean requesterIsSocialWorker = hasRole(requestedBy, "SOCIAL_WORKER");
+        boolean approverIsManager = hasRole(assignedApprover, "MANAGER");
+
+        if (requesterIsManager && !approverIsManager) {
+            throw new AccessDeniedException("Managers can only assign approvals to another manager");
+        }
+        if (!requesterIsManager && requesterIsSocialWorker && !approverIsManager) {
+            throw new AccessDeniedException("Social workers can only assign approvals to a manager");
+        }
+        if (!requesterIsManager && !requesterIsSocialWorker) {
+            throw new AccessDeniedException("Requester role cannot assign approval");
+        }
+    }
+
+    private void requireAllowedDecisionUser(ApprovalRequest request, User decidedBy) {
+        User requestedBy = request.getRequestedBy();
+        if (requestedBy != null && requestedBy.getId() != null && requestedBy.getId().equals(decidedBy.getId())) {
+            throw new AccessDeniedException("Requester cannot approve their own request");
+        }
+
+        Long assignedApproverId = readAssignedApproverId(request);
+        if (assignedApproverId != null && !assignedApproverId.equals(decidedBy.getId())) {
+            throw new AccessDeniedException("Only the assigned approver can decide this request");
+        }
+    }
+
+    private boolean canViewPendingRequest(ApprovalRequest request, User currentUser) {
+        Long assignedApproverId = readAssignedApproverId(request);
+        return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+    }
+
+    private Long readAssignedApproverId(ApprovalRequest request) {
+        JsonNode payloadJson = request.getPayloadJson();
+        if (payloadJson == null) {
+            return null;
+        }
+        JsonNode approverNode = payloadJson.path(APPROVAL_META_FIELD).path(ASSIGNED_APPROVER_ID_FIELD);
+        if (!approverNode.canConvertToLong()) {
+            return null;
+        }
+        return approverNode.asLong();
+    }
+
+    private boolean hasRole(User user, String roleName) {
+        if (user == null || user.getUserRoles() == null) {
+            return false;
+        }
+        return user.getUserRoles().stream()
+                .anyMatch((userRole) -> userRole.getRole() != null && roleName.equals(userRole.getRole().getName()));
     }
 
     private void requirePending(ApprovalRequest request) {
@@ -202,6 +319,7 @@ public class ApprovalService {
     private ApprovalRequestResponse toResponse(ApprovalRequest request) {
         User requestedBy = request.getRequestedBy();
         User decidedBy = request.getDecidedBy();
+        Long assignedApproverId = readAssignedApproverId(request);
         return ApprovalRequestResponse.builder()
                 .id(request.getId())
                 .type(request.getType())
@@ -212,6 +330,8 @@ public class ApprovalService {
                 .payloadJson(request.getPayloadJson() != null ? request.getPayloadJson().toString() : "{}")
                 .requestedById(requestedBy != null ? requestedBy.getId() : null)
                 .requestedByName(requestedBy != null ? requestedBy.getFullName() : null)
+                .assignedApproverId(assignedApproverId)
+                .assignedApproverName(resolveUserName(assignedApproverId))
                 .decidedById(decidedBy != null ? decidedBy.getId() : null)
                 .decidedByName(decidedBy != null ? decidedBy.getFullName() : null)
                 .decisionComment(request.getDecisionComment())
@@ -255,5 +375,12 @@ public class ApprovalService {
         }
         String value = payloadJson.get(fieldName).asText();
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private String resolveUserName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return queryLabel("SELECT full_name FROM users WHERE id = ?", userId);
     }
 }

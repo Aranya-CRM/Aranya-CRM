@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,6 +32,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class UserController {
+    private static final String APPROVER_HEADER = "X-Approver-Id";
 
     private final UserService userService;
     private final ApprovalService approvalService;
@@ -77,7 +79,11 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("@capEval.hasCap(authentication, 'admin:users.manage')")
-    public ResponseEntity<ApprovalRequestResponse> delete(@CurrentUser User currentUser, @PathVariable Long id) {
+    public ResponseEntity<ApprovalRequestResponse> delete(
+            @CurrentUser User currentUser,
+            @PathVariable Long id,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+    ) {
         if (currentUser != null && currentUser.getId().equals(id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Managers cannot remove their own account");
         }
@@ -86,7 +92,8 @@ public class UserController {
                 "USER",
                 id,
                 null,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }

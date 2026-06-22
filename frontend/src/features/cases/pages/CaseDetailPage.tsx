@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
+import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, BackButton } from '../../../shared/ui'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
 import { useCaseAuditLog, useCaseFlags, useCase, useCaseNotes, useDeleteCase } from '../hooks'
@@ -19,6 +20,7 @@ export function CaseDetailPage() {
   const { data: auditLog = [] } = useCaseAuditLog(id)
   const { data: flags = [] } = useCaseFlags(id)
   const pendingCaseApprovals = useLocalPendingApprovals('CASE', id)
+  const approvalAssignees = useApprovalAssigneeOptions()
   const deleteCase = useDeleteCase()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -82,10 +84,13 @@ export function CaseDetailPage() {
         confirmLabel={deleteCase.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={deleteCase.isPending}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowDeleteConfirm(false)}
-        onConfirm={async () => {
+        onConfirm={async (approverId) => {
           if (!caseData) return
-          const approval = await deleteCase.mutateAsync(caseData.id)
+          const approval = await deleteCase.mutateAsync({ id: caseData.id, approverId })
           addLocalPendingApproval({
             ...approval,
             targetType: approval.targetType ?? 'CASE',

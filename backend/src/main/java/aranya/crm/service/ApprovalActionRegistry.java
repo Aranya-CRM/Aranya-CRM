@@ -5,6 +5,8 @@ import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,7 @@ public class ApprovalActionRegistry {
     private final CaseNoteService caseNoteService;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private static final String APPROVAL_META_FIELD = "_approval";
 
     public boolean supports(String type) {
         return handlers().containsKey(type);
@@ -52,7 +55,7 @@ public class ApprovalActionRegistry {
 
     private void executeCaseCreate(ApprovalRequest request, User ignoredDecidedBy) {
         caseService.executeApprovedCreateCase(
-                objectMapper.convertValue(request.getPayloadJson(), CreateCaseRequest.class),
+                objectMapper.convertValue(actionPayload(request), CreateCaseRequest.class),
                 request.getRequestedBy()
         );
     }
@@ -70,14 +73,14 @@ public class ApprovalActionRegistry {
     private void executeServiceEventCreate(ApprovalRequest request, User ignoredDecidedBy) {
         caseService.executeApprovedCreateServiceEvent(
                 request.getTargetId(),
-                objectMapper.convertValue(request.getPayloadJson().path("serviceEvent"), CreateServiceEventRequest.class),
+                objectMapper.convertValue(actionPayload(request).path("serviceEvent"), CreateServiceEventRequest.class),
                 request.getRequestedBy()
         );
     }
 
     private void executeClientCreate(ApprovalRequest request, User ignoredDecidedBy) {
         clientService.executeApprovedCreateClient(
-                objectMapper.convertValue(request.getPayloadJson(), aranya.crm.dto.request.CreateClientRequest.class),
+                objectMapper.convertValue(actionPayload(request), aranya.crm.dto.request.CreateClientRequest.class),
                 request.getRequestedBy()
         );
     }
@@ -85,7 +88,17 @@ public class ApprovalActionRegistry {
     private void executeClientUpdate(ApprovalRequest request, User ignoredDecidedBy) {
         clientService.executeApprovedUpdateClient(
                 request.getTargetId(),
-                objectMapper.convertValue(request.getPayloadJson(), aranya.crm.dto.request.UpdateClientRequest.class)
+                objectMapper.convertValue(actionPayload(request), aranya.crm.dto.request.UpdateClientRequest.class)
         );
+    }
+
+    private JsonNode actionPayload(ApprovalRequest request) {
+        JsonNode payload = request.getPayloadJson();
+        if (payload == null || !payload.isObject() || !payload.has(APPROVAL_META_FIELD)) {
+            return payload;
+        }
+        ObjectNode copy = payload.deepCopy();
+        copy.remove(APPROVAL_META_FIELD);
+        return copy;
     }
 }
