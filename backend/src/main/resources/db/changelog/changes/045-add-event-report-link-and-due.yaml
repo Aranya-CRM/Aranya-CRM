@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 045-add-report-due-at-to-service-appointment
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: report_due_at
+                  type: JAVA.SQL.Types.TIMESTAMP_WITH_TIMEZONE
+
+  - changeSet:
+      id: 045-add-service-appointment-id-to-visit-report
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: visit_report
+            columns:
+              - column:
+                  name: service_appointment_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: visit_report
+            baseColumnNames: service_appointment_id
+            constraintName: fk_visit_report_service_appointment
+            referencedTableName: service_appointment
+            referencedColumnNames: id
+            onDelete: SET NULL

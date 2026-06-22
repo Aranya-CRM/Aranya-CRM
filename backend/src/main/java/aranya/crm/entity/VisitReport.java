@@ -38,6 +38,11 @@ public class VisitReport {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    // 关联的服务事件(可空):用于判定该 Event 是否已提交报告
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_appointment_id")
+    private ServiceAppointment serviceAppointment;
+
     @Column(name = "staff_name", length = 150)
     private String staffName;
 

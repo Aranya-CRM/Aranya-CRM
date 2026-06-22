@@ -464,12 +464,13 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     })
   }
 
-  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; location: string; workDescription: string; contact: string }>) {
+  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; reportDueAt: string; location: string; workDescription: string; notes: string }>) {
     setEventDrafts((current) => ({
       ...current,
       [serviceKey]: {
         assignedUserId: current[serviceKey]?.assignedUserId ?? '',
         scheduledStart: current[serviceKey]?.scheduledStart ?? '',
+        reportDueAt: current[serviceKey]?.reportDueAt ?? '',
         location: current[serviceKey]?.location ?? caseData.venue ?? '',
         workDescription: current[serviceKey]?.workDescription ?? '',
         contact: current[serviceKey]?.contact ?? '',
@@ -525,6 +526,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       serviceKey,
       assignedUserId: draft.assignedUserId,
       scheduledStart: draft.scheduledStart,
+      reportDueAt: draft.reportDueAt || undefined,
       workDescription: draft.workDescription.trim(),
       notes: draft.contact.trim() || undefined,
       location: draft.location.trim() || undefined,
@@ -730,6 +732,122 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
           </button>
         </form>
       ) : null}
+
+      {approvedServiceKeys.length > 0 ? (
+        <div className="case-service-card-grid">
+          {approvedServiceKeys.map((serviceKey) => {
+            const draft = eventDrafts[serviceKey] ?? { assignedUserId: '', scheduledStart: '', reportDueAt: '', location: caseData.venue ?? '', workDescription: '', notes: '' }
+            const serviceEvents = (caseData.serviceEvents ?? []).filter((item) => item.serviceKey === serviceKey)
+            return (
+              <article className="case-service-card" key={serviceKey}>
+                <header className="case-service-card-header">
+                  <span className={`case-service-icon service-icon-${serviceKey}`}>{serviceIconLabel(serviceKey)}</span>
+                  <div>
+                    <h3>{t(`cases.service.${serviceKey}`)}</h3>
+                    <p>{t(`cases.serviceGroup.${CASE_SERVICE_GROUPS[serviceKey]}`)}</p>
+                  </div>
+                  {canRequestServices ? (
+                    <button
+                      className="btn-secondary btn-compact case-service-remove-btn"
+                      type="button"
+                      disabled={updateServices.isPending}
+                      onClick={() => setServiceToRemove(serviceKey)}
+                    >
+                      {t('cases.services.removeService')}
+                    </button>
+                  ) : null}
+                </header>
+
+                {serviceEvents.length > 0 ? (
+                  <div className="case-service-event-list">
+                    {serviceEvents.map((item) => (
+                      <div className="case-service-event-row" key={item.id}>
+                        <div>
+                          <strong>{formatDateTime(item.scheduledStart)}</strong>
+                          <span>{item.assignedUserName ?? '-'} · {item.location ?? '-'}</span>
+                          <span>{item.workDescription ?? '-'}</span>
+                        </div>
+                        <button
+                          className="btn-secondary btn-compact"
+                          type="button"
+                          disabled={deleteEvent.isPending}
+                          onClick={() => void deleteEvent.mutateAsync(item.id)}
+                        >
+                          {t('common.delete')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="case-service-empty">{t('cases.services.noEvents')}</p>
+                )}
+
+                {canCreateEvent ? (
+                  <form className="case-service-event-form" onSubmit={(event) => void submitEvent(event, serviceKey)}>
+                    <label>
+                      <span>{t('cases.services.assignee')}</span>
+                      <select
+                        value={draft.assignedUserId}
+                        required
+                        onChange={(event) => updateEventDraft(serviceKey, { assignedUserId: event.target.value })}
+                      >
+                        <option value="">{t('cases.services.selectAssignee')}</option>
+                        {assignableUsers.map((user) => (
+                          <option key={user.id} value={user.id}>{user.fullName}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>{t('cases.services.time')}</span>
+                      <input
+                        type="datetime-local"
+                        value={draft.scheduledStart}
+                        required
+                        onChange={(event) => updateEventDraft(serviceKey, { scheduledStart: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      <span>{t('cases.services.reportDueAt')}</span>
+                      <input
+                        type="datetime-local"
+                        value={draft.reportDueAt}
+                        onChange={(event) => updateEventDraft(serviceKey, { reportDueAt: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      <span>{t('cases.services.location')}</span>
+                      <input
+                        value={draft.location}
+                        onChange={(event) => updateEventDraft(serviceKey, { location: event.target.value })}
+                      />
+                    </label>
+                    <label className="wide">
+                      <span>{t('cases.services.workDescription')}</span>
+                      <textarea
+                        value={draft.workDescription}
+                        required
+                        onChange={(event) => updateEventDraft(serviceKey, { workDescription: event.target.value })}
+                      />
+                    </label>
+                    <label className="wide">
+                      <span>{t('cases.services.eventNotes')}</span>
+                      <textarea
+                        value={draft.notes}
+                        onChange={(event) => updateEventDraft(serviceKey, { notes: event.target.value })}
+                      />
+                    </label>
+                    <button className="btn-primary btn-compact" type="submit" disabled={createEvent.isPending}>
+                      {createEvent.isPending ? t('common.saving') : t('cases.services.createEvent')}
+                    </button>
+                  </form>
+                ) : null}
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="case-placeholder-text">{t('cases.services.empty')}</p>
+      )}
 
       <ApprovalConfirmModal
         open={showServiceApprovalConfirm}

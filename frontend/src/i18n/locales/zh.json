@@ -96,7 +96,8 @@
       "assignedTaskCount": "分配任务",
       "assignedTaskCount_footnote": "当前义工",
       "myReportCount": "我的报告",
-      "myReportCount_footnote": "由我提交"
+      "myReportCount_footnote": "由我提交",
+      "pendingEventReports": "待提交报告"
     },
     "recentCases": "最近个案",
     "recentTasks": "最近分配的任务",
@@ -179,6 +180,7 @@
       "assignee": "负责人",
       "selectAssignee": "请选择负责人",
       "time": "具体时间",
+      "reportDueAt": "报告截止时间（可选）",
       "location": "地点",
       "workDescription": "需要做什么",
       "contact": "联系方式",
@@ -712,7 +714,12 @@
     "confirmDeleteNote": "确认删除这条笔记？",
     "noteError": "笔记保存失败，请稍后重试。",
     "deleteNoteError": "笔记删除失败，请稍后重试。",
-    "reportsLoadError": "我的报告加载失败，请稍后重试。"
+    "reportsLoadError": "我的报告加载失败，请稍后重试。",
+    "reminder": {
+      "PENDING": "待提交报告",
+      "DUE_SOON": "报告即将到期",
+      "OVERDUE": "报告已逾期"
+    }
   },
   "auth": {
     "error": {

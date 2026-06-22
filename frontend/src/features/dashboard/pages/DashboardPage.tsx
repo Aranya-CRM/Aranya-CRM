@@ -50,15 +50,6 @@ function getSection(data: DashboardResponse | undefined, id: string): DashboardS
   return data?.sections.find((section) => section.id === id)
 }
 
-function statValue(stats: DashboardStat[] | undefined, id: string): string {
-  return stats?.find((stat) => stat.id === id)?.value ?? '0'
-}
-
-function parseStatNumber(stats: DashboardStat[] | undefined, id: string): number {
-  const value = Number(statValue(stats, id))
-  return Number.isFinite(value) ? value : 0
-}
-
 function formatStatus(value: string | null | undefined): string {
   if (!value) return 'UNKNOWN'
   return STATUS_COPY[value] ?? value.replaceAll('_', ' ')
@@ -138,14 +129,18 @@ function displayName(item: DashboardItem, isZh: boolean): string {
   return en || zh || ''
 }
 
+// 个案/报告板块只展示会员缩写,不展示真实姓名
+function displayAbbr(item: DashboardItem): string {
+  return item.clientAbbr?.trim() || '-'
+}
+
 function displayText(value: string | null | undefined, fallback = '-'): string {
   return value?.trim() || fallback
 }
 
 function RecentCases({ items }: { items: DashboardItem[] }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
-  const isZh = i18n.language === 'zh'
 
   return (
     <section className="dashboard-panel" aria-label="Recent Cases">
@@ -166,7 +161,7 @@ function RecentCases({ items }: { items: DashboardItem[] }) {
               >
                 <span className="case-accent" aria-hidden="true" />
                 <span className="row-main">
-                  <span className="row-title">{displayName(item, isZh)}</span>
+                  <span className="row-title">{displayAbbr(item)}</span>
                   <span className="row-meta">{displayText(item.caseCode)}</span>
                 </span>
                 <span className="status-pill">{formatStatus(item.statusCode)}</span>
@@ -217,9 +212,8 @@ function RecentTasks({ items }: { items: DashboardItem[] }) {
 }
 
 function RecentReports({ items }: { items: DashboardItem[] }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
-  const isZh = i18n.language === 'zh'
 
   return (
     <section className="dashboard-panel" aria-label="Recent Reports">
@@ -236,7 +230,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
               onClick={() => navigate(`/reports?selected=${item.id}`)}
             >
               <span className="row-main">
-                <span className="row-title">{displayName(item, isZh)}</span>
+                <span className="row-title">{displayAbbr(item)}</span>
                 <span className="row-meta">
                   {displayText(item.createdByName, 'Unknown')} · {formatDate(item.dateOfVisit)} · {displayText(item.reportType, 'Visit')}
                 </span>
@@ -246,26 +240,6 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
           ))
         )}
       </div>
-    </section>
-  )
-}
-
-function UrgentReportBanner({ pendingReports }: { pendingReports: number }) {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-
-  if (pendingReports <= 0) {
-    return null
-  }
-
-  return (
-    <section className="urgent-report-banner" aria-label="Urgent reports pending action">
-      <div className="urgent-report-text">
-        <strong>{t('dashboard.urgentBanner', { count: pendingReports })}</strong>
-      </div>
-      <button type="button" onClick={() => navigate('/reports')}>
-        {t('dashboard.viewResolve')}
-      </button>
     </section>
   )
 }
@@ -473,7 +447,6 @@ export function DashboardPage() {
   const myRecentReportsSection = useMemo(() => getSection(dashboardData, 'volunteer.my_recent_reports'), [dashboardData])
   const quickActionsSection = useMemo(() => getSection(dashboardData, 'sw.quick_actions'), [dashboardData])
   const volunteerQuickActionsSection = useMemo(() => getSection(dashboardData, 'volunteer.quick_actions'), [dashboardData])
-  const pendingReports = parseStatNumber(statsSection?.stats, 'pendingReports')
 
   return (
     <>
@@ -494,8 +467,6 @@ export function DashboardPage() {
             {myRecentReportsSection ? <RecentReports items={myRecentReportsSection.items ?? []} /> : null}
             {recentReportsSection ? <RecentReports items={recentReportsSection.items ?? []} /> : null}
           </div>
-
-          <UrgentReportBanner pendingReports={pendingReports} />
 
           <QuickActions actions={[...(volunteerQuickActionsSection?.actions ?? []), ...(quickActionsSection?.actions ?? [])]} />
         </>

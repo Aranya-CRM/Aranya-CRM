@@ -26,10 +26,34 @@
 
 .task-row {
   display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto;
+  grid-template-columns: 6px minmax(0, 1fr) auto auto;
   align-items: center;
   min-height: 72px;
   overflow: hidden;
+}
+
+.task-reminder {
+  margin-right: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.task-reminder-pending {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.task-reminder-due-soon {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.task-reminder-overdue {
+  background: #fef3f2;
+  color: #b42318;
 }
 
 .task-row:hover,

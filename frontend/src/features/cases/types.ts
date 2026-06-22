@@ -34,6 +34,9 @@ export interface ServiceEvent {
   title: string
   location?: string | null
   scheduledStart: string
+  reportDueAt?: string | null
+  reportSubmitted?: boolean
+  reminderState?: 'DONE' | 'UPCOMING' | 'PENDING' | 'DUE_SOON' | 'OVERDUE'
   workDescription?: string | null
   notes?: string | null
   assignedUserId?: number | null

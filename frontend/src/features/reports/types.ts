@@ -37,6 +37,7 @@ export interface ReportDetail extends ReportSummary {
 export type CreateReportPayload = {
   clientId: number
   caseId?: number
+  appointmentId?: number
   dateOfVisit: string
   timeOfVisit?: string
   durationOfVisit?: string
