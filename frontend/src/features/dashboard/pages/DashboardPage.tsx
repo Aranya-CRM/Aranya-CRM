@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { getApiErrorCode } from '../../../shared/api'
-import { useAccess } from '../../../shared/auth'
 import { ErrorBanner, PageHeader } from '../../../shared/ui'
-import { sendInviteSetupEmail } from '../../auth/api/auth'
-import { useInviteUser } from '../../users/hooks'
-import { inviteErrorKey } from '../../users/inviteErrors'
-import type { UserRole } from '../../users/types'
 import { fetchDashboardData } from '../api/dashboard.api'
 import type {
   DashboardAction,
@@ -18,9 +11,6 @@ import type {
   DashboardStat,
 } from '../types'
 import './dashboard.css'
-import '../../users/pages/users.css'
-
-const INVITE_ROLE_VALUES: UserRole[] = ['MANAGER', 'SOCIAL_WORKER', 'VOLUNTEER']
 
 
 const STATUS_COPY: Record<string, string> = {
@@ -277,132 +267,6 @@ function QuickActions({ actions }: { actions: DashboardAction[] | undefined }) {
   )
 }
 
-function InviteUserControl() {
-  const { t } = useTranslation()
-  const { getCap } = useAccess()
-  const inviteUser = useInviteUser()
-  const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('VOLUNTEER')
-  const [formError, setFormError] = useState<string>()
-
-  // 仅有用户管理能力的角色(MANAGER 等)可见;弹窗只收邮箱 + 身份,
-  // username/fullName 由后端用邮箱前缀兜底,待用户首次登录后自行补填。
-  if (getCap('admin:users.manage') === 'NO') return null
-
-  function openModal() {
-    setEmail('')
-    setRole('VOLUNTEER')
-    setFormError(undefined)
-    setOpen(true)
-  }
-
-  function closeModal() {
-    if (inviteUser.isPending) return
-    setOpen(false)
-    setFormError(undefined)
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError(undefined)
-
-    const trimmedEmail = email.trim()
-    if (!trimmedEmail) {
-      setFormError(t('users.error.invite'))
-      return
-    }
-
-    try {
-      await inviteUser.mutateAsync({ email: trimmedEmail, roles: [role] })
-    } catch (error) {
-      setFormError(t(inviteErrorKey(getApiErrorCode(error))))
-      return
-    }
-
-    // 账号已建,触发 Firebase 发"设置密码"邮件(失败不阻断邀请流程)
-    try {
-      await sendInviteSetupEmail(trimmedEmail)
-    } catch {
-      window.alert(t('users.error.inviteEmail'))
-    }
-    setOpen(false)
-  }
-
-  return (
-    <>
-      <button className="users-primary-button" type="button" onClick={openModal}>
-        + {t('users.addBtn')}
-      </button>
-
-      {open ? (
-        <div className="users-modal-backdrop" role="presentation" onMouseDown={closeModal}>
-          <form
-            className="users-modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={submit}
-          >
-            <header className="users-modal-header">
-              <div>
-                <h2>{t('users.modal.addTitle')}</h2>
-              </div>
-              <button className="users-modal-close" type="button" aria-label="Close" onClick={closeModal}>
-                x
-              </button>
-            </header>
-
-            <div className="users-modal-body">
-              <label className="users-form-field">
-                <span>{t('users.modal.email')}</span>
-                <input
-                  className="users-form-input"
-                  required
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </label>
-
-              <fieldset className="users-role-fieldset">
-                <legend>{t('users.modal.roles')}</legend>
-                <div className="users-role-options">
-                  {INVITE_ROLE_VALUES.map((roleValue) => (
-                    <label className="users-role-option" key={roleValue}>
-                      <input
-                        type="radio"
-                        name="dashboard-invite-role"
-                        checked={role === roleValue}
-                        onChange={() => setRole(roleValue)}
-                      />
-                      <span>{t(`users.role.${roleValue}`)}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
-
-            {formError ? <div className="users-form-error">{formError}</div> : null}
-
-            <footer className="users-modal-footer">
-              <button
-                className="users-secondary-button"
-                type="button"
-                disabled={inviteUser.isPending}
-                onClick={closeModal}
-              >
-                {t('users.modal.cancel')}
-              </button>
-              <button className="users-primary-button" type="submit" disabled={inviteUser.isPending}>
-                {inviteUser.isPending ? t('users.modal.creating') : t('users.modal.createBtn')}
-              </button>
-            </footer>
-          </form>
-        </div>
-      ) : null}
-    </>
-  )
-}
-
 export function DashboardPage() {
   const { t } = useTranslation()
   const [dashboardData, setDashboardData] = useState<DashboardResponse>()
@@ -450,7 +314,7 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={t('dashboard.pageTitle')} actions={<InviteUserControl />} />
+      <PageHeader title={t('dashboard.pageTitle')} />
 
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 

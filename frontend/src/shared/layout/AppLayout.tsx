@@ -13,6 +13,13 @@ interface AppLayoutProps {
   children: ReactNode
 }
 
+function profileInitials(name?: string): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
 export function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
@@ -76,6 +83,20 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
+        <button
+          type="button"
+          className={'sidebar-profile' + (location.pathname.startsWith('/profile') ? ' active' : '')}
+          onClick={() => navigate('/profile')}
+          aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
+        >
+          <span className="sidebar-profile-avatar" aria-hidden="true">
+            {profileInitials(user?.fullName)}
+          </span>
+          <span className="sidebar-profile-text">
+            <span className="sidebar-profile-name">{user?.fullName ?? 'User'}</span>
+            <span className="sidebar-profile-link">{t('nav.profile')}</span>
+          </span>
+        </button>
       </aside>
 
       <section className="main">

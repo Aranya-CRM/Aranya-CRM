@@ -92,8 +92,8 @@ public class UserService {
         return userRepository.findByFirebaseUidWithRoles(firebaseUid);
     }
     /**
-     * 当前已认证用户的基础 profile。
-     * UI 渲染权限由 /ui/manifest 单独返回，/me 不暴露角色信息。
+     * 当前已认证用户的 profile(供个人 Profile 页展示)。
+     * 不暴露 firebaseUid 等敏感字段;角色不在此暴露(UI 权限由 /ui/manifest 提供)。
      */
     @Transactional(readOnly = true)
     public MeResponse getCurrentUser(User user) {
@@ -101,6 +101,11 @@ public class UserService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
+                .username(user.getUsername())
+                .phone(user.getPhone())
+                .emailVerified(user.isEmailVerified())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 
