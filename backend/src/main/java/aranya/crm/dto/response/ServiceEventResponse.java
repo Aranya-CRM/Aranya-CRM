@@ -22,6 +22,9 @@ public class ServiceEventResponse {
     private String title;
     private String location;
     private LocalDateTime scheduledStart;
+    private LocalDateTime reportDueAt;
+    private boolean reportSubmitted;
+    private String reminderState; // DONE / UPCOMING / PENDING / DUE_SOON / OVERDUE
     private String workDescription;
     private String notes;
     private Long assignedUserId;

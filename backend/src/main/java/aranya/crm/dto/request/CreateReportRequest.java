@@ -15,6 +15,9 @@ public class CreateReportRequest {
 
     private Long caseId;
 
+    // 关联的服务事件(可空):从任务页提交报告时带上,用于"事件是否已交报告"判定
+    private Long appointmentId;
+
     @NotNull
     private LocalDate dateOfVisit;
 

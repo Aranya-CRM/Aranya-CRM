@@ -22,6 +22,9 @@ public class CreateServiceEventRequest {
     @NotNull
     private LocalDateTime scheduledStart;
 
+    // 报告应提交的截止时间(可空,由分配者指定);留空则不做截止提醒
+    private LocalDateTime reportDueAt;
+
     @NotBlank
     @Size(max = 2000)
     private String workDescription;

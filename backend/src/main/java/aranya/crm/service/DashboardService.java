@@ -79,7 +79,8 @@ public class DashboardService {
                 .id("volunteer.report_stats")
                 .stats(List.of(
                         stat("myReportCount", visitReportRepository.countByCreatedById(currentUserId)),
-                        stat("assignedTaskCount", caseAssignmentRepository.countVolunteerAssignments(currentUserId))
+                        stat("assignedTaskCount", caseAssignmentRepository.countVolunteerAssignments(currentUserId)),
+                        stat("pendingEventReports", caseService.countPendingReportEvents(currentUserId))
                 ))
                 .build();
     }
@@ -125,7 +126,8 @@ public class DashboardService {
                         stat("activeMonastics", clientRepository.countByMembershipStatusIgnoreCase(ACTIVE_MEMBERSHIP_STATUS)),
                         stat("openCases", caseService.countActiveCases()),
                         stat("urgentCases", caseService.countUrgentCases()),
-                        stat("pendingReports", visitReportRepository.count())
+                        // 待处理报告 = 已提交待审批(SUBMITTED),而非全部报告
+                        stat("pendingReports", visitReportRepository.countByStatusIgnoreCase("SUBMITTED"))
                 ))
                 .build();
     }

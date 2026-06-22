@@ -11,6 +11,13 @@ function formatDate(value: string | null | undefined): string {
   return value.slice(0, 10)
 }
 
+// 只对需要提醒的状态显示徽标(DONE/UPCOMING 不显示)
+const REMINDER_BADGE: Record<string, string> = {
+  PENDING: 'pending',
+  DUE_SOON: 'due-soon',
+  OVERDUE: 'overdue',
+}
+
 export function TaskListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -65,6 +72,11 @@ export function TaskListPage() {
                   <span className="task-title">{task.title}</span>
                   <span className="task-meta">{formatDate(task.scheduledStart)} · {task.location ?? '-'}</span>
                 </span>
+                {task.reminderState && REMINDER_BADGE[task.reminderState] ? (
+                  <span className={`task-reminder task-reminder-${REMINDER_BADGE[task.reminderState]}`}>
+                    {t(`tasks.reminder.${task.reminderState}`)}
+                  </span>
+                ) : null}
                 <span className="task-open">{t('tasks.open')}</span>
               </button>
             ))}

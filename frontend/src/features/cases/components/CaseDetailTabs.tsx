@@ -419,7 +419,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const [users, setUsers] = useState<UserSummary[]>([])
   const [servicesToAdd, setServicesToAdd] = useState<Array<keyof CaseServices>>([])
   const [serviceToRemove, setServiceToRemove] = useState<keyof CaseServices | null>(null)
-  const [eventDrafts, setEventDrafts] = useState<Record<string, { assignedUserId: string; scheduledStart: string; location: string; workDescription: string; contact: string }>>({})
+  const [eventDrafts, setEventDrafts] = useState<Record<string, { assignedUserId: string; scheduledStart: string; reportDueAt: string; location: string; workDescription: string; notes: string }>>({})
   const [showServiceRequest, setShowServiceRequest] = useState(false)
   const [expandedServiceKey, setExpandedServiceKey] = useState<keyof CaseServices | null>(null)
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
@@ -464,15 +464,16 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     })
   }
 
-  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; location: string; workDescription: string; contact: string }>) {
+  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; reportDueAt: string; location: string; workDescription: string; notes: string }>) {
     setEventDrafts((current) => ({
       ...current,
       [serviceKey]: {
         assignedUserId: current[serviceKey]?.assignedUserId ?? '',
         scheduledStart: current[serviceKey]?.scheduledStart ?? '',
+        reportDueAt: current[serviceKey]?.reportDueAt ?? '',
         location: current[serviceKey]?.location ?? caseData.venue ?? '',
         workDescription: current[serviceKey]?.workDescription ?? '',
-        contact: current[serviceKey]?.contact ?? '',
+        notes: current[serviceKey]?.notes ?? '',
         ...patch,
       },
     }))
@@ -525,14 +526,15 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       serviceKey,
       assignedUserId: draft.assignedUserId,
       scheduledStart: draft.scheduledStart,
+      reportDueAt: draft.reportDueAt || undefined,
       workDescription: draft.workDescription.trim(),
-      notes: draft.contact.trim() || undefined,
+      notes: draft.notes.trim() || undefined,
       location: draft.location.trim() || undefined,
     })
     setApprovalMessage(t('cases.services.eventCreated'))
     setEventDrafts((current) => ({
       ...current,
-      [serviceKey]: { assignedUserId: '', scheduledStart: '', location: caseData.venue ?? '', workDescription: '', contact: '' },
+      [serviceKey]: { assignedUserId: '', scheduledStart: '', reportDueAt: '', location: caseData.venue ?? '', workDescription: '', notes: '' },
     }))
     setExpandedServiceKey(null)
   }
@@ -544,7 +546,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       {displayedServiceKeys.length > 0 ? (
         <div className="case-service-card-grid">
           {displayedServiceKeys.map((serviceKey) => {
-            const draft = eventDrafts[serviceKey] ?? { assignedUserId: '', scheduledStart: '', location: caseData.venue ?? '', workDescription: '', contact: '' }
+            const draft = eventDrafts[serviceKey] ?? { assignedUserId: '', scheduledStart: '', reportDueAt: '', location: caseData.venue ?? '', workDescription: '', notes: '' }
             const serviceEvents = (caseData.serviceEvents ?? []).filter((item) => item.serviceKey === serviceKey)
             const addPending = pendingAddKeys.includes(serviceKey)
             const removePending = pendingRemoveKeys.includes(serviceKey)
@@ -594,7 +596,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
                               <strong>{formatDateTime(item.scheduledStart)}</strong>
                               <span>{item.assignedUserName ?? '-'} · {item.location ?? '-'}</span>
                               <span>{item.workDescription ?? '-'}</span>
-                              {item.notes ? <span>{t('cases.services.contact')}: {item.notes}</span> : null}
+                              {item.notes ? <span>{t('cases.services.eventNotes')}: {item.notes}</span> : null}
                             </div>
                             <button
                               className="btn-secondary btn-compact"
@@ -635,17 +637,18 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
                         />
                       </label>
                       <label>
+                        <span>{t('cases.services.reportDueAt')}</span>
+                        <input
+                          type="datetime-local"
+                          value={draft.reportDueAt}
+                          onChange={(event) => updateEventDraft(serviceKey, { reportDueAt: event.target.value })}
+                        />
+                      </label>
+                      <label>
                         <span>{t('cases.services.location')}</span>
                         <input
                           value={draft.location}
                           onChange={(event) => updateEventDraft(serviceKey, { location: event.target.value })}
-                        />
-                      </label>
-                      <label>
-                        <span>{t('cases.services.contact')}</span>
-                        <input
-                          value={draft.contact}
-                          onChange={(event) => updateEventDraft(serviceKey, { contact: event.target.value })}
                         />
                       </label>
                       <label className="wide">
@@ -654,6 +657,13 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
                           value={draft.workDescription}
                           required
                           onChange={(event) => updateEventDraft(serviceKey, { workDescription: event.target.value })}
+                        />
+                      </label>
+                      <label className="wide">
+                        <span>{t('cases.services.eventNotes')}</span>
+                        <textarea
+                          value={draft.notes}
+                          onChange={(event) => updateEventDraft(serviceKey, { notes: event.target.value })}
                         />
                       </label>
                       <button className="btn-primary btn-compact" type="submit" disabled={createEvent.isPending}>

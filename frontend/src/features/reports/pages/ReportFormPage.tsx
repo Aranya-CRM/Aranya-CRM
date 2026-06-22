@@ -109,6 +109,7 @@ export function ReportFormPage() {
   const returnTo = searchParams.get('returnTo') || '/reports'
   const initialClientId = searchParams.get('clientId')
   const initialCaseId = searchParams.get('caseId')
+  const initialAppointmentId = searchParams.get('appointmentId')
   const initialClientName = searchParams.get('clientName') || ''
   const isEditMode = Boolean(id)
   const isTaskReturn = returnTo.startsWith('/tasks/')
@@ -222,6 +223,7 @@ export function ReportFormPage() {
       const payload = {
         ...compactPayload(form),
         ...(initialCaseId ? { caseId: Number(initialCaseId) } : {}),
+        ...(initialAppointmentId ? { appointmentId: Number(initialAppointmentId) } : {}),
         status,
       }
       const saved = isEditMode && id
