@@ -856,7 +856,7 @@ function CalendarTab({ caseData }: { caseData: Case }) {
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar events={calendarEvents} />
+      <CaseServiceCalendar caseId={caseData.id} localEvents={calendarEvents} />
     </div>
   )
 }

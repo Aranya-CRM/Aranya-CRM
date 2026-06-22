@@ -47,12 +47,25 @@ services:
       FIREBASE_SERVICE_ACCOUNT_PATH: file:/run/secrets/firebase-service-account-dev.json
       SPRING_BOOT_ADMIN_URL: http://admin-server:9090
       TZ: Asia/Singapore
+      # Google Calendar 集成(凭证经下方 bind-mount 注入)
+      GOOGLE_CALENDAR_ENABLED: ${GOOGLE_CALENDAR_ENABLED:-true}
+      GOOGLE_CALENDAR_SA_PATH: file:/run/secrets/google-calendar-sa-dev.json
+      GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
+      GOOGLE_CALENDAR_TZ: Asia/Singapore
+      # 路线2 域级委派:设为 infotech@aranya.sg(需管理员授权 DWD);留空则走路线1 直连
+      GOOGLE_CALENDAR_IMPERSONATE: ${GOOGLE_CALENDAR_IMPERSONATE:-}
     ports:
       - "8080:8080"
     volumes:
       - type: bind
         source: ../../backend/src/main/resources/firebase-service-account-dev.json
         target: /run/secrets/firebase-service-account-dev.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../../backend/src/main/resources/google-calendar-sa-dev.json
+        target: /run/secrets/google-calendar-sa-dev.json
         read_only: true
         bind:
           create_host_path: false

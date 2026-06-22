@@ -3,6 +3,11 @@ export interface MeResponse {
   id: number
   email: string
   fullName: string
+  username?: string
+  phone?: string | null
+  emailVerified?: boolean
+  status?: string
+  createdAt?: string | null
 }
 
 /** Fetch the currently-authenticated user's basic profile. */

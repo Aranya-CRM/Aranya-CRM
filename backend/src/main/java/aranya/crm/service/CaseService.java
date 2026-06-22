@@ -3,6 +3,7 @@ package aranya.crm.service;
 import aranya.crm.dto.request.CreateCaseRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
+import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
@@ -58,6 +59,7 @@ public class CaseService {
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final GoogleCalendarService googleCalendarService;
 
     public List<CaseSummaryResponse> listCases(String q, String status, Long scopedToUserId) {
         String normalizedQuery = normalizeFilter(q);
@@ -205,7 +207,20 @@ public class CaseService {
                 assigned.getId(),
                 createdBy.getId());
 
-        return findServiceEventById(eventId);
+        ServiceEventResponse response = findServiceEventById(eventId);
+        // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
+        googleCalendarService.createCaseEvent(
+                        caseId,
+                        response.getServiceKey(),
+                        response.getTitle(),
+                        response.getWorkDescription(),
+                        response.getLocation(),
+                        response.getScheduledStart(),
+                        null)
+                .ifPresent(googleEventId -> jdbcTemplate.update(
+                        "UPDATE service_appointment SET google_event_id = ? WHERE id = ?",
+                        googleEventId, eventId));
+        return response;
     }
 
     public List<ServiceEventResponse> listServiceEvents(Long caseId) {
@@ -228,6 +243,9 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId) {
+        List<String> googleEventIds = jdbcTemplate.queryForList(
+                "SELECT google_event_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                String.class, eventId, caseId);
         int deleted = jdbcTemplate.update(
                 "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId,
@@ -236,6 +254,15 @@ public class CaseService {
         if (deleted == 0) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
+        // best-effort 从 Google 共享日历删除镜像事件
+        if (!googleEventIds.isEmpty()) {
+            googleCalendarService.deleteCaseEvent(googleEventIds.get(0));
+        }
+    }
+
+    /** 读取共享日历在区间内的事件(排除本 case 自己的事件,避免与本地渲染重复)。 */
+    public List<CalendarEventResponse> listSharedCalendarEvents(Long caseId, LocalDateTime from, LocalDateTime to) {
+        return googleCalendarService.listEvents(from, to, caseId);
     }
 
     @Transactional

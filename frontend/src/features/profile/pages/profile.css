@@ -1,0 +1,107 @@
+.profile-page {
+  max-width: 760px;
+}
+
+.profile-card {
+  margin-top: 24px;
+  padding: 24px 28px 28px;
+}
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.profile-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.profile-email-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.profile-info {
+  margin: 0;
+  padding-top: 8px;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.profile-row:last-child {
+  border-bottom: 0;
+}
+
+.profile-row dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.profile-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-badge);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 9px;
+}
+
+.profile-badge.status-active {
+  background: var(--status-open-bg);
+  color: var(--status-open-fg);
+}
+
+.profile-badge.status-inactive {
+  background: var(--status-closed-bg);
+  color: var(--status-closed-fg);
+}
+
+.profile-badge.profile-verified {
+  background: var(--status-open-bg);
+  color: var(--status-open-fg);
+}
+
+.profile-badge.profile-unverified {
+  background: var(--status-suspended-bg);
+  color: var(--status-suspended-fg);
+}

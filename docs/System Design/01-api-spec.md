@@ -691,6 +691,36 @@ Notes:
 - Missing case ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
 - Case notes and status history remain frontend fallback/mock behavior until their backend APIs are implemented.
 
+### GET `/api/v1/cases/{id}/calendar-events`
+
+Reads events from the shared Google Calendar within a time window, for overlay on the case calendar. The case's own events are excluded (they are rendered from the local source of truth `service_appointment`).
+
+Query params (both required, ISO-8601 local date-time):
+
+| Param | Example |
+|-------|---------|
+| `from` | `2026-06-01T00:00:00` |
+| `to`   | `2026-07-06T00:00:00` |
+
+Response: array of
+
+```json
+{
+  "id": "string",            // Google event id
+  "title": "string|null",
+  "start": "ISO-8601|null",
+  "end": "ISO-8601|null",
+  "allDay": false,
+  "source": "OTHER_CASE | EXTERNAL",
+  "caseId": 123              // present when the event was written by another case
+}
+```
+
+Notes:
+
+- Backed by a Service Account; controlled by `google.calendar.*` config. When `google.calendar.enabled=false` (or credentials/calendar-id missing) it returns an empty array — the integration degrades safely and never blocks the request.
+- Case service events created via `POST /api/v1/cases/{id}/service-events` are mirrored (best-effort) to the same shared calendar and tagged with the case id via extended properties; deletion removes the mirrored event.
+
 ## 11. APIs Not Yet Implemented
 
 The frontend contains service modules for clients, cases, reports, and auth support. The backend currently does not expose the following planned endpoints:
