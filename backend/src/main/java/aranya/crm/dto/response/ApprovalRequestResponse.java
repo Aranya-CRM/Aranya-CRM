@@ -19,6 +19,8 @@ public class ApprovalRequestResponse {
     private String payloadJson;
     private Long requestedById;
     private String requestedByName;
+    private Long assignedApproverId;
+    private String assignedApproverName;
     private Long decidedById;
     private String decidedByName;
     private String decisionComment;

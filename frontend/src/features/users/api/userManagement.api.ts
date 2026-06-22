@@ -32,6 +32,28 @@ export async function updateUserStatus(
   return res.data
 }
 
-export async function deleteUser(id: number): Promise<void> {
-  await http.delete(`/v1/users/${id}`)
+export interface ApprovalOptions {
+  approverId?: number
+}
+
+export interface ApprovalRequest {
+  id: number
+  type: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  targetType?: string | null
+  targetId?: number | null
+  targetLabel?: string | null
+  payloadJson?: string | null
+  requestedById?: number | null
+  requestedByName?: string | null
+  assignedApproverId?: number | null
+  assignedApproverName?: string | null
+  createdAt?: string | null
+}
+
+export async function deleteUser(id: number, options?: ApprovalOptions): Promise<ApprovalRequest> {
+  const res = await http.delete<ApprovalRequest>(`/v1/users/${id}`, {
+    headers: options?.approverId ? { 'X-Approver-Id': String(options.approverId) } : undefined,
+  })
+  return res.data
 }

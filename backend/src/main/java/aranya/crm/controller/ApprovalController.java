@@ -28,8 +28,8 @@ public class ApprovalController {
 
     @GetMapping
     @PreAuthorize("@capEval.hasCap(authentication, 'approvals:view')")
-    public ResponseEntity<List<ApprovalRequestResponse>> listPending() {
-        return ResponseEntity.ok(approvalService.listPending());
+    public ResponseEntity<List<ApprovalRequestResponse>> listPending(@CurrentUser User currentUser) {
+        return ResponseEntity.ok(approvalService.listPending(currentUser));
     }
 
     @PostMapping("/{id}/approve")
