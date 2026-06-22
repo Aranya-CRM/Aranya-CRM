@@ -39,6 +39,9 @@ public class ServiceAppointment {
     @Column(name = "scheduled_end")
     private LocalDateTime scheduledEnd;
 
+    @Column(name = "report_due_at")
+    private LocalDateTime reportDueAt; // 报告应提交的截止时间(可空,由分配者指定)
+
     @Column(name = "location")
     private String location;
 

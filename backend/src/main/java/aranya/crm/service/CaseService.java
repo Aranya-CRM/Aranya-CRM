@@ -184,6 +184,7 @@ public class CaseService {
                     case_id,
                     service_type_id,
                     scheduled_start,
+                    report_due_at,
                     location,
                     work_description,
                     notes,
@@ -191,12 +192,13 @@ public class CaseService {
                     created_by,
                     status
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
                 RETURNING id
                 """, Long.class,
                 caseId,
                 serviceTypeId,
                 request.getScheduledStart(),
+                request.getReportDueAt(),
                 venue,
                 normalizeText(request.getWorkDescription()),
                 normalizeText(request.getNotes()),
@@ -214,6 +216,14 @@ public class CaseService {
     public List<ServiceEventResponse> listAssignedServiceEvents(Long assignedUserId) {
         return jdbcTemplate.query(serviceEventSql("WHERE assigned_user_id = ? ORDER BY scheduled_start ASC, id ASC"),
                 serviceEventMapper(), assignedUserId);
+    }
+
+    /** 分配给该用户、探访已过且尚未提交报告的事件数(PENDING/DUE_SOON/OVERDUE),用于看板提醒。 */
+    public long countPendingReportEvents(Long assignedUserId) {
+        return listAssignedServiceEvents(assignedUserId).stream()
+                .map(ServiceEventResponse::getReminderState)
+                .filter(state -> "PENDING".equals(state) || "DUE_SOON".equals(state) || "OVERDUE".equals(state))
+                .count();
     }
 
     @Transactional
@@ -419,6 +429,12 @@ public class CaseService {
                     sa.work_description,
                     sa.notes,
                     sa.scheduled_start,
+                    sa.report_due_at,
+                    EXISTS (
+                        SELECT 1 FROM visit_report vr
+                        WHERE vr.service_appointment_id = sa.id
+                          AND vr.status IN ('SUBMITTED', 'ARCHIVED')
+                    ) AS report_submitted,
                     au.id AS assigned_user_id,
                     au.full_name AS assigned_user_name,
                     (
@@ -437,24 +453,55 @@ public class CaseService {
     }
 
     private RowMapper<ServiceEventResponse> serviceEventMapper() {
-        return (rs, _rowNum) -> ServiceEventResponse.builder()
-                .id(rs.getLong("id"))
-                .caseId(rs.getLong("case_id"))
-                .clientId(rs.getLong("client_id"))
-                .clientAbbr(rs.getString("client_abbr"))
-                .clientNameEn(rs.getString("client_name_en"))
-                .clientNameChn(rs.getString("client_name_chn"))
-                .caseCode(rs.getString("case_code"))
-                .serviceKey(rs.getString("service_key"))
-                .serviceName(rs.getString("service_name"))
-                .title(rs.getString("title"))
-                .location(rs.getString("location"))
-                .scheduledStart(rs.getObject("scheduled_start", LocalDateTime.class))
-                .workDescription(rs.getString("work_description"))
-                .notes(rs.getString("notes"))
-                .assignedUserId(rs.getObject("assigned_user_id", Long.class))
-                .assignedUserName(rs.getString("assigned_user_name"))
-                .build();
+        return (rs, _rowNum) -> {
+            LocalDateTime scheduledStart = rs.getObject("scheduled_start", LocalDateTime.class);
+            LocalDateTime reportDueAt = rs.getObject("report_due_at", LocalDateTime.class);
+            boolean reportSubmitted = rs.getBoolean("report_submitted");
+            return ServiceEventResponse.builder()
+                    .id(rs.getLong("id"))
+                    .caseId(rs.getLong("case_id"))
+                    .clientId(rs.getLong("client_id"))
+                    .clientAbbr(rs.getString("client_abbr"))
+                    .clientNameEn(rs.getString("client_name_en"))
+                    .clientNameChn(rs.getString("client_name_chn"))
+                    .caseCode(rs.getString("case_code"))
+                    .serviceKey(rs.getString("service_key"))
+                    .serviceName(rs.getString("service_name"))
+                    .title(rs.getString("title"))
+                    .location(rs.getString("location"))
+                    .scheduledStart(scheduledStart)
+                    .reportDueAt(reportDueAt)
+                    .reportSubmitted(reportSubmitted)
+                    .reminderState(computeReminderState(scheduledStart, reportDueAt, reportSubmitted))
+                    .workDescription(rs.getString("work_description"))
+                    .notes(rs.getString("notes"))
+                    .assignedUserId(rs.getObject("assigned_user_id", Long.class))
+                    .assignedUserName(rs.getString("assigned_user_name"))
+                    .build();
+        };
+    }
+
+    /**
+     * Volunteer 报告提醒状态(查询时实时计算,无定时任务):
+     * DONE 已交;UPCOMING 探访未到不催;OVERDUE 逾期;DUE_SOON 1 天内到期;PENDING 待提交。
+     */
+    private String computeReminderState(LocalDateTime scheduledStart, LocalDateTime reportDueAt, boolean reportSubmitted) {
+        if (reportSubmitted) {
+            return "DONE";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (scheduledStart != null && now.isBefore(scheduledStart)) {
+            return "UPCOMING";
+        }
+        if (reportDueAt != null) {
+            if (now.isAfter(reportDueAt)) {
+                return "OVERDUE";
+            }
+            if (now.isAfter(reportDueAt.minusDays(1))) {
+                return "DUE_SOON";
+            }
+        }
+        return "PENDING";
     }
 
     private void requireAssignable(User actor, User assigned) {

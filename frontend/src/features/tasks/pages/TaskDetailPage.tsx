@@ -196,7 +196,7 @@ export function TaskDetailPage() {
 
       <div className="task-detail-grid">
         <SectionCard title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
-          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&caseId=${caseData.id}&returnTo=${encodeURIComponent(returnTo)}&clientName=${encodeURIComponent(clientName)}`)}>
+          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&caseId=${caseData.id}&appointmentId=${taskEvent.id}&returnTo=${encodeURIComponent(returnTo)}&clientName=${encodeURIComponent(clientName)}`)}>
             {t('tasks.submitReport')}
           </button>
           {myReports.length === 0 ? (

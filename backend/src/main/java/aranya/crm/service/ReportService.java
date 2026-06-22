@@ -5,10 +5,12 @@ import aranya.crm.dto.response.ReportDetailResponse;
 import aranya.crm.dto.response.ReportSummaryResponse;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.ServiceAppointment;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
 import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
+import aranya.crm.repository.ServiceAppointmentRepository;
 import aranya.crm.repository.VisitReportRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class ReportService {
     private final ClientRepository clientRepository;
     private final VisitReportRepository visitReportRepository;
     private final CaseRepository caseRepository;
+    private final ServiceAppointmentRepository serviceAppointmentRepository;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final String STATUS_ARCHIVED = "ARCHIVED";
@@ -112,6 +115,7 @@ public class ReportService {
         report.setReportTimestamp(LocalDateTime.now());
         applyReportFields(report, client, request);
         applyReportCase(report, request.getCaseId());
+        applyReportAppointment(report, request.getAppointmentId());
         report.setStatus(normalizeStatus(request.getStatus()));
 
         return toReportDetailResponse(visitReportRepository.save(report));
@@ -327,6 +331,15 @@ public class ReportService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         report.setClientCase(clientCase);
+    }
+
+    private void applyReportAppointment(VisitReport report, Long appointmentId) {
+        if (appointmentId == null) {
+            return;
+        }
+        ServiceAppointment appointment = serviceAppointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + appointmentId));
+        report.setServiceAppointment(appointment);
     }
 
 }

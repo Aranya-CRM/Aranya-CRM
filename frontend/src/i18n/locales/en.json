@@ -92,7 +92,8 @@
       "assignedTaskCount": "Assigned Tasks",
       "assignedTaskCount_footnote": "Current volunteer",
       "myReportCount": "My Reports",
-      "myReportCount_footnote": "Submitted by me"
+      "myReportCount_footnote": "Submitted by me",
+      "pendingEventReports": "Reports to Submit"
     },
     "recentCases": "Recent Cases",
     "recentTasks": "Recently Assigned Tasks",
@@ -175,6 +176,7 @@
       "assignee": "Assignee",
       "selectAssignee": "Select assignee",
       "time": "Specific Time",
+      "reportDueAt": "Report Due (optional)",
       "location": "Location",
       "workDescription": "What needs to be done",
       "eventNotes": "Notes (optional)",
@@ -702,7 +704,12 @@
     "confirmDeleteNote": "Delete this note?",
     "noteError": "Failed to save note.",
     "deleteNoteError": "Failed to delete note.",
-    "reportsLoadError": "Failed to load my reports."
+    "reportsLoadError": "Failed to load my reports.",
+    "reminder": {
+      "PENDING": "Report needed",
+      "DUE_SOON": "Report due soon",
+      "OVERDUE": "Report overdue"
+    }
   },
   "auth": {
     "error": {

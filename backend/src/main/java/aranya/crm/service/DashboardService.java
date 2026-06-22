@@ -79,7 +79,8 @@ public class DashboardService {
                 .id("volunteer.report_stats")
                 .stats(List.of(
                         stat("myReportCount", visitReportRepository.countByCreatedById(currentUserId)),
-                        stat("assignedTaskCount", caseAssignmentRepository.countVolunteerAssignments(currentUserId))
+                        stat("assignedTaskCount", caseAssignmentRepository.countVolunteerAssignments(currentUserId)),
+                        stat("pendingEventReports", caseService.countPendingReportEvents(currentUserId))
                 ))
                 .build();
     }

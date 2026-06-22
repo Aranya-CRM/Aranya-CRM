@@ -62,6 +62,7 @@ export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
   assignedUserId: string | number
   scheduledStart: string
+  reportDueAt?: string
   workDescription: string
   notes?: string
   location?: string

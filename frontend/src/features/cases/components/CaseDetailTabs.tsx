@@ -388,7 +388,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const [users, setUsers] = useState<UserSummary[]>([])
   const [servicesToAdd, setServicesToAdd] = useState<Array<keyof CaseServices>>([])
   const [serviceToRemove, setServiceToRemove] = useState<keyof CaseServices | null>(null)
-  const [eventDrafts, setEventDrafts] = useState<Record<string, { assignedUserId: string; scheduledStart: string; location: string; workDescription: string; notes: string }>>({})
+  const [eventDrafts, setEventDrafts] = useState<Record<string, { assignedUserId: string; scheduledStart: string; reportDueAt: string; location: string; workDescription: string; notes: string }>>({})
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
   const updateServices = useUpdateCaseServices(caseData.id)
   const createEvent = useCreateServiceEvent(caseData.id)
@@ -421,12 +421,13 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     })
   }
 
-  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; location: string; workDescription: string; notes: string }>) {
+  function updateEventDraft(serviceKey: keyof CaseServices, patch: Partial<{ assignedUserId: string; scheduledStart: string; reportDueAt: string; location: string; workDescription: string; notes: string }>) {
     setEventDrafts((current) => ({
       ...current,
       [serviceKey]: {
         assignedUserId: current[serviceKey]?.assignedUserId ?? '',
         scheduledStart: current[serviceKey]?.scheduledStart ?? '',
+        reportDueAt: current[serviceKey]?.reportDueAt ?? '',
         location: current[serviceKey]?.location ?? caseData.venue ?? '',
         workDescription: current[serviceKey]?.workDescription ?? '',
         notes: current[serviceKey]?.notes ?? '',
@@ -466,6 +467,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       serviceKey,
       assignedUserId: draft.assignedUserId,
       scheduledStart: draft.scheduledStart,
+      reportDueAt: draft.reportDueAt || undefined,
       workDescription: draft.workDescription.trim(),
       notes: draft.notes.trim() || undefined,
       location: draft.location.trim() || undefined,
@@ -473,7 +475,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
     setApprovalMessage(t('cases.services.eventCreated'))
     setEventDrafts((current) => ({
       ...current,
-      [serviceKey]: { assignedUserId: '', scheduledStart: '', location: caseData.venue ?? '', workDescription: '', notes: '' },
+      [serviceKey]: { assignedUserId: '', scheduledStart: '', reportDueAt: '', location: caseData.venue ?? '', workDescription: '', notes: '' },
     }))
   }
 
@@ -519,7 +521,7 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       {approvedServiceKeys.length > 0 ? (
         <div className="case-service-card-grid">
           {approvedServiceKeys.map((serviceKey) => {
-            const draft = eventDrafts[serviceKey] ?? { assignedUserId: '', scheduledStart: '', location: caseData.venue ?? '', workDescription: '', notes: '' }
+            const draft = eventDrafts[serviceKey] ?? { assignedUserId: '', scheduledStart: '', reportDueAt: '', location: caseData.venue ?? '', workDescription: '', notes: '' }
             const serviceEvents = (caseData.serviceEvents ?? []).filter((item) => item.serviceKey === serviceKey)
             return (
               <article className="case-service-card" key={serviceKey}>
@@ -587,6 +589,14 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
                         value={draft.scheduledStart}
                         required
                         onChange={(event) => updateEventDraft(serviceKey, { scheduledStart: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      <span>{t('cases.services.reportDueAt')}</span>
+                      <input
+                        type="datetime-local"
+                        value={draft.reportDueAt}
+                        onChange={(event) => updateEventDraft(serviceKey, { reportDueAt: event.target.value })}
                       />
                     </label>
                     <label>
