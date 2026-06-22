@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApprovalConfirmModal, BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
+import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { fetchClientsWithoutCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { fetchUsers } from '../../users/api/userManagement.api'
@@ -20,6 +21,7 @@ export function CaseFormPage() {
   const [searchParams] = useSearchParams()
   const requestedClientId = searchParams.get('clientId') ?? ''
   const createCase = useCreateCase()
+  const approvalAssignees = useApprovalAssigneeOptions()
   const [clients, setClients] = useState<Client[]>([])
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
   const [clientId, setClientId] = useState(requestedClientId)
@@ -86,20 +88,23 @@ export function CaseFormPage() {
     setShowApprovalConfirm(true)
   }
 
-  async function submitApproval() {
+  async function submitApproval(approverId?: number) {
     if (!clientId || approvalSubmitted || selectedServices.length === 0) return
     setErrorMessage(undefined)
     setSuccessMessage(undefined)
     try {
       const approval = await createCase.mutateAsync({
-        clientId,
-        socialWorkerId: socialWorkerId || undefined,
-        openedAt,
-        status,
-        colorCode,
-        comments,
-        remarks,
-        services: selectedServices,
+        approverId,
+        data: {
+          clientId,
+          socialWorkerId: socialWorkerId || undefined,
+          openedAt,
+          status,
+          colorCode,
+          comments,
+          remarks,
+          services: selectedServices,
+        },
       })
       setSubmittedApprovalId(approval.id)
       setSuccessMessage(t('cases.form.approvalSubmittedWithId', { id: approval.id }))
@@ -228,8 +233,11 @@ export function CaseFormPage() {
         confirmLabel={createCase.isPending ? t('cases.form.submittingApproval') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={createCase.isPending}
+        approverOptions={approvalAssignees.options}
+        approverRequired
+        approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowApprovalConfirm(false)}
-        onConfirm={() => void submitApproval()}
+        onConfirm={(approverId) => void submitApproval(approverId)}
       />
     </div>
   )

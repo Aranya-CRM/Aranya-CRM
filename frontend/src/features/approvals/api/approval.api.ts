@@ -16,6 +16,8 @@ export interface ApprovalRequest {
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
+  assignedApproverId?: number | null
+  assignedApproverName?: string | null
   decidedById?: number | null
   decidedByName?: string | null
   decisionComment?: string | null

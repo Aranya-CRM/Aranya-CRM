@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class ReportController {
+    private static final String APPROVER_HEADER = "X-Approver-Id";
 
     private final ReportService reportService;
     private final ApprovalService approvalService;
@@ -106,7 +108,8 @@ public class ReportController {
     public ResponseEntity<?> deleteReport(
             @CurrentUser User currentUser,
             @PathVariable Long id,
-            Authentication authentication
+            Authentication authentication,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
         if (canDeleteAny) {
@@ -115,7 +118,8 @@ public class ReportController {
                     "REPORT",
                     id,
                     null,
-                    currentUser
+                    currentUser,
+                    approverId
             );
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
         }

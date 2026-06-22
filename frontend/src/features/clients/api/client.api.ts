@@ -11,10 +11,15 @@ export interface ApprovalRequest {
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
+  assignedApproverId?: number | null
+  assignedApproverName?: string | null
   createdAt?: string | null
 }
 
 export type ClientWriteResult = Client | ApprovalRequest
+export interface ApprovalOptions {
+  approverId?: number
+}
 
 type BackendClientSummary = {
   id: number | string
@@ -125,7 +130,11 @@ export async function fetchClientById(id: string): Promise<Client | undefined> {
   }
 }
 
-export async function createClient(data: Omit<Client, 'id'>): Promise<ClientWriteResult> {
+function approvalRequestConfig(options?: ApprovalOptions) {
+  return options?.approverId ? { headers: { 'X-Approver-Id': String(options.approverId) } } : undefined
+}
+
+export async function createClient(data: Omit<Client, 'id'>, options?: ApprovalOptions): Promise<ClientWriteResult> {
   const mode = getDataMode()
   if (mode === 'mock') {
     const newClient = { ...data, id: `client-${Date.now()}` } as Client
@@ -134,7 +143,7 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<ClientWrit
   }
 
   try {
-    const res = await http.post<ApprovalRequest>('/v1/clients', data)
+    const res = await http.post<ApprovalRequest>('/v1/clients', data, approvalRequestConfig(options))
     return res.data
   } catch {
     if (mode === 'auto') {
@@ -146,7 +155,7 @@ export async function createClient(data: Omit<Client, 'id'>): Promise<ClientWrit
   }
 }
 
-export async function updateClient(id: string, data: Partial<Client>): Promise<ClientWriteResult> {
+export async function updateClient(id: string, data: Partial<Client>, options?: ApprovalOptions): Promise<ClientWriteResult> {
   const mode = getDataMode()
   const payload = toBackendClientPayload(data)
   if (mode === 'mock') {
@@ -158,7 +167,7 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 
   try {
-    const res = await http.patch<ApprovalRequest>(`/v1/clients/${id}`, payload)
+    const res = await http.patch<ApprovalRequest>(`/v1/clients/${id}`, payload, approvalRequestConfig(options))
     return res.data
   } catch {
     if (mode === 'auto') {
@@ -172,7 +181,7 @@ export async function updateClient(id: string, data: Partial<Client>): Promise<C
   }
 }
 
-export async function deleteClient(id: string): Promise<ApprovalRequest | void> {
+export async function deleteClient(id: string, options?: ApprovalOptions): Promise<ApprovalRequest | void> {
   const mode = getDataMode()
   const removeMockClient = () => {
     const idx = clientMockData.findIndex((c) => c.id === id)
@@ -185,7 +194,7 @@ export async function deleteClient(id: string): Promise<ApprovalRequest | void> 
   }
 
   try {
-    const res = await http.delete<ApprovalRequest>(`/v1/clients/${id}`)
+    const res = await http.delete<ApprovalRequest>(`/v1/clients/${id}`, approvalRequestConfig(options))
     return res.data
   } catch {
     if (mode === 'auto') {

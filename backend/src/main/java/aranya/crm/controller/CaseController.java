@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +40,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class CaseController {
+    private static final String APPROVER_HEADER = "X-Approver-Id";
 
     private final CaseService caseService;
     private final CaseNoteService caseNoteService;
@@ -66,14 +68,16 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:create')")
     public ResponseEntity<ApprovalRequestResponse> createCase(
             @Valid @RequestBody CreateCaseRequest request,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CASE_CREATE",
                 "CLIENT",
                 request.getClientId(),
                 request,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -92,14 +96,16 @@ public class CaseController {
     public ResponseEntity<ApprovalRequestResponse> updateCaseServices(
             @PathVariable Long id,
             @RequestBody List<String> serviceKeys,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CASE_SERVICE_UPDATE",
                 "CASE",
                 id,
                 Map.of("caseId", id, "serviceKeys", serviceKeys == null ? List.of() : serviceKeys),
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -133,14 +139,16 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
     public ResponseEntity<ApprovalRequestResponse> deleteCase(
             @PathVariable Long id,
-            @CurrentUser User currentUser
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CASE",
                 "CASE",
                 id,
                 null,
-                currentUser
+                currentUser,
+                approverId
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
