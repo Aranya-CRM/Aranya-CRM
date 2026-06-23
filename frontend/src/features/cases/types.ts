@@ -34,6 +34,7 @@ export interface ServiceEvent {
   title: string
   location?: string | null
   scheduledStart: string
+  scheduledEnd?: string | null
   reportDueAt?: string | null
   reportSubmitted?: boolean
   reminderState?: 'DONE' | 'UPCOMING' | 'PENDING' | 'DUE_SOON' | 'OVERDUE'
@@ -41,6 +42,13 @@ export interface ServiceEvent {
   notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
+  // 组织日历模板字段
+  eventSeq?: number | null
+  address?: string | null
+  agenda?: string | null
+  schedule?: string | null
+  manpower?: string | null
+  instructions?: string | null
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
@@ -181,6 +189,8 @@ export interface SharedCalendarEvent {
   allDay: boolean
   source: 'OTHER_CASE' | 'EXTERNAL'
   caseId: number | null
+  location?: string | null
+  description?: string | null
 }
 
 export function emptyCaseServices(): CaseServices {

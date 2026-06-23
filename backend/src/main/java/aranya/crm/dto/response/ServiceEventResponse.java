@@ -22,6 +22,7 @@ public class ServiceEventResponse {
     private String title;
     private String location;
     private LocalDateTime scheduledStart;
+    private LocalDateTime scheduledEnd;
     private LocalDateTime reportDueAt;
     private boolean reportSubmitted;
     private String reminderState; // DONE / UPCOMING / PENDING / DUE_SOON / OVERDUE
@@ -29,4 +30,11 @@ public class ServiceEventResponse {
     private String notes;
     private Long assignedUserId;
     private String assignedUserName;
+    // 组织日历模板字段
+    private Long eventSeq;
+    private String address;
+    private String agenda;
+    private String schedule;
+    private String manpower;
+    private String instructions;
 }

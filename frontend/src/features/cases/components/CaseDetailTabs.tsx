@@ -8,11 +8,12 @@ import { ApprovalConfirmModal } from '../../../shared/ui'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
 import { useCreateCaseNote, useCreateServiceEvent, useDeleteCaseNote, useDeleteServiceEvent, useUpdateCase, useUpdateCaseServices } from '../hooks'
-import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask, ServiceCalendarEvent } from '../types'
+import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
 import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
+import { AddCaseEventForm } from './AddCaseEventForm'
 import { CaseIntensityDot } from './CaseIntensityDot'
 
 type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
@@ -841,22 +842,28 @@ function formatDateTime(value: string): string {
 
 function CalendarTab({ caseData }: { caseData: Case }) {
   const { t } = useTranslation()
-  const calendarEvents: ServiceCalendarEvent[] = (caseData.serviceEvents ?? []).map((event) => ({
-    id: String(event.id),
-    title: event.title,
-    start: event.scheduledStart,
-    extendedProps: {
-      serviceType: event.serviceKey,
-      note: event.assignedUserName ?? undefined,
-    },
-  }))
+  const [showAddEvent, setShowAddEvent] = useState(false)
 
   return (
     <div className="service-calendar-section">
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar caseId={caseData.id} localEvents={calendarEvents} />
+      <CaseServiceCalendar caseId={caseData.id} localEvents={caseData.serviceEvents ?? []} />
+
+      <div className="calendar-add-event-bar">
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={() => setShowAddEvent((open) => !open)}
+        >
+          + {t('cases.services.addCalendarEvent')}
+        </button>
+      </div>
+
+      {showAddEvent ? (
+        <AddCaseEventForm caseData={caseData} onDone={() => setShowAddEvent(false)} />
+      ) : null}
     </div>
   )
 }

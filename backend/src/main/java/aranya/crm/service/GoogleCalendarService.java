@@ -126,6 +126,8 @@ public class GoogleCalendarService {
                         .allDay(event.getStart() != null && event.getStart().getDate() != null)
                         .source(caseId != null ? "OTHER_CASE" : "EXTERNAL")
                         .caseId(caseId)
+                        .location(event.getLocation())
+                        .description(event.getDescription())
                         .build());
             }
             return result;

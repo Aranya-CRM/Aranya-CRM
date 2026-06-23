@@ -66,12 +66,19 @@ export interface CreateCasePayload {
 
 export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
-  assignedUserId: string | number
+  assignedUserId?: string | number
   scheduledStart: string
+  scheduledEnd?: string
   reportDueAt?: string
-  workDescription: string
+  workDescription?: string
   notes?: string
   location?: string
+  // 组织日历模板字段
+  address?: string
+  agenda?: string
+  schedule?: string
+  manpower?: string
+  instructions?: string
 }
 
 function getDataMode(): 'mock' | 'api' | 'auto' {

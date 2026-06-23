@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 048-add-event-address
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: address
+                  type: TEXT
+                  remarks: "*Address* 正文完整地址(多行;location 仅作标题用短地点名)"
