@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 047-add-event-template-fields
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: agenda
+                  type: TEXT
+                  remarks: "事件议程 *Agenda*"
+              - column:
+                  name: schedule
+                  type: TEXT
+                  remarks: "事件流程 *Schedule*"
+              - column:
+                  name: manpower
+                  type: TEXT
+                  remarks: "人力安排 *Manpower*(自由文本)"
+              - column:
+                  name: instructions
+                  type: TEXT
+                  remarks: "*Instructions for Kappiya* 注意事项"
+              - column:
+                  name: event_seq
+                  type: BIGINT
+                  remarks: "全局事件序号,用于组织日历标题前缀(如 072)"
+
+  - changeSet:
+      id: 047-create-service-event-seq
+      author: shidu
+      changes:
+        - createSequence:
+            sequenceName: service_event_seq
+            startValue: 1
+            incrementBy: 1

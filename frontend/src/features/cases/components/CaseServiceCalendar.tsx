@@ -1,23 +1,20 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import type { DatesSetArg } from '@fullcalendar/core'
+import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import zhCnLocale from '@fullcalendar/core/locales/zh-cn'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { ServiceCalendarEvent } from '../types'
+import type { ServiceCalendarEvent, ServiceEvent } from '../types'
 import { fetchSharedCalendarEvents } from '../api/case.api'
+import { useDeleteServiceEvent } from '../hooks'
+import { EventDetailModal, type EventDetail } from './EventDetailModal'
 
 interface Props {
   caseId: string
-  /** 本 case 自己的事件(本地真相源) */
-  localEvents: ServiceCalendarEvent[]
+  /** 本 case 自己的事件(本地真相源,完整字段) */
+  localEvents: ServiceEvent[]
 }
-
-// 配色对应规范第六节:Case 事件紫色,共享日历其他来源用绿色区分
-const OWN_CASE_COLORS = { backgroundColor: '#ede7f6', borderColor: '#d7c8f0', textColor: '#4527a0' }
-const OTHER_CASE_COLORS = { backgroundColor: '#f3effb', borderColor: '#e0d6f5', textColor: '#6a4fb3' }
-const EXTERNAL_COLORS = { backgroundColor: '#e8f5e9', borderColor: '#a5d6a7', textColor: '#2e7d32' }
 
 /** 把 Date 格式化成不带时区偏移的本地 ISO(后端按 Asia/Singapore 解析为 LocalDateTime) */
 function toLocalIso(date: Date): string {
@@ -28,6 +25,8 @@ function toLocalIso(date: Date): string {
 export function CaseServiceCalendar({ caseId, localEvents }: Props) {
   const { i18n, t } = useTranslation()
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
+  const [selected, setSelected] = useState<EventDetail | null>(null)
+  const deleteEvent = useDeleteServiceEvent(caseId)
 
   const { data: sharedEvents = [] } = useQuery({
     queryKey: ['caseSharedCalendar', caseId, range?.from, range?.to],
@@ -36,27 +35,78 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
     staleTime: 60_000,
   })
 
-  const ownColored: ServiceCalendarEvent[] = localEvents.map((event) => ({
-    ...event,
-    ...OWN_CASE_COLORS,
-    extendedProps: { ...event.extendedProps, source: 'OWN_CASE' },
+  // id → 详情 的查找表(供 eventClick 用)
+  const detailById = useMemo(() => {
+    const map = new Map<string, EventDetail>()
+    localEvents.forEach((ev) => {
+      map.set(String(ev.id), {
+        id: String(ev.id),
+        kind: 'OWN',
+        title: ev.title,
+        start: ev.scheduledStart,
+        end: ev.scheduledEnd,
+        source: 'OWN_CASE',
+        serviceName: ev.serviceName,
+        assignedUserName: ev.assignedUserName,
+        location: ev.location,
+        agenda: ev.agenda,
+        schedule: ev.schedule,
+        address: ev.address,
+        manpower: ev.manpower,
+        instructions: ev.instructions,
+        reportDueAt: ev.reportDueAt,
+        localId: ev.id,
+      })
+    })
+    sharedEvents.forEach((ev) => {
+      map.set(`g-${ev.id}`, {
+        id: `g-${ev.id}`,
+        kind: 'SHARED',
+        title: ev.title ?? '(untitled)',
+        start: ev.start,
+        end: ev.end,
+        source: ev.source,
+        location: ev.location,
+        description: ev.description,
+        calendarName: ev.calendarName,
+      })
+    })
+    return map
+  }, [localEvents, sharedEvents])
+
+  const ownColored: ServiceCalendarEvent[] = localEvents.map((ev) => ({
+    id: String(ev.id),
+    title: ev.title,
+    start: ev.scheduledStart,
+    // 月视图里不传 end:每个事件只占开始日格子,避免跨天事件横跨多列溢出(时长见详情弹窗)
+    classNames: ['evt-own'],
+    extendedProps: { source: 'OWN_CASE' },
   }))
 
   const sharedColored: ServiceCalendarEvent[] = sharedEvents
-    .filter((event) => event.start)
-    .map((event) => ({
-      id: `g-${event.id}`,
-      title: event.title ?? '(untitled)',
-      start: event.start as string,
-      end: event.end ?? undefined,
-      ...(event.source === 'EXTERNAL' ? EXTERNAL_COLORS : OTHER_CASE_COLORS),
-      extendedProps: { source: event.source },
+    .filter((ev) => ev.start)
+    .map((ev) => ({
+      id: `g-${ev.id}`,
+      title: ev.title ?? '(untitled)',
+      start: ev.start as string,
+      classNames: [ev.source === 'EXTERNAL' ? 'evt-external' : 'evt-other'],
+      extendedProps: { source: ev.source },
     }))
 
   const events = [...ownColored, ...sharedColored]
 
   function handleDatesSet(arg: DatesSetArg) {
     setRange({ from: toLocalIso(arg.start), to: toLocalIso(arg.end) })
+  }
+
+  function handleEventClick(arg: EventClickArg) {
+    const detail = detailById.get(arg.event.id)
+    if (detail) setSelected(detail)
+  }
+
+  async function handleDelete(localId: number) {
+    await deleteEvent.mutateAsync(localId)
+    setSelected(null)
   }
 
   return (
@@ -67,18 +117,37 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         locale={i18n.language === 'zh' ? zhCnLocale : 'en'}
         events={events}
         height="auto"
+        eventDisplay="block"
+        dayMaxEvents={4}
+        fixedWeekCount={false}
         datesSet={handleDatesSet}
+        eventClick={handleEventClick}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
           right: '',
         }}
       />
+      <div className="calendar-legend">
+        <span className="calendar-legend-item"><i className="lg-own" />{t('cases.services.legendOwn')}</span>
+        <span className="calendar-legend-item"><i className="lg-other" />{t('cases.services.legendOther')}</span>
+        <span className="calendar-legend-item"><i className="lg-external" />{t('cases.services.legendExternal')}</span>
+      </div>
+
       {events.length === 0 && (
         <p className="service-calendar-placeholder">
           {t('cases.services.calendarPlaceholder')}
         </p>
       )}
+
+      {selected ? (
+        <EventDetailModal
+          detail={selected}
+          onClose={() => setSelected(null)}
+          onDelete={(id) => void handleDelete(id)}
+          deleting={deleteEvent.isPending}
+        />
+      ) : null}
     </div>
   )
 }

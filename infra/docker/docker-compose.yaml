@@ -47,12 +47,19 @@ services:
       FIREBASE_SERVICE_ACCOUNT_PATH: file:/run/secrets/firebase-service-account-dev.json
       SPRING_BOOT_ADMIN_URL: http://admin-server:9090
       TZ: Asia/Singapore
-      # Google Calendar 集成(凭证经下方 bind-mount 注入)
+      # Google Calendar 集成
       GOOGLE_CALENDAR_ENABLED: ${GOOGLE_CALENDAR_ENABLED:-true}
-      GOOGLE_CALENDAR_SA_PATH: file:/run/secrets/google-calendar-sa-dev.json
+      GOOGLE_CALENDAR_AUTH_MODE: ${GOOGLE_CALENDAR_AUTH_MODE:-OAUTH}
       GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
+      GOOGLE_CALENDAR_LIST: ${GOOGLE_CALENDAR_LIST:-}
+      GOOGLE_CALENDAR_DEFAULT_ID: ${GOOGLE_CALENDAR_DEFAULT_ID:-}
       GOOGLE_CALENDAR_TZ: Asia/Singapore
-      # 路线2 域级委派:设为 infotech@aranya.sg(需管理员授权 DWD);留空则走路线1 直连
+      # ── OAUTH 模式(infotech 单一账号 refresh token;放 .env,勿提交) ──
+      GOOGLE_CALENDAR_OAUTH_CLIENT_ID: ${GOOGLE_CALENDAR_OAUTH_CLIENT_ID:-}
+      GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET: ${GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN: ${GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN:-}
+      # ── SERVICE_ACCOUNT 模式(备用;经下方 bind-mount 注入)──
+      GOOGLE_CALENDAR_SA_PATH: file:/run/secrets/google-calendar-sa-dev.json
       GOOGLE_CALENDAR_IMPERSONATE: ${GOOGLE_CALENDAR_IMPERSONATE:-}
     ports:
       - "8080:8080"

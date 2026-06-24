@@ -174,53 +174,107 @@ public class CaseService {
             throw new IllegalArgumentException("Service is not selected for this case");
         }
 
-        User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
-        requireAssignable(createdBy, assigned);
+        // 负责人可空;给定时校验可分配性
+        Long assignedId = null;
+        if (request.getAssignedUserId() != null) {
+            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
+            requireAssignable(createdBy, assigned);
+            assignedId = assigned.getId();
+        }
 
         Long serviceTypeId = findServiceTypeId(serviceKey);
         String venue = resolveVenue(request.getLocation(), clientCase);
+        Long eventSeq = jdbcTemplate.queryForObject("SELECT nextval('service_event_seq')", Long.class);
 
         Long eventId = jdbcTemplate.queryForObject("""
                 INSERT INTO service_appointment (
                     case_id,
                     service_type_id,
                     scheduled_start,
+                    scheduled_end,
                     report_due_at,
                     location,
                     work_description,
                     notes,
+                    agenda,
+                    schedule,
+                    manpower,
+                    instructions,
+                    address,
+                    event_seq,
                     assigned_user_id,
                     created_by,
                     status
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
                 RETURNING id
                 """, Long.class,
                 caseId,
                 serviceTypeId,
                 request.getScheduledStart(),
+                request.getScheduledEnd(),
                 request.getReportDueAt(),
                 venue,
                 normalizeText(request.getWorkDescription()),
                 normalizeText(request.getNotes()),
-                assigned.getId(),
+                normalizeText(request.getAgenda()),
+                normalizeText(request.getSchedule()),
+                normalizeText(request.getManpower()),
+                normalizeText(request.getInstructions()),
+                normalizeText(request.getAddress()),
+                eventSeq,
+                assignedId,
                 createdBy.getId());
 
         ServiceEventResponse response = findServiceEventById(eventId);
-        // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
+        // best-effort 镜像到 Google 共享日历;按组织模板拼标题与正文;失败不阻断本地创建
+        String title = composeEventTitle(eventSeq, response);
+        String description = composeEventDescription(request);
+        String targetCalendarId = trimToNull(request.getCalendarId());
+        String resolvedCalendarId = googleCalendarService.resolveTargetCalendarId(targetCalendarId);
         googleCalendarService.createCaseEvent(
                         caseId,
                         response.getServiceKey(),
-                        response.getTitle(),
-                        response.getWorkDescription(),
-                        response.getLocation(),
-                        response.getScheduledStart(),
-                        null)
+                        title,
+                        description,
+                        venue,
+                        request.getScheduledStart(),
+                        request.getScheduledEnd(),
+                        targetCalendarId)
                 .ifPresent(googleEventId -> jdbcTemplate.update(
-                        "UPDATE service_appointment SET google_event_id = ? WHERE id = ?",
-                        googleEventId, eventId));
+                        "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                        googleEventId, resolvedCalendarId, eventId));
         return response;
+    }
+
+    /** 组织日历标题:`072 Medical Appointment: VKZhi @ Address` */
+    private String composeEventTitle(Long eventSeq, ServiceEventResponse response) {
+        String seq = eventSeq != null ? String.format("%03d", eventSeq) : "";
+        StringBuilder sb = new StringBuilder();
+        if (!seq.isEmpty()) sb.append(seq).append(' ');
+        sb.append(response.getServiceName() != null ? response.getServiceName() : response.getServiceKey());
+        sb.append(": ").append(response.getClientAbbr() != null ? response.getClientAbbr() : "");
+        if (response.getLocation() != null && !response.getLocation().isBlank()) {
+            sb.append(" @ ").append(response.getLocation());
+        }
+        return sb.toString();
+    }
+
+    /** 组织日历正文:按 *Agenda* / *Schedule* / *Address* / *Manpower* / *Instructions for Kappiya* 分节。 */
+    private String composeEventDescription(CreateServiceEventRequest request) {
+        StringBuilder sb = new StringBuilder();
+        appendSection(sb, "Agenda", request.getAgenda());
+        appendSection(sb, "Schedule", request.getSchedule());
+        appendSection(sb, "Address", request.getAddress());
+        appendSection(sb, "Manpower", request.getManpower());
+        appendSection(sb, "Instructions for Kappiya", request.getInstructions());
+        return sb.toString().trim();
+    }
+
+    private void appendSection(StringBuilder sb, String label, String content) {
+        sb.append('*').append(label).append("*\n");
+        sb.append(content != null && !content.isBlank() ? content.trim() : "").append("\n\n");
     }
 
     public List<ServiceEventResponse> listServiceEvents(Long caseId) {
@@ -243,9 +297,9 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId) {
-        List<String> googleEventIds = jdbcTemplate.queryForList(
-                "SELECT google_event_id FROM service_appointment WHERE id = ? AND case_id = ?",
-                String.class, eventId, caseId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
         int deleted = jdbcTemplate.update(
                 "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId,
@@ -254,9 +308,15 @@ public class CaseService {
         if (deleted == 0) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
-        // best-effort 从 Google 共享日历删除镜像事件
-        if (!googleEventIds.isEmpty()) {
-            googleCalendarService.deleteCaseEvent(googleEventIds.get(0));
+        // best-effort 从对应 Google 日历删除镜像事件
+        if (!rows.isEmpty()) {
+            Object googleEventId = rows.get(0).get("google_event_id");
+            Object googleCalendarId = rows.get(0).get("google_calendar_id");
+            if (googleEventId != null) {
+                googleCalendarService.deleteCaseEvent(
+                        googleCalendarId != null ? googleCalendarId.toString() : null,
+                        googleEventId.toString());
+            }
         }
     }
 
@@ -455,7 +515,14 @@ public class CaseService {
                     sa.location,
                     sa.work_description,
                     sa.notes,
+                    sa.agenda,
+                    sa.schedule,
+                    sa.manpower,
+                    sa.instructions,
+                    sa.address,
+                    sa.event_seq,
                     sa.scheduled_start,
+                    sa.scheduled_end,
                     sa.report_due_at,
                     EXISTS (
                         SELECT 1 FROM visit_report vr
@@ -497,6 +564,7 @@ public class CaseService {
                     .title(rs.getString("title"))
                     .location(rs.getString("location"))
                     .scheduledStart(scheduledStart)
+                    .scheduledEnd(rs.getObject("scheduled_end", LocalDateTime.class))
                     .reportDueAt(reportDueAt)
                     .reportSubmitted(reportSubmitted)
                     .reminderState(computeReminderState(scheduledStart, reportDueAt, reportSubmitted))
@@ -504,6 +572,12 @@ public class CaseService {
                     .notes(rs.getString("notes"))
                     .assignedUserId(rs.getObject("assigned_user_id", Long.class))
                     .assignedUserName(rs.getString("assigned_user_name"))
+                    .eventSeq(rs.getObject("event_seq", Long.class))
+                    .address(rs.getString("address"))
+                    .agenda(rs.getString("agenda"))
+                    .schedule(rs.getString("schedule"))
+                    .manpower(rs.getString("manpower"))
+                    .instructions(rs.getString("instructions"))
                     .build();
         };
     }
