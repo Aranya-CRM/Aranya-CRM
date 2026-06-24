@@ -51,11 +51,23 @@ firebase:
 google:
   calendar:
     enabled: ${GOOGLE_CALENDAR_ENABLED:false}
-    service-account-path: ${GOOGLE_CALENDAR_SA_PATH:classpath:google-calendar-sa-dev.json}
+    # SERVICE_ACCOUNT 或 OAUTH
+    auth-mode: ${GOOGLE_CALENDAR_AUTH_MODE:SERVICE_ACCOUNT}
+    # 单日历(向后兼容);多日历用 list
     calendar-id: ${GOOGLE_CALENDAR_ID:}
+    # 多日历:"id1|名称1;id2|名称2"(; 分隔条目,| 分隔 id 与显示名)
+    list: ${GOOGLE_CALENDAR_LIST:}
+    # 默认写入日历 id(留空取 list 第一项)
+    default-id: ${GOOGLE_CALENDAR_DEFAULT_ID:}
     time-zone: ${GOOGLE_CALENDAR_TZ:Asia/Singapore}
+    # ── SERVICE_ACCOUNT 模式 ──
+    service-account-path: ${GOOGLE_CALENDAR_SA_PATH:classpath:google-calendar-sa-dev.json}
     # 留空=SA 直连(需共享日历给 SA);填 Workspace 用户邮箱=域级委派模拟该用户
     impersonated-user: ${GOOGLE_CALENDAR_IMPERSONATE:}
+    # ── OAUTH 模式(后端持有单一账号 refresh token,如 infotech@aranya.sg) ──
+    oauth-client-id: ${GOOGLE_CALENDAR_OAUTH_CLIENT_ID:}
+    oauth-client-secret: ${GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET:}
+    oauth-refresh-token: ${GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN:}
 
 management:
   endpoints:

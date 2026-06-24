@@ -186,6 +186,8 @@
     "services": {
       "calendarTitle": "Events",
       "addCalendarEvent": "Add Event",
+      "calendar": "Calendar",
+      "calendarDefault": "default",
       "endTime": "End time",
       "agenda": "Agenda",
       "schedule": "Schedule",
@@ -198,6 +200,9 @@
       "sourceOtherCase": "From another case (shared calendar)",
       "sourceExternal": "From shared calendar",
       "noEventDetails": "No further details.",
+      "legendOwn": "This case",
+      "legendOther": "Other cases",
+      "legendExternal": "Other shared events",
       "calendarPlaceholder": "No service events",
       "empty": "No services added yet.",
       "addService": "Add Service",

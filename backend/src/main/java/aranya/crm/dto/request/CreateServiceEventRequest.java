@@ -35,6 +35,9 @@ public class CreateServiceEventRequest {
     private String notes;
 
     @Size(max = 255)
+    private String calendarId;        // 写入的目标日历(可空,默认用配置的默认日历)
+
+    @Size(max = 255)
     private String location;          // 短地点名,进标题 @X
 
     @Size(max = 2000)

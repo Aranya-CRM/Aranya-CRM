@@ -186,6 +186,8 @@
     "services": {
       "calendarTitle": "事件",
       "addCalendarEvent": "增添事件",
+      "calendar": "日历",
+      "calendarDefault": "默认",
       "endTime": "结束时间",
       "agenda": "议程",
       "schedule": "流程安排",
@@ -198,6 +200,9 @@
       "sourceOtherCase": "来自其他个案(共享日历)",
       "sourceExternal": "来自共享日历",
       "noEventDetails": "暂无更多详情。",
+      "legendOwn": "当前个案",
+      "legendOther": "其他个案",
+      "legendExternal": "其他共享事件",
       "calendarPlaceholder": "暂无服务事件",
       "empty": "暂无已添加服务。",
       "addService": "添加服务",

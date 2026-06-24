@@ -1,4 +1,18 @@
 import { useTranslation } from 'react-i18next'
+import DOMPurify from 'dompurify'
+
+/** 裁掉「< ===== do not cut & paste … 」页脚,识别 HTML/纯文本后净化,供安全渲染。 */
+function cleanDescriptionHtml(raw: string): string {
+  let s = raw.replace(/(&lt;|<)\s*=+\s*do not cut[\s\S]*$/i, '').trim()
+  // 纯文本(无标签)时把换行转成 <br>,避免挤成一行
+  if (!/<[a-z][\s\S]*>/i.test(s)) {
+    s = s.replace(/\n/g, '<br>')
+  }
+  return DOMPurify.sanitize(s, {
+    ALLOWED_TAGS: ['b', 'strong', 'u', 'i', 'em', 'br', 'p', 'ul', 'ol', 'li', 'a', 'span', 'div'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  })
+}
 
 export interface EventDetail {
   id: string
@@ -17,6 +31,7 @@ export interface EventDetail {
   instructions?: string | null
   reportDueAt?: string | null
   description?: string | null
+  calendarName?: string | null
   localId?: number
 }
 
@@ -71,6 +86,7 @@ export function EventDetailModal({ detail, onClose, onDelete, deleting }: Props)
           {detail.source !== 'OWN_CASE' ? (
             <div className="event-detail-source">
               {detail.source === 'OTHER_CASE' ? t('cases.services.sourceOtherCase') : t('cases.services.sourceExternal')}
+              {detail.calendarName ? ` · ${detail.calendarName}` : ''}
             </div>
           ) : null}
 
@@ -86,7 +102,10 @@ export function EventDetailModal({ detail, onClose, onDelete, deleting }: Props)
               )}
             </div>
           ) : detail.description && detail.description.trim() ? (
-            <div className="event-detail-raw">{detail.description.trim()}</div>
+            <div
+              className="event-detail-raw"
+              dangerouslySetInnerHTML={{ __html: cleanDescriptionHtml(detail.description) }}
+            />
           ) : (
             <div className="event-detail-empty">{t('cases.services.noEventDetails')}</div>
           )}

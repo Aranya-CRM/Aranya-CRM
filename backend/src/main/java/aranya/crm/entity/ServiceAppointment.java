@@ -72,6 +72,9 @@ public class ServiceAppointment {
     @Column(name = "google_event_id", length = 1024)
     private String googleEventId; // 镜像到 Google 共享日历后的事件 ID(可空)
 
+    @Column(name = "google_calendar_id", length = 255)
+    private String googleCalendarId; // 镜像写入的目标日历 id(供删除定位)
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")
     private User assignedUser;

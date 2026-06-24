@@ -171,6 +171,7 @@ export interface ServiceCalendarEvent {
   backgroundColor?: string
   borderColor?: string
   textColor?: string
+  classNames?: string[]
   extendedProps?: {
     serviceType?: keyof CaseServices
     note?: string
@@ -191,6 +192,15 @@ export interface SharedCalendarEvent {
   caseId: number | null
   location?: string | null
   description?: string | null
+  calendarId?: string | null
+  calendarName?: string | null
+}
+
+/** 可写入的共享日历(供增添事件时选择) */
+export interface CalendarOption {
+  id: string
+  name: string
+  isDefault: boolean
 }
 
 export function emptyCaseServices(): CaseServices {

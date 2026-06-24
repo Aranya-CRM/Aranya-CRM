@@ -231,6 +231,8 @@ public class CaseService {
         // best-effort 镜像到 Google 共享日历;按组织模板拼标题与正文;失败不阻断本地创建
         String title = composeEventTitle(eventSeq, response);
         String description = composeEventDescription(request);
+        String targetCalendarId = trimToNull(request.getCalendarId());
+        String resolvedCalendarId = googleCalendarService.resolveTargetCalendarId(targetCalendarId);
         googleCalendarService.createCaseEvent(
                         caseId,
                         response.getServiceKey(),
@@ -238,10 +240,11 @@ public class CaseService {
                         description,
                         venue,
                         request.getScheduledStart(),
-                        request.getScheduledEnd())
+                        request.getScheduledEnd(),
+                        targetCalendarId)
                 .ifPresent(googleEventId -> jdbcTemplate.update(
-                        "UPDATE service_appointment SET google_event_id = ? WHERE id = ?",
-                        googleEventId, eventId));
+                        "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                        googleEventId, resolvedCalendarId, eventId));
         return response;
     }
 
@@ -294,9 +297,9 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId) {
-        List<String> googleEventIds = jdbcTemplate.queryForList(
-                "SELECT google_event_id FROM service_appointment WHERE id = ? AND case_id = ?",
-                String.class, eventId, caseId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
         int deleted = jdbcTemplate.update(
                 "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId,
@@ -305,9 +308,15 @@ public class CaseService {
         if (deleted == 0) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
-        // best-effort 从 Google 共享日历删除镜像事件
-        if (!googleEventIds.isEmpty()) {
-            googleCalendarService.deleteCaseEvent(googleEventIds.get(0));
+        // best-effort 从对应 Google 日历删除镜像事件
+        if (!rows.isEmpty()) {
+            Object googleEventId = rows.get(0).get("google_event_id");
+            Object googleCalendarId = rows.get(0).get("google_calendar_id");
+            if (googleEventId != null) {
+                googleCalendarService.deleteCaseEvent(
+                        googleCalendarId != null ? googleCalendarId.toString() : null,
+                        googleEventId.toString());
+            }
         }
     }
 

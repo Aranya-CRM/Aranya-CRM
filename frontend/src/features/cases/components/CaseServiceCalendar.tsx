@@ -16,11 +16,6 @@ interface Props {
   localEvents: ServiceEvent[]
 }
 
-// 配色对应规范第六节:Case 事件紫色,共享日历其他来源用绿色区分
-const OWN_CASE_COLORS = { backgroundColor: '#ede7f6', borderColor: '#d7c8f0', textColor: '#4527a0' }
-const OTHER_CASE_COLORS = { backgroundColor: '#f3effb', borderColor: '#e0d6f5', textColor: '#6a4fb3' }
-const EXTERNAL_COLORS = { backgroundColor: '#e8f5e9', borderColor: '#a5d6a7', textColor: '#2e7d32' }
-
 /** 把 Date 格式化成不带时区偏移的本地 ISO(后端按 Asia/Singapore 解析为 LocalDateTime) */
 function toLocalIso(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -73,6 +68,7 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         source: ev.source,
         location: ev.location,
         description: ev.description,
+        calendarName: ev.calendarName,
       })
     })
     return map
@@ -82,8 +78,8 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
     id: String(ev.id),
     title: ev.title,
     start: ev.scheduledStart,
-    end: ev.scheduledEnd ?? undefined,
-    ...OWN_CASE_COLORS,
+    // 月视图里不传 end:每个事件只占开始日格子,避免跨天事件横跨多列溢出(时长见详情弹窗)
+    classNames: ['evt-own'],
     extendedProps: { source: 'OWN_CASE' },
   }))
 
@@ -93,8 +89,7 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
       id: `g-${ev.id}`,
       title: ev.title ?? '(untitled)',
       start: ev.start as string,
-      end: ev.end ?? undefined,
-      ...(ev.source === 'EXTERNAL' ? EXTERNAL_COLORS : OTHER_CASE_COLORS),
+      classNames: [ev.source === 'EXTERNAL' ? 'evt-external' : 'evt-other'],
       extendedProps: { source: ev.source },
     }))
 
@@ -122,6 +117,9 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         locale={i18n.language === 'zh' ? zhCnLocale : 'en'}
         events={events}
         height="auto"
+        eventDisplay="block"
+        dayMaxEvents={4}
+        fixedWeekCount={false}
         datesSet={handleDatesSet}
         eventClick={handleEventClick}
         headerToolbar={{
@@ -130,6 +128,12 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
           right: '',
         }}
       />
+      <div className="calendar-legend">
+        <span className="calendar-legend-item"><i className="lg-own" />{t('cases.services.legendOwn')}</span>
+        <span className="calendar-legend-item"><i className="lg-other" />{t('cases.services.legendOther')}</span>
+        <span className="calendar-legend-item"><i className="lg-external" />{t('cases.services.legendExternal')}</span>
+      </div>
+
       {events.length === 0 && (
         <p className="service-calendar-placeholder">
           {t('cases.services.calendarPlaceholder')}

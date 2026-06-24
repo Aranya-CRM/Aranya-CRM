@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
+import { fetchCalendarOptions } from '../api/case.api'
 import { useCreateServiceEvent } from '../hooks'
 import type { Case, CaseServices } from '../types'
 
@@ -21,7 +23,14 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
     [caseData.services],
   )
 
+  const { data: calendarOptions = [] } = useQuery({
+    queryKey: ['calendarOptions'],
+    queryFn: fetchCalendarOptions,
+    staleTime: 5 * 60_000,
+  })
+
   const [serviceKey, setServiceKey] = useState<keyof CaseServices | ''>(selectedServiceKeys[0] ?? '')
+  const [calendarId, setCalendarId] = useState('')
   const [assignedUserId, setAssignedUserId] = useState('')
   const [scheduledStart, setScheduledStart] = useState('')
   const [scheduledEnd, setScheduledEnd] = useState('')
@@ -40,6 +49,14 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
       .catch(() => {})
   }, [])
 
+  // 日历选项加载后,默认选中标记为 default 的日历
+  useEffect(() => {
+    if (!calendarId && calendarOptions.length > 0) {
+      const def = calendarOptions.find((c) => c.isDefault) ?? calendarOptions[0]
+      setCalendarId(def.id)
+    }
+  }, [calendarOptions, calendarId])
+
   const serviceLabel = serviceKey ? t(`cases.service.${serviceKey}`) : ''
   const titlePreview = serviceKey
     ? `${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`
@@ -55,6 +72,7 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
     try {
       await createEvent.mutateAsync({
         serviceKey,
+        calendarId: calendarId || undefined,
         assignedUserId: assignedUserId || undefined,
         scheduledStart,
         scheduledEnd: scheduledEnd || undefined,
@@ -85,6 +103,17 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
 
         <div className="event-modal-body">
           <div className="event-form-grid">
+            {calendarOptions.length > 0 ? (
+              <label className="wide">
+                <span>{t('cases.services.calendar')}</span>
+                <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>
+                  {calendarOptions.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.isDefault ? ` (${t('cases.services.calendarDefault')})` : ''}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
             <label>
               <span>{t('cases.services.service')}</span>
               <select value={serviceKey} required onChange={(e) => setServiceKey(e.target.value as keyof CaseServices)}>

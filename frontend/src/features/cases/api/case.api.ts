@@ -1,6 +1,6 @@
 import { http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type AuditLogEntry, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -66,6 +66,7 @@ export interface CreateCasePayload {
 
 export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
+  calendarId?: string
   assignedUserId?: string | number
   scheduledStart: string
   scheduledEnd?: string
@@ -172,6 +173,17 @@ export async function fetchSharedCalendarEvents(
     const res = await http.get<SharedCalendarEvent[]>(`/v1/cases/${caseId}/calendar-events`, {
       params: { from: fromIso, to: toIso },
     })
+    return res.data ?? []
+  } catch {
+    return []
+  }
+}
+
+/** 可写入的共享日历列表(供增添事件选择目标日历)。集成未启用/mock 时返回空。 */
+export async function fetchCalendarOptions(): Promise<CalendarOption[]> {
+  if (getDataMode() === 'mock') return []
+  try {
+    const res = await http.get<CalendarOption[]>('/v1/calendar/options')
     return res.data ?? []
   } catch {
     return []

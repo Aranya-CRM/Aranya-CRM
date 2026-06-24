@@ -21,4 +21,6 @@ public class CalendarEventResponse {
     private Long caseId;    // 关联的 case(若有)
     private String location;
     private String description; // Google 事件正文(模板分节原文)
+    private String calendarId;   // 事件所属日历 id
+    private String calendarName; // 事件所属日历显示名
 }
