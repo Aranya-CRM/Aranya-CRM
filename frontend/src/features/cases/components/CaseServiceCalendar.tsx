@@ -115,6 +115,7 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         plugins={[dayGridPlugin]}
         initialView="dayGridMonth"
         locale={i18n.language === 'zh' ? zhCnLocale : 'en'}
+        firstDay={0}
         events={events}
         height="auto"
         eventDisplay="block"
