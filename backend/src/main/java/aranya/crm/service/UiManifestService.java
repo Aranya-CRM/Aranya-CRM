@@ -59,6 +59,8 @@ public class UiManifestService {
     }
 
     private void applyRoleCorrections(List<String> roleNames, Map<String, String> caps) {
+        caps.remove("route:approvals");
+
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
             caps.keySet().removeIf(capKey -> capKey.startsWith("route:") && !capKey.equals("route:tasks"));
             caps.put("route:tasks", "YES");
@@ -77,7 +79,6 @@ public class UiManifestService {
         }
 
         if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
-            caps.put("route:approvals", "YES");
             caps.put("approvals:view", "YES");
             caps.put("approvals:decide", "YES");
             caps.put("approvals:create", "YES");

@@ -6,6 +6,10 @@ export const http = axios.create({
   timeout: 10000,
 })
 
+export function encodeHttpHeaderValue(value: string): string {
+  return encodeURIComponent(value)
+}
+
 http.interceptors.request.use(async (config) => {
   const token = await getFirebaseIdToken()
 

@@ -16,6 +16,7 @@ export interface CaseListRow {
   socialWorker: string
   status: CaseDisplayStatus
   colorCode: CaseColorCode
+  approvalOperation?: 'create' | 'close'
 }
 
 interface CaseTableProps {
@@ -56,12 +57,22 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
               cases.map((item) => (
                 <tr
                   key={item.id}
-                  className={`case-row-clickable${item.status === 'CLOSED' ? ' case-row-closed' : ''}`}
+                  className={
+                    `case-row-clickable${item.status === 'CLOSED' ? ' case-row-closed' : ''}` +
+                    (item.approvalOperation ? ` case-row-pending case-row-pending-${item.approvalOperation}` : '')
+                  }
                   onClick={() => onView(item.id)}
                 >
                   <td><CaseIntensityDot colorCode={item.colorCode} /></td>
                   <td>
-                    <span className="case-cell-main">{item.clientAbbr || item.clientNameEn || item.clientNameChn || '-'}</span>
+                    <span className="case-cell-main case-cell-with-badge">
+                      <span>{item.clientAbbr || item.clientNameEn || item.clientNameChn || '-'}</span>
+                      {item.approvalOperation ? (
+                        <span className={`case-approval-badge ${item.approvalOperation}`}>
+                          {t(`cases.approvals.badge.${item.approvalOperation}`)}
+                        </span>
+                      ) : null}
+                    </span>
                   </td>
                   <td><span className="case-cell-main">{item.caseNo}</span></td>
                   <td><CaseStatusBadge status={item.status} /></td>

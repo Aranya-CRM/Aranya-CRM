@@ -6,7 +6,6 @@ import {
   updateUserRoles,
   updateUserStatus,
 } from '../api/userManagement.api'
-import type { ApprovalOptions } from '../api/userManagement.api'
 import type {
   InviteUserPayload,
   UpdateUserRolesPayload,
@@ -65,7 +64,7 @@ export function useDeleteUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, approverId }: { id: number } & ApprovalOptions) => deleteUser(id, { approverId }),
+    mutationFn: (id: number) => deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
     },

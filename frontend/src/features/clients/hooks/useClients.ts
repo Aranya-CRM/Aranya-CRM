@@ -40,8 +40,8 @@ export function useCreateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ data, approverId }: { data: Omit<Client, 'id'> } & ApprovalOptions) =>
-      createClient(data, { approverId }),
+    mutationFn: ({ data, approverId, reason }: { data: Omit<Client, 'id'> } & ApprovalOptions) =>
+      createClient(data, { approverId, reason }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
       if (!isClientResult(client)) return
@@ -54,8 +54,8 @@ export function useUpdateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data, approverId }: { id: string; data: Partial<Client> } & ApprovalOptions) =>
-      updateClient(id, data, { approverId }),
+    mutationFn: ({ id, data, approverId, reason }: { id: string; data: Partial<Client> } & ApprovalOptions) =>
+      updateClient(id, data, { approverId, reason }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
       if (!isClientResult(client)) return
@@ -68,7 +68,7 @@ export function useDeleteClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, approverId }: { id: string } & ApprovalOptions) => deleteClient(id, { approverId }),
+    mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteClient(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
     },
