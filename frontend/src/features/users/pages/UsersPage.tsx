@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
-import { ApprovalConfirmModal, ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
+import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
 import {
   useDeleteUser,
   useUpdateUserRoles,
@@ -27,11 +26,9 @@ export function UsersPage() {
   const updateRoles = useUpdateUserRoles()
   const updateStatus = useUpdateUserStatus()
   const deleteUser = useDeleteUser()
-  const approvalAssignees = useApprovalAssigneeOptions()
   const [search, setSearch] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [editingUser, setEditingUser] = useState<UserSummary>()
-  const [deleteTargetUser, setDeleteTargetUser] = useState<UserSummary>()
   const [editingRoles, setEditingRoles] = useState<UserRole[]>([])
   const [formError, setFormError] = useState<string>()
 
@@ -108,11 +105,11 @@ export function UsersPage() {
     }
   }
 
-  async function handleDelete(approverId?: number) {
-    if (!deleteTargetUser) return
+  async function handleDelete(user: UserSummary) {
+    const confirmed = window.confirm(t('users.confirm.delete', { name: user.fullName }))
+    if (!confirmed) return
     try {
-      await deleteUser.mutateAsync({ id: deleteTargetUser.id, approverId })
-      setDeleteTargetUser(undefined)
+      await deleteUser.mutateAsync(user.id)
     } catch {
       // Mutation error state renders the page-level banner.
     }
@@ -239,7 +236,7 @@ export function UsersPage() {
                             type="button"
                             disabled={isSelf || deleteUser.isPending}
                             title={isSelf ? t('users.tooltip.selfRemove') : undefined}
-                            onClick={() => setDeleteTargetUser(user)}
+                            onClick={() => void handleDelete(user)}
                           >
                             {t('users.table.remove')}
                           </button>
@@ -279,19 +276,6 @@ export function UsersPage() {
         </UserModal>
       ) : null}
 
-      <ApprovalConfirmModal
-        open={deleteTargetUser !== undefined}
-        title={t('approvalConfirm.title')}
-        message={deleteTargetUser ? t('users.confirm.delete', { name: deleteTargetUser.fullName }) : ''}
-        confirmLabel={deleteUser.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
-        cancelLabel={t('approvalConfirm.cancel')}
-        pending={deleteUser.isPending}
-        approverOptions={approvalAssignees.options}
-        approverRequired
-        approverLoading={approvalAssignees.isLoading}
-        onCancel={() => setDeleteTargetUser(undefined)}
-        onConfirm={(approverId) => void handleDelete(approverId)}
-      />
     </div>
   )
 }

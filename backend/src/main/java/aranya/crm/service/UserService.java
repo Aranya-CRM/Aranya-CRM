@@ -221,7 +221,7 @@ public class UserService {
         return toDto(user);
     }
 
-    public void executeApprovedDeleteUser(Long userId) {
+    public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
         // Soft delete: 标记 DELETED 并从管理列表隐藏，保留审计痕迹。

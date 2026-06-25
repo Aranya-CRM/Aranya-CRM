@@ -46,6 +46,8 @@
     "confirm": "Submit Approval",
     "cancel": "Cancel",
     "approver": "Approver",
+    "reason": "Application Reason",
+    "reasonPlaceholder": "Enter the reason for this request",
     "selectApprover": "Select approver",
     "loadingApprovers": "Loading approvers...",
     "noApprovers": "No eligible approver is available. Contact an administrator.",
@@ -83,14 +85,11 @@
     "type": {
       "CASE_CREATE": "Create Case",
       "CASE_SERVICE_UPDATE": "Update Case Services",
-      "SERVICE_EVENT_CREATE": "Create Service Event",
       "CLIENT_CREATE": "Create Member",
       "CLIENT_UPDATE": "Edit Member",
       "DELETE_CLIENT": "Delete Member",
       "DELETE_CASE": "Close Case",
-      "DELETE_REPORT": "Delete Report",
-      "DELETE_CASE_NOTE": "Delete Case Note",
-      "DELETE_USER": "Delete User"
+      "DELETE_REPORT": "Delete Report"
     }
   },
   "dashboard": {
@@ -145,6 +144,18 @@
       "empty": "No cases found",
       "view": "View",
       "audit": "Audit"
+    },
+    "approvals": {
+      "title": "Pending Case Approvals",
+      "createCase": "New Case Request",
+      "closeCase": "Close Case Request",
+      "reason": "Application Reason",
+      "noReason": "No application reason provided",
+      "targetCase": "Target Case",
+      "badge": {
+        "create": "Pending Add",
+        "close": "Pending Close"
+      }
     },
     "color": {
       "RED": "Red · Critical Care Needed",
@@ -232,7 +243,10 @@
       "noEvents": "No service events yet.",
       "eventCreated": "Service event created.",
       "removeApprovalSubmitted": "Service removal request submitted. The service will be removed after manager approval.",
-      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval."
+      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval.",
+      "approvalSubmitError": "Failed to submit approval. Check the approver permissions and try again.",
+      "approvalApproved": "Approval approved.",
+      "approvalRejected": "Approval rejected."
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -394,6 +408,22 @@
     "accessDeniedMsg": "Your current access does not allow creating or editing client profiles.",
     "saveError": "Failed to save.",
     "approvalSubmittedWithId": "Approval request #{{id}} submitted. The change will appear after approval.",
+    "approvals": {
+      "title": "Pending Member Approvals",
+      "pending": "Pending approval",
+      "reason": "Application Reason",
+      "noReason": "No application reason provided",
+      "badge": {
+        "create": "Pending Add",
+        "update": "Pending Edit",
+        "delete": "Pending Delete"
+      },
+      "type": {
+        "CLIENT_CREATE": "New Member Request",
+        "CLIENT_UPDATE": "Edit Member Request",
+        "DELETE_CLIENT": "Delete Member Request"
+      }
+    },
     "form": {
       "newTitle": "New Client",
       "editTitle": "Edit Client"

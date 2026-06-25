@@ -1,2 +1,2 @@
-export { http } from './http'
-export { getApiErrorCode } from './errors'
+export { encodeHttpHeaderValue, http } from './http'
+export { getApiErrorCode, getApiErrorMessage } from './errors'

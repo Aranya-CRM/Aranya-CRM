@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
+import { addLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, BackButton, PageHeader } from '../../../shared/ui'
 import {
@@ -139,16 +140,22 @@ export function ClientFormPage() {
     setShowApprovalConfirm(true)
   }
 
-  async function submitApproval(approverId?: number) {
+  async function submitApproval(approverId?: number, reason?: string) {
     try {
       const result = isEdit && id
-        ? await updateClientMutation.mutateAsync({ id, data: form as Partial<Client>, approverId })
-        : await createClientMutation.mutateAsync({ data: form, approverId })
+        ? await updateClientMutation.mutateAsync({ id, data: form as Partial<Client>, approverId, reason })
+        : await createClientMutation.mutateAsync({ data: form, approverId, reason })
       setShowApprovalConfirm(false)
       if (isEdit && id) {
         if (isClientResult(result)) {
           navigate(`/clients/${result.id}`)
         } else {
+          addLocalPendingApproval({
+            ...result,
+            targetType: result.targetType ?? 'CLIENT',
+            targetId: result.targetId ?? id,
+            targetLabel: result.targetLabel ?? form.abbr,
+          })
           alert(t('clients.approvalSubmittedWithId', { id: result.id }))
           navigate(`/clients/${id}`)
         }
@@ -156,6 +163,11 @@ export function ClientFormPage() {
         if (isClientResult(result)) {
           navigate(`/clients/${result.id}`)
         } else {
+          addLocalPendingApproval({
+            ...result,
+            targetType: result.targetType ?? 'CLIENT',
+            targetLabel: result.targetLabel ?? form.abbr,
+          })
           alert(t('clients.approvalSubmittedWithId', { id: result.id }))
           navigate('/clients')
         }
@@ -205,7 +217,7 @@ export function ClientFormPage() {
         approverRequired
         approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowApprovalConfirm(false)}
-        onConfirm={(approverId) => void submitApproval(approverId)}
+        onConfirm={(approverId, reason) => void submitApproval(approverId, reason)}
       />
     </>
   )

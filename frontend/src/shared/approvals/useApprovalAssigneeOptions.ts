@@ -17,7 +17,7 @@ export function useApprovalAssigneeOptions() {
       item.id === currentUser?.id || item.email === currentUser?.email
     ))
     const currentRoles = new Set(current?.roles ?? [])
-    const requesterIsManager = currentRoles.has('MANAGER')
+    const requesterIsManager = hasApprovalManagerRole(currentRoles)
     const requesterIsSocialWorker = currentRoles.has('SOCIAL_WORKER')
 
     if (!requesterIsManager && !requesterIsSocialWorker) {
@@ -27,8 +27,8 @@ export function useApprovalAssigneeOptions() {
     return users
       .filter((item) => {
         if (item.status !== 'ACTIVE') return false
-        if (!item.roles.includes('MANAGER')) return false
-        if (requesterIsManager && item.id === currentUser?.id) return false
+        if (!item.roles.some(isApprovalManagerRole)) return false
+        if (item.id === current?.id || item.id === currentUser?.id || item.email === currentUser?.email) return false
         return true
       })
       .map((item) => ({
@@ -42,4 +42,12 @@ export function useApprovalAssigneeOptions() {
     isLoading: usersQuery.isLoading,
     isError: usersQuery.isError,
   }
+}
+
+function hasApprovalManagerRole(roles: Set<string>): boolean {
+  return Array.from(roles).some(isApprovalManagerRole)
+}
+
+function isApprovalManagerRole(role: string): boolean {
+  return role === 'MANAGER' || role === 'FULL_MANAGER' || role === 'TEAM_LEAD'
 }

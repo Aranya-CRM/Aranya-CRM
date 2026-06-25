@@ -2,9 +2,11 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
+import { getApiErrorMessage } from '../../../shared/api'
 import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal } from '../../../shared/ui'
+import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
 import { useCreateCaseNote, useCreateServiceEvent, useDeleteCaseNote, useDeleteServiceEvent, useUpdateCase, useUpdateCaseServices } from '../hooks'
@@ -390,6 +392,16 @@ interface PendingServiceChange {
   serviceKeys: Array<keyof CaseServices>
 }
 
+interface PendingApprovalView {
+  id: number
+  type: string
+  targetType?: string | null
+  targetId?: number | string | null
+  payloadJson?: string | null
+  requestedByName?: string | null
+  createdAt?: string | null
+}
+
 interface ServiceEventDraft {
   assignedUserId: string
   scheduledStart: string
@@ -452,13 +464,17 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const [expandedServiceKey, setExpandedServiceKey] = useState<keyof CaseServices | null>(null)
   const [historyVisibleServiceKey, setHistoryVisibleServiceKey] = useState<keyof CaseServices | null>(null)
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
+  const [serviceApprovalError, setServiceApprovalError] = useState('')
   const updateServices = useUpdateCaseServices(caseData.id)
   const createEvent = useCreateServiceEvent(caseData.id)
   const deleteEvent = useDeleteServiceEvent(caseData.id)
   const canRequestServices = resolve('cases:services.create')
   const canCreateEvent = resolve('cases:services.create')
   const [approvalMessage, setApprovalMessage] = useState('')
-  const pendingCaseApprovals = useLocalPendingApprovals('CASE', caseData.id)
+  const localPendingCaseApprovals = useLocalPendingApprovals('CASE', caseData.id)
+  const { data: pendingApprovals = [] } = usePendingApprovals()
+  const approveRequest = useApproveRequest()
+  const rejectRequest = useRejectRequest()
   const approvalAssignees = useApprovalAssigneeOptions()
 
   useEffect(() => {
@@ -469,7 +485,18 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   }, [canCreateEvent])
 
   const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
-  const pendingServiceChanges = pendingCaseApprovals
+  const serverServiceApprovals = pendingApprovals.filter((approval) => (
+    approval.type === 'CASE_SERVICE_UPDATE' &&
+    approval.targetType === 'CASE' &&
+    String(approval.targetId) === String(caseData.id)
+  ))
+  const pendingServiceApprovals: PendingApprovalView[] = [
+    ...serverServiceApprovals,
+    ...localPendingCaseApprovals.filter((localApproval) => (
+      !serverServiceApprovals.some((approval) => approval.id === localApproval.id)
+    )),
+  ]
+  const pendingServiceChanges = pendingServiceApprovals
     .filter((approval) => approval.type === 'CASE_SERVICE_UPDATE')
     .flatMap((approval) => parsePendingServicePayload(approval.payloadJson))
   const pendingAddKeys = uniqueServiceKeys(pendingServiceChanges.filter((item) => item.operation === 'add').flatMap((item) => item.serviceKeys))
@@ -483,6 +510,24 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
       ? user.status === 'ACTIVE'
       : user.roles.includes('VOLUNTEER')
   ))
+
+  function pendingApprovalForService(serviceKey: keyof CaseServices, operation: 'add' | 'remove') {
+    return pendingServiceApprovals.find((approval) => (
+      parsePendingServicePayload(approval.payloadJson).some((change) => (
+        change.operation === operation && change.serviceKeys.includes(serviceKey)
+      ))
+    ))
+  }
+
+  async function decideServiceApproval(approval: ServerApprovalRequest, approved: boolean) {
+    if (approved) {
+      await approveRequest.mutateAsync({ id: approval.id, data: {} })
+      setApprovalMessage(t('cases.services.approvalApproved'))
+      return
+    }
+    await rejectRequest.mutateAsync({ id: approval.id, data: {} })
+    setApprovalMessage(t('cases.services.approvalRejected'))
+  }
 
   function toggleServiceToAdd(serviceKey: keyof CaseServices, checked: boolean) {
     setServicesToAdd((current) => {
@@ -518,28 +563,39 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
   function submitServiceApproval(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (servicesToAdd.length === 0 && servicesToRemove.length === 0) return
+    setServiceApprovalError('')
     setShowServiceApprovalConfirm(true)
   }
 
-  async function requestServiceChanges(approverId?: number) {
+  async function requestServiceChanges(approverId?: number, reason?: string) {
     if (servicesToAdd.length === 0 && servicesToRemove.length === 0) return
-    const currentRequestedServices = uniqueServiceKeys([...approvedServiceKeys, ...pendingAddKeys])
-      .filter((key) => !pendingRemoveKeys.includes(key))
-    const nextServices = uniqueServiceKeys([...currentRequestedServices, ...servicesToAdd])
-      .filter((key) => !servicesToRemove.includes(key))
-    const approval = await updateServices.mutateAsync({ services: nextServices, approverId })
-    addLocalPendingApproval({
-      ...approval,
-      targetType: approval.targetType ?? 'CASE',
-      targetId: approval.targetId ?? caseData.id,
-      targetLabel: approval.targetLabel ?? caseData.caseNo,
-      payloadJson: JSON.stringify({ operation: 'update', addServiceKeys: servicesToAdd, removeServiceKeys: servicesToRemove }),
-    })
-    setApprovalMessage(t('cases.services.approvalSubmitted'))
-    setServicesToAdd([])
-    setServicesToRemove([])
-    setShowServiceRequest(false)
-    setShowServiceApprovalConfirm(false)
+    setServiceApprovalError('')
+    try {
+      const currentRequestedServices = uniqueServiceKeys([...approvedServiceKeys, ...pendingAddKeys])
+        .filter((key) => !pendingRemoveKeys.includes(key))
+      const nextServices = uniqueServiceKeys([...currentRequestedServices, ...servicesToAdd])
+        .filter((key) => !servicesToRemove.includes(key))
+      const approval = await updateServices.mutateAsync({ services: nextServices, approverId, reason })
+      addLocalPendingApproval({
+        ...approval,
+        targetType: approval.targetType ?? 'CASE',
+        targetId: approval.targetId ?? caseData.id,
+        targetLabel: approval.targetLabel ?? caseData.caseNo,
+        payloadJson: JSON.stringify({
+          operation: 'update',
+          addServiceKeys: servicesToAdd,
+          removeServiceKeys: servicesToRemove,
+          _approval: { reason: reason ?? '' },
+        }),
+      })
+      setApprovalMessage(t('cases.services.approvalSubmitted'))
+      setServicesToAdd([])
+      setServicesToRemove([])
+      setShowServiceRequest(false)
+      setShowServiceApprovalConfirm(false)
+    } catch (error) {
+      setServiceApprovalError(getApiErrorMessage(error) ?? t('cases.services.approvalSubmitError'))
+    }
   }
 
   async function submitEvent(event: FormEvent<HTMLFormElement>, serviceKey: keyof CaseServices) {
@@ -573,8 +629,13 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
             const addPending = pendingAddKeys.includes(serviceKey)
             const removePending = pendingRemoveKeys.includes(serviceKey)
             const servicePending = addPending || removePending
-            const expanded = expandedServiceKey === serviceKey
+            const expanded = !servicePending && expandedServiceKey === serviceKey
             const historyVisible = historyVisibleServiceKey === serviceKey
+            const pendingOperation = addPending ? 'add' : removePending ? 'remove' : null
+            const pendingApproval = pendingOperation ? pendingApprovalForService(serviceKey, pendingOperation) : undefined
+            const serverPendingApproval = pendingApproval
+              ? serverServiceApprovals.find((approval) => approval.id === pendingApproval.id)
+              : undefined
 
             return (
               <article className={'case-service-card' + (servicePending ? ' pending' : '')} key={serviceKey}>
@@ -586,21 +647,33 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
                     {addPending ? <span className="case-service-pending-badge">{t('cases.services.addPending')}</span> : null}
                     {removePending ? <span className="case-service-pending-badge remove">{t('cases.services.removePending')}</span> : null}
                   </div>
-                  <div className="case-service-card-actions">
-                    <button
-                      className="case-service-expand-trigger"
-                      type="button"
-                      aria-expanded={expanded}
-                      aria-label={expanded ? t('cases.services.hideEventPanel') : t('cases.services.createEvent')}
-                      onClick={() => {
-                        setExpandedServiceKey(expanded ? null : serviceKey)
-                        setHistoryVisibleServiceKey(null)
-                      }}
-                    >
-                      ▾
-                    </button>
-                  </div>
+                  {!servicePending ? (
+                    <div className="case-service-card-actions">
+                      <button
+                        className="case-service-expand-trigger"
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={expanded ? t('cases.services.hideEventPanel') : t('cases.services.createEvent')}
+                        onClick={() => {
+                          setExpandedServiceKey(expanded ? null : serviceKey)
+                          setHistoryVisibleServiceKey(null)
+                        }}
+                      >
+                        ▾
+                      </button>
+                    </div>
+                  ) : null}
                 </header>
+
+                {pendingApproval ? (
+                  <ServiceApprovalSummary
+                    approval={pendingApproval}
+                    serverApproval={serverPendingApproval}
+                    deciding={approveRequest.isPending || rejectRequest.isPending}
+                    onApprove={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, true) : undefined}
+                    onReject={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, false) : undefined}
+                  />
+                ) : null}
 
                 {expanded ? (
                   <div className={'case-service-event-panel' + (historyVisible && serviceEvents.length > 0 ? ' has-history' : '')}>
@@ -803,11 +876,15 @@ function ServicesTab({ caseData, isManager }: { caseData: Case; isManager: boole
         confirmLabel={updateServices.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={updateServices.isPending}
+        error={serviceApprovalError}
         approverOptions={approvalAssignees.options}
         approverRequired
         approverLoading={approvalAssignees.isLoading}
-        onCancel={() => setShowServiceApprovalConfirm(false)}
-        onConfirm={(approverId) => void requestServiceChanges(approverId)}
+        onCancel={() => {
+          setServiceApprovalError('')
+          setShowServiceApprovalConfirm(false)
+        }}
+        onConfirm={(approverId, reason) => void requestServiceChanges(approverId, reason)}
       />
     </>
   )
@@ -834,7 +911,64 @@ function serviceIconLabel(serviceKey: keyof CaseServices): string {
   return icons[serviceKey]
 }
 
-function formatDateTime(value: string): string {
+function ServiceApprovalSummary({
+  approval,
+  serverApproval,
+  deciding,
+  onApprove,
+  onReject,
+}: {
+  approval: PendingApprovalView
+  serverApproval?: ServerApprovalRequest
+  deciding: boolean
+  onApprove: () => void
+  onReject: () => void
+}) {
+  const { t } = useTranslation()
+  const reason = approvalReason(approval.payloadJson)
+
+  return (
+    <div className="case-service-approval-summary">
+      <dl>
+        <div>
+          <dt>{t('approvals.fields.requestedBy')}</dt>
+          <dd>{approval.requestedByName ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>{t('approvals.fields.createdAt')}</dt>
+          <dd>{formatDateTime(approval.createdAt)}</dd>
+        </div>
+      </dl>
+      <details className="case-approval-reason">
+        <summary>{t('cases.approvals.reason')}</summary>
+        <p>{reason || t('cases.approvals.noReason')}</p>
+      </details>
+      {serverApproval ? (
+        <div className="case-service-approval-actions">
+          <button className="btn-secondary btn-compact" type="button" disabled={deciding} onClick={onReject}>
+            {t('approvals.reject')}
+          </button>
+          <button className="btn-primary btn-compact" type="button" disabled={deciding} onClick={onApprove}>
+            {t('approvals.approve')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function approvalReason(payloadJson?: string | null): string {
+  if (!payloadJson) return ''
+  try {
+    const parsed = JSON.parse(payloadJson) as { _approval?: { reason?: unknown } }
+    return typeof parsed._approval?.reason === 'string' ? parsed._approval.reason.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
