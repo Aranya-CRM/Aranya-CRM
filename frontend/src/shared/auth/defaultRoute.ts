@@ -19,7 +19,6 @@ export function getDefaultRoute(
   if (hasCap(caps, 'route:clients')) return '/clients'
   if (hasCap(caps, 'route:cases')) return '/cases'
   if (hasCap(caps, 'route:reports')) return '/reports'
-  if (hasCap(caps, 'route:approvals')) return '/approvals'
   if (hasCap(caps, 'route:tasks')) return '/tasks'
   if (hasCap(caps, 'route:dashboard')) return '/dashboard'
 

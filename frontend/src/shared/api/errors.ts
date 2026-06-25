@@ -14,3 +14,18 @@ export function getApiErrorCode(error: unknown): string | undefined {
   }
   return undefined
 }
+
+export function getApiErrorMessage(error: unknown): string | undefined {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data
+    if (data && typeof data === 'object' && 'message' in data) {
+      const message = (data as { message?: unknown }).message
+      return typeof message === 'string' && message.trim() ? message.trim() : undefined
+    }
+    if (typeof data === 'string' && data.trim()) {
+      return data.trim()
+    }
+    return error.message
+  }
+  return error instanceof Error ? error.message : undefined
+}

@@ -32,6 +32,7 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class ClientController {
     private static final String APPROVER_HEADER = "X-Approver-Id";
+    private static final String APPROVAL_REASON_HEADER = "X-Approval-Reason";
 
     private final ClientService clientService;
     private final ApprovalService approvalService;
@@ -59,7 +60,8 @@ public class ClientController {
     public ResponseEntity<ApprovalRequestResponse> createClient(
             @Valid @RequestBody CreateClientRequest req,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CLIENT_CREATE",
@@ -67,7 +69,8 @@ public class ClientController {
                 null,
                 req,
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -78,7 +81,8 @@ public class ClientController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateClientRequest req,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CLIENT_UPDATE",
@@ -86,7 +90,8 @@ public class ClientController {
                 id,
                 req,
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -96,7 +101,8 @@ public class ClientController {
     public ResponseEntity<ApprovalRequestResponse> deleteClient(
             @PathVariable Long id,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CLIENT",
@@ -104,7 +110,8 @@ public class ClientController {
                 id,
                 null,
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }

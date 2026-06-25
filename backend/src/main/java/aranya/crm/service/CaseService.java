@@ -104,6 +104,16 @@ public class CaseService {
         return toCaseDetailResponse(clientCase);
     }
 
+    public List<String> listSelectedServiceKeys(Long caseId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        Set<String> selected = selectedServiceKeySet(caseId);
+        return SERVICE_KEYS.stream().filter(selected::contains).toList();
+    }
+
     @Transactional
     public CaseDetailResponse executeApprovedCreateCase(CreateCaseRequest request, User createdBy) {
         Client client = clientRepository.findById(request.getClientId())
@@ -165,7 +175,7 @@ public class CaseService {
     }
 
     @Transactional
-    public ServiceEventResponse executeApprovedCreateServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
+    public ServiceEventResponse createServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         Set<String> selected = selectedServiceKeySet(caseId);

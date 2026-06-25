@@ -87,7 +87,8 @@ export function useCreateCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ data, approverId }: { data: CreateCasePayload } & ApprovalOptions) => createCase(data, { approverId }),
+    mutationFn: ({ data, approverId, reason }: { data: CreateCasePayload } & ApprovalOptions) =>
+      createCase(data, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
     },
@@ -98,7 +99,7 @@ export function useDeleteCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, approverId }: { id: string } & ApprovalOptions) => deleteCase(id, { approverId }),
+    mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteCase(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
     },
@@ -109,8 +110,8 @@ export function useUpdateCaseServices(caseId: string | undefined) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ services, approverId }: { services: Array<keyof CaseServices> } & ApprovalOptions) =>
-      updateCaseServices(caseId!, services, { approverId }),
+    mutationFn: ({ services, approverId, reason }: { services: Array<keyof CaseServices> } & ApprovalOptions) =>
+      updateCaseServices(caseId!, services, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       if (!caseId) return

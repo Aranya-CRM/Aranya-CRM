@@ -44,6 +44,7 @@ import java.util.Map;
 @PreAuthorize("isAuthenticated()")
 public class CaseController {
     private static final String APPROVER_HEADER = "X-Approver-Id";
+    private static final String APPROVAL_REASON_HEADER = "X-Approval-Reason";
 
     private final CaseService caseService;
     private final CaseNoteService caseNoteService;
@@ -72,7 +73,8 @@ public class CaseController {
     public ResponseEntity<ApprovalRequestResponse> createCase(
             @Valid @RequestBody CreateCaseRequest request,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CASE_CREATE",
@@ -80,7 +82,8 @@ public class CaseController {
                 request.getClientId(),
                 request,
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -100,15 +103,31 @@ public class CaseController {
             @PathVariable Long id,
             @RequestBody List<String> serviceKeys,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        List<String> requestedServiceKeys = serviceKeys == null ? List.of() : serviceKeys;
+        List<String> currentServiceKeys = caseService.listSelectedServiceKeys(id);
+        List<String> addServiceKeys = requestedServiceKeys.stream()
+                .filter(key -> !currentServiceKeys.contains(key))
+                .toList();
+        List<String> removeServiceKeys = currentServiceKeys.stream()
+                .filter(key -> !requestedServiceKeys.contains(key))
+                .toList();
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CASE_SERVICE_UPDATE",
                 "CASE",
                 id,
-                Map.of("caseId", id, "serviceKeys", serviceKeys == null ? List.of() : serviceKeys),
+                Map.of(
+                        "caseId", id,
+                        "operation", "update",
+                        "serviceKeys", requestedServiceKeys,
+                        "addServiceKeys", addServiceKeys,
+                        "removeServiceKeys", removeServiceKeys
+                ),
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
@@ -135,7 +154,7 @@ public class CaseController {
             @Valid @RequestBody CreateServiceEventRequest request,
             @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.executeApprovedCreateServiceEvent(id, request, currentUser));
+        return ResponseEntity.ok(caseService.createServiceEvent(id, request, currentUser));
     }
 
     @DeleteMapping("/{id}/service-events/{eventId}")
@@ -153,7 +172,8 @@ public class CaseController {
     public ResponseEntity<ApprovalRequestResponse> deleteCase(
             @PathVariable Long id,
             @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CASE",
@@ -161,7 +181,8 @@ public class CaseController {
                 id,
                 null,
                 currentUser,
-                approverId
+                approverId,
+                approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }

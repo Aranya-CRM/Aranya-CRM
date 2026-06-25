@@ -46,6 +46,8 @@
     "confirm": "确定提交",
     "cancel": "撤销",
     "approver": "审批人",
+    "reason": "申请原因",
+    "reasonPlaceholder": "请填写本次申请的原因",
     "selectApprover": "请选择审批人",
     "loadingApprovers": "正在加载审批人...",
     "noApprovers": "当前没有可选审批人，请联系管理员。",
@@ -83,14 +85,11 @@
     "type": {
       "CASE_CREATE": "创建个案",
       "CASE_SERVICE_UPDATE": "更新个案服务",
-      "SERVICE_EVENT_CREATE": "创建服务事件",
       "CLIENT_CREATE": "新增会员",
       "CLIENT_UPDATE": "编辑会员",
       "DELETE_CLIENT": "删除会员",
       "DELETE_CASE": "关闭个案",
-      "DELETE_REPORT": "删除报告",
-      "DELETE_CASE_NOTE": "删除个案笔记",
-      "DELETE_USER": "删除用户"
+      "DELETE_REPORT": "删除报告"
     }
   },
   "dashboard": {
@@ -145,6 +144,18 @@
       "empty": "暂无匹配个案",
       "view": "查看",
       "audit": "审计"
+    },
+    "approvals": {
+      "title": "待审批个案",
+      "createCase": "新建个案申请",
+      "closeCase": "关闭个案申请",
+      "reason": "申请原因",
+      "noReason": "未填写申请原因",
+      "targetCase": "目标个案",
+      "badge": {
+        "create": "待新增",
+        "close": "待关闭"
+      }
     },
     "color": {
       "RED": "红色 · 迫切护理需求",
@@ -232,7 +243,10 @@
       "noEvents": "暂无服务事件。",
       "eventCreated": "服务事件已创建。",
       "removeApprovalSubmitted": "删除服务的审批申请已提交，经理通过后服务会被移除。",
-      "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。"
+      "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。",
+      "approvalSubmitError": "审批提交失败，请确认审批人权限后重试。",
+      "approvalApproved": "审批已通过。",
+      "approvalRejected": "审批已拒绝。"
     },
     "serviceGroup": {
       "housing": "居住与住宿",
@@ -394,6 +408,22 @@
     "accessDeniedMsg": "当前账户不可创建或编辑会员档案。",
     "saveError": "保存失败",
     "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，审批通过后变更才会显示。",
+    "approvals": {
+      "title": "待审批会员",
+      "pending": "待审批",
+      "reason": "申请原因",
+      "noReason": "未填写申请原因",
+      "badge": {
+        "create": "待新增",
+        "update": "待编辑",
+        "delete": "待删除"
+      },
+      "type": {
+        "CLIENT_CREATE": "新增会员申请",
+        "CLIENT_UPDATE": "编辑会员申请",
+        "DELETE_CLIENT": "删除会员申请"
+      }
+    },
     "form": {
       "newTitle": "新建会员档案",
       "editTitle": "编辑会员档案"

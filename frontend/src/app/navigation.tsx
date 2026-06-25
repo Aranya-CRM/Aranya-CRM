@@ -56,16 +56,6 @@ function TasksIcon() {
   )
 }
 
-function ApprovalsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M9 11l2 2 4-5" />
-      <path d="M5 4h14v16H5z" />
-      <path d="M8 17h8" />
-    </svg>
-  )
-}
-
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -119,13 +109,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/reports',
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,
-  },
-  {
-    id: 'approvals',
-    routeId: 'route:approvals',
-    path: '/approvals',
-    labelKey: 'nav.approvals',
-    icon: <ApprovalsIcon />,
   },
 ]
 

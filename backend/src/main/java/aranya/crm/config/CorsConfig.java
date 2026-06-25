@@ -23,7 +23,14 @@ public class CorsConfig {
 
         config.setAllowedOrigins(appProperties.getCors().getAllowedOrigins());
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Requested-With"));
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Requested-With",
+                "X-Approver-Id",
+                "X-Approval-Reason"
+        ));
         config.setExposedHeaders(List.of("Authorization"));
 
         config.setAllowCredentials(true);

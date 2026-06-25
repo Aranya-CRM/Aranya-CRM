@@ -1,4 +1,4 @@
-import { http } from '../../../shared/api'
+import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
 import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
@@ -43,6 +43,7 @@ export interface ApprovalRequest {
 
 export interface ApprovalOptions {
   approverId?: number
+  reason?: string
 }
 
 export interface UpdateCasePayload {
@@ -115,7 +116,10 @@ export async function fetchCaseById(id: string): Promise<Case | undefined> {
 }
 
 function approvalRequestConfig(options?: ApprovalOptions) {
-  return options?.approverId ? { headers: { 'X-Approver-Id': String(options.approverId) } } : undefined
+  const headers: Record<string, string> = {}
+  if (options?.approverId) headers['X-Approver-Id'] = String(options.approverId)
+  if (options?.reason?.trim()) headers['X-Approval-Reason'] = encodeHttpHeaderValue(options.reason.trim())
+  return Object.keys(headers).length > 0 ? { headers } : undefined
 }
 
 export async function createCase(data: CreateCasePayload, options?: ApprovalOptions): Promise<ApprovalRequest> {

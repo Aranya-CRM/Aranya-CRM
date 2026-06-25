@@ -3,9 +3,12 @@ import type { FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
+import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
 import { isClientResult, useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
@@ -55,10 +58,32 @@ const initialNewClientForm: NewClientForm = {
 }
 
 type ClientApprovalIntent = 'create' | 'update' | 'delete'
+type ClientApprovalOperation = 'create' | 'update' | 'delete'
+
+interface ClientApprovalView {
+  id: number
+  type: string
+  targetId?: number | string | null
+  targetLabel?: string | null
+  payloadJson?: string | null
+  requestedById?: number | null
+  requestedByName?: string | null
+  assignedApproverId?: number | null
+  createdAt?: string | null
+}
+
+interface ClientDirectoryItem {
+  key: string
+  display: Pick<Client, 'abbr' | 'nameEn' | 'nameChn' | 'buddhistTradition'>
+  client?: Client
+  approval?: ClientApprovalView
+  operation?: ClientApprovalOperation
+}
 
 export function ClientListPage() {
   const { t } = useTranslation()
   const { resolve } = useAccess()
+  const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const { id: routeClientId } = useParams<{ id: string }>()
@@ -68,6 +93,10 @@ export function ClientListPage() {
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
   const approvalAssignees = useApprovalAssigneeOptions()
+  const { data: pendingApprovals = [] } = usePendingApprovals()
+  const localPendingApprovals = useLocalPendingApprovals()
+  const approveRequest = useApproveRequest()
+  const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -78,6 +107,7 @@ export function ClientListPage() {
   const [approvalMessage, setApprovalMessage] = useState('')
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
 
+  const selectedApprovalId = searchParams.get('approval')
   const selectedClientId = searchParams.get('client') ?? routeClientId
   const canCreateClient = resolve('clients:create')
   const canUpdateClient = resolve('clients:update')
@@ -98,21 +128,91 @@ export function ClientListPage() {
     })
   }, [clients, search, filterTradition])
 
+  const clientApprovalItems = useMemo(() => {
+    const serverItems = pendingApprovals.filter(isClientApproval)
+    const localItems = localPendingApprovals.filter((approval) => (
+      isClientApproval(approval) && !serverItems.some((item) => item.id === approval.id)
+    ))
+    return [...serverItems, ...localItems]
+  }, [localPendingApprovals, pendingApprovals])
+
+  const pendingApprovalByClientId = useMemo(() => {
+    const map = new Map<string, ClientApprovalView>()
+    clientApprovalItems
+      .filter((approval) => approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT')
+      .forEach((approval) => {
+        if (approval.targetId == null) return
+        const clientId = String(approval.targetId)
+        if (!map.has(clientId)) map.set(clientId, approval)
+      })
+    return map
+  }, [clientApprovalItems])
+
+  const createApprovalDirectoryItems = useMemo(() => {
+    return clientApprovalItems
+      .filter((approval) => approval.type === 'CLIENT_CREATE')
+      .map((approval): ClientDirectoryItem => ({
+        key: `approval:${approval.id}`,
+        display: clientFromApproval(approval),
+        approval,
+        operation: 'create',
+      }))
+      .filter((item) => clientDirectoryItemMatches(item, search, filterTradition))
+  }, [clientApprovalItems, filterTradition, search])
+
+  const directoryItems = useMemo(() => {
+    return [
+      ...createApprovalDirectoryItems,
+      ...filtered.map((client): ClientDirectoryItem => {
+        const approval = pendingApprovalByClientId.get(client.id)
+        return {
+          key: `client:${client.id}`,
+          display: client,
+          client,
+          approval,
+          operation: approval ? approvalOperation(approval) : undefined,
+        }
+      }),
+    ]
+  }, [createApprovalDirectoryItems, filtered, pendingApprovalByClientId])
+
+  const selectedCreateApproval = useMemo(() => {
+    if (!selectedApprovalId) return undefined
+    return clientApprovalItems.find((approval) => (
+      approval.type === 'CLIENT_CREATE' && String(approval.id) === selectedApprovalId
+    ))
+  }, [clientApprovalItems, selectedApprovalId])
+
   const selectedClient = useMemo(() => {
+    if (selectedCreateApproval) return undefined
     return filtered.find((client) => client.id === selectedClientId) ?? filtered[0]
-  }, [filtered, selectedClientId])
+  }, [filtered, selectedClientId, selectedCreateApproval])
   const {
     data: selectedClientDetail,
     isLoading: isDetailLoading,
     isError: isDetailError,
   } = useClient(selectedClient?.id)
   const profileClient = selectedClientDetail ?? selectedClient
+  const profileApproval = selectedCreateApproval ?? (profileClient ? pendingApprovalByClientId.get(profileClient.id) : undefined)
+  const profileOperation = profileApproval ? approvalOperation(profileApproval) : undefined
+  const displayProfileClient = selectedCreateApproval
+    ? clientFromApproval(selectedCreateApproval)
+    : profileClient && profileApproval?.type === 'CLIENT_UPDATE'
+      ? applyApprovalToClient(profileClient, profileApproval)
+      : profileClient
+  const changedFields = profileClient && profileApproval?.type === 'CLIENT_UPDATE'
+    ? changedClientFields(profileClient, displayProfileClient)
+    : new Set<keyof Client>()
+  const serverProfileApproval = profileApproval
+    ? pendingApprovals.find((approval) => approval.id === profileApproval.id)
+    : undefined
   const routeWantsEdit = location.pathname.endsWith('/edit')
 
   useEffect(() => {
+    if (selectedCreateApproval) return
     if (!selectedClient || selectedClient.id === selectedClientId) return
     setSearchParams({ client: selectedClient.id }, { replace: true })
-  }, [selectedClient, selectedClientId, setSearchParams])
+  }, [selectedClient, selectedClientId, selectedCreateApproval, setSearchParams])
 
   useEffect(() => {
     setEditingClientId(null)
@@ -132,19 +232,30 @@ export function ClientListPage() {
     setSearchParams({ client: clientId })
   }
 
+  function selectApproval(approvalId: number) {
+    setShowDeleteConfirm(false)
+    setApprovalMessage('')
+    setSearchParams({ approval: String(approvalId) })
+  }
+
   function submitNewClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setApprovalIntent('create')
   }
 
-  async function confirmCreateClient(approverId?: number) {
-    const result = await createClient.mutateAsync({ data: buildNewClientPayload(newClientForm), approverId })
+  async function confirmCreateClient(approverId?: number, reason?: string) {
+    const result = await createClient.mutateAsync({ data: buildNewClientPayload(newClientForm), approverId, reason })
     setNewClientForm(initialNewClientForm)
     setShowCreateModal(false)
     setApprovalIntent(null)
     if (isClientResult(result)) {
       setSearchParams({ client: String(result.id) })
     } else {
+      addLocalPendingApproval({
+        ...result,
+        targetType: result.targetType ?? 'CLIENT',
+        targetLabel: result.targetLabel ?? clientApprovalLabelFromPayload(result.payloadJson) ?? newClientForm.abbr,
+      })
       setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
     }
   }
@@ -211,14 +322,20 @@ export function ClientListPage() {
     setApprovalIntent('update')
   }
 
-  async function confirmUpdateClient(approverId?: number) {
+  async function confirmUpdateClient(approverId?: number, reason?: string) {
     if (!editingClientId || !editForm) return
-    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client>, approverId })
+    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client>, approverId, reason })
     const savedClientId = editingClientId
     setEditingClientId(null)
     setEditForm(null)
     setApprovalIntent(null)
     if (!isClientResult(result)) {
+      addLocalPendingApproval({
+        ...result,
+        targetType: result.targetType ?? 'CLIENT',
+        targetId: result.targetId ?? savedClientId,
+        targetLabel: result.targetLabel ?? profileClient?.abbr ?? savedClientId,
+      })
       setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
     }
     if (routeWantsEdit) {
@@ -231,14 +348,20 @@ export function ClientListPage() {
     setApprovalIntent('delete')
   }
 
-  async function submitDeleteClient(approverId?: number) {
+  async function submitDeleteClient(approverId?: number, reason?: string) {
     if (!profileClient) return
-    const result = await deleteClient.mutateAsync({ id: profileClient.id, approverId })
+    const result = await deleteClient.mutateAsync({ id: profileClient.id, approverId, reason })
     setShowDeleteConfirm(false)
     setEditingClientId(null)
     setEditForm(null)
     setApprovalIntent(null)
     if (result && 'id' in result) {
+      addLocalPendingApproval({
+        ...result,
+        targetType: result.targetType ?? 'CLIENT',
+        targetId: result.targetId ?? profileClient.id,
+        targetLabel: result.targetLabel ?? profileClient.abbr,
+      })
       setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
     }
   }
@@ -292,19 +415,35 @@ export function ClientListPage() {
         <div className="client-directory-list">
           {isLoading ? (
             <div className="client-directory-status">{t('clients.loading')}</div>
-          ) : filtered.length === 0 ? (
+          ) : directoryItems.length === 0 ? (
             <div className="client-directory-status">{t('clients.empty')}</div>
           ) : (
-            filtered.map((client) => (
+            directoryItems.map((item) => (
               <button
-                key={client.id}
-                className={'client-directory-item' + (client.id === selectedClient?.id ? ' active' : '')}
+                key={item.key}
+                className={
+                  'client-directory-item' +
+                  (directoryItemActive(item, selectedClient?.id, selectedCreateApproval?.id) ? ' active' : '') +
+                  (item.operation ? ` pending ${item.operation}` : '')
+                }
                 type="button"
-                onClick={() => selectClient(client.id)}
+                onClick={() => item.approval?.type === 'CLIENT_CREATE'
+                  ? selectApproval(item.approval.id)
+                  : item.client ? selectClient(item.client.id) : undefined}
               >
                 <div className="client-directory-name">
-                  <strong>{client.abbr}</strong>
+                  <strong>{item.display.abbr || '-'}</strong>
+                  {item.operation ? (
+                    <span className={`client-directory-approval-badge ${item.operation}`}>
+                      {t(`clients.approvals.badge.${item.operation}`)}
+                    </span>
+                  ) : null}
                 </div>
+                {item.display.nameEn || item.display.nameChn ? (
+                  <div className="client-directory-en">
+                    {item.display.nameEn || item.display.nameChn}
+                  </div>
+                ) : null}
               </button>
             ))
           )}
@@ -312,12 +451,12 @@ export function ClientListPage() {
       </aside>
 
       <main className="client-profile-surface">
-        {profileClient ? (
+        {displayProfileClient ? (
           <>
-            {isDetailLoading ? (
+            {isDetailLoading && !selectedCreateApproval ? (
               <div className="client-profile-loading">{t('clients.profileLoading')}</div>
             ) : null}
-            {isDetailError ? (
+            {isDetailError && !selectedCreateApproval ? (
               <div className="client-profile-loading client-profile-warning">
                 {t('clients.profileError')}
               </div>
@@ -329,7 +468,7 @@ export function ClientListPage() {
             ) : null}
             {isEditingProfile && editForm ? (
               <ClientProfileEditPanel
-                client={profileClient}
+                client={displayProfileClient}
                 form={editForm}
                 canViewDetailedProfile={canViewDetailedProfile}
                 saving={updateClient.isPending}
@@ -342,18 +481,25 @@ export function ClientListPage() {
               />
             ) : (
               <ClientProfilePanel
-                client={profileClient}
-                canUpdateClient={canUpdateClient}
-                canDeleteClient={canDeleteClient}
+                client={displayProfileClient}
+                pendingApproval={profileApproval}
+                approvalOperation={profileOperation}
+                changedFields={changedFields}
+                canDecideApproval={canDecideApproval(serverProfileApproval, user?.id)}
+                decidingApproval={approveRequest.isPending || rejectRequest.isPending}
+                onApproveApproval={() => serverProfileApproval ? void approveRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
+                onRejectApproval={() => serverProfileApproval ? void rejectRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
+                canUpdateClient={!profileApproval && canUpdateClient}
+                canDeleteClient={!profileApproval && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={canConvertToCase}
+                canConvertToCase={!profileApproval && canConvertToCase}
                 deleting={deleteClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
                 showDeleteConfirm={showDeleteConfirm}
                 onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
                 onConfirmDelete={() => void confirmDeleteClient()}
-                onEdit={() => beginEditClient(profileClient)}
-                onCreateCase={() => navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`)}
+                onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
+                onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
               />
             )}
           </>
@@ -384,14 +530,300 @@ export function ClientListPage() {
         approverRequired
         approverLoading={approvalAssignees.isLoading}
         onCancel={() => setApprovalIntent(null)}
-        onConfirm={(approverId) => {
-          if (approvalIntent === 'create') void confirmCreateClient(approverId)
-          if (approvalIntent === 'update') void confirmUpdateClient(approverId)
-          if (approvalIntent === 'delete') void submitDeleteClient(approverId)
+        onConfirm={(approverId, reason) => {
+          if (approvalIntent === 'create') void confirmCreateClient(approverId, reason)
+          if (approvalIntent === 'update') void confirmUpdateClient(approverId, reason)
+          if (approvalIntent === 'delete') void submitDeleteClient(approverId, reason)
         }}
       />
     </div>
   )
+}
+
+function isClientApproval(approval: { type: string }) {
+  return approval.type === 'CLIENT_CREATE' || approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT'
+}
+
+function canDecideApproval(approval: ClientApprovalView | undefined, currentUserId: number | undefined) {
+  if (!approval || currentUserId === undefined) return false
+  if (approval.requestedById === currentUserId) return false
+  return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
+}
+
+function approvalOperation(approval: ClientApprovalView): ClientApprovalOperation {
+  if (approval.type === 'CLIENT_CREATE') return 'create'
+  if (approval.type === 'DELETE_CLIENT') return 'delete'
+  return 'update'
+}
+
+function directoryItemActive(item: ClientDirectoryItem, selectedClientId?: string, selectedApprovalId?: number) {
+  if (item.approval?.type === 'CLIENT_CREATE') {
+    return selectedApprovalId === item.approval.id
+  }
+  return Boolean(item.client && item.client.id === selectedClientId)
+}
+
+function clientDirectoryItemMatches(item: ClientDirectoryItem, search: string, tradition: string) {
+  const q = search.trim().toLowerCase()
+  const matchesSearch =
+    !q ||
+    item.display.nameChn.includes(q) ||
+    item.display.nameEn.toLowerCase().includes(q) ||
+    item.display.abbr.toLowerCase().includes(q)
+  const matchesTradition = tradition === 'all' || item.display.buddhistTradition === tradition
+  return matchesSearch && matchesTradition
+}
+
+function clientFromApproval(approval: ClientApprovalView): Client {
+  return {
+    ...emptyClientProfile(),
+    ...clientPatchFromApproval(approval),
+    id: `approval-${approval.id}`,
+  }
+}
+
+function applyApprovalToClient(client: Client, approval: ClientApprovalView): Client {
+  return {
+    ...client,
+    ...clientPatchFromApproval(approval),
+  }
+}
+
+function clientPatchFromApproval(approval: ClientApprovalView): Partial<Client> {
+  const payload = parseApprovalPayload(approval.payloadJson)
+  const patch: Partial<Client> = {}
+  assignString(patch, payload, 'abbr')
+  assignString(patch, payload, 'nameEn')
+  assignString(patch, payload, 'nameChn')
+  assignString(patch, payload, 'nricNameEn')
+  assignString(patch, payload, 'nricNameChn')
+  assignString(patch, payload, 'nricNo')
+  assignString(patch, payload, 'dateOfVerification')
+  assignString(patch, payload, 'gender')
+  assignString(patch, payload, 'dateOfBirth')
+  assignNumber(patch, payload, 'age')
+  assignString(patch, payload, 'maritalStatus')
+  assignString(patch, payload, 'nationality')
+  assignString(patch, payload, 'ethnicity')
+  assignString(patch, payload, 'dialectGroup')
+  assignString(patch, payload, 'contact')
+  assignString(patch, payload, 'nextOfKinContact')
+  assignString(patch, payload, 'preferredCommunication')
+  assignBoolean(patch, payload, 'whatsappEnabled')
+  assignString(patch, payload, 'preferredLanguage')
+  assignString(patch, payload, 'spokenLanguage')
+  assignString(patch, payload, 'addressText')
+  assignString(patch, payload, 'postalCode')
+  assignString(patch, payload, 'viharaType')
+  assignString(patch, payload, 'areaDistrict')
+  assignString(patch, payload, 'dateJoined')
+  assignString(patch, payload, 'membershipRemarks')
+  assignString(patch, payload, 'buddhistTradition')
+  assignString(patch, payload, 'ordinationStatus')
+  assignString(patch, payload, 'dateOfTonsure')
+  assignString(patch, payload, 'countryOfTonsure')
+  assignString(patch, payload, 'placeOfTonsure')
+  assignString(patch, payload, 'dateOfOrdination')
+  assignString(patch, payload, 'countryOfOrdination')
+  assignString(patch, payload, 'placeOfOrdination')
+  assignNumber(patch, payload, 'ordinationYears')
+  assignString(patch, payload, 'wellbeingRemarks')
+  assignString(patch, payload, 'specialNeedsRemarks')
+  assignString(patch, payload, 'bankTransferInfo')
+  assignString(patch, payload, 'payNowInfo')
+  assignString(patch, payload, 'comments')
+
+  const ordinationCertificate = stringValue(payload.ordinationCertificate ?? payload.ordinationCertificateStatus)
+  if (ordinationCertificate) patch.ordinationCertificate = ordinationCertificate as Client['ordinationCertificate']
+
+  const wellbeingIssues = wellbeingFromPayload(payload)
+  if (wellbeingIssues) patch.wellbeingIssues = wellbeingIssues
+
+  const specialNeeds = specialNeedsFromPayload(payload.specialNeeds)
+  if (specialNeeds) patch.specialNeeds = specialNeeds
+
+  return patch
+}
+
+function changedClientFields(original: Client, next: Client | undefined): Set<keyof Client> {
+  const changed = new Set<keyof Client>()
+  if (!next) return changed
+  const fields: Array<keyof Client> = [
+    'nameChn', 'nameEn', 'abbr', 'contact', 'preferredCommunication', 'whatsappEnabled',
+    'preferredLanguage', 'spokenLanguage', 'addressText', 'postalCode', 'areaDistrict',
+    'viharaType', 'nricNameEn', 'nricNameChn', 'nricNo', 'ordinationCertificate',
+    'dateOfVerification', 'gender', 'dateOfBirth', 'age', 'maritalStatus', 'nationality',
+    'ethnicity', 'dialectGroup', 'nextOfKinContact', 'buddhistTradition',
+    'ordinationStatus', 'dateOfTonsure', 'countryOfTonsure', 'placeOfTonsure',
+    'dateOfOrdination', 'countryOfOrdination', 'placeOfOrdination', 'ordinationYears',
+    'dateJoined', 'membershipRemarks', 'comments',
+  ]
+  fields.forEach((field) => {
+    if (String(original[field] ?? '') !== String(next[field] ?? '')) changed.add(field)
+  })
+  return changed
+}
+
+function parseApprovalPayload(payloadJson?: string | null): Record<string, unknown> {
+  if (!payloadJson) return {}
+  try {
+    const parsed = JSON.parse(payloadJson)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
+function approvalReason(payload: Record<string, unknown>): string {
+  const meta = payload._approval
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return ''
+  const reason = (meta as Record<string, unknown>).reason
+  return typeof reason === 'string' ? reason.trim() : ''
+}
+
+function clientApprovalLabelFromPayload(payloadJson?: string | null): string | undefined {
+  const payload = parseApprovalPayload(payloadJson)
+  const abbr = typeof payload.abbr === 'string' ? payload.abbr.trim() : ''
+  const nameEn = typeof payload.nameEn === 'string' ? payload.nameEn.trim() : ''
+  const nameChn = typeof payload.nameChn === 'string' ? payload.nameChn.trim() : ''
+  if (abbr && nameEn) return `${abbr} · ${nameEn}`
+  if (abbr) return abbr
+  return nameEn || nameChn || undefined
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function assignString(patch: Partial<Client>, payload: Record<string, unknown>, key: keyof Client) {
+  const value = stringValue(payload[key])
+  if (value !== undefined) {
+    ;(patch as Record<string, unknown>)[key] = value
+  }
+}
+
+function assignNumber(patch: Partial<Client>, payload: Record<string, unknown>, key: keyof Client) {
+  const value = payload[key]
+  if (typeof value === 'number') {
+    ;(patch as Record<string, unknown>)[key] = value
+  } else if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+    ;(patch as Record<string, unknown>)[key] = Number(value)
+  }
+}
+
+function assignBoolean(patch: Partial<Client>, payload: Record<string, unknown>, key: keyof Client) {
+  const value = payload[key]
+  if (typeof value === 'boolean') {
+    ;(patch as Record<string, unknown>)[key] = value
+  }
+}
+
+function stringValue(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined
+  return String(value)
+}
+
+function wellbeingFromPayload(payload: Record<string, unknown>): Client['wellbeingIssues'] | undefined {
+  if (payload.wellbeingIssues && typeof payload.wellbeingIssues === 'object' && !Array.isArray(payload.wellbeingIssues)) {
+    return { ...emptyClientProfile().wellbeingIssues, ...(payload.wellbeingIssues as Partial<Client['wellbeingIssues']>) }
+  }
+  const keys = {
+    physicalHealth: 'wellbeingPhysicalHealth',
+    mentalHealth: 'wellbeingMentalHealth',
+    socialSupport: 'wellbeingSocialSupport',
+    financialStability: 'wellbeingFinancialStability',
+    livingConditions: 'wellbeingLivingConditions',
+    spiritual: 'wellbeingSpiritual',
+    legalIssues: 'wellbeingLegalIssues',
+  } as const
+  if (!Object.values(keys).some((key) => typeof payload[key] === 'boolean')) return undefined
+  const next = { ...emptyClientProfile().wellbeingIssues }
+  Object.entries(keys).forEach(([targetKey, payloadKey]) => {
+    const value = payload[payloadKey]
+    if (typeof value === 'boolean') {
+      next[targetKey as keyof Client['wellbeingIssues']] = value
+    }
+  })
+  return next
+}
+
+function specialNeedsFromPayload(value: unknown): Client['specialNeeds'] | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return { ...emptyClientProfile().specialNeeds, ...(value as Partial<Client['specialNeeds']>) }
+  }
+  if (typeof value !== 'string') return undefined
+  const normalized = value.toLowerCase()
+  return {
+    physical: normalized.includes('physical'),
+    hearing: normalized.includes('hearing'),
+    visual: normalized.includes('visual'),
+    intellectual: normalized.includes('intellectual'),
+  }
+}
+
+function emptyClientProfile(): Client {
+  return {
+    id: '',
+    abbr: '',
+    nameEn: '',
+    nameChn: '',
+    nricNameEn: '',
+    nricNameChn: '',
+    nricNo: '',
+    gender: 'Male',
+    dateOfBirth: '',
+    age: 0,
+    maritalStatus: 'Never married',
+    nationality: '',
+    ethnicity: '',
+    dialectGroup: '',
+    contact: '',
+    nextOfKinContact: '',
+    preferredCommunication: 'Phone Call',
+    whatsappEnabled: false,
+    preferredLanguage: '',
+    spokenLanguage: '',
+    addressText: '',
+    postalCode: '',
+    viharaType: '',
+    areaDistrict: '',
+    dateJoined: '',
+    membershipRemarks: '',
+    buddhistTradition: 'Mahayana',
+    ordinationStatus: '',
+    dateOfTonsure: '',
+    countryOfTonsure: '',
+    placeOfTonsure: '',
+    dateOfOrdination: '',
+    countryOfOrdination: '',
+    placeOfOrdination: '',
+    ordinationYears: 0,
+    ordinationCertificate: 'Incomplete',
+    dateOfVerification: '',
+    wellbeingIssues: {
+      physicalHealth: false,
+      mentalHealth: false,
+      socialSupport: false,
+      financialStability: false,
+      livingConditions: false,
+      spiritual: false,
+      legalIssues: false,
+    },
+    wellbeingRemarks: '',
+    specialNeeds: {
+      physical: false,
+      hearing: false,
+      visual: false,
+      intellectual: false,
+    },
+    specialNeedsRemarks: '',
+    bankTransferInfo: '',
+    payNowInfo: '',
+    comments: '',
+  }
 }
 
 function clientToFormData(client: Client): ClientFormData {
@@ -523,6 +955,13 @@ function ModalField({ label, children }: { label: string; children: ReactNode })
 
 interface ClientProfilePanelProps {
   client: Client
+  pendingApproval?: ClientApprovalView
+  approvalOperation?: ClientApprovalOperation
+  changedFields: Set<keyof Client>
+  canDecideApproval: boolean
+  decidingApproval: boolean
+  onApproveApproval: () => void
+  onRejectApproval: () => void
   canUpdateClient: boolean
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
@@ -538,6 +977,13 @@ interface ClientProfilePanelProps {
 
 function ClientProfilePanel({
   client,
+  pendingApproval,
+  approvalOperation,
+  changedFields,
+  canDecideApproval,
+  decidingApproval,
+  onApproveApproval,
+  onRejectApproval,
   canUpdateClient,
   canDeleteClient,
   canViewDetailedProfile,
@@ -559,11 +1005,27 @@ function ClientProfilePanel({
           <div className="client-profile-title-row">
             <h1>{client.nameChn} / {client.nameEn}</h1>
             <span className="abbr-tag">{client.abbr}</span>
+            {approvalOperation ? (
+              <span className={`client-approval-status ${approvalOperation}`}>
+                {t(`clients.approvals.badge.${approvalOperation}`)}
+              </span>
+            ) : null}
           </div>
           <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
         </div>
         <div className="client-profile-actions">
-          {canConvertToCase ? (
+          {pendingApproval ? (
+            canDecideApproval ? (
+              <>
+                <button className="btn-secondary" type="button" disabled={decidingApproval} onClick={onRejectApproval}>
+                  {t('approvals.reject')}
+                </button>
+                <button className="btn-primary" type="button" disabled={decidingApproval} onClick={onApproveApproval}>
+                  {t('approvals.approve')}
+                </button>
+              </>
+            ) : null
+          ) : canConvertToCase ? (
             <button className="btn-primary" type="button" onClick={onCreateCase}>
               {t('clients.profile.convertToCase')}
             </button>
@@ -585,6 +1047,19 @@ function ClientProfilePanel({
         </div>
       </header>
 
+      {pendingApproval ? (
+        <div className={`client-approval-banner ${approvalOperation ?? ''}`}>
+          <div>
+            <strong>{t(`clients.approvals.type.${pendingApproval.type}`, { defaultValue: pendingApproval.type })}</strong>
+            <span>{pendingApproval.requestedByName ?? '-'} · {formatDateTime(pendingApproval.createdAt)}</span>
+          </div>
+          <details>
+            <summary>{t('clients.approvals.reason')}</summary>
+            <p>{approvalReason(parseApprovalPayload(pendingApproval.payloadJson)) || t('clients.approvals.noReason')}</p>
+          </details>
+        </div>
+      ) : null}
+
       {showDeleteConfirm ? (
         <div className="client-danger-banner">
           <span>{t('clients.profile.dangerBanner')}</span>
@@ -599,55 +1074,55 @@ function ClientProfilePanel({
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
 
       <ProfileSection title={t('clients.profile.section.basicInfo')}>
-        <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} />
-        <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} />
-        <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} />
-        <InfoCell label={t('clients.profile.field.contact')} value={client.contact} />
-        <InfoCell label={t('clients.profile.field.preferredComm')} value={client.preferredCommunication} />
-        <InfoCell label="WhatsApp" value={client.whatsappEnabled ? t('clients.profile.field.whatsappYes') : t('clients.profile.field.whatsappNo')} />
-        <InfoCell label={t('clients.profile.field.prefLang')} value={client.preferredLanguage} />
-        <InfoCell label={t('clients.profile.field.spokenLang')} value={client.spokenLanguage} />
-        <InfoCell label={t('clients.profile.field.address')} value={client.addressText} />
-        <InfoCell label={t('clients.profile.field.postalCode')} value={client.postalCode} />
-        <InfoCell label={t('clients.profile.field.areaDistrict')} value={client.areaDistrict} />
-        <InfoCell label={t('clients.profile.field.viharaType')} value={client.viharaType} />
+        <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} changed={changedFields.has('nameChn')} />
+        <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} changed={changedFields.has('nameEn')} />
+        <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} changed={changedFields.has('abbr')} />
+        <InfoCell label={t('clients.profile.field.contact')} value={client.contact} changed={changedFields.has('contact')} />
+        <InfoCell label={t('clients.profile.field.preferredComm')} value={client.preferredCommunication} changed={changedFields.has('preferredCommunication')} />
+        <InfoCell label="WhatsApp" value={client.whatsappEnabled ? t('clients.profile.field.whatsappYes') : t('clients.profile.field.whatsappNo')} changed={changedFields.has('whatsappEnabled')} />
+        <InfoCell label={t('clients.profile.field.prefLang')} value={client.preferredLanguage} changed={changedFields.has('preferredLanguage')} />
+        <InfoCell label={t('clients.profile.field.spokenLang')} value={client.spokenLanguage} changed={changedFields.has('spokenLanguage')} />
+        <InfoCell label={t('clients.profile.field.address')} value={client.addressText} changed={changedFields.has('addressText')} />
+        <InfoCell label={t('clients.profile.field.postalCode')} value={client.postalCode} changed={changedFields.has('postalCode')} />
+        <InfoCell label={t('clients.profile.field.areaDistrict')} value={client.areaDistrict} changed={changedFields.has('areaDistrict')} />
+        <InfoCell label={t('clients.profile.field.viharaType')} value={client.viharaType} changed={changedFields.has('viharaType')} />
       </ProfileSection>
 
       {canViewDetailedProfile ? (
         <>
           <ProfileSection title={t('clients.profile.section.identity')}>
-            <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} />
-            <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} />
-            <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} />
-            <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} />
-            <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} />
+            <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
+            <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
+            <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
+            <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} changed={changedFields.has('ordinationCertificate')} />
+            <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.personal')}>
-            <InfoCell label={t('clients.profile.field.gender')} value={client.gender} />
-            <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} />
-            <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} />
-            <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} />
-            <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} />
-            <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} />
-            <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} />
-            <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} />
+            <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
+            <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
+            <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
+            <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} changed={changedFields.has('maritalStatus')} />
+            <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} changed={changedFields.has('nationality')} />
+            <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} changed={changedFields.has('ethnicity')} />
+            <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} changed={changedFields.has('dialectGroup')} />
+            <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.ordination')}>
-            <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} />
-            <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} />
-            <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} />
-            <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} />
-            <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} />
-            <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} />
-            <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} />
+            <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
+            <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
+            <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
+            <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} changed={changedFields.has('placeOfTonsure') || changedFields.has('countryOfTonsure')} />
+            <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} changed={changedFields.has('dateOfOrdination')} />
+            <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} changed={changedFields.has('placeOfOrdination') || changedFields.has('countryOfOrdination')} />
+            <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.membership')}>
-            <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} />
-            <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} />
-            <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide />
+            <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
+            <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
+            <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
           </ProfileSection>
         </>
       ) : null}
@@ -850,13 +1325,15 @@ function InfoCell({
   label,
   value,
   wide = false,
+  changed = false,
 }: {
   label: string
   value: string | number
   wide?: boolean
+  changed?: boolean
 }) {
   return (
-    <div className={'client-info-cell' + (wide ? ' wide' : '')}>
+    <div className={'client-info-cell' + (wide ? ' wide' : '') + (changed ? ' changed' : '')}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

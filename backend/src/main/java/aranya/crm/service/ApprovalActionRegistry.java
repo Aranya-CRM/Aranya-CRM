@@ -1,7 +1,6 @@
 package aranya.crm.service;
 
 import aranya.crm.dto.request.CreateCaseRequest;
-import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,8 +20,6 @@ public class ApprovalActionRegistry {
     private final CaseService caseService;
     private final ClientService clientService;
     private final ReportService reportService;
-    private final CaseNoteService caseNoteService;
-    private final UserService userService;
     private final ObjectMapper objectMapper;
     private static final String APPROVAL_META_FIELD = "_approval";
 
@@ -42,14 +39,11 @@ public class ApprovalActionRegistry {
         return Map.of(
                 "CASE_CREATE", this::executeCaseCreate,
                 "CASE_SERVICE_UPDATE", this::executeCaseServiceUpdate,
-                "SERVICE_EVENT_CREATE", this::executeServiceEventCreate,
                 "CLIENT_CREATE", this::executeClientCreate,
                 "CLIENT_UPDATE", this::executeClientUpdate,
                 "DELETE_CLIENT", (request, _decidedBy) -> clientService.executeApprovedDeleteClient(request.getTargetId()),
                 "DELETE_CASE", (request, _decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId()),
-                "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy),
-                "DELETE_CASE_NOTE", (request, decidedBy) -> caseNoteService.executeApprovedDeleteCaseNote(request.getTargetId(), decidedBy),
-                "DELETE_USER", (request, _decidedBy) -> userService.executeApprovedDeleteUser(request.getTargetId())
+                "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy)
         );
     }
 
@@ -67,14 +61,6 @@ public class ApprovalActionRegistry {
                         request.getPayloadJson().path("serviceKeys"),
                         objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
                 )
-        );
-    }
-
-    private void executeServiceEventCreate(ApprovalRequest request, User ignoredDecidedBy) {
-        caseService.executeApprovedCreateServiceEvent(
-                request.getTargetId(),
-                objectMapper.convertValue(actionPayload(request).path("serviceEvent"), CreateServiceEventRequest.class),
-                request.getRequestedBy()
         );
     }
 
