@@ -37,4 +37,8 @@ public class ServiceEventResponse {
     private String schedule;
     private String manpower;
     private String instructions;
+    // Google 共享日历镜像状态:true=已同步(存在 google_event_id)
+    private boolean synced;
+    // 该事件当前镜像所在的日历 id(用于编辑时预选,避免误移动)
+    private String googleCalendarId;
 }

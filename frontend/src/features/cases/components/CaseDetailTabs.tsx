@@ -983,7 +983,7 @@ function CalendarTab({ caseData }: { caseData: Case }) {
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar caseId={caseData.id} localEvents={caseData.serviceEvents ?? []} />
+      <CaseServiceCalendar caseData={caseData} />
 
       <div className="calendar-add-event-bar">
         <button

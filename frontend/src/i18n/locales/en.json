@@ -39,7 +39,9 @@
     "comingSoon": "Coming soon",
     "saving": "Saving...",
     "by": "by",
-    "delete": "Delete"
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close"
   },
   "approvalConfirm": {
     "title": "Approval Required",
@@ -178,12 +180,12 @@
       "search": "Search cases or members"
     },
     "service": {
-      "accommodationArrangement": "Accommodation Arrangement",
-      "deepCleaning": "Deep Cleaning",
-      "relocationAssistance": "Relocation Assistance",
-      "dailyCleaning": "Daily Cleaning",
+      "accommodationArrangement": "Lodging",
+      "deepCleaning": "Spring Cleaning",
+      "relocationAssistance": "Relocation",
+      "dailyCleaning": "Home Cleaning",
       "pestControl": "Pest Control",
-      "homeRepair": "Home Repair",
+      "homeRepair": "Handyman",
       "dailyExpenseSubsidy": "Daily Expense Subsidy",
       "cpfAssistance": "CPF Assistance",
       "mealDelivery": "Meal Delivery",
@@ -197,9 +199,15 @@
     "services": {
       "calendarTitle": "Events",
       "addCalendarEvent": "Add Event",
+      "editEvent": "Edit Event",
       "calendar": "Calendar",
       "calendarDefault": "default",
       "endTime": "End time",
+      "timezoneHint": "(SGT)",
+      "endBeforeStart": "End time must not be before start time.",
+      "confirmDelete": "Delete this event?",
+      "notSynced": "Not synced to Google Calendar",
+      "retrySync": "Retry sync",
       "agenda": "Agenda",
       "schedule": "Schedule",
       "address": "Address",

@@ -5,15 +5,14 @@ import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import zhCnLocale from '@fullcalendar/core/locales/zh-cn'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { ServiceCalendarEvent, ServiceEvent } from '../types'
-import { fetchSharedCalendarEvents } from '../api/case.api'
-import { useDeleteServiceEvent } from '../hooks'
+import type { Case, ServiceCalendarEvent, ServiceEvent } from '../types'
+import { fetchCalendarOptions, fetchSharedCalendarEvents } from '../api/case.api'
+import { useDeleteServiceEvent, useSyncServiceEvent } from '../hooks'
+import { AddCaseEventForm } from './AddCaseEventForm'
 import { EventDetailModal, type EventDetail } from './EventDetailModal'
 
 interface Props {
-  caseId: string
-  /** 本 case 自己的事件(本地真相源,完整字段) */
-  localEvents: ServiceEvent[]
+  caseData: Case
 }
 
 /** 把 Date 格式化成不带时区偏移的本地 ISO(后端按 Asia/Singapore 解析为 LocalDateTime) */
@@ -22,11 +21,15 @@ function toLocalIso(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-export function CaseServiceCalendar({ caseId, localEvents }: Props) {
+export function CaseServiceCalendar({ caseData }: Props) {
+  const caseId = caseData.id
+  const localEvents = caseData.serviceEvents ?? []
   const { i18n, t } = useTranslation()
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const [selected, setSelected] = useState<EventDetail | null>(null)
+  const [editing, setEditing] = useState<ServiceEvent | null>(null)
   const deleteEvent = useDeleteServiceEvent(caseId)
+  const syncEvent = useSyncServiceEvent(caseId)
 
   const { data: sharedEvents = [] } = useQuery({
     queryKey: ['caseSharedCalendar', caseId, range?.from, range?.to],
@@ -34,6 +37,14 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
     enabled: range !== null,
     staleTime: 60_000,
   })
+
+  // 集成是否启用:有可写日历即视为启用(用于决定是否展示「未同步」告警)
+  const { data: calendarOptions = [] } = useQuery({
+    queryKey: ['calendarOptions'],
+    queryFn: fetchCalendarOptions,
+    staleTime: 5 * 60_000,
+  })
+  const syncEnabled = calendarOptions.length > 0
 
   // id → 详情 的查找表(供 eventClick 用)
   const detailById = useMemo(() => {
@@ -56,6 +67,7 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         instructions: ev.instructions,
         reportDueAt: ev.reportDueAt,
         localId: ev.id,
+        synced: ev.synced,
       })
     })
     sharedEvents.forEach((ev) => {
@@ -79,7 +91,7 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
     title: ev.title,
     start: ev.scheduledStart,
     // 月视图里不传 end:每个事件只占开始日格子,避免跨天事件横跨多列溢出(时长见详情弹窗)
-    classNames: ['evt-own'],
+    classNames: syncEnabled && ev.synced === false ? ['evt-own', 'evt-unsynced'] : ['evt-own'],
     extendedProps: { source: 'OWN_CASE' },
   }))
 
@@ -107,6 +119,18 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
   async function handleDelete(localId: number) {
     await deleteEvent.mutateAsync(localId)
     setSelected(null)
+  }
+
+  function handleEdit(localId: number) {
+    const ev = localEvents.find((e) => e.id === localId)
+    if (ev) {
+      setSelected(null)
+      setEditing(ev)
+    }
+  }
+
+  function handleSync(localId: number) {
+    void syncEvent.mutateAsync(localId).then(() => setSelected(null))
   }
 
   return (
@@ -145,9 +169,17 @@ export function CaseServiceCalendar({ caseId, localEvents }: Props) {
         <EventDetailModal
           detail={selected}
           onClose={() => setSelected(null)}
+          onEdit={handleEdit}
           onDelete={(id) => void handleDelete(id)}
+          onSync={handleSync}
           deleting={deleteEvent.isPending}
+          syncing={syncEvent.isPending}
+          syncEnabled={syncEnabled}
         />
+      ) : null}
+
+      {editing ? (
+        <AddCaseEventForm caseData={caseData} event={editing} onDone={() => setEditing(null)} />
       ) : null}
     </div>
   )

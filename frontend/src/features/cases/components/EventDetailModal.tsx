@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DOMPurify from 'dompurify'
 
@@ -33,13 +34,19 @@ export interface EventDetail {
   description?: string | null
   calendarName?: string | null
   localId?: number
+  synced?: boolean
 }
 
 interface Props {
   detail: EventDetail
   onClose: () => void
+  onEdit?: (localId: number) => void
   onDelete?: (localId: number) => void
+  onSync?: (localId: number) => void
   deleting?: boolean
+  syncing?: boolean
+  /** Google 集成是否启用(关闭时不展示未同步告警) */
+  syncEnabled?: boolean
 }
 
 function fmt(value?: string | null): string {
@@ -58,8 +65,12 @@ function timeRange(start?: string | null, end?: string | null): string {
 }
 
 /** 像 Google Calendar 那样,点击事件后展示的详情卡片弹窗。 */
-export function EventDetailModal({ detail, onClose, onDelete, deleting }: Props) {
+export function EventDetailModal({ detail, onClose, onEdit, onDelete, onSync, deleting, syncing, syncEnabled }: Props) {
   const { t } = useTranslation()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const isOwn = detail.kind === 'OWN' && detail.localId != null
+  const showUnsynced = isOwn && syncEnabled && detail.synced === false
 
   const sections: Array<[string, string | null | undefined]> = [
     [t('cases.services.agenda'), detail.agenda],
@@ -90,6 +101,17 @@ export function EventDetailModal({ detail, onClose, onDelete, deleting }: Props)
             </div>
           ) : null}
 
+          {showUnsynced ? (
+            <div className="event-detail-unsynced">
+              <span>{t('cases.services.notSynced')}</span>
+              {onSync ? (
+                <button type="button" className="btn-link-action" disabled={syncing} onClick={() => onSync(detail.localId!)}>
+                  {syncing ? t('common.saving') : t('cases.services.retrySync')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           {detail.kind === 'OWN' && hasStructured ? (
             <div className="event-detail-sections">
               {sections.map(([label, value]) =>
@@ -112,19 +134,33 @@ export function EventDetailModal({ detail, onClose, onDelete, deleting }: Props)
         </div>
 
         <footer className="event-modal-footer">
-          {detail.kind === 'OWN' && detail.localId != null && onDelete ? (
-            <button
-              className="btn-danger"
-              type="button"
-              disabled={deleting}
-              onClick={() => onDelete(detail.localId!)}
-            >
-              {deleting ? t('common.saving') : t('common.delete')}
+          {isOwn && onEdit ? (
+            <button className="btn-edit" type="button" disabled={deleting} onClick={() => onEdit(detail.localId!)}>
+              {t('common.edit')}
             </button>
           ) : null}
-          <button className="btn-secondary" type="button" onClick={onClose}>
-            {t('common.cancel')}
-          </button>
+          {isOwn && onDelete ? (
+            confirmDelete ? (
+              <span className="event-detail-confirm">
+                <span>{t('cases.services.confirmDelete')}</span>
+                <button className="btn-danger" type="button" disabled={deleting} onClick={() => onDelete(detail.localId!)}>
+                  {deleting ? t('common.saving') : t('common.confirm')}
+                </button>
+                <button className="btn-secondary" type="button" disabled={deleting} onClick={() => setConfirmDelete(false)}>
+                  {t('common.cancel')}
+                </button>
+              </span>
+            ) : (
+              <button className="btn-danger" type="button" disabled={deleting} onClick={() => setConfirmDelete(true)}>
+                {t('common.delete')}
+              </button>
+            )
+          ) : null}
+          {!confirmDelete ? (
+            <button className="btn-secondary" type="button" onClick={onClose}>
+              {t('common.close')}
+            </button>
+          ) : null}
         </footer>
       </div>
     </div>

@@ -183,6 +183,7 @@ public class CaseService {
         if (serviceKey == null || !selected.contains(serviceKey)) {
             throw new IllegalArgumentException("Service is not selected for this case");
         }
+        validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
 
         // 负责人可空;给定时校验可分配性
         Long assignedId = null;
@@ -238,24 +239,135 @@ public class CaseService {
                 createdBy.getId());
 
         ServiceEventResponse response = findServiceEventById(eventId);
-        // best-effort 镜像到 Google 共享日历;按组织模板拼标题与正文;失败不阻断本地创建
-        String title = composeEventTitle(eventSeq, response);
-        String description = composeEventDescription(request);
-        String targetCalendarId = trimToNull(request.getCalendarId());
-        String resolvedCalendarId = googleCalendarService.resolveTargetCalendarId(targetCalendarId);
-        googleCalendarService.createCaseEvent(
-                        caseId,
-                        response.getServiceKey(),
-                        title,
-                        description,
-                        venue,
-                        request.getScheduledStart(),
-                        request.getScheduledEnd(),
-                        targetCalendarId)
-                .ifPresent(googleEventId -> jdbcTemplate.update(
-                        "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
-                        googleEventId, resolvedCalendarId, eventId));
-        return response;
+        // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
+        mirrorToGoogle(eventId, caseId, response, trimToNull(request.getCalendarId()), null, null);
+        // 重新读取使 synced 反映镜像结果
+        return findServiceEventById(eventId);
+    }
+
+    /** 编辑已存在的服务事件:更新本地真相源,并同步更新/补建 Google 镜像。 */
+    public ServiceEventResponse updateServiceEvent(Long caseId, Long eventId,
+                                                   CreateServiceEventRequest request, User currentUser) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
+        if (rows.isEmpty()) {
+            throw new EntityNotFoundException("Service event not found: " + eventId);
+        }
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        Set<String> selected = selectedServiceKeySet(caseId);
+        String serviceKey = trimToNull(request.getServiceKey());
+        if (serviceKey == null || !selected.contains(serviceKey)) {
+            throw new IllegalArgumentException("Service is not selected for this case");
+        }
+        validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
+
+        Long assignedId = null;
+        if (request.getAssignedUserId() != null) {
+            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
+            requireAssignable(currentUser, assigned);
+            assignedId = assigned.getId();
+        }
+        Long serviceTypeId = findServiceTypeId(serviceKey);
+        String venue = resolveVenue(request.getLocation(), clientCase);
+
+        jdbcTemplate.update("""
+                UPDATE service_appointment SET
+                    service_type_id = ?,
+                    scheduled_start = ?,
+                    scheduled_end = ?,
+                    report_due_at = ?,
+                    location = ?,
+                    work_description = ?,
+                    notes = ?,
+                    agenda = ?,
+                    schedule = ?,
+                    manpower = ?,
+                    instructions = ?,
+                    address = ?,
+                    assigned_user_id = ?
+                WHERE id = ? AND case_id = ?
+                """,
+                serviceTypeId,
+                request.getScheduledStart(),
+                request.getScheduledEnd(),
+                request.getReportDueAt(),
+                venue,
+                normalizeText(request.getWorkDescription()),
+                normalizeText(request.getNotes()),
+                normalizeText(request.getAgenda()),
+                normalizeText(request.getSchedule()),
+                normalizeText(request.getManpower()),
+                normalizeText(request.getInstructions()),
+                normalizeText(request.getAddress()),
+                assignedId,
+                eventId, caseId);
+
+        ServiceEventResponse updated = findServiceEventById(eventId);
+        mirrorToGoogle(eventId, caseId, updated, trimToNull(request.getCalendarId()),
+                asString(rows.get(0).get("google_event_id")),
+                asString(rows.get(0).get("google_calendar_id")));
+        return findServiceEventById(eventId);
+    }
+
+    /** 手动重试将事件同步到 Google(用于上次镜像失败的事件);保持其原目标日历。 */
+    public ServiceEventResponse syncServiceEvent(Long caseId, Long eventId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
+        if (rows.isEmpty()) {
+            throw new EntityNotFoundException("Service event not found: " + eventId);
+        }
+        ServiceEventResponse ev = findServiceEventById(eventId);
+        String existingCalendar = asString(rows.get(0).get("google_calendar_id"));
+        mirrorToGoogle(eventId, caseId, ev, existingCalendar,
+                asString(rows.get(0).get("google_event_id")), existingCalendar);
+        return findServiceEventById(eventId);
+    }
+
+    /**
+     * 将事件镜像到 Google(best-effort)。existing* 为空表示尚未镜像→新建;
+     * 已镜像且目标日历变更→先删旧再新建;否则原地更新。镜像结果写回 google_event_id/calendar_id。
+     */
+    private void mirrorToGoogle(Long eventId, Long caseId, ServiceEventResponse ev, String requestedCalendarId,
+                                String existingGoogleEventId, String existingGoogleCalendarId) {
+        String title = composeEventTitle(ev.getEventSeq(), ev);
+        String description = composeEventDescriptionFromEvent(ev);
+        String targetCalendarId = googleCalendarService.resolveTargetCalendarId(requestedCalendarId);
+
+        // 目标日历变了:删除旧日历上的镜像,转为新建
+        if (existingGoogleEventId != null && existingGoogleCalendarId != null
+                && !existingGoogleCalendarId.equals(targetCalendarId)) {
+            googleCalendarService.deleteCaseEvent(existingGoogleCalendarId, existingGoogleEventId);
+            existingGoogleEventId = null;
+        }
+
+        if (existingGoogleEventId != null) {
+            googleCalendarService.updateCaseEvent(targetCalendarId, existingGoogleEventId, caseId,
+                            ev.getServiceKey(), title, description, ev.getLocation(),
+                            ev.getScheduledStart(), ev.getScheduledEnd())
+                    .ifPresent(gid -> jdbcTemplate.update(
+                            "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                            gid, targetCalendarId, eventId));
+        } else {
+            googleCalendarService.createCaseEvent(caseId, ev.getServiceKey(), title, description,
+                            ev.getLocation(), ev.getScheduledStart(), ev.getScheduledEnd(), targetCalendarId)
+                    .ifPresent(gid -> jdbcTemplate.update(
+                            "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                            gid, targetCalendarId, eventId));
+        }
+    }
+
+    private void validateEventTimes(LocalDateTime start, LocalDateTime end) {
+        if (start != null && end != null && end.isBefore(start)) {
+            throw new IllegalArgumentException("End time must not be before start time");
+        }
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : value.toString();
     }
 
     /** 组织日历标题:`072 Medical Appointment: VKZhi @ Address` */
@@ -272,13 +384,13 @@ public class CaseService {
     }
 
     /** 组织日历正文:按 *Agenda* / *Schedule* / *Address* / *Manpower* / *Instructions for Kappiya* 分节。 */
-    private String composeEventDescription(CreateServiceEventRequest request) {
+    private String composeEventDescriptionFromEvent(ServiceEventResponse ev) {
         StringBuilder sb = new StringBuilder();
-        appendSection(sb, "Agenda", request.getAgenda());
-        appendSection(sb, "Schedule", request.getSchedule());
-        appendSection(sb, "Address", request.getAddress());
-        appendSection(sb, "Manpower", request.getManpower());
-        appendSection(sb, "Instructions for Kappiya", request.getInstructions());
+        appendSection(sb, "Agenda", ev.getAgenda());
+        appendSection(sb, "Schedule", ev.getSchedule());
+        appendSection(sb, "Address", ev.getAddress());
+        appendSection(sb, "Manpower", ev.getManpower());
+        appendSection(sb, "Instructions for Kappiya", ev.getInstructions());
         return sb.toString().trim();
     }
 
@@ -531,6 +643,8 @@ public class CaseService {
                     sa.instructions,
                     sa.address,
                     sa.event_seq,
+                    sa.google_calendar_id,
+                    (sa.google_event_id IS NOT NULL) AS synced,
                     sa.scheduled_start,
                     sa.scheduled_end,
                     sa.report_due_at,
@@ -588,6 +702,8 @@ public class CaseService {
                     .schedule(rs.getString("schedule"))
                     .manpower(rs.getString("manpower"))
                     .instructions(rs.getString("instructions"))
+                    .synced(rs.getBoolean("synced"))
+                    .googleCalendarId(rs.getString("google_calendar_id"))
                     .build();
         };
     }
