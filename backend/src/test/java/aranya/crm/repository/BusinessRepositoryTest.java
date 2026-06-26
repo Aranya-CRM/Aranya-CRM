@@ -27,8 +27,15 @@ class BusinessRepositoryTest {
         assertMethod(ClientRepository.class, "existsByAbbr", boolean.class, String.class);
         assertMethod(ClientRepository.class, "findAllByOrderByCreatedAtDesc", List.class);
         assertMethod(ClientRepository.class, "findByMembershipStatusIgnoreCaseOrderByCreatedAtDesc", List.class, String.class);
+        assertMethod(ClientRepository.class, "findActiveClientsWithoutActiveCase", List.class);
         assertMethod(ClientRepository.class, "searchClients", List.class, String.class, String.class);
         assertMethod(ClientRepository.class, "searchClients", List.class, String.class);
+    }
+
+    @Test
+    @DisplayName("CaseRepository exposes active case lookup for case creation guard")
+    void caseRepository_exposesActiveCaseLookup() throws Exception {
+        assertMethod(CaseRepository.class, "existsActiveCaseByClientId", boolean.class, Long.class);
     }
 
     @Test

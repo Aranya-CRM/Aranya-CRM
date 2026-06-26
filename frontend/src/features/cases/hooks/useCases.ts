@@ -91,6 +91,7 @@ export function useCreateCase() {
       createCase(data, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
     },
   })
 }
@@ -102,6 +103,7 @@ export function useDeleteCase() {
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteCase(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
     },
   })
 }
@@ -114,6 +116,7 @@ export function useUpdateCaseServices(caseId: string | undefined) {
       updateCaseServices(caseId!, services, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
     },

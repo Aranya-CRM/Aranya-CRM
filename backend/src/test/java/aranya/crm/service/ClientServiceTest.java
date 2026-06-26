@@ -5,10 +5,8 @@ import aranya.crm.dto.request.UpdateClientRequest;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.entity.Client;
-import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.RelatedContact;
 import aranya.crm.entity.User;
-import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.RelatedContactRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,16 +27,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.mockito.ArgumentCaptor;
-
 @ExtendWith(MockitoExtension.class)
 class ClientServiceTest {
 
     @Mock
     private ClientRepository clientRepository;
-
-    @Mock
-    private CaseRepository caseRepository;
 
     @Mock
     private RelatedContactRepository relatedContactRepository;
@@ -158,54 +151,25 @@ class ClientServiceTest {
         verify(clientRepository).findByMembershipStatusIgnoreCaseOrderByCreatedAtDesc("ACTIVE");
     }
 
+    @Test
+    @DisplayName("listClientsAvailableForCase returns active clients without active cases")
+    void listClientsAvailableForCase_returnsActiveClientsWithoutActiveCases() {
+        Client client = buildClient(10L, "Tan Mei Lin", "TML");
+        when(clientRepository.findActiveClientsWithoutActiveCase()).thenReturn(List.of(client));
+
+        List<ClientSummaryResponse> response = clientService.listClientsAvailableForCase();
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getId()).isEqualTo(10L);
+        assertThat(response.get(0).getAbbr()).isEqualTo("TML");
+        verify(clientRepository).findActiveClientsWithoutActiveCase();
+    }
+
     // ── createClient ─────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("createClient generates caseCode 001 when no existing case this year")
-    void createClient_generatesCaseCode001_whenNoExistingCaseThisYear() {
-        String year = String.valueOf(java.time.LocalDate.now().getYear());
-        when(caseRepository.findLatestCaseCodeByYear(year)).thenReturn(Optional.empty());
-        when(clientRepository.save(any())).thenAnswer(inv -> {
-            Client c = inv.getArgument(0);
-            c.setId(10L);
-            return c;
-        });
-        when(clientRepository.findById(10L)).thenReturn(Optional.of(buildClient(10L, "John Smith", "JS")));
-        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(10L)).thenReturn(List.of());
-
-        clientService.createClient(buildCreateRequest("John Smith", "JS"), new User());
-
-        ArgumentCaptor<ClientCase> caseCaptor = ArgumentCaptor.forClass(ClientCase.class);
-        verify(caseRepository).save(caseCaptor.capture());
-        assertThat(caseCaptor.getValue().getCaseCode()).isEqualTo("ASDFL/" + year + "/C/001");
-    }
-
-    @Test
-    @DisplayName("createClient increments caseCode from last existing case this year")
-    void createClient_incrementsCaseCode_whenExistingCasesExist() {
-        String year = String.valueOf(java.time.LocalDate.now().getYear());
-        when(caseRepository.findLatestCaseCodeByYear(year))
-                .thenReturn(Optional.of("ASDFL/" + year + "/C/003"));
-        when(clientRepository.save(any())).thenAnswer(inv -> {
-            Client c = inv.getArgument(0);
-            c.setId(20L);
-            return c;
-        });
-        when(clientRepository.findById(20L)).thenReturn(Optional.of(buildClient(20L, "Jane Doe", "JD")));
-        when(relatedContactRepository.findByClientIdOrderByPrimaryDescCreatedAtAsc(20L)).thenReturn(List.of());
-
-        clientService.createClient(buildCreateRequest("Jane Doe", "JD"), new User());
-
-        ArgumentCaptor<ClientCase> caseCaptor = ArgumentCaptor.forClass(ClientCase.class);
-        verify(caseRepository).save(caseCaptor.capture());
-        assertThat(caseCaptor.getValue().getCaseCode()).isEqualTo("ASDFL/" + year + "/C/004");
-    }
 
     @Test
     @DisplayName("createClient maps request fields to client and returns detail response")
     void createClient_mapsFieldsCorrectly() {
-        String year = String.valueOf(java.time.LocalDate.now().getYear());
-        when(caseRepository.findLatestCaseCodeByYear(year)).thenReturn(Optional.empty());
         when(clientRepository.save(any())).thenAnswer(inv -> {
             Client c = inv.getArgument(0);
             c.setId(30L);

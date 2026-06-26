@@ -381,13 +381,24 @@
   line-height: 1.4;
 }
 
-.client-info-cell.changed strong {
-  color: #b42318;
+.client-info-cell.changed {
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #991b1b;
+  border-left: 5px solid #ef4444;
+  border-radius: 6px;
+  background: #7f1d1d;
+  box-shadow: 0 8px 18px rgba(127, 29, 29, 0.18);
 }
 
-.client-info-cell.changed {
-  padding-left: 8px;
-  border-left: 2px solid #ef4444;
+.client-info-cell.changed span {
+  color: #fee2e2;
+  font-weight: 800;
+}
+
+.client-info-cell.changed strong {
+  color: #ffffff;
+  font-weight: 800;
 }
 
 .client-profile-edit {

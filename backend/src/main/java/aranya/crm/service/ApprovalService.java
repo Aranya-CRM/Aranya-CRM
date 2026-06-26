@@ -231,8 +231,16 @@ public class ApprovalService {
     }
 
     private boolean canViewPendingRequest(ApprovalRequest request, User currentUser) {
+        User requestedBy = request.getRequestedBy();
+        if (requestedBy != null && requestedBy.getId() != null && requestedBy.getId().equals(currentUser.getId())) {
+            return true;
+        }
+
         Long assignedApproverId = readAssignedApproverId(request);
-        return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        if (isApprovalManager(currentUser)) {
+            return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        }
+        return assignedApproverId != null && assignedApproverId.equals(currentUser.getId());
     }
 
     private Long readAssignedApproverId(ApprovalRequest request) {

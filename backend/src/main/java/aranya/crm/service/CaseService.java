@@ -34,7 +34,6 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class CaseService {
 
-    private static final String CLOSED_STATUS = "CLOSED";
     private static final String DELETED_STATUS = "DELETED";
     private static final List<String> URGENT_COLOR_CODES = List.of("RED", "ORANGE");
     private static final List<String> SERVICE_KEYS = List.of(
@@ -118,8 +117,8 @@ public class CaseService {
     public CaseDetailResponse executeApprovedCreateCase(CreateCaseRequest request, User createdBy) {
         Client client = clientRepository.findById(request.getClientId())
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
-        if (caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId()).isPresent()) {
-            throw new IllegalStateException("Client already has a case");
+        if (caseRepository.existsActiveCaseByClientId(client.getId())) {
+            throw new IllegalStateException("Client already has an active case");
         }
 
         User socialWorker = request.getSocialWorkerId() == null
@@ -457,34 +456,27 @@ public class CaseService {
     }
 
     public List<ClientCase> getActiveCases(int limit) {
-        return caseRepository.findByStatusNotOrderByOpenedAtDescIdDesc(
-                CLOSED_STATUS,
-                PageRequest.of(0, limit)
-        );
+        return caseRepository.findActiveCases(PageRequest.of(0, limit));
     }
 
     public long countActiveCases() {
-        return caseRepository.countByStatusNot(CLOSED_STATUS);
+        return caseRepository.countActiveCases();
     }
 
     public List<ClientCase> getUrgentCases(int limit) {
-        return caseRepository.findByStatusNotAndColorCodeInOrderByOpenedAtDescIdDesc(
-                CLOSED_STATUS,
-                URGENT_COLOR_CODES,
-                PageRequest.of(0, limit)
-        );
+        return caseRepository.findUrgentActiveCases(URGENT_COLOR_CODES, PageRequest.of(0, limit));
     }
 
     public long countUrgentCases() {
-        return caseRepository.countByStatusNotAndColorCodeIn(CLOSED_STATUS, URGENT_COLOR_CODES);
+        return caseRepository.countUrgentActiveCases(URGENT_COLOR_CODES);
     }
 
     public long countActiveCasesByCreatedBy(Long createdById) {
-        return caseRepository.countByCreatedByIdAndStatusNot(createdById, CLOSED_STATUS);
+        return caseRepository.countActiveCasesByCreatedById(createdById);
     }
 
     public long countUrgentCasesByCreatedBy(Long createdById) {
-        return caseRepository.countByCreatedByIdAndStatusNotAndColorCodeIn(createdById, CLOSED_STATUS, URGENT_COLOR_CODES);
+        return caseRepository.countUrgentActiveCasesByCreatedById(createdById, URGENT_COLOR_CODES);
     }
 
     public long countDistinctActiveClientsByCreatedBy(Long createdById) {
@@ -492,8 +484,7 @@ public class CaseService {
     }
 
     public List<ClientCase> getActiveCasesByCreatedBy(Long createdById, int limit) {
-        return caseRepository.findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
-                createdById, CLOSED_STATUS, PageRequest.of(0, limit));
+        return caseRepository.findActiveCasesByCreatedById(createdById, PageRequest.of(0, limit));
     }
 
     private CaseSummaryResponse toCaseSummaryResponse(ClientCase clientCase) {
