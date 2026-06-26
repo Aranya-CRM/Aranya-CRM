@@ -718,8 +718,20 @@ Response: array of
 
 Notes:
 
-- Backed by a Service Account; controlled by `google.calendar.*` config. When `google.calendar.enabled=false` (or credentials/calendar-id missing) it returns an empty array — the integration degrades safely and never blocks the request.
-- Case service events created via `POST /api/v1/cases/{id}/service-events` are mirrored (best-effort) to the same shared calendar and tagged with the case id via extended properties; deletion removes the mirrored event.
+- Backed by a Service Account / OAuth single account; controlled by `google.calendar.*` config. When `google.calendar.enabled=false` (or credentials/calendar-id missing) it returns an empty array — the integration degrades safely and never blocks the request.
+- Case service events created via `POST /api/v1/cases/{id}/service-events` are mirrored (best-effort) to the chosen shared calendar and tagged with the case id via extended properties; deletion removes the mirrored event.
+
+### Service event write endpoints
+
+| Method & Path | Cap | Purpose |
+|---------------|-----|---------|
+| `POST /api/v1/cases/{id}/service-events` | `cases:services.create` | Create event (local truth source + best-effort Google mirror). |
+| `PATCH /api/v1/cases/{id}/service-events/{eventId}` | `cases:services.create` | Edit event; recomposes title/body and updates the Google mirror (moves it if the target calendar changed). |
+| `POST /api/v1/cases/{id}/service-events/{eventId}/sync` | `cases:services.create` | Manually retry mirroring to Google when a previous push failed. |
+| `DELETE /api/v1/cases/{id}/service-events/{eventId}` | `cases:services.create` | Delete event; removes the Google mirror (404/410 treated as already gone). |
+
+- POST/PATCH bodies use `CreateServiceEventRequest`. `scheduledEnd`, when provided, must not be before `scheduledStart` (otherwise `400`).
+- `ServiceEventResponse` includes `synced` (true when a `google_event_id` exists) and `googleCalendarId` (the calendar the mirror currently lives on). The frontend shows a "not synced" badge + retry when integration is enabled but `synced=false`.
 
 ## 11. APIs Not Yet Implemented
 

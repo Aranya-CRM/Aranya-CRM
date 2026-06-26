@@ -49,6 +49,10 @@ export interface ServiceEvent {
   schedule?: string | null
   manpower?: string | null
   instructions?: string | null
+  // Google 共享日历镜像状态:true=已同步
+  synced?: boolean
+  // 当前镜像所在日历 id(编辑时预选)
+  googleCalendarId?: string | null
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {

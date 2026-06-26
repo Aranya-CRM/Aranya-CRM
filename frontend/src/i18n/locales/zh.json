@@ -39,7 +39,9 @@
     "comingSoon": "功能即将推出",
     "saving": "保存中...",
     "by": "by",
-    "delete": "删除"
+    "delete": "删除",
+    "confirm": "确认",
+    "close": "关闭"
   },
   "approvalConfirm": {
     "title": "需要提交审批",
@@ -197,8 +199,14 @@
     "services": {
       "calendarTitle": "事件",
       "addCalendarEvent": "增添事件",
+      "editEvent": "编辑事件",
       "calendar": "日历",
       "calendarDefault": "默认",
+      "timezoneHint": "(新加坡时间)",
+      "endBeforeStart": "结束时间不得早于开始时间。",
+      "confirmDelete": "确认删除此事件?",
+      "notSynced": "未同步到 Google 日历",
+      "retrySync": "重试同步",
       "endTime": "结束时间",
       "agenda": "议程",
       "schedule": "流程安排",

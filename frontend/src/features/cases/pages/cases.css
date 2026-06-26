@@ -1132,6 +1132,14 @@
   color: #ffffff;
 }
 
+/* 本 case 但未同步到 Google:虚线描边提示 */
+.service-calendar-wrap .fc-event.evt-own.evt-unsynced {
+  background: #a594e8;
+  border-left: 3px solid #6a59b0;
+  outline: 1px dashed #ffffff;
+  outline-offset: -3px;
+}
+
 /* 其他 case(共享日历):浅紫弱化 + 左侧色块 */
 .service-calendar-wrap .fc-event.evt-other {
   background: #f3f1fb;
@@ -1397,6 +1405,30 @@
   color: var(--green-800);
   font-size: 11px;
   font-weight: 500;
+}
+
+/* 未同步告警条(详情弹窗内) */
+.event-detail-unsynced {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #f5d9a8;
+  border-radius: 8px;
+  background: #fdf6e9;
+  color: #92610e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 删除二次确认(详情弹窗 footer) */
+.event-detail-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-main);
 }
 
 .event-detail-sections {

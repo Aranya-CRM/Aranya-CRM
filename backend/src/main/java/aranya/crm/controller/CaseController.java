@@ -157,6 +157,27 @@ public class CaseController {
         return ResponseEntity.ok(caseService.createServiceEvent(id, request, currentUser));
     }
 
+    @PatchMapping("/{id}/service-events/{eventId}")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<ServiceEventResponse> updateServiceEvent(
+            @PathVariable Long id,
+            @PathVariable Long eventId,
+            @Valid @RequestBody CreateServiceEventRequest request,
+            @CurrentUser User currentUser
+    ) {
+        return ResponseEntity.ok(caseService.updateServiceEvent(id, eventId, request, currentUser));
+    }
+
+    /** 手动重试将本地事件同步到 Google 共享日历(上次镜像失败时使用)。 */
+    @PostMapping("/{id}/service-events/{eventId}/sync")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<ServiceEventResponse> syncServiceEvent(
+            @PathVariable Long id,
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId));
+    }
+
     @DeleteMapping("/{id}/service-events/{eventId}")
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<Void> deleteServiceEvent(

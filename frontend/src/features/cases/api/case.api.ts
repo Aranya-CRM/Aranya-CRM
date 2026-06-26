@@ -154,6 +154,21 @@ export async function createServiceEvent(caseId: string, data: CreateServiceEven
   return res.data
 }
 
+export async function updateServiceEvent(
+  caseId: string,
+  eventId: string | number,
+  data: CreateServiceEventPayload,
+): Promise<ServiceEvent> {
+  const res = await http.patch<ServiceEvent>(`/v1/cases/${caseId}/service-events/${eventId}`, data)
+  return res.data
+}
+
+/** 手动重试将事件同步到 Google 共享日历(上次镜像失败时)。 */
+export async function syncServiceEvent(caseId: string, eventId: string | number): Promise<ServiceEvent> {
+  const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events/${eventId}/sync`)
+  return res.data
+}
+
 export async function deleteServiceEvent(caseId: string, eventId: string | number): Promise<void> {
   await http.delete(`/v1/cases/${caseId}/service-events/${eventId}`)
 }

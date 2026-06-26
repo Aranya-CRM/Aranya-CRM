@@ -5,18 +5,28 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
 import { fetchCalendarOptions } from '../api/case.api'
-import { useCreateServiceEvent } from '../hooks'
-import type { Case, CaseServices } from '../types'
+import { useCreateServiceEvent, useUpdateServiceEvent } from '../hooks'
+import type { Case, CaseServices, ServiceEvent } from '../types'
 
 interface Props {
   caseData: Case
+  /** 传入则进入编辑模式,预填该事件并改走更新接口 */
+  event?: ServiceEvent
   onDone: () => void
 }
 
-/** 「增添事件」卡片弹窗 —— 按组织日历模板采集字段,创建后镜像到 Google 共享日历。 */
-export function AddCaseEventForm({ caseData, onDone }: Props) {
+/** datetime-local 需要 `YYYY-MM-DDTHH:mm`;后端返回的 ISO 串裁到分钟即可。 */
+function toLocalInput(value?: string | null): string {
+  return value ? value.slice(0, 16) : ''
+}
+
+/** 「增添/编辑事件」卡片弹窗 —— 按组织日历模板采集字段,创建/更新后镜像到 Google 共享日历。 */
+export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const { t } = useTranslation()
+  const isEdit = event != null
   const createEvent = useCreateServiceEvent(caseData.id)
+  const updateEvent = useUpdateServiceEvent(caseData.id)
+  const pending = createEvent.isPending || updateEvent.isPending
 
   const selectedServiceKeys = useMemo(
     () => (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key]),
@@ -29,17 +39,17 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
     staleTime: 5 * 60_000,
   })
 
-  const [serviceKey, setServiceKey] = useState<keyof CaseServices | ''>(selectedServiceKeys[0] ?? '')
+  const [serviceKey, setServiceKey] = useState<keyof CaseServices | ''>(event?.serviceKey ?? selectedServiceKeys[0] ?? '')
   const [calendarId, setCalendarId] = useState('')
-  const [assignedUserId, setAssignedUserId] = useState('')
-  const [scheduledStart, setScheduledStart] = useState('')
-  const [scheduledEnd, setScheduledEnd] = useState('')
-  const [location, setLocation] = useState('')
-  const [address, setAddress] = useState('')
-  const [agenda, setAgenda] = useState('')
-  const [schedule, setSchedule] = useState('')
-  const [manpower, setManpower] = useState('')
-  const [instructions, setInstructions] = useState('')
+  const [assignedUserId, setAssignedUserId] = useState(event?.assignedUserId != null ? String(event.assignedUserId) : '')
+  const [scheduledStart, setScheduledStart] = useState(toLocalInput(event?.scheduledStart))
+  const [scheduledEnd, setScheduledEnd] = useState(toLocalInput(event?.scheduledEnd))
+  const [location, setLocation] = useState(event?.location ?? '')
+  const [address, setAddress] = useState(event?.address ?? '')
+  const [agenda, setAgenda] = useState(event?.agenda ?? '')
+  const [schedule, setSchedule] = useState(event?.schedule ?? '')
+  const [manpower, setManpower] = useState(event?.manpower ?? '')
+  const [instructions, setInstructions] = useState(event?.instructions ?? '')
   const [users, setUsers] = useState<UserSummary[]>([])
   const [formError, setFormError] = useState<string>()
 
@@ -49,40 +59,54 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
       .catch(() => {})
   }, [])
 
-  // 日历选项加载后,默认选中标记为 default 的日历
+  // 日历选项加载后:编辑模式预选事件原日历,否则选默认日历
   useEffect(() => {
     if (!calendarId && calendarOptions.length > 0) {
-      const def = calendarOptions.find((c) => c.isDefault) ?? calendarOptions[0]
+      const current = isEdit && event?.googleCalendarId
+        ? calendarOptions.find((c) => c.id === event.googleCalendarId)
+        : undefined
+      const def = current ?? calendarOptions.find((c) => c.isDefault) ?? calendarOptions[0]
       setCalendarId(def.id)
     }
-  }, [calendarOptions, calendarId])
+  }, [calendarOptions, calendarId, isEdit, event])
 
   const serviceLabel = serviceKey ? t(`cases.service.${serviceKey}`) : ''
+  const seqPrefix = event?.eventSeq != null ? `${String(event.eventSeq).padStart(3, '0')} ` : ''
   const titlePreview = serviceKey
-    ? `${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`
+    ? `${seqPrefix}${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`
     : ''
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
     setFormError(undefined)
     if (!serviceKey || !scheduledStart) {
       setFormError(t('cases.services.requiredFields'))
       return
     }
+    // 结束时间不得早于开始时间
+    if (scheduledEnd && scheduledEnd < scheduledStart) {
+      setFormError(t('cases.services.endBeforeStart'))
+      return
+    }
+    const payload = {
+      serviceKey,
+      calendarId: calendarId || undefined,
+      assignedUserId: assignedUserId || undefined,
+      scheduledStart,
+      scheduledEnd: scheduledEnd || undefined,
+      location: location.trim() || undefined,
+      address: address.trim() || undefined,
+      agenda: agenda.trim() || undefined,
+      schedule: schedule.trim() || undefined,
+      manpower: manpower.trim() || undefined,
+      instructions: instructions.trim() || undefined,
+    }
     try {
-      await createEvent.mutateAsync({
-        serviceKey,
-        calendarId: calendarId || undefined,
-        assignedUserId: assignedUserId || undefined,
-        scheduledStart,
-        scheduledEnd: scheduledEnd || undefined,
-        location: location.trim() || undefined,
-        address: address.trim() || undefined,
-        agenda: agenda.trim() || undefined,
-        schedule: schedule.trim() || undefined,
-        manpower: manpower.trim() || undefined,
-        instructions: instructions.trim() || undefined,
-      })
+      if (isEdit && event) {
+        await updateEvent.mutateAsync({ eventId: event.id, data: payload })
+      } else {
+        await createEvent.mutateAsync(payload)
+      }
       onDone()
     } catch {
       setFormError(t('cases.services.createError'))
@@ -97,7 +121,7 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
         onSubmit={submit}
       >
         <header className="event-modal-header">
-          <h2>{t('cases.services.addCalendarEvent')}</h2>
+          <h2>{isEdit ? t('cases.services.editEvent') : t('cases.services.addCalendarEvent')}</h2>
           <button type="button" className="event-modal-close" aria-label="Close" onClick={onDone}>×</button>
         </header>
 
@@ -135,13 +159,13 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
             </label>
 
             <label>
-              <span>{t('cases.services.time')}</span>
+              <span>{t('cases.services.time')} {t('cases.services.timezoneHint')}</span>
               <input type="datetime-local" value={scheduledStart} required onChange={(e) => setScheduledStart(e.target.value)} />
             </label>
 
             <label>
-              <span>{t('cases.services.endTime')}</span>
-              <input type="datetime-local" value={scheduledEnd} onChange={(e) => setScheduledEnd(e.target.value)} />
+              <span>{t('cases.services.endTime')} {t('cases.services.timezoneHint')}</span>
+              <input type="datetime-local" value={scheduledEnd} min={scheduledStart || undefined} onChange={(e) => setScheduledEnd(e.target.value)} />
             </label>
 
             <label className="wide">
@@ -205,11 +229,11 @@ export function AddCaseEventForm({ caseData, onDone }: Props) {
         </div>
 
         <footer className="event-modal-footer">
-          <button className="btn-secondary" type="button" disabled={createEvent.isPending} onClick={onDone}>
+          <button className="btn-secondary" type="button" disabled={pending} onClick={onDone}>
             {t('common.cancel')}
           </button>
-          <button className="btn-primary" type="submit" disabled={createEvent.isPending}>
-            {createEvent.isPending ? t('common.saving') : t('cases.services.createEvent')}
+          <button className="btn-primary" type="submit" disabled={pending}>
+            {pending ? t('common.saving') : isEdit ? t('common.save') : t('cases.services.createEvent')}
           </button>
         </footer>
       </form>

@@ -3,6 +3,7 @@ package aranya.crm.service;
 import aranya.crm.config.CalendarOption;
 import aranya.crm.config.GoogleCalendarProperties;
 import aranya.crm.dto.response.CalendarEventResponse;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.model.Event;
@@ -97,7 +98,52 @@ public class GoogleCalendarService {
         }
     }
 
-    /** 从指定日历删除已镜像的事件;失败仅记录日志。 */
+    /**
+     * 更新指定日历上已镜像的事件(标题/时间/正文等)。
+     * @return 成功时返回 Google 事件 ID;集成未启用或失败时返回空。
+     */
+    public Optional<String> updateCaseEvent(String calendarId, String googleEventId, Long caseId, String serviceKey,
+                                            String title, String description, String location,
+                                            LocalDateTime start, LocalDateTime end) {
+        Calendar calendar = client();
+        if (calendar == null || googleEventId == null || googleEventId.isBlank() || start == null) {
+            return Optional.empty();
+        }
+        String calId = (calendarId != null && properties.isKnownCalendar(calendarId))
+                ? calendarId
+                : properties.resolveDefaultCalendarId();
+        if (calId == null) {
+            return Optional.empty();
+        }
+        try {
+            ZoneId zone = ZoneId.of(properties.getTimeZone());
+            LocalDateTime effectiveEnd = end != null ? end
+                    : start.plusMinutes(properties.getDefaultDurationMinutes());
+
+            Event event = new Event()
+                    .setSummary(title)
+                    .setDescription(description)
+                    .setLocation(location)
+                    .setColorId(properties.getEventColorId())
+                    .setStart(toEventDateTime(start, zone))
+                    .setEnd(toEventDateTime(effectiveEnd, zone));
+
+            Event.ExtendedProperties ext = new Event.ExtendedProperties();
+            ext.setShared(Map.of(
+                    CASE_ID_PROP, String.valueOf(caseId),
+                    SERVICE_KEY_PROP, serviceKey == null ? "" : serviceKey));
+            event.setExtendedProperties(ext);
+
+            Event updated = calendar.events().update(calId, googleEventId, event).execute();
+            log.info("Updated Google calendar event {} on {}", googleEventId, calId);
+            return Optional.ofNullable(updated.getId());
+        } catch (Exception e) {
+            log.warn("Failed to update Google calendar event {} on {} (continuing): {}", googleEventId, calId, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** 从指定日历删除已镜像的事件;404/410 视为已删除,其它失败记录为潜在孤儿以便人工清理。 */
     public void deleteCaseEvent(String calendarId, String googleEventId) {
         Calendar calendar = client();
         if (calendar == null || googleEventId == null || googleEventId.isBlank()) {
@@ -112,8 +158,17 @@ public class GoogleCalendarService {
         try {
             calendar.events().delete(calId, googleEventId).execute();
             log.info("Deleted Google calendar event {} from {}", googleEventId, calId);
+        } catch (GoogleJsonResponseException e) {
+            int code = e.getStatusCode();
+            if (code == 404 || code == 410) {
+                log.info("Google calendar event {} already absent on {} (treated as deleted)", googleEventId, calId);
+            } else {
+                log.warn("Failed to delete Google calendar event {} on {} (possible orphan, manual cleanup): {}",
+                        googleEventId, calId, e.getMessage());
+            }
         } catch (Exception e) {
-            log.warn("Failed to delete Google calendar event {} (continuing): {}", googleEventId, e.getMessage());
+            log.warn("Failed to delete Google calendar event {} on {} (possible orphan, manual cleanup): {}",
+                    googleEventId, calId, e.getMessage());
         }
     }
 
