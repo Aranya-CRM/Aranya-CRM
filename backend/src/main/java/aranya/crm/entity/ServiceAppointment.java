@@ -51,8 +51,29 @@ public class ServiceAppointment {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "agenda", columnDefinition = "TEXT")
+    private String agenda; // *Agenda*
+
+    @Column(name = "schedule", columnDefinition = "TEXT")
+    private String schedule; // *Schedule*
+
+    @Column(name = "manpower", columnDefinition = "TEXT")
+    private String manpower; // *Manpower*(自由文本)
+
+    @Column(name = "instructions", columnDefinition = "TEXT")
+    private String instructions; // *Instructions for Kappiya*
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address; // *Address* 正文完整地址(location 仅作标题短名)
+
+    @Column(name = "event_seq")
+    private Long eventSeq; // 全局事件序号,组织日历标题前缀
+
     @Column(name = "google_event_id", length = 1024)
     private String googleEventId; // 镜像到 Google 共享日历后的事件 ID(可空)
+
+    @Column(name = "google_calendar_id", length = 255)
+    private String googleCalendarId; // 镜像写入的目标日历 id(供删除定位)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")

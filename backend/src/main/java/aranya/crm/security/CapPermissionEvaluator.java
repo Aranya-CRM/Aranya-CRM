@@ -115,6 +115,10 @@ public class CapPermissionEvaluator {
     }
 
     private String correctedScope(List<String> roleNames, String capKey) {
+        if (capKey.equals("route:approvals")) {
+            return "NO";
+        }
+
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
             if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
                 return "YES";
@@ -146,8 +150,7 @@ public class CapPermissionEvaluator {
         }
 
         if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
-            if (capKey.equals("route:approvals")
-                    || capKey.equals("approvals:view")
+            if (capKey.equals("approvals:view")
                     || capKey.equals("approvals:decide")
                     || capKey.equals("approvals:create")) {
                 return "YES";

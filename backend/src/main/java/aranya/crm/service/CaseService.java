@@ -34,7 +34,6 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class CaseService {
 
-    private static final String CLOSED_STATUS = "CLOSED";
     private static final String DELETED_STATUS = "DELETED";
     private static final List<String> URGENT_COLOR_CODES = List.of("RED", "ORANGE");
     private static final List<String> SERVICE_KEYS = List.of(
@@ -104,12 +103,22 @@ public class CaseService {
         return toCaseDetailResponse(clientCase);
     }
 
+    public List<String> listSelectedServiceKeys(Long caseId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        Set<String> selected = selectedServiceKeySet(caseId);
+        return SERVICE_KEYS.stream().filter(selected::contains).toList();
+    }
+
     @Transactional
     public CaseDetailResponse executeApprovedCreateCase(CreateCaseRequest request, User createdBy) {
         Client client = clientRepository.findById(request.getClientId())
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
-        if (caseRepository.findFirstByClientIdOrderByOpenedAtDescIdDesc(client.getId()).isPresent()) {
-            throw new IllegalStateException("Client already has a case");
+        if (caseRepository.existsActiveCaseByClientId(client.getId())) {
+            throw new IllegalStateException("Client already has an active case");
         }
 
         User socialWorker = request.getSocialWorkerId() == null
@@ -165,7 +174,7 @@ public class CaseService {
     }
 
     @Transactional
-    public ServiceEventResponse executeApprovedCreateServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
+    public ServiceEventResponse createServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         Set<String> selected = selectedServiceKeySet(caseId);
@@ -173,54 +182,220 @@ public class CaseService {
         if (serviceKey == null || !selected.contains(serviceKey)) {
             throw new IllegalArgumentException("Service is not selected for this case");
         }
+        validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
 
-        User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
-        requireAssignable(createdBy, assigned);
+        // 负责人可空;给定时校验可分配性
+        Long assignedId = null;
+        if (request.getAssignedUserId() != null) {
+            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
+            requireAssignable(createdBy, assigned);
+            assignedId = assigned.getId();
+        }
 
         Long serviceTypeId = findServiceTypeId(serviceKey);
         String venue = resolveVenue(request.getLocation(), clientCase);
+        Long eventSeq = jdbcTemplate.queryForObject("SELECT nextval('service_event_seq')", Long.class);
 
         Long eventId = jdbcTemplate.queryForObject("""
                 INSERT INTO service_appointment (
                     case_id,
                     service_type_id,
                     scheduled_start,
+                    scheduled_end,
                     report_due_at,
                     location,
                     work_description,
                     notes,
+                    agenda,
+                    schedule,
+                    manpower,
+                    instructions,
+                    address,
+                    event_seq,
                     assigned_user_id,
                     created_by,
                     status
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
                 RETURNING id
                 """, Long.class,
                 caseId,
                 serviceTypeId,
                 request.getScheduledStart(),
+                request.getScheduledEnd(),
                 request.getReportDueAt(),
                 venue,
                 normalizeText(request.getWorkDescription()),
                 normalizeText(request.getNotes()),
-                assigned.getId(),
+                normalizeText(request.getAgenda()),
+                normalizeText(request.getSchedule()),
+                normalizeText(request.getManpower()),
+                normalizeText(request.getInstructions()),
+                normalizeText(request.getAddress()),
+                eventSeq,
+                assignedId,
                 createdBy.getId());
 
         ServiceEventResponse response = findServiceEventById(eventId);
         // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
-        googleCalendarService.createCaseEvent(
-                        caseId,
-                        response.getServiceKey(),
-                        response.getTitle(),
-                        response.getWorkDescription(),
-                        response.getLocation(),
-                        response.getScheduledStart(),
-                        null)
-                .ifPresent(googleEventId -> jdbcTemplate.update(
-                        "UPDATE service_appointment SET google_event_id = ? WHERE id = ?",
-                        googleEventId, eventId));
-        return response;
+        mirrorToGoogle(eventId, caseId, response, trimToNull(request.getCalendarId()), null, null);
+        // 重新读取使 synced 反映镜像结果
+        return findServiceEventById(eventId);
+    }
+
+    /** 编辑已存在的服务事件:更新本地真相源,并同步更新/补建 Google 镜像。 */
+    public ServiceEventResponse updateServiceEvent(Long caseId, Long eventId,
+                                                   CreateServiceEventRequest request, User currentUser) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
+        if (rows.isEmpty()) {
+            throw new EntityNotFoundException("Service event not found: " + eventId);
+        }
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        Set<String> selected = selectedServiceKeySet(caseId);
+        String serviceKey = trimToNull(request.getServiceKey());
+        if (serviceKey == null || !selected.contains(serviceKey)) {
+            throw new IllegalArgumentException("Service is not selected for this case");
+        }
+        validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
+
+        Long assignedId = null;
+        if (request.getAssignedUserId() != null) {
+            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
+            requireAssignable(currentUser, assigned);
+            assignedId = assigned.getId();
+        }
+        Long serviceTypeId = findServiceTypeId(serviceKey);
+        String venue = resolveVenue(request.getLocation(), clientCase);
+
+        jdbcTemplate.update("""
+                UPDATE service_appointment SET
+                    service_type_id = ?,
+                    scheduled_start = ?,
+                    scheduled_end = ?,
+                    report_due_at = ?,
+                    location = ?,
+                    work_description = ?,
+                    notes = ?,
+                    agenda = ?,
+                    schedule = ?,
+                    manpower = ?,
+                    instructions = ?,
+                    address = ?,
+                    assigned_user_id = ?
+                WHERE id = ? AND case_id = ?
+                """,
+                serviceTypeId,
+                request.getScheduledStart(),
+                request.getScheduledEnd(),
+                request.getReportDueAt(),
+                venue,
+                normalizeText(request.getWorkDescription()),
+                normalizeText(request.getNotes()),
+                normalizeText(request.getAgenda()),
+                normalizeText(request.getSchedule()),
+                normalizeText(request.getManpower()),
+                normalizeText(request.getInstructions()),
+                normalizeText(request.getAddress()),
+                assignedId,
+                eventId, caseId);
+
+        ServiceEventResponse updated = findServiceEventById(eventId);
+        mirrorToGoogle(eventId, caseId, updated, trimToNull(request.getCalendarId()),
+                asString(rows.get(0).get("google_event_id")),
+                asString(rows.get(0).get("google_calendar_id")));
+        return findServiceEventById(eventId);
+    }
+
+    /** 手动重试将事件同步到 Google(用于上次镜像失败的事件);保持其原目标日历。 */
+    public ServiceEventResponse syncServiceEvent(Long caseId, Long eventId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
+        if (rows.isEmpty()) {
+            throw new EntityNotFoundException("Service event not found: " + eventId);
+        }
+        ServiceEventResponse ev = findServiceEventById(eventId);
+        String existingCalendar = asString(rows.get(0).get("google_calendar_id"));
+        mirrorToGoogle(eventId, caseId, ev, existingCalendar,
+                asString(rows.get(0).get("google_event_id")), existingCalendar);
+        return findServiceEventById(eventId);
+    }
+
+    /**
+     * 将事件镜像到 Google(best-effort)。existing* 为空表示尚未镜像→新建;
+     * 已镜像且目标日历变更→先删旧再新建;否则原地更新。镜像结果写回 google_event_id/calendar_id。
+     */
+    private void mirrorToGoogle(Long eventId, Long caseId, ServiceEventResponse ev, String requestedCalendarId,
+                                String existingGoogleEventId, String existingGoogleCalendarId) {
+        String title = composeEventTitle(ev.getEventSeq(), ev);
+        String description = composeEventDescriptionFromEvent(ev);
+        String targetCalendarId = googleCalendarService.resolveTargetCalendarId(requestedCalendarId);
+
+        // 目标日历变了:删除旧日历上的镜像,转为新建
+        if (existingGoogleEventId != null && existingGoogleCalendarId != null
+                && !existingGoogleCalendarId.equals(targetCalendarId)) {
+            googleCalendarService.deleteCaseEvent(existingGoogleCalendarId, existingGoogleEventId);
+            existingGoogleEventId = null;
+        }
+
+        if (existingGoogleEventId != null) {
+            googleCalendarService.updateCaseEvent(targetCalendarId, existingGoogleEventId, caseId,
+                            ev.getServiceKey(), title, description, ev.getLocation(),
+                            ev.getScheduledStart(), ev.getScheduledEnd())
+                    .ifPresent(gid -> jdbcTemplate.update(
+                            "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                            gid, targetCalendarId, eventId));
+        } else {
+            googleCalendarService.createCaseEvent(caseId, ev.getServiceKey(), title, description,
+                            ev.getLocation(), ev.getScheduledStart(), ev.getScheduledEnd(), targetCalendarId)
+                    .ifPresent(gid -> jdbcTemplate.update(
+                            "UPDATE service_appointment SET google_event_id = ?, google_calendar_id = ? WHERE id = ?",
+                            gid, targetCalendarId, eventId));
+        }
+    }
+
+    private void validateEventTimes(LocalDateTime start, LocalDateTime end) {
+        if (start != null && end != null && end.isBefore(start)) {
+            throw new IllegalArgumentException("End time must not be before start time");
+        }
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /** 组织日历标题:`072 Medical Appointment: VKZhi @ Address` */
+    private String composeEventTitle(Long eventSeq, ServiceEventResponse response) {
+        String seq = eventSeq != null ? String.format("%03d", eventSeq) : "";
+        StringBuilder sb = new StringBuilder();
+        if (!seq.isEmpty()) sb.append(seq).append(' ');
+        sb.append(response.getServiceName() != null ? response.getServiceName() : response.getServiceKey());
+        sb.append(": ").append(response.getClientAbbr() != null ? response.getClientAbbr() : "");
+        if (response.getLocation() != null && !response.getLocation().isBlank()) {
+            sb.append(" @ ").append(response.getLocation());
+        }
+        return sb.toString();
+    }
+
+    /** 组织日历正文:按 *Agenda* / *Schedule* / *Address* / *Manpower* / *Instructions for Kappiya* 分节。 */
+    private String composeEventDescriptionFromEvent(ServiceEventResponse ev) {
+        StringBuilder sb = new StringBuilder();
+        appendSection(sb, "Agenda", ev.getAgenda());
+        appendSection(sb, "Schedule", ev.getSchedule());
+        appendSection(sb, "Address", ev.getAddress());
+        appendSection(sb, "Manpower", ev.getManpower());
+        appendSection(sb, "Instructions for Kappiya", ev.getInstructions());
+        return sb.toString().trim();
+    }
+
+    private void appendSection(StringBuilder sb, String label, String content) {
+        sb.append('*').append(label).append("*\n");
+        sb.append(content != null && !content.isBlank() ? content.trim() : "").append("\n\n");
     }
 
     public List<ServiceEventResponse> listServiceEvents(Long caseId) {
@@ -243,9 +418,9 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId) {
-        List<String> googleEventIds = jdbcTemplate.queryForList(
-                "SELECT google_event_id FROM service_appointment WHERE id = ? AND case_id = ?",
-                String.class, eventId, caseId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
+                eventId, caseId);
         int deleted = jdbcTemplate.update(
                 "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId,
@@ -254,9 +429,15 @@ public class CaseService {
         if (deleted == 0) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
-        // best-effort 从 Google 共享日历删除镜像事件
-        if (!googleEventIds.isEmpty()) {
-            googleCalendarService.deleteCaseEvent(googleEventIds.get(0));
+        // best-effort 从对应 Google 日历删除镜像事件
+        if (!rows.isEmpty()) {
+            Object googleEventId = rows.get(0).get("google_event_id");
+            Object googleCalendarId = rows.get(0).get("google_calendar_id");
+            if (googleEventId != null) {
+                googleCalendarService.deleteCaseEvent(
+                        googleCalendarId != null ? googleCalendarId.toString() : null,
+                        googleEventId.toString());
+            }
         }
     }
 
@@ -275,34 +456,27 @@ public class CaseService {
     }
 
     public List<ClientCase> getActiveCases(int limit) {
-        return caseRepository.findByStatusNotOrderByOpenedAtDescIdDesc(
-                CLOSED_STATUS,
-                PageRequest.of(0, limit)
-        );
+        return caseRepository.findActiveCases(PageRequest.of(0, limit));
     }
 
     public long countActiveCases() {
-        return caseRepository.countByStatusNot(CLOSED_STATUS);
+        return caseRepository.countActiveCases();
     }
 
     public List<ClientCase> getUrgentCases(int limit) {
-        return caseRepository.findByStatusNotAndColorCodeInOrderByOpenedAtDescIdDesc(
-                CLOSED_STATUS,
-                URGENT_COLOR_CODES,
-                PageRequest.of(0, limit)
-        );
+        return caseRepository.findUrgentActiveCases(URGENT_COLOR_CODES, PageRequest.of(0, limit));
     }
 
     public long countUrgentCases() {
-        return caseRepository.countByStatusNotAndColorCodeIn(CLOSED_STATUS, URGENT_COLOR_CODES);
+        return caseRepository.countUrgentActiveCases(URGENT_COLOR_CODES);
     }
 
     public long countActiveCasesByCreatedBy(Long createdById) {
-        return caseRepository.countByCreatedByIdAndStatusNot(createdById, CLOSED_STATUS);
+        return caseRepository.countActiveCasesByCreatedById(createdById);
     }
 
     public long countUrgentCasesByCreatedBy(Long createdById) {
-        return caseRepository.countByCreatedByIdAndStatusNotAndColorCodeIn(createdById, CLOSED_STATUS, URGENT_COLOR_CODES);
+        return caseRepository.countUrgentActiveCasesByCreatedById(createdById, URGENT_COLOR_CODES);
     }
 
     public long countDistinctActiveClientsByCreatedBy(Long createdById) {
@@ -310,8 +484,7 @@ public class CaseService {
     }
 
     public List<ClientCase> getActiveCasesByCreatedBy(Long createdById, int limit) {
-        return caseRepository.findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
-                createdById, CLOSED_STATUS, PageRequest.of(0, limit));
+        return caseRepository.findActiveCasesByCreatedById(createdById, PageRequest.of(0, limit));
     }
 
     private CaseSummaryResponse toCaseSummaryResponse(ClientCase clientCase) {
@@ -455,7 +628,16 @@ public class CaseService {
                     sa.location,
                     sa.work_description,
                     sa.notes,
+                    sa.agenda,
+                    sa.schedule,
+                    sa.manpower,
+                    sa.instructions,
+                    sa.address,
+                    sa.event_seq,
+                    sa.google_calendar_id,
+                    (sa.google_event_id IS NOT NULL) AS synced,
                     sa.scheduled_start,
+                    sa.scheduled_end,
                     sa.report_due_at,
                     EXISTS (
                         SELECT 1 FROM visit_report vr
@@ -497,6 +679,7 @@ public class CaseService {
                     .title(rs.getString("title"))
                     .location(rs.getString("location"))
                     .scheduledStart(scheduledStart)
+                    .scheduledEnd(rs.getObject("scheduled_end", LocalDateTime.class))
                     .reportDueAt(reportDueAt)
                     .reportSubmitted(reportSubmitted)
                     .reminderState(computeReminderState(scheduledStart, reportDueAt, reportSubmitted))
@@ -504,6 +687,14 @@ public class CaseService {
                     .notes(rs.getString("notes"))
                     .assignedUserId(rs.getObject("assigned_user_id", Long.class))
                     .assignedUserName(rs.getString("assigned_user_name"))
+                    .eventSeq(rs.getObject("event_seq", Long.class))
+                    .address(rs.getString("address"))
+                    .agenda(rs.getString("agenda"))
+                    .schedule(rs.getString("schedule"))
+                    .manpower(rs.getString("manpower"))
+                    .instructions(rs.getString("instructions"))
+                    .synced(rs.getBoolean("synced"))
+                    .googleCalendarId(rs.getString("google_calendar_id"))
                     .build();
         };
     }

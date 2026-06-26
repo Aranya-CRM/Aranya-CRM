@@ -12,6 +12,8 @@ export {
   useDeleteCaseNote,
   useDeleteServiceEvent,
   useOwnCaseNotes,
+  useSyncServiceEvent,
   useUpdateCase,
   useUpdateCaseServices,
+  useUpdateServiceEvent,
 } from './useCases'

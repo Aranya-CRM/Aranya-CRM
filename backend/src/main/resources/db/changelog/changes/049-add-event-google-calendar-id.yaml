@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 049-add-event-google-calendar-id
+      author: shidu
+      changes:
+        - addColumn:
+            tableName: service_appointment
+            columns:
+              - column:
+                  name: google_calendar_id
+                  type: VARCHAR(255)
+                  remarks: "事件镜像写入的目标 Google 日历 id(供删除时定位)"

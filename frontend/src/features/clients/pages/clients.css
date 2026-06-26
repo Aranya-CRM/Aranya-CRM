@@ -160,6 +160,51 @@
   white-space: nowrap;
 }
 
+.client-directory-item.pending.create {
+  border-left-color: #16a34a;
+}
+
+.client-directory-item.pending.update {
+  border-left-color: #dc2626;
+}
+
+.client-directory-item.pending.delete {
+  border-left-color: #991b1b;
+}
+
+.client-directory-approval-badge,
+.client-approval-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.client-directory-approval-badge.create,
+.client-approval-status.create {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.client-directory-approval-badge.update,
+.client-approval-status.update {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b42318;
+}
+
+.client-directory-approval-badge.delete,
+.client-approval-status.delete {
+  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .client-profile-surface {
   height: 100%;
   overflow: auto;
@@ -186,6 +231,49 @@
   border-color: #fed7aa;
   background: #fff7ed;
   color: #9a3412;
+}
+
+.client-approval-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid #d7dce5;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+.client-approval-banner strong,
+.client-approval-banner span {
+  display: block;
+}
+
+.client-approval-banner strong {
+  color: #111827;
+}
+
+.client-approval-banner span {
+  margin-top: 2px;
+  color: #697386;
+}
+
+.client-approval-banner details {
+  max-width: 460px;
+}
+
+.client-approval-banner summary {
+  cursor: pointer;
+  color: #111827;
+  font-weight: 800;
+}
+
+.client-approval-banner p {
+  margin: 8px 0 0;
+  color: #40506a;
+  line-height: 1.6;
 }
 
 .client-profile-header {
@@ -291,6 +379,26 @@
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.client-info-cell.changed {
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #991b1b;
+  border-left: 5px solid #ef4444;
+  border-radius: 6px;
+  background: #7f1d1d;
+  box-shadow: 0 8px 18px rgba(127, 29, 29, 0.18);
+}
+
+.client-info-cell.changed span {
+  color: #fee2e2;
+  font-weight: 800;
+}
+
+.client-info-cell.changed strong {
+  color: #ffffff;
+  font-weight: 800;
 }
 
 .client-profile-edit {
@@ -835,6 +943,11 @@
 
   .client-profile-actions {
     justify-content: flex-start;
+  }
+
+  .client-approval-banner {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

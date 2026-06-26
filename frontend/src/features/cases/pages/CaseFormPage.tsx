@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApprovalConfirmModal, BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
+import { addLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
-import { fetchClientsWithoutCase } from '../../clients/api/client.api'
+import { fetchClientsAvailableForCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
@@ -45,7 +46,7 @@ export function CaseFormPage() {
   useEffect(() => {
     let active = true
 
-    void fetchClientsWithoutCase()
+    void fetchClientsAvailableForCase()
       .then((clientData) => {
         if (!active) return
         setClients(clientData)
@@ -88,13 +89,14 @@ export function CaseFormPage() {
     setShowApprovalConfirm(true)
   }
 
-  async function submitApproval(approverId?: number) {
+  async function submitApproval(approverId?: number, reason?: string) {
     if (!clientId || approvalSubmitted || selectedServices.length === 0) return
     setErrorMessage(undefined)
     setSuccessMessage(undefined)
     try {
       const approval = await createCase.mutateAsync({
         approverId,
+        reason,
         data: {
           clientId,
           socialWorkerId: socialWorkerId || undefined,
@@ -105,6 +107,12 @@ export function CaseFormPage() {
           remarks,
           services: selectedServices,
         },
+      })
+      addLocalPendingApproval({
+        ...approval,
+        targetType: approval.targetType ?? 'CLIENT',
+        targetId: approval.targetId ?? clientId,
+        targetLabel: approval.targetLabel ?? clients.find((client) => client.id === clientId)?.abbr ?? `Client #${clientId}`,
       })
       setSubmittedApprovalId(approval.id)
       setSuccessMessage(t('cases.form.approvalSubmittedWithId', { id: approval.id }))
@@ -237,7 +245,7 @@ export function CaseFormPage() {
         approverRequired
         approverLoading={approvalAssignees.isLoading}
         onCancel={() => setShowApprovalConfirm(false)}
-        onConfirm={(approverId) => void submitApproval(approverId)}
+        onConfirm={(approverId, reason) => void submitApproval(approverId, reason)}
       />
     </div>
   )

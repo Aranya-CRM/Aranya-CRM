@@ -34,6 +34,7 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class ReportController {
     private static final String APPROVER_HEADER = "X-Approver-Id";
+    private static final String APPROVAL_REASON_HEADER = "X-Approval-Reason";
 
     private final ReportService reportService;
     private final ApprovalService approvalService;
@@ -109,7 +110,8 @@ public class ReportController {
             @CurrentUser User currentUser,
             @PathVariable Long id,
             Authentication authentication,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
         if (canDeleteAny) {
@@ -119,7 +121,8 @@ public class ReportController {
                     id,
                     null,
                     currentUser,
-                    approverId
+                    approverId,
+                    approvalReason
             );
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
         }

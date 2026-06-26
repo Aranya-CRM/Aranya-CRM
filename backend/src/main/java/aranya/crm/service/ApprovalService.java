@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,6 +34,7 @@ public class ApprovalService {
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String APPROVAL_META_FIELD = "_approval";
     private static final String ASSIGNED_APPROVER_ID_FIELD = "assignedApproverId";
+    private static final String REASON_FIELD = "reason";
 
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ObjectMapper objectMapper;
@@ -60,6 +62,19 @@ public class ApprovalService {
             User requestedBy,
             Long assignedApproverId
     ) {
+        return createRequest(type, targetType, targetId, payload, requestedBy, assignedApproverId, null);
+    }
+
+    @Transactional
+    public ApprovalRequestResponse createRequest(
+            String type,
+            String targetType,
+            Long targetId,
+            Object payload,
+            User requestedBy,
+            Long assignedApproverId,
+            String reason
+    ) {
         requireUser(requestedBy, "Requester is required");
         User requester = loadUserWithRoles(requestedBy);
         String normalizedType = normalizeRequired(type, "Approval type is required");
@@ -68,8 +83,9 @@ public class ApprovalService {
         }
         String normalizedTargetType = normalizeOptional(targetType);
         JsonNode payloadJson = parsePayload(payload);
-        if (assignedApproverId != null) {
-            payloadJson = withAssignedApprover(payloadJson, requester, assignedApproverId);
+        String normalizedReason = decodeHeaderValue(reason);
+        if (assignedApproverId != null || normalizedReason != null) {
+            payloadJson = withApprovalMeta(payloadJson, requester, assignedApproverId, normalizedReason);
         }
         String idempotencyKey = buildIdempotencyKey(
                 normalizedType,
@@ -153,11 +169,7 @@ public class ApprovalService {
                 .orElseThrow(() -> new AccessDeniedException("Current user not found"));
     }
 
-    private JsonNode withAssignedApprover(JsonNode payloadJson, User requestedBy, Long assignedApproverId) {
-        User assignedApprover = userRepository.findByIdWithRoles(assignedApproverId)
-                .orElseThrow(() -> new EntityNotFoundException("Assigned approver not found: " + assignedApproverId));
-        requireValidAssignedApprover(requestedBy, assignedApprover);
-
+    private JsonNode withApprovalMeta(JsonNode payloadJson, User requestedBy, Long assignedApproverId, String reason) {
         ObjectNode objectPayload;
         if (payloadJson == null || payloadJson.isNull()) {
             objectPayload = objectMapper.createObjectNode();
@@ -167,8 +179,18 @@ public class ApprovalService {
             throw new IllegalArgumentException("Approval payload must be a JSON object");
         }
 
-        ObjectNode meta = objectMapper.createObjectNode();
-        meta.put(ASSIGNED_APPROVER_ID_FIELD, assignedApprover.getId());
+        ObjectNode meta = objectPayload.path(APPROVAL_META_FIELD).isObject()
+                ? (ObjectNode) objectPayload.path(APPROVAL_META_FIELD).deepCopy()
+                : objectMapper.createObjectNode();
+        if (assignedApproverId != null) {
+            User assignedApprover = userRepository.findByIdWithRoles(assignedApproverId)
+                    .orElseThrow(() -> new EntityNotFoundException("Assigned approver not found: " + assignedApproverId));
+            requireValidAssignedApprover(requestedBy, assignedApprover);
+            meta.put(ASSIGNED_APPROVER_ID_FIELD, assignedApprover.getId());
+        }
+        if (reason != null) {
+            meta.put(REASON_FIELD, reason);
+        }
         objectPayload.set(APPROVAL_META_FIELD, meta);
         return objectPayload;
     }
@@ -181,9 +203,9 @@ public class ApprovalService {
             throw new AccessDeniedException("Assigned approver must be active");
         }
 
-        boolean requesterIsManager = hasRole(requestedBy, "MANAGER");
+        boolean requesterIsManager = isApprovalManager(requestedBy);
         boolean requesterIsSocialWorker = hasRole(requestedBy, "SOCIAL_WORKER");
-        boolean approverIsManager = hasRole(assignedApprover, "MANAGER");
+        boolean approverIsManager = isApprovalManager(assignedApprover);
 
         if (requesterIsManager && !approverIsManager) {
             throw new AccessDeniedException("Managers can only assign approvals to another manager");
@@ -209,8 +231,16 @@ public class ApprovalService {
     }
 
     private boolean canViewPendingRequest(ApprovalRequest request, User currentUser) {
+        User requestedBy = request.getRequestedBy();
+        if (requestedBy != null && requestedBy.getId() != null && requestedBy.getId().equals(currentUser.getId())) {
+            return true;
+        }
+
         Long assignedApproverId = readAssignedApproverId(request);
-        return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        if (isApprovalManager(currentUser)) {
+            return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        }
+        return assignedApproverId != null && assignedApproverId.equals(currentUser.getId());
     }
 
     private Long readAssignedApproverId(ApprovalRequest request) {
@@ -231,6 +261,10 @@ public class ApprovalService {
         }
         return user.getUserRoles().stream()
                 .anyMatch((userRole) -> userRole.getRole() != null && roleName.equals(userRole.getRole().getName()));
+    }
+
+    private boolean isApprovalManager(User user) {
+        return hasRole(user, "MANAGER") || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
     }
 
     private void requirePending(ApprovalRequest request) {
@@ -281,6 +315,18 @@ public class ApprovalService {
 
     private String normalizeOptional(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String decodeHeaderValue(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return normalizeOptional(URLDecoder.decode(normalized, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException ex) {
+            return normalized;
+        }
     }
 
     private String buildIdempotencyKey(

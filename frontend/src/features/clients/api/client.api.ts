@@ -1,4 +1,4 @@
-import { http } from '../../../shared/api'
+import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { clientMockData } from '../../../mocks/client.mock'
 import type { Client } from '../types'
 
@@ -8,6 +8,7 @@ export interface ApprovalRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
   targetType?: string | null
   targetId?: number | null
+  targetLabel?: string | null
   payloadJson?: string | null
   requestedById?: number | null
   requestedByName?: string | null
@@ -19,6 +20,7 @@ export interface ApprovalRequest {
 export type ClientWriteResult = Client | ApprovalRequest
 export interface ApprovalOptions {
   approverId?: number
+  reason?: string
 }
 
 type BackendClientSummary = {
@@ -112,7 +114,7 @@ export async function fetchClients(): Promise<Client[]> {
   }
 }
 
-export async function fetchClientsWithoutCase(): Promise<Client[]> {
+export async function fetchClientsAvailableForCase(): Promise<Client[]> {
   const res = await http.get<BackendClientSummary[]>('/v1/clients/without-case')
   return res.data.map(mapBackendClient)
 }
@@ -131,7 +133,10 @@ export async function fetchClientById(id: string): Promise<Client | undefined> {
 }
 
 function approvalRequestConfig(options?: ApprovalOptions) {
-  return options?.approverId ? { headers: { 'X-Approver-Id': String(options.approverId) } } : undefined
+  const headers: Record<string, string> = {}
+  if (options?.approverId) headers['X-Approver-Id'] = String(options.approverId)
+  if (options?.reason?.trim()) headers['X-Approval-Reason'] = encodeHttpHeaderValue(options.reason.trim())
+  return Object.keys(headers).length > 0 ? { headers } : undefined
 }
 
 export async function createClient(data: Omit<Client, 'id'>, options?: ApprovalOptions): Promise<ClientWriteResult> {

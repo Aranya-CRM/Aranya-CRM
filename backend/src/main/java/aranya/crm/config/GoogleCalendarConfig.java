@@ -6,6 +6,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.oauth2.UserCredentials;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,11 @@ import java.io.InputStream;
 import java.util.Set;
 
 /**
- * 构建 Google Calendar API 客户端(基于 Service Account 凭证)。
- * 当 google.calendar.enabled=false 或凭证缺失时返回 null,由 GoogleCalendarService 容错跳过。
+ * 构建 Google Calendar API 客户端。
+ * 支持两种认证:
+ *  - SERVICE_ACCOUNT:Service Account JSON(可选域级委派)
+ *  - OAUTH:后端持有单一账号(如 infotech@aranya.sg)的 refresh token
+ * 当 google.calendar.enabled=false 或凭证缺失/失败时返回 null,由 GoogleCalendarService 容错跳过。
  */
 @Slf4j
 @Configuration
@@ -36,8 +40,49 @@ public class GoogleCalendarConfig {
             log.info("Google Calendar integration disabled (google.calendar.enabled=false)");
             return null;
         }
+        try {
+            GoogleCredentials credentials = "OAUTH".equalsIgnoreCase(properties.getAuthMode())
+                    ? buildOAuthCredentials()
+                    : buildServiceAccountCredentials();
+            if (credentials == null) {
+                return null;
+            }
+            HttpRequestInitializer initializer = new HttpCredentialsAdapter(credentials);
+            Calendar calendar = new Calendar.Builder(
+                    GoogleNetHttpTransport.newTrustedTransport(),
+                    GsonFactory.getDefaultInstance(),
+                    initializer)
+                    .setApplicationName(properties.getApplicationName())
+                    .build();
+            log.info("Google Calendar client initialized (mode={}, calendars={})",
+                    properties.getAuthMode(), properties.resolveCalendars());
+            return calendar;
+        } catch (Exception e) {
+            log.error("Failed to initialize Google Calendar client; integration inactive", e);
+            return null;
+        }
+    }
+
+    /** OAuth:用单一账号的 refresh token 刷新访问令牌(scope 由该 token 已授予的范围决定)。 */
+    private GoogleCredentials buildOAuthCredentials() {
+        String clientId = properties.getOauthClientId();
+        String clientSecret = properties.getOauthClientSecret();
+        String refreshToken = properties.getOauthRefreshToken();
+        if (isBlank(clientId) || isBlank(clientSecret) || isBlank(refreshToken)) {
+            log.warn("Google Calendar OAUTH mode but clientId/clientSecret/refreshToken incomplete; integration inactive");
+            return null;
+        }
+        return UserCredentials.newBuilder()
+                .setClientId(clientId)
+                .setClientSecret(clientSecret)
+                .setRefreshToken(refreshToken)
+                .build();
+    }
+
+    /** Service Account:从 JSON 构造,可选域级委派模拟某 Workspace 用户。 */
+    private GoogleCredentials buildServiceAccountCredentials() throws Exception {
         String path = properties.getServiceAccountPath();
-        if (path == null || path.isBlank()) {
+        if (isBlank(path)) {
             log.warn("Google Calendar enabled but no serviceAccountPath configured; integration inactive");
             return null;
         }
@@ -52,23 +97,14 @@ public class GoogleCalendarConfig {
                     .setScopes(Set.of(CalendarScopes.CALENDAR));
             String subject = properties.getImpersonatedUser();
             if (subject != null && !subject.isBlank()) {
-                // 域级委派(DWD):以指定 Workspace 用户身份操作,无需对外共享日历
                 builder.setServiceAccountUser(subject);
                 log.info("Google Calendar using domain-wide delegation, impersonating {}", subject);
             }
-            GoogleCredentials credentials = builder.build();
-            HttpRequestInitializer initializer = new HttpCredentialsAdapter(credentials);
-            Calendar calendar = new Calendar.Builder(
-                    GoogleNetHttpTransport.newTrustedTransport(),
-                    GsonFactory.getDefaultInstance(),
-                    initializer)
-                    .setApplicationName(properties.getApplicationName())
-                    .build();
-            log.info("Google Calendar client initialized for calendarId={}", properties.getCalendarId());
-            return calendar;
-        } catch (Exception e) {
-            log.error("Failed to initialize Google Calendar client; integration inactive", e);
-            return null;
+            return builder.build();
         }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 }

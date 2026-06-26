@@ -34,6 +34,7 @@ export interface ServiceEvent {
   title: string
   location?: string | null
   scheduledStart: string
+  scheduledEnd?: string | null
   reportDueAt?: string | null
   reportSubmitted?: boolean
   reminderState?: 'DONE' | 'UPCOMING' | 'PENDING' | 'DUE_SOON' | 'OVERDUE'
@@ -41,6 +42,17 @@ export interface ServiceEvent {
   notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
+  // 组织日历模板字段
+  eventSeq?: number | null
+  address?: string | null
+  agenda?: string | null
+  schedule?: string | null
+  manpower?: string | null
+  instructions?: string | null
+  // Google 共享日历镜像状态:true=已同步
+  synced?: boolean
+  // 当前镜像所在日历 id(编辑时预选)
+  googleCalendarId?: string | null
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
@@ -163,6 +175,7 @@ export interface ServiceCalendarEvent {
   backgroundColor?: string
   borderColor?: string
   textColor?: string
+  classNames?: string[]
   extendedProps?: {
     serviceType?: keyof CaseServices
     note?: string
@@ -181,6 +194,17 @@ export interface SharedCalendarEvent {
   allDay: boolean
   source: 'OTHER_CASE' | 'EXTERNAL'
   caseId: number | null
+  location?: string | null
+  description?: string | null
+  calendarId?: string | null
+  calendarName?: string | null
+}
+
+/** 可写入的共享日历(供增添事件时选择) */
+export interface CalendarOption {
+  id: string
+  name: string
+  isDefault: boolean
 }
 
 export function emptyCaseServices(): CaseServices {

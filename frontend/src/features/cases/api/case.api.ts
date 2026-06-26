@@ -1,6 +1,6 @@
-import { http } from '../../../shared/api'
+import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type AuditLogEntry, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -43,6 +43,7 @@ export interface ApprovalRequest {
 
 export interface ApprovalOptions {
   approverId?: number
+  reason?: string
 }
 
 export interface UpdateCasePayload {
@@ -66,12 +67,20 @@ export interface CreateCasePayload {
 
 export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
-  assignedUserId: string | number
+  calendarId?: string
+  assignedUserId?: string | number
   scheduledStart: string
+  scheduledEnd?: string
   reportDueAt?: string
-  workDescription: string
+  workDescription?: string
   notes?: string
   location?: string
+  // 组织日历模板字段
+  address?: string
+  agenda?: string
+  schedule?: string
+  manpower?: string
+  instructions?: string
 }
 
 function getDataMode(): 'mock' | 'api' | 'auto' {
@@ -107,7 +116,10 @@ export async function fetchCaseById(id: string): Promise<Case | undefined> {
 }
 
 function approvalRequestConfig(options?: ApprovalOptions) {
-  return options?.approverId ? { headers: { 'X-Approver-Id': String(options.approverId) } } : undefined
+  const headers: Record<string, string> = {}
+  if (options?.approverId) headers['X-Approver-Id'] = String(options.approverId)
+  if (options?.reason?.trim()) headers['X-Approval-Reason'] = encodeHttpHeaderValue(options.reason.trim())
+  return Object.keys(headers).length > 0 ? { headers } : undefined
 }
 
 export async function createCase(data: CreateCasePayload, options?: ApprovalOptions): Promise<ApprovalRequest> {
@@ -142,6 +154,21 @@ export async function createServiceEvent(caseId: string, data: CreateServiceEven
   return res.data
 }
 
+export async function updateServiceEvent(
+  caseId: string,
+  eventId: string | number,
+  data: CreateServiceEventPayload,
+): Promise<ServiceEvent> {
+  const res = await http.patch<ServiceEvent>(`/v1/cases/${caseId}/service-events/${eventId}`, data)
+  return res.data
+}
+
+/** 手动重试将事件同步到 Google 共享日历(上次镜像失败时)。 */
+export async function syncServiceEvent(caseId: string, eventId: string | number): Promise<ServiceEvent> {
+  const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events/${eventId}/sync`)
+  return res.data
+}
+
 export async function deleteServiceEvent(caseId: string, eventId: string | number): Promise<void> {
   await http.delete(`/v1/cases/${caseId}/service-events/${eventId}`)
 }
@@ -165,6 +192,17 @@ export async function fetchSharedCalendarEvents(
     const res = await http.get<SharedCalendarEvent[]>(`/v1/cases/${caseId}/calendar-events`, {
       params: { from: fromIso, to: toIso },
     })
+    return res.data ?? []
+  } catch {
+    return []
+  }
+}
+
+/** 可写入的共享日历列表(供增添事件选择目标日历)。集成未启用/mock 时返回空。 */
+export async function fetchCalendarOptions(): Promise<CalendarOption[]> {
+  if (getDataMode() === 'mock') return []
+  try {
+    const res = await http.get<CalendarOption[]>('/v1/calendar/options')
     return res.data ?? []
   } catch {
     return []

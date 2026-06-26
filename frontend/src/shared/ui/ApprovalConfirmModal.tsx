@@ -13,11 +13,12 @@ interface ApprovalConfirmModalProps {
   confirmLabel: string
   cancelLabel: string
   pending?: boolean
+  error?: string
   approverOptions?: ApprovalConfirmApproverOption[]
   approverRequired?: boolean
   approverLoading?: boolean
   onCancel: () => void
-  onConfirm: (approverId?: number) => void
+  onConfirm: (approverId?: number, reason?: string) => void
 }
 
 export function ApprovalConfirmModal({
@@ -27,6 +28,7 @@ export function ApprovalConfirmModal({
   confirmLabel,
   cancelLabel,
   pending = false,
+  error,
   approverOptions,
   approverRequired = false,
   approverLoading = false,
@@ -35,17 +37,19 @@ export function ApprovalConfirmModal({
 }: ApprovalConfirmModalProps) {
   const { t } = useTranslation()
   const [selectedApproverId, setSelectedApproverId] = useState('')
+  const [reason, setReason] = useState('')
 
   useEffect(() => {
     if (open) {
       setSelectedApproverId('')
+      setReason('')
     }
   }, [open])
 
   if (!open) return null
 
   const showApproverSelect = approverRequired || approverOptions !== undefined
-  const confirmDisabled = pending || (approverRequired && !selectedApproverId)
+  const confirmDisabled = pending || (approverRequired && !selectedApproverId) || !reason.trim()
 
   return (
     <div className="approval-confirm-backdrop" role="presentation" onMouseDown={pending ? undefined : onCancel}>
@@ -85,6 +89,17 @@ export function ApprovalConfirmModal({
             ) : null}
           </label>
         ) : null}
+        <label className="approval-confirm-reason">
+          <span>{t('approvalConfirm.reason')}</span>
+          <textarea
+            value={reason}
+            rows={3}
+            disabled={pending}
+            placeholder={t('approvalConfirm.reasonPlaceholder')}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </label>
+        {error ? <div className="approval-confirm-error">{error}</div> : null}
         <div className="approval-confirm-actions">
           <button className="btn-secondary" type="button" disabled={pending} onClick={onCancel}>
             {cancelLabel}
@@ -93,7 +108,7 @@ export function ApprovalConfirmModal({
             className="btn-primary"
             type="button"
             disabled={confirmDisabled}
-            onClick={() => onConfirm(selectedApproverId ? Number(selectedApproverId) : undefined)}
+            onClick={() => onConfirm(selectedApproverId ? Number(selectedApproverId) : undefined, reason.trim())}
           >
             {confirmLabel}
           </button>

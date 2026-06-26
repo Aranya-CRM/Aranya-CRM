@@ -39,13 +39,17 @@
     "comingSoon": "Coming soon",
     "saving": "Saving...",
     "by": "by",
-    "delete": "Delete"
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close"
   },
   "approvalConfirm": {
     "title": "Approval Required",
     "confirm": "Submit Approval",
     "cancel": "Cancel",
     "approver": "Approver",
+    "reason": "Application Reason",
+    "reasonPlaceholder": "Enter the reason for this request",
     "selectApprover": "Select approver",
     "loadingApprovers": "Loading approvers...",
     "noApprovers": "No eligible approver is available. Contact an administrator.",
@@ -83,14 +87,11 @@
     "type": {
       "CASE_CREATE": "Create Case",
       "CASE_SERVICE_UPDATE": "Update Case Services",
-      "SERVICE_EVENT_CREATE": "Create Service Event",
       "CLIENT_CREATE": "Create Member",
       "CLIENT_UPDATE": "Edit Member",
       "DELETE_CLIENT": "Delete Member",
       "DELETE_CASE": "Close Case",
-      "DELETE_REPORT": "Delete Report",
-      "DELETE_CASE_NOTE": "Delete Case Note",
-      "DELETE_USER": "Delete User"
+      "DELETE_REPORT": "Delete Report"
     }
   },
   "dashboard": {
@@ -146,6 +147,18 @@
       "view": "View",
       "audit": "Audit"
     },
+    "approvals": {
+      "title": "Pending Case Approvals",
+      "createCase": "New Case Request",
+      "closeCase": "Close Case Request",
+      "reason": "Application Reason",
+      "noReason": "No application reason provided",
+      "targetCase": "Target Case",
+      "badge": {
+        "create": "Pending Add",
+        "close": "Pending Close"
+      }
+    },
     "color": {
       "RED": "Red · Critical Care Needed",
       "ORANGE": "Orange · High Attention",
@@ -167,12 +180,12 @@
       "search": "Search cases or members"
     },
     "service": {
-      "accommodationArrangement": "Accommodation Arrangement",
-      "deepCleaning": "Deep Cleaning",
-      "relocationAssistance": "Relocation Assistance",
-      "dailyCleaning": "Daily Cleaning",
+      "accommodationArrangement": "Lodging",
+      "deepCleaning": "Spring Cleaning",
+      "relocationAssistance": "Relocation",
+      "dailyCleaning": "Home Cleaning",
       "pestControl": "Pest Control",
-      "homeRepair": "Home Repair",
+      "homeRepair": "Handyman",
       "dailyExpenseSubsidy": "Daily Expense Subsidy",
       "cpfAssistance": "CPF Assistance",
       "mealDelivery": "Meal Delivery",
@@ -184,7 +197,31 @@
       "digitalSupport": "Digital Support"
     },
     "services": {
-      "calendarTitle": "Service Calendar",
+      "calendarTitle": "Events",
+      "addCalendarEvent": "Add Event",
+      "editEvent": "Edit Event",
+      "calendar": "Calendar",
+      "calendarDefault": "default",
+      "endTime": "End time",
+      "timezoneHint": "(SGT)",
+      "endBeforeStart": "End time must not be before start time.",
+      "confirmDelete": "Delete this event?",
+      "notSynced": "Not synced to Google Calendar",
+      "retrySync": "Retry sync",
+      "agenda": "Agenda",
+      "schedule": "Schedule",
+      "address": "Address",
+      "manpower": "Manpower",
+      "instructions": "Instructions for Kappiya",
+      "titlePreview": "Title preview",
+      "requiredFields": "Please select a service and start time.",
+      "createError": "Failed to create event. Please try again.",
+      "sourceOtherCase": "From another case (shared calendar)",
+      "sourceExternal": "From shared calendar",
+      "noEventDetails": "No further details.",
+      "legendOwn": "This case",
+      "legendOther": "Other cases",
+      "legendExternal": "Other shared events",
       "calendarPlaceholder": "No service events",
       "empty": "No services added yet.",
       "addService": "Add Service",
@@ -214,7 +251,10 @@
       "noEvents": "No service events yet.",
       "eventCreated": "Service event created.",
       "removeApprovalSubmitted": "Service removal request submitted. The service will be removed after manager approval.",
-      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval."
+      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval.",
+      "approvalSubmitError": "Failed to submit approval. Check the approver permissions and try again.",
+      "approvalApproved": "Approval approved.",
+      "approvalRejected": "Approval rejected."
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -225,7 +265,7 @@
     "tab": {
       "overview": "Overview",
       "services": "Services",
-      "calendar": "Calendar",
+      "calendar": "Event",
       "notes": "Notes",
       "documents": "Documents",
       "reports": "Reports",
@@ -376,6 +416,22 @@
     "accessDeniedMsg": "Your current access does not allow creating or editing client profiles.",
     "saveError": "Failed to save.",
     "approvalSubmittedWithId": "Approval request #{{id}} submitted. The change will appear after approval.",
+    "approvals": {
+      "title": "Pending Member Approvals",
+      "pending": "Pending approval",
+      "reason": "Application Reason",
+      "noReason": "No application reason provided",
+      "badge": {
+        "create": "Pending Add",
+        "update": "Pending Edit",
+        "delete": "Pending Delete"
+      },
+      "type": {
+        "CLIENT_CREATE": "New Member Request",
+        "CLIENT_UPDATE": "Edit Member Request",
+        "DELETE_CLIENT": "Delete Member Request"
+      }
+    },
     "form": {
       "newTitle": "New Client",
       "editTitle": "Edit Client"

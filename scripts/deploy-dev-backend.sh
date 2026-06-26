@@ -26,11 +26,23 @@ DB_USER="${DB_USER:-aranya_admin}"
 SERVICE="${SERVICE:-backend-dev}"
 IMAGE_TAG="${IMAGE_TAG:-dev}"
 
+# ── Google Calendar (non-secret; override via env if needed) ─────────────────
+GCAL_ENABLED="${GCAL_ENABLED:-true}"
+GCAL_AUTH_MODE="${GCAL_AUTH_MODE:-OAUTH}"
+GCAL_TZ="${GCAL_TZ:-Asia/Singapore}"
+GCAL_LIST="${GCAL_LIST:-c_rm92jb53d9kcdqug505764gth4@group.calendar.google.com|Aranya CASEWORK;c_fthgnknmg4o3oali8fgk11lf1c@group.calendar.google.com|Aranya METTA CARE}"
+GCAL_DEFAULT_ID="${GCAL_DEFAULT_ID:-c_rm92jb53d9kcdqug505764gth4@group.calendar.google.com}"
+GCAL_OAUTH_CLIENT_ID="${GCAL_OAUTH_CLIENT_ID:-746649380908-esbcfbu0egckeuucfng3n0tococv5s4b.apps.googleusercontent.com}"
+
 # ── Required secrets (must be provided) ──────────────────────────────────────
 : "${DEV_DB_PASSWORD:?set DEV_DB_PASSWORD}"
 : "${JWT_SECRET:?set JWT_SECRET}"
 FIREBASE_SA_FILE="${FIREBASE_SA_FILE:-firebase-service-account-dev.json}"
 [ -f "$FIREBASE_SA_FILE" ] || { echo "Missing Firebase SA file: $FIREBASE_SA_FILE"; exit 66; }
+
+# ── Optional: Google Calendar OAuth secrets (calendar is enabled only when both set) ──
+#   export GCAL_OAUTH_CLIENT_SECRET='GOCSPX-...'
+#   export GCAL_OAUTH_REFRESH_TOKEN='1//0...'
 
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/backend:${IMAGE_TAG}"
 
@@ -77,6 +89,17 @@ upsert_secret firebase-sa-dev < "$FIREBASE_SA_FILE"
 printf '%s' "$JWT_SECRET"       | upsert_secret jwt-secret-dev
 printf '%s' "$DEV_DB_PASSWORD"  | upsert_secret db-pass-dev
 
+# Google Calendar OAuth secrets — only when both are provided
+GCAL_READY=0
+if [ -n "${GCAL_OAUTH_CLIENT_SECRET:-}" ] && [ -n "${GCAL_OAUTH_REFRESH_TOKEN:-}" ]; then
+  printf '%s' "$GCAL_OAUTH_CLIENT_SECRET" | upsert_secret gcal-oauth-client-secret
+  printf '%s' "$GCAL_OAUTH_REFRESH_TOKEN" | upsert_secret gcal-oauth-refresh-token
+  GCAL_READY=1
+  echo "==> Google Calendar secrets upserted (integration will be enabled)"
+else
+  echo "==> (skip) GCAL_OAUTH_CLIENT_SECRET / GCAL_OAUTH_REFRESH_TOKEN not set — calendar disabled"
+fi
+
 # ── 5) Grant the Cloud Run runtime SA the roles it needs (before deploy) ─────
 PROJ_NUM="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
 RUNTIME_SA="${PROJ_NUM}-compute@developer.gserviceaccount.com"
@@ -91,12 +114,21 @@ gcloud builds submit backend --tag "$IMAGE"
 
 # ── 7) Deploy to Cloud Run ───────────────────────────────────────────────────
 DS_URL="jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=${CONN}&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
+
+# Base env vars / secrets; calendar appended when GCAL_READY=1
+ENV_VARS="^##^SPRING_PROFILES_ACTIVE=dev##FIREBASE_PROJECT_ID=${PROJECT}##FIREBASE_SERVICE_ACCOUNT_PATH=file:/secrets/firebase.json##SPRING_DATASOURCE_URL=${DS_URL}##SPRING_DATASOURCE_USERNAME=${DB_USER}"
+SECRETS="/secrets/firebase.json=firebase-sa-dev:latest,SPRING_DATASOURCE_PASSWORD=db-pass-dev:latest,JWT_SECRET=jwt-secret-dev:latest"
+if [ "$GCAL_READY" = "1" ]; then
+  ENV_VARS="${ENV_VARS}##GOOGLE_CALENDAR_ENABLED=${GCAL_ENABLED}##GOOGLE_CALENDAR_AUTH_MODE=${GCAL_AUTH_MODE}##GOOGLE_CALENDAR_TZ=${GCAL_TZ}##GOOGLE_CALENDAR_LIST=${GCAL_LIST}##GOOGLE_CALENDAR_DEFAULT_ID=${GCAL_DEFAULT_ID}##GOOGLE_CALENDAR_OAUTH_CLIENT_ID=${GCAL_OAUTH_CLIENT_ID}"
+  SECRETS="${SECRETS},GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET=gcal-oauth-client-secret:latest,GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN=gcal-oauth-refresh-token:latest"
+fi
+
 echo "==> Deploying $SERVICE"
 gcloud run deploy "$SERVICE" \
   --image "$IMAGE" --region "$REGION" --allow-unauthenticated \
   --add-cloudsql-instances "$CONN" \
-  --set-env-vars "^##^SPRING_PROFILES_ACTIVE=dev##FIREBASE_PROJECT_ID=${PROJECT}##FIREBASE_SERVICE_ACCOUNT_PATH=file:/secrets/firebase.json##SPRING_DATASOURCE_URL=${DS_URL}##SPRING_DATASOURCE_USERNAME=${DB_USER}" \
-  --set-secrets "/secrets/firebase.json=firebase-sa-dev:latest,SPRING_DATASOURCE_PASSWORD=db-pass-dev:latest,JWT_SECRET=jwt-secret-dev:latest"
+  --set-env-vars "$ENV_VARS" \
+  --set-secrets "$SECRETS"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 echo ""

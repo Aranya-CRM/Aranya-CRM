@@ -68,14 +68,6 @@ public class CaseNoteService {
     }
 
     @Transactional
-    public void executeApprovedDeleteCaseNote(Long noteId, User approvedBy) {
-        if (!caseNoteRepository.existsById(noteId)) {
-            return;
-        }
-        deleteCaseNote(noteId, approvedBy, true);
-    }
-
-    @Transactional
     public void deleteOwnCaseNote(Long caseId, Long noteId, User currentUser) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null) {
