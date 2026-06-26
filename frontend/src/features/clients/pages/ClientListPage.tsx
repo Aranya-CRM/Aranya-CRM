@@ -100,7 +100,6 @@ export function ClientListPage() {
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
@@ -223,19 +222,16 @@ export function ClientListPage() {
 
   useEffect(() => {
     if (!routeWantsEdit || !profileClient || !canUpdateClient || editingClientId === profileClient.id) return
-    setShowDeleteConfirm(false)
     setEditingClientId(profileClient.id)
     setEditForm(clientToFormData(profileClient))
   }, [canUpdateClient, editingClientId, profileClient, routeWantsEdit])
 
   function selectClient(clientId: string) {
-    setShowDeleteConfirm(false)
     setApprovalMessage('')
     setSearchParams({ client: clientId })
   }
 
   function selectApproval(approvalId: number) {
-    setShowDeleteConfirm(false)
     setApprovalMessage('')
     setSearchParams({ approval: String(approvalId) })
   }
@@ -274,7 +270,6 @@ export function ClientListPage() {
   }
 
   function beginEditClient(client: Client) {
-    setShowDeleteConfirm(false)
     setEditingClientId(client.id)
     setEditForm(clientToFormData(client))
   }
@@ -353,7 +348,6 @@ export function ClientListPage() {
   async function submitDeleteClient(approverId?: number, reason?: string) {
     if (!profileClient) return
     const result = await deleteClient.mutateAsync({ id: profileClient.id, approverId, reason })
-    setShowDeleteConfirm(false)
     setEditingClientId(null)
     setEditForm(null)
     setApprovalIntent(null)
@@ -497,8 +491,6 @@ export function ClientListPage() {
                 canConvertToCase={!profileApproval && canConvertToCase}
                 deleting={deleteClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
-                showDeleteConfirm={showDeleteConfirm}
-                onToggleDeleteConfirm={() => setShowDeleteConfirm((value) => !value)}
                 onConfirmDelete={() => void confirmDeleteClient()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
@@ -966,8 +958,6 @@ interface ClientProfilePanelProps {
   canConvertToCase: boolean
   deleting: boolean
   deleteError?: string
-  showDeleteConfirm: boolean
-  onToggleDeleteConfirm: () => void
   onConfirmDelete: () => void
   onEdit: () => void
   onCreateCase: () => void
@@ -988,8 +978,6 @@ function ClientProfilePanel({
   canConvertToCase,
   deleting,
   deleteError,
-  showDeleteConfirm,
-  onToggleDeleteConfirm,
   onConfirmDelete,
   onEdit,
   onCreateCase,
@@ -1036,8 +1024,8 @@ function ClientProfilePanel({
                 </button>
               ) : null}
               {canDeleteClient ? (
-                <button className="btn-danger" type="button" onClick={onToggleDeleteConfirm}>
-                  {t('clients.profile.delete')}
+                <button className="btn-danger" type="button" disabled={deleting} onClick={onConfirmDelete}>
+                  {deleting ? t('common.saving') : t('clients.profile.delete')}
                 </button>
               ) : null}
             </>
@@ -1058,17 +1046,6 @@ function ClientProfilePanel({
         </div>
       ) : null}
 
-      {showDeleteConfirm ? (
-        <div className="client-danger-banner">
-          <span>{t('clients.profile.dangerBanner')}</span>
-          <button className="btn-secondary btn-compact" type="button" onClick={onToggleDeleteConfirm}>
-            {t('clients.profile.cancel')}
-          </button>
-          <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onConfirmDelete}>
-            {deleting ? t('common.saving') : t('clients.profile.delete')}
-          </button>
-        </div>
-      ) : null}
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
 
       <ProfileSection title={t('clients.profile.section.basicInfo')}>

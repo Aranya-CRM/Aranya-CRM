@@ -467,7 +467,6 @@
       "save": "保存修改",
       "cancel": "取消",
       "volunteerNotice": "当前账户只能查看基础档案。如需完整资料，请联系 Manager。",
-      "dangerBanner": "Manager 操作：删除档案会把记录从活跃列表移除。当前版本仅显示确认入口，等待后端删除/归档 API 接入。",
       "section": {
         "basicInfo": "基本信息",
         "identity": "身份文件",

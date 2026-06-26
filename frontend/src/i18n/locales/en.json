@@ -467,7 +467,6 @@
       "save": "Save Changes",
       "cancel": "Cancel",
       "volunteerNotice": "This account can view basic profile information only.",
-      "dangerBanner": "Manager action: deleting this profile removes the record from the active list. Current version shows confirm entry only, pending backend delete/archive API.",
       "section": {
         "basicInfo": "Basic Info",
         "identity": "Identity (IC)",
