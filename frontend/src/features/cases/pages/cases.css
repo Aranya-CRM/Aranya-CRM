@@ -1090,12 +1090,18 @@
 .service-calendar-wrap .fc-daygrid-event {
   border: none;
   border-radius: 6px;
-  padding: 3px 8px;
-  margin: 2px 4px;
+  padding: 4px 9px;
+  margin: 2px 2px;
   font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
   transition: filter 0.12s ease;
+}
+
+/* 让事件块占满格子宽度,显得更宽 */
+.service-calendar-wrap .fc-daygrid-event-harness {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .service-calendar-wrap .fc-daygrid-event:hover {
@@ -1114,12 +1120,12 @@
   opacity: 0.85;
 }
 
-/* 当前 case 的事件:实心品牌紫,白字,左侧高亮条 —— 重点突出 */
+/* 当前 case 的事件:浅一点的品牌紫,白字,左侧高亮条 —— 重点突出 */
 .service-calendar-wrap .fc-event.evt-own {
-  background: #6c47ff;
-  border-left: 3px solid #3f1fb3;
+  background: #8b72f0;
+  border-left: 3px solid #5b3fd6;
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(108, 71, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(108, 71, 255, 0.22);
 }
 .service-calendar-wrap .fc-event.evt-own .fc-event-title,
 .service-calendar-wrap .fc-event.evt-own .fc-event-time {
@@ -1170,14 +1176,14 @@
 .service-calendar-wrap .fc-day-today .fc-daygrid-day-number {
   background: var(--cal-today-ring);
   color: #fff;
-  border-radius: 50%;
-  width: 24px;
+  border-radius: 5px;
+  min-width: 24px;
   height: 24px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  padding: 0;
+  padding: 0 6px;
   margin: 6px 8px;
 }
 
@@ -1211,8 +1217,8 @@
 }
 
 .calendar-legend-item .lg-own {
-  background: #6c47ff;
-  border-left: 3px solid #3f1fb3;
+  background: #8b72f0;
+  border-left: 3px solid #5b3fd6;
 }
 
 .calendar-legend-item .lg-other {
