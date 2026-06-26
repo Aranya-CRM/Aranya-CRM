@@ -6,6 +6,7 @@ import { removeLocalPendingApproval, useLocalPendingApprovals } from '../../../s
 import { useAccess } from '../../../shared/auth'
 import { PageHeader } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
+import { useUsers } from '../../users/hooks/useUsers'
 import {
   CaseTable,
   CaseToolbar,
@@ -44,6 +45,7 @@ export function CaseListPage() {
   const { resolve } = useAccess()
   const { user } = useAuth()
   const { data: cases = [], isLoading } = useCases()
+  const { data: users = [] } = useUsers()
   const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
   const localPendingApprovals = useLocalPendingApprovals()
   const approveRequest = useApproveRequest()
@@ -55,6 +57,10 @@ export function CaseListPage() {
   const caseApprovalItems = useMemo(() => {
     return mergePendingCaseApprovals(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt)
   }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
+
+  const userNameById = useMemo(() => {
+    return new Map(users.map((item) => [String(item.id), item.fullName || item.username || item.email || String(item.id)]))
+  }, [users])
 
   useEffect(() => {
     if (pendingApprovalsUpdatedAt <= 0) return
@@ -75,8 +81,8 @@ export function CaseListPage() {
   const createApprovalRows = useMemo(() => {
     return caseApprovalItems
       .filter((approval) => approval.type === 'CASE_CREATE')
-      .map(toPendingCreateCaseRow)
-  }, [caseApprovalItems])
+      .map((approval) => toPendingCreateCaseRow(approval, userNameById))
+  }, [caseApprovalItems, userNameById])
 
   const rows = useMemo(() => {
     return [
@@ -152,6 +158,7 @@ export function CaseListPage() {
       {selectedCreateApproval ? (
         <CaseApprovalDetailPanel
           approval={selectedCreateApproval}
+          userNameById={userNameById}
           canDecideApproval={canDecideApproval(serverSelectedCreateApproval, user?.id)}
           deciding={approveRequest.isPending || rejectRequest.isPending}
           onApprove={() => serverSelectedCreateApproval ? void approveRequest.mutateAsync({ id: serverSelectedCreateApproval.id, data: {} }) : undefined}
@@ -179,11 +186,12 @@ function toCaseListRow(item: Case, pendingApproval?: CaseApprovalView): CaseList
   }
 }
 
-function toPendingCreateCaseRow(approval: CaseApprovalView): CaseListRow {
+function toPendingCreateCaseRow(approval: CaseApprovalView, userNameById: Map<string, string>): CaseListRow {
   const payload = parseApprovalPayload(approval.payloadJson)
   const clientId = stringValue(payload.clientId ?? approval.targetId)
   const targetLabel = approval.targetLabel?.trim()
   const openedAt = stringValue(payload.openedAt) || approval.createdAt?.slice(0, 10) || ''
+  const socialWorkerId = stringValue(payload.socialWorkerId)
   return {
     id: `approval:${approval.id}`,
     caseNo: tFallbackTarget(targetLabel, clientId),
@@ -193,7 +201,7 @@ function toPendingCreateCaseRow(approval: CaseApprovalView): CaseListRow {
     clientNameChn: '',
     clientNameEn: '',
     tradition: '',
-    socialWorker: stringValue(payload.socialWorkerId) || '-',
+    socialWorker: resolveUserName(socialWorkerId, userNameById),
     status: (stringValue(payload.status) as CaseStatus | undefined) ?? 'OPEN',
     colorCode: normalizeColorCode(stringValue(payload.colorCode)),
     approvalOperation: 'create',
@@ -202,12 +210,14 @@ function toPendingCreateCaseRow(approval: CaseApprovalView): CaseListRow {
 
 function CaseApprovalDetailPanel({
   approval,
+  userNameById,
   canDecideApproval,
   deciding,
   onApprove,
   onReject,
 }: {
   approval: CaseApprovalView
+  userNameById: Map<string, string>
   canDecideApproval: boolean
   deciding: boolean
   onApprove: () => void
@@ -216,6 +226,9 @@ function CaseApprovalDetailPanel({
   const { t } = useTranslation()
   const payload = parseApprovalPayload(approval.payloadJson)
   const services = Array.isArray(payload.services) ? payload.services.map(String) : []
+  const socialWorkerId = stringValue(payload.socialWorkerId)
+  const comments = stringValue(payload.comments)
+  const remarks = stringValue(payload.remarks)
   return (
     <section className="case-approval-detail-panel">
       <div className="case-approval-detail-header">
@@ -244,11 +257,19 @@ function CaseApprovalDetailPanel({
         </div>
         <div>
           <dt>{t('cases.form.caseworker')}</dt>
-          <dd>{stringValue(payload.socialWorkerId) || '-'}</dd>
+          <dd>{resolveUserName(socialWorkerId, userNameById)}</dd>
         </div>
         <div>
           <dt>{t('cases.form.intensity')}</dt>
           <dd>{stringValue(payload.colorCode) || '-'}</dd>
+        </div>
+        <div className="wide">
+          <dt>{t('cases.form.comments')}</dt>
+          <dd>{comments || '-'}</dd>
+        </div>
+        <div className="wide">
+          <dt>{t('cases.form.remarks')}</dt>
+          <dd>{remarks || '-'}</dd>
         </div>
       </dl>
       <details className="case-approval-reason">
@@ -317,6 +338,11 @@ function normalizeColorCode(value?: string): CaseColorCode {
 function stringValue(value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined
   return String(value)
+}
+
+function resolveUserName(userId: string | undefined, userNameById: Map<string, string>) {
+  if (!userId) return '-'
+  return userNameById.get(userId) ?? userId
 }
 
 function tFallbackTarget(targetLabel?: string, clientId?: string) {

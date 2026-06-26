@@ -317,20 +317,6 @@
 }
 
 
-.client-danger-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 10px 12px;
-  border: 1px solid #d6bbfb;
-  border-radius: 4px;
-  background: #f8f4ff;
-  color: #6d28d9;
-  font-size: 12px;
-}
-
 .client-profile-section {
   padding-top: 28px;
 }
@@ -966,8 +952,4 @@
     flex-direction: column-reverse;
   }
 
-  .client-danger-banner {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
