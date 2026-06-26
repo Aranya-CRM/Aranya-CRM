@@ -1469,6 +1469,10 @@
   background: #fafafa;
 }
 
+.case-service-request-form.single {
+  grid-template-columns: minmax(280px, 560px);
+}
+
 .case-service-request-form h3 {
   grid-column: 1 / -1;
 }
@@ -1500,6 +1504,7 @@
   bottom: 32px;
   z-index: 30;
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
   margin-top: 0;
 }
@@ -1550,16 +1555,6 @@
   margin: 3px 0 0;
   color: var(--text-muted);
   font-size: 12px;
-}
-
-.case-service-card-actions {
-  position: relative;
-  display: flex;
-  justify-content: flex-end;
-  align-self: stretch;
-  align-items: center;
-  margin-left: auto;
-  flex: 0 0 42px;
 }
 
 .case-service-pending-badge {
@@ -1628,131 +1623,6 @@
   flex: 0 0 auto;
 }
 
-.case-service-expand-trigger {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--text-main);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.case-service-expand-trigger[aria-expanded="true"] {
-  transform: rotate(180deg);
-}
-
-.case-service-expand-trigger:hover {
-  border-color: #d7dce5;
-  background: #fafafa;
-}
-
-.case-service-event-panel {
-  position: relative;
-  display: grid;
-  gap: 18px;
-  padding-right: 40px;
-  padding-top: 16px;
-  border-top: 1px solid #eef1f5;
-}
-
-.case-service-event-panel.has-history {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-}
-
-.case-service-history-toggle {
-  position: absolute;
-  top: 18px;
-  right: 0;
-  width: 30px;
-  height: 58px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--text-main);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.case-service-history-toggle:hover {
-  border-color: #d7dce5;
-  background: #fafafa;
-}
-
-.case-service-event-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.case-service-event-history .case-service-event-list {
-  max-height: 300px;
-  overflow-y: scroll;
-  padding-right: 6px;
-  scrollbar-gutter: stable;
-  scrollbar-color: #cbd5e1 #f8fafc;
-}
-
-.case-service-event-history .case-service-event-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.case-service-event-history .case-service-event-list::-webkit-scrollbar-track {
-  background: #f8fafc;
-  border-radius: 999px;
-}
-
-.case-service-event-history .case-service-event-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
-}
-
-.case-service-event-row {
-  position: relative;
-  padding: 10px 12px;
-  border: 1px solid #eef2f7;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.case-service-event-history .case-service-event-row {
-  padding-right: 68px;
-}
-
-.case-service-event-row dl {
-  display: grid;
-  gap: 9px;
-  margin: 0;
-}
-
-.case-service-event-row dl > div {
-  min-width: 0;
-}
-
-.case-service-event-row dt {
-  margin: 0 0 2px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.case-service-event-row dd {
-  margin: 0;
-  color: var(--text-main);
-  font-size: 12px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.case-service-event-delete {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
-
 .case-service-empty {
   margin: 0;
   padding: 12px;
@@ -1762,78 +1632,9 @@
   font-size: 13px;
 }
 
-.case-service-event-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 12px 14px;
-}
-
-.case-service-event-form label {
-  display: grid;
-  gap: 6px;
-  color: var(--text-main);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.case-service-event-form label.wide {
-  grid-column: 1 / -1;
-}
-
-.case-service-event-form input,
-.case-service-event-form select,
-.case-service-event-form textarea {
-  width: 100%;
-  min-height: 34px;
-  padding: 7px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--text-main);
-  font: inherit;
-  font-weight: 400;
-}
-
-.case-service-event-form textarea {
-  min-height: 76px;
-  resize: vertical;
-}
-
-.case-service-event-form button {
-  align-self: end;
-  justify-self: start;
-}
-
-.case-service-event-history {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding-left: 18px;
-  border-left: 1px solid #eef1f5;
-}
-
-.case-service-event-history h4 {
-  margin: 0;
-  color: var(--text-main);
-  font-size: 13px;
-  font-weight: 800;
-}
-
 @media (max-width: 900px) {
-  .case-service-event-panel.has-history {
-    grid-template-columns: 1fr;
-  }
-
   .case-service-request-form {
     grid-template-columns: 1fr;
-  }
-
-  .case-service-event-history {
-    padding-left: 0;
-    padding-top: 14px;
-    border-left: 0;
-    border-top: 1px solid #eef1f5;
   }
 }
 

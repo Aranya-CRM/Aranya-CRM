@@ -114,7 +114,7 @@ export async function fetchClients(): Promise<Client[]> {
   }
 }
 
-export async function fetchClientsWithoutCase(): Promise<Client[]> {
+export async function fetchClientsAvailableForCase(): Promise<Client[]> {
   const res = await http.get<BackendClientSummary[]>('/v1/clients/without-case')
   return res.data.map(mapBackendClient)
 }

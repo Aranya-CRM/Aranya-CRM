@@ -27,7 +27,7 @@ public class ApprovalController {
     private final ApprovalService approvalService;
 
     @GetMapping
-    @PreAuthorize("@capEval.hasCap(authentication, 'approvals:view')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'approvals:view') or @capEval.hasCap(authentication, 'approvals:create')")
     public ResponseEntity<List<ApprovalRequestResponse>> listPending(@CurrentUser User currentUser) {
         return ResponseEntity.ok(approvalService.listPending(currentUser));
     }

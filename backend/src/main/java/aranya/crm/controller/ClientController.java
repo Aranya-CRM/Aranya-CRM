@@ -46,8 +46,8 @@ public class ClientController {
     }
 
     @GetMapping("/without-case")
-    public ResponseEntity<List<ClientSummaryResponse>> listClientsWithoutCase() {
-        return ResponseEntity.ok(clientService.listClientsWithoutCase());
+    public ResponseEntity<List<ClientSummaryResponse>> listClientsAvailableForCase() {
+        return ResponseEntity.ok(clientService.listClientsAvailableForCase());
     }
 
     @GetMapping("/{id}")

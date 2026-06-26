@@ -49,8 +49,8 @@ public class ClientService {
                 .toList();
     }
 
-    public List<ClientSummaryResponse> listClientsWithoutCase() {
-        return clientRepository.findActiveClientsWithoutCase().stream()
+    public List<ClientSummaryResponse> listClientsAvailableForCase() {
+        return clientRepository.findActiveClientsWithoutActiveCase().stream()
                 .map(this::toClientSummaryResponse)
                 .toList();
     }
