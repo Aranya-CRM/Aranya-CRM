@@ -107,6 +107,26 @@ class ClientControllerTest {
     }
 
     @Test
+    @DisplayName("Authenticated user can list clients available for new cases")
+    @WithMockUser(roles = "MANAGER")
+    void listClientsAvailableForCase_returns200_forAuthenticatedUser() throws Exception {
+        when(clientService.listClientsAvailableForCase()).thenReturn(List.of(
+                ClientSummaryResponse.builder()
+                        .id(10L)
+                        .abbr("C001")
+                        .nameEn("Tan Mei Lin")
+                        .membershipStatus("ACTIVE")
+                        .build()
+        ));
+
+        mockMvc.perform(get("/api/v1/clients/without-case"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(10))
+                .andExpect(jsonPath("$[0].abbr").value("C001"));
+        verify(clientService).listClientsAvailableForCase();
+    }
+
+    @Test
     @DisplayName("Anonymous user cannot list clients")
     void listClients_returns403_forAnonymousUser() throws Exception {
         mockMvc.perform(get("/api/v1/clients"))

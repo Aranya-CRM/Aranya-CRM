@@ -44,7 +44,10 @@ export function useCreateClient() {
       createClient(data, { approverId, reason }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
-      if (!isClientResult(client)) return
+      if (!isClientResult(client)) {
+        queryClient.invalidateQueries({ queryKey: ['approvals'] })
+        return
+      }
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client)
     },
   })
@@ -58,7 +61,10 @@ export function useUpdateClient() {
       updateClient(id, data, { approverId, reason }),
     onSuccess: (client) => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
-      if (!isClientResult(client)) return
+      if (!isClientResult(client)) {
+        queryClient.invalidateQueries({ queryKey: ['approvals'] })
+        return
+      }
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client)
     },
   })
@@ -71,6 +77,7 @@ export function useDeleteClient() {
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteClient(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
     },
   })
 }

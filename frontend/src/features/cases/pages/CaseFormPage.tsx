@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApprovalConfirmModal, BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import { addLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
-import { fetchClientsWithoutCase } from '../../clients/api/client.api'
+import { fetchClientsAvailableForCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
@@ -46,7 +46,7 @@ export function CaseFormPage() {
   useEffect(() => {
     let active = true
 
-    void fetchClientsWithoutCase()
+    void fetchClientsAvailableForCase()
       .then((clientData) => {
         if (!active) return
         setClients(clientData)

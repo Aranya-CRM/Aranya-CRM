@@ -45,10 +45,12 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     @Query("""
             SELECT c FROM Client c
             WHERE NOT EXISTS (
-                SELECT 1 FROM ClientCase cc WHERE cc.client = c
+                SELECT 1 FROM ClientCase cc
+                WHERE cc.client = c
+                AND LOWER(cc.status) NOT IN ('closed', 'deleted')
             )
             AND LOWER(c.membershipStatus) = 'active'
             ORDER BY c.createdAt DESC
             """)
-    List<Client> findActiveClientsWithoutCase();
+    List<Client> findActiveClientsWithoutActiveCase();
 }

@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
+import { addLocalPendingApproval, removeLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
@@ -12,6 +12,7 @@ import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
 import { isClientResult, useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
+import { mergePendingApprovals, staleLocalApprovalIds } from './clientApprovalUtils'
 import './clients.css'
 
 const TRADITIONS: Array<Client['buddhistTradition']> = [
@@ -93,7 +94,7 @@ export function ClientListPage() {
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
   const approvalAssignees = useApprovalAssigneeOptions()
-  const { data: pendingApprovals = [] } = usePendingApprovals()
+  const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
   const localPendingApprovals = useLocalPendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
@@ -129,12 +130,13 @@ export function ClientListPage() {
   }, [clients, search, filterTradition])
 
   const clientApprovalItems = useMemo(() => {
-    const serverItems = pendingApprovals.filter(isClientApproval)
-    const localItems = localPendingApprovals.filter((approval) => (
-      isClientApproval(approval) && !serverItems.some((item) => item.id === approval.id)
-    ))
-    return [...serverItems, ...localItems]
-  }, [localPendingApprovals, pendingApprovals])
+    return mergePendingApprovals(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt)
+  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
+
+  useEffect(() => {
+    if (pendingApprovalsUpdatedAt <= 0) return
+    staleLocalApprovalIds(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt).forEach(removeLocalPendingApproval)
+  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
 
   const pendingApprovalByClientId = useMemo(() => {
     const map = new Map<string, ClientApprovalView>()
@@ -538,10 +540,6 @@ export function ClientListPage() {
       />
     </div>
   )
-}
-
-function isClientApproval(approval: { type: string }) {
-  return approval.type === 'CLIENT_CREATE' || approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT'
 }
 
 function canDecideApproval(approval: ClientApprovalView | undefined, currentUserId: number | undefined) {
@@ -1332,10 +1330,12 @@ function InfoCell({
   wide?: boolean
   changed?: boolean
 }) {
+  const displayValue = String(value ?? '').trim() || '-'
+
   return (
     <div className={'client-info-cell' + (wide ? ' wide' : '') + (changed ? ' changed' : '')}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong>{displayValue}</strong>
     </div>
   )
 }

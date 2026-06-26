@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
+import { removeLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useAccess } from '../../../shared/auth'
 import { PageHeader } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
@@ -13,6 +13,7 @@ import {
 } from '../components'
 import { useCases } from '../hooks'
 import type { Case, CaseColorCode, CaseStatus } from '../types'
+import { mergePendingCaseApprovals, staleLocalCaseApprovalIds } from './caseApprovalUtils'
 import './cases.css'
 
 const COLOR_ORDER: Record<CaseColorCode, number> = {
@@ -43,7 +44,7 @@ export function CaseListPage() {
   const { resolve } = useAccess()
   const { user } = useAuth()
   const { data: cases = [], isLoading } = useCases()
-  const { data: pendingApprovals = [] } = usePendingApprovals()
+  const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
   const localPendingApprovals = useLocalPendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
@@ -52,12 +53,13 @@ export function CaseListPage() {
   const selectedApprovalId = searchParams.get('approval')
 
   const caseApprovalItems = useMemo(() => {
-    const serverItems = pendingApprovals.filter(isCaseApproval)
-    const localItems = localPendingApprovals.filter((approval) => (
-      isCaseApproval(approval) && !serverItems.some((item) => item.id === approval.id)
-    ))
-    return [...serverItems, ...localItems]
-  }, [localPendingApprovals, pendingApprovals])
+    return mergePendingCaseApprovals(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt)
+  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
+
+  useEffect(() => {
+    if (pendingApprovalsUpdatedAt <= 0) return
+    staleLocalCaseApprovalIds(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt).forEach(removeLocalPendingApproval)
+  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
 
   const pendingCloseApprovalByCaseId = useMemo(() => {
     const map = new Map<string, CaseApprovalView>()
@@ -272,10 +274,6 @@ function CaseApprovalDetailPanel({
       ) : null}
     </section>
   )
-}
-
-function isCaseApproval(approval: { type: string }) {
-  return approval.type === 'CASE_CREATE' || approval.type === 'DELETE_CASE'
 }
 
 function canDecideApproval(approval: CaseApprovalView | undefined, currentUserId: number | undefined) {

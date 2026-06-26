@@ -15,13 +15,25 @@ import java.util.Optional;
 public interface CaseRepository extends JpaRepository<ClientCase, Long> {
 
     @EntityGraph(attributePaths = "client")
-    List<ClientCase> findByStatusNotOrderByOpenedAtDescIdDesc(String status, Pageable pageable);
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            WHERE LOWER(cc.status) NOT IN ('closed', 'deleted')
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findActiveCases(Pageable pageable);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
     List<ClientCase> findAllByOrderByOpenedAtDescIdDesc();
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
     Optional<ClientCase> findFirstByClientIdOrderByOpenedAtDescIdDesc(Long clientId);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(cc) > 0 THEN true ELSE false END FROM ClientCase cc
+            WHERE cc.client.id = :clientId
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    boolean existsActiveCaseByClientId(@Param("clientId") Long clientId);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
     List<ClientCase> findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc(String status);
@@ -53,28 +65,59 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             """)
     List<ClientCase> searchCases(@Param("q") String q, @Param("status") String status);
 
-    long countByStatusNot(String status);
+    @Query("""
+            SELECT COUNT(cc) FROM ClientCase cc
+            WHERE LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    long countActiveCases();
 
     @EntityGraph(attributePaths = "client")
-    List<ClientCase> findByStatusNotAndColorCodeInOrderByOpenedAtDescIdDesc(
-            String status,
-            Collection<String> colorCodes,
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            WHERE LOWER(cc.status) NOT IN ('closed', 'deleted')
+            AND cc.colorCode IN :colorCodes
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findUrgentActiveCases(
+            @Param("colorCodes") Collection<String> colorCodes,
             Pageable pageable
     );
 
-    long countByStatusNotAndColorCodeIn(String status, Collection<String> colorCodes);
+    @Query("""
+            SELECT COUNT(cc) FROM ClientCase cc
+            WHERE LOWER(cc.status) NOT IN ('closed', 'deleted')
+            AND cc.colorCode IN :colorCodes
+            """)
+    long countUrgentActiveCases(@Param("colorCodes") Collection<String> colorCodes);
 
     @EntityGraph(attributePaths = "client")
-    List<ClientCase> findByCreatedByIdAndStatusNotOrderByOpenedAtDescIdDesc(
-            Long createdById, String status, Pageable pageable);
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            WHERE cc.createdBy.id = :createdById
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findActiveCasesByCreatedById(@Param("createdById") Long createdById, Pageable pageable);
 
-    long countByCreatedByIdAndStatusNot(Long createdById, String status);
+    @Query("""
+            SELECT COUNT(cc) FROM ClientCase cc
+            WHERE cc.createdBy.id = :createdById
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    long countActiveCasesByCreatedById(@Param("createdById") Long createdById);
 
-    long countByCreatedByIdAndStatusNotAndColorCodeIn(
-            Long createdById, String status, Collection<String> colorCodes);
+    @Query("""
+            SELECT COUNT(cc) FROM ClientCase cc
+            WHERE cc.createdBy.id = :createdById
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            AND cc.colorCode IN :colorCodes
+            """)
+    long countUrgentActiveCasesByCreatedById(
+            @Param("createdById") Long createdById,
+            @Param("colorCodes") Collection<String> colorCodes);
 
     @Query("SELECT COUNT(DISTINCT cc.client.id) FROM ClientCase cc " +
-           "WHERE cc.createdBy.id = :createdById AND LOWER(cc.status) != 'closed'")
+           "WHERE cc.createdBy.id = :createdById AND LOWER(cc.status) NOT IN ('closed', 'deleted')")
     long countDistinctActiveClientsByCreatedById(@Param("createdById") Long createdById);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
