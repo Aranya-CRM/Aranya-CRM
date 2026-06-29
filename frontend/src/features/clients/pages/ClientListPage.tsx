@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { addLocalPendingApproval, removeLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
+import { useCases, useDeleteCase } from '../../cases/hooks'
+import type { Case } from '../../cases/types'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
-import { isClientResult, useClient, useClients, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
+import { isClientResult, useClient, useClients, useClientsAvailableForCase, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
-import { mergePendingApprovals, staleLocalApprovalIds } from './clientApprovalUtils'
+import {
+  applyClientCaseFilter,
+  countActiveClientFilters,
+  deriveClientDateFields,
+  type ClientCaseFilter,
+} from './clientProfileUtils'
 import './clients.css'
 
 const TRADITIONS: Array<Client['buddhistTradition']> = [
@@ -58,7 +64,7 @@ const initialNewClientForm: NewClientForm = {
   areaDistrict: '',
 }
 
-type ClientApprovalIntent = 'create' | 'update' | 'delete'
+type ClientApprovalIntent = 'create' | 'delete' | 'closeCase'
 type ClientApprovalOperation = 'create' | 'update' | 'delete'
 
 interface ClientApprovalView {
@@ -90,21 +96,25 @@ export function ClientListPage() {
   const { id: routeClientId } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: clients = [], isLoading } = useClients()
+  const { data: clientsAvailableForCase = [] } = useClientsAvailableForCase()
+  const { data: cases = [] } = useCases()
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
+  const closeCase = useDeleteCase()
   const approvalAssignees = useApprovalAssigneeOptions()
-  const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
-  const localPendingApprovals = useLocalPendingApprovals()
+  const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
+  const [filterCase, setFilterCase] = useState<ClientCaseFilter>('all')
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const filterMenuRef = useRef<HTMLDivElement | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
-  const [approvalMessage, setApprovalMessage] = useState('')
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
 
   const selectedApprovalId = searchParams.get('approval')
@@ -114,9 +124,16 @@ export function ClientListPage() {
   const canDeleteClient = resolve('clients:delete')
   const canViewDetailedProfile = resolve('clients:view.full')
   const canConvertToCase = resolve('cases:create')
+  const canCloseCase = resolve('cases:delete')
+  const activeFilterCount = countActiveClientFilters(filterTradition, filterCase)
+
+  const withoutCaseIds = useMemo(
+    () => new Set(clientsAvailableForCase.map((client) => client.id)),
+    [clientsAvailableForCase],
+  )
 
   const filtered = useMemo(() => {
-    return clients.filter((client) => {
+    return applyClientCaseFilter(clients, withoutCaseIds, filterCase).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
@@ -126,16 +143,11 @@ export function ClientListPage() {
       const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
       return matchSearch && matchTradition
     })
-  }, [clients, search, filterTradition])
+  }, [clients, filterCase, filterTradition, search, withoutCaseIds])
 
   const clientApprovalItems = useMemo(() => {
-    return mergePendingApprovals(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt)
-  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
-
-  useEffect(() => {
-    if (pendingApprovalsUpdatedAt <= 0) return
-    staleLocalApprovalIds(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt).forEach(removeLocalPendingApproval)
-  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
+    return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
+  }, [pendingApprovals])
 
   const pendingApprovalByClientId = useMemo(() => {
     const map = new Map<string, ClientApprovalView>()
@@ -150,6 +162,7 @@ export function ClientListPage() {
   }, [clientApprovalItems])
 
   const createApprovalDirectoryItems = useMemo(() => {
+    if (filterCase === 'with_case') return []
     return clientApprovalItems
       .filter((approval) => approval.type === 'CLIENT_CREATE')
       .map((approval): ClientDirectoryItem => ({
@@ -159,7 +172,7 @@ export function ClientListPage() {
         operation: 'create',
       }))
       .filter((item) => clientDirectoryItemMatches(item, search, filterTradition))
-  }, [clientApprovalItems, filterTradition, search])
+  }, [clientApprovalItems, filterCase, filterTradition, search])
 
   const directoryItems = useMemo(() => {
     return [
@@ -207,6 +220,13 @@ export function ClientListPage() {
   const serverProfileApproval = profileApproval
     ? pendingApprovals.find((approval) => approval.id === profileApproval.id)
     : undefined
+  const activeProfileCase = useMemo(() => {
+    if (!profileClient) return undefined
+    return cases.find((item) => item.clientId === profileClient.id && item.status !== 'CLOSED')
+  }, [cases, profileClient])
+  const closeCasePending = Boolean(activeProfileCase && pendingApprovals.some((approval) => (
+    approval.type === 'DELETE_CASE' && String(approval.targetId) === String(activeProfileCase.id)
+  )))
   const routeWantsEdit = location.pathname.endsWith('/edit')
 
   useEffect(() => {
@@ -226,13 +246,31 @@ export function ClientListPage() {
     setEditForm(clientToFormData(profileClient))
   }, [canUpdateClient, editingClientId, profileClient, routeWantsEdit])
 
+  useEffect(() => {
+    if (!filterMenuOpen) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (filterMenuRef.current?.contains(event.target as Node)) return
+      setFilterMenuOpen(false)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setFilterMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [filterMenuOpen])
+
   function selectClient(clientId: string) {
-    setApprovalMessage('')
     setSearchParams({ client: clientId })
   }
 
   function selectApproval(approvalId: number) {
-    setApprovalMessage('')
     setSearchParams({ approval: String(approvalId) })
   }
 
@@ -249,12 +287,6 @@ export function ClientListPage() {
     if (isClientResult(result)) {
       setSearchParams({ client: String(result.id) })
     } else {
-      addLocalPendingApproval({
-        ...result,
-        targetType: result.targetType ?? 'CLIENT',
-        targetLabel: result.targetLabel ?? clientApprovalLabelFromPayload(result.payloadJson) ?? newClientForm.abbr,
-      })
-      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
       navigate('/clients')
     }
   }
@@ -284,7 +316,20 @@ export function ClientListPage() {
   }
 
   function updateEditField<K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) {
-    setEditForm((current) => (current ? { ...current, [key]: value } : current))
+    setEditForm((current) => {
+      if (!current) return current
+      const next = { ...current, [key]: value }
+      if (key === 'dateOfBirth' || key === 'dateOfOrdination') {
+        return {
+          ...next,
+          ...deriveClientDateFields({
+            dateOfBirth: next.dateOfBirth,
+            dateOfOrdination: next.dateOfOrdination,
+          }),
+        }
+      }
+      return next
+    })
   }
 
   function toggleEditWellbeing(key: keyof Client['wellbeingIssues']) {
@@ -315,29 +360,18 @@ export function ClientListPage() {
     ))
   }
 
-  function saveEditClient() {
+  async function saveEditClient() {
     if (!editingClientId || !editForm) return
-    setApprovalIntent('update')
-  }
-
-  async function confirmUpdateClient(approverId?: number, reason?: string) {
-    if (!editingClientId || !editForm) return
-    const result = await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client>, approverId, reason })
-    const savedClientId = editingClientId
-    setEditingClientId(null)
-    setEditForm(null)
-    setApprovalIntent(null)
-    if (!isClientResult(result)) {
-      addLocalPendingApproval({
-        ...result,
-        targetType: result.targetType ?? 'CLIENT',
-        targetId: result.targetId ?? savedClientId,
-        targetLabel: result.targetLabel ?? profileClient?.abbr ?? savedClientId,
-      })
-      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
-    }
-    if (routeWantsEdit) {
-      navigate(`/clients/${savedClientId}`, { replace: true })
+    try {
+      const savedClientId = editingClientId
+      await updateClient.mutateAsync({ id: editingClientId, data: editForm as Partial<Client> })
+      setEditingClientId(null)
+      setEditForm(null)
+      if (routeWantsEdit) {
+        navigate(`/clients/${savedClientId}`, { replace: true })
+      }
+    } catch {
+      // The mutation error is rendered by ClientProfileEditPanel.
     }
   }
 
@@ -348,28 +382,30 @@ export function ClientListPage() {
 
   async function submitDeleteClient(approverId?: number, reason?: string) {
     if (!profileClient) return
-    const result = await deleteClient.mutateAsync({ id: profileClient.id, approverId, reason })
+    await deleteClient.mutateAsync({ id: profileClient.id, approverId, reason })
     setEditingClientId(null)
     setEditForm(null)
     setApprovalIntent(null)
-    if (result && 'id' in result) {
-      addLocalPendingApproval({
-        ...result,
-        targetType: result.targetType ?? 'CLIENT',
-        targetId: result.targetId ?? profileClient.id,
-        targetLabel: result.targetLabel ?? profileClient.abbr,
-      })
-      setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
-    }
+  }
+
+  function confirmCloseCase() {
+    if (!activeProfileCase || closeCasePending) return
+    setApprovalIntent('closeCase')
+  }
+
+  async function submitCloseCase(approverId?: number, reason?: string) {
+    if (!activeProfileCase) return
+    await closeCase.mutateAsync({ id: activeProfileCase.id, approverId, reason })
+    setApprovalIntent(null)
   }
 
   const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
-  const approvalPending = createClient.isPending || updateClient.isPending || deleteClient.isPending
+  const approvalPending = createClient.isPending || deleteClient.isPending || closeCase.isPending
   const approvalMessageKey =
     approvalIntent === 'create'
       ? 'approvalConfirm.clientCreate'
-      : approvalIntent === 'update'
-        ? 'approvalConfirm.clientUpdate'
+      : approvalIntent === 'closeCase'
+        ? 'approvalConfirm.caseDelete'
         : 'approvalConfirm.clientDelete'
 
   return (
@@ -382,25 +418,69 @@ export function ClientListPage() {
         </div>
 
         <div className="client-directory-controls">
-          <input
-            className="search-input client-directory-search"
-            type="text"
-            placeholder={t('clients.search')}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <div className="client-directory-filters">
-            <select
-              className="filter-select"
-              value={filterTradition}
-              onChange={(event) => setFilterTradition(event.target.value)}
-              aria-label="Filter by tradition"
-            >
-              <option value="all">{t('clients.filterAll')}</option>
-              {TRADITIONS.map((tradition) => (
-                <option key={tradition} value={tradition}>{tradition}</option>
-              ))}
-            </select>
+          <div className="client-directory-search-row" ref={filterMenuRef}>
+            <input
+              className="search-input client-directory-search"
+              type="text"
+              placeholder={t('clients.search')}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <div className="client-directory-filter-menu">
+              <button
+                className={'client-filter-button' + (activeFilterCount > 0 ? ' active' : '')}
+                type="button"
+                aria-label={t('clients.filterButton')}
+                aria-haspopup="menu"
+                aria-expanded={filterMenuOpen}
+                onClick={() => setFilterMenuOpen((open) => !open)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M4 5h16l-6.4 7.2v5.1l-3.2 1.7v-6.8L4 5z" />
+                </svg>
+              </button>
+              {filterMenuOpen ? (
+                <div className="client-filter-popover" role="menu">
+                  <label className="client-filter-field">
+                    <span>{t('clients.filterTraditionLabel')}</span>
+                    <select
+                      className="filter-select"
+                      value={filterTradition}
+                      onChange={(event) => setFilterTradition(event.target.value)}
+                    >
+                      <option value="all">{t('clients.filterAll')}</option>
+                      {TRADITIONS.map((tradition) => (
+                        <option key={tradition} value={tradition}>{tradition}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="client-filter-field">
+                    <span>{t('clients.filterCaseLabel')}</span>
+                    <select
+                      className="filter-select"
+                      value={filterCase}
+                      onChange={(event) => setFilterCase(event.target.value as ClientCaseFilter)}
+                    >
+                      <option value="all">{t('clients.filterCaseAll')}</option>
+                      <option value="with_case">{t('clients.filterWithCase')}</option>
+                      <option value="without_case">{t('clients.filterWithoutCase')}</option>
+                    </select>
+                  </label>
+                  {activeFilterCount > 0 ? (
+                    <button
+                      className="client-filter-clear"
+                      type="button"
+                      onClick={() => {
+                        setFilterTradition('all')
+                        setFilterCase('all')
+                      }}
+                    >
+                      {t('clients.filterClear')}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
@@ -458,11 +538,6 @@ export function ClientListPage() {
                 {t('clients.profileError')}
               </div>
             ) : null}
-            {approvalMessage ? (
-              <div className="client-profile-loading client-profile-warning">
-                {approvalMessage}
-              </div>
-            ) : null}
             {isEditingProfile && editForm ? (
               <ClientProfileEditPanel
                 client={displayProfileClient}
@@ -482,17 +557,22 @@ export function ClientListPage() {
                 pendingApproval={profileApproval}
                 approvalOperation={profileOperation}
                 changedFields={changedFields}
-                canDecideApproval={canDecideApproval(serverProfileApproval, user?.id)}
+                canDecideApproval={resolve('approvals:decide') && canDecideApproval(serverProfileApproval, user?.id)}
                 decidingApproval={approveRequest.isPending || rejectRequest.isPending}
                 onApproveApproval={() => serverProfileApproval ? void approveRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
                 onRejectApproval={() => serverProfileApproval ? void rejectRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
                 canUpdateClient={!profileApproval && canUpdateClient}
                 canDeleteClient={!profileApproval && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={!profileApproval && canConvertToCase}
+                canConvertToCase={!profileApproval && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
+                activeCase={activeProfileCase}
+                canCloseCase={!profileApproval && canCloseCase && Boolean(activeProfileCase)}
+                closeCasePending={closeCasePending}
+                closingCase={closeCase.isPending}
                 deleting={deleteClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
                 onConfirmDelete={() => void confirmDeleteClient()}
+                onConfirmCloseCase={() => void confirmCloseCase()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
               />
@@ -527,8 +607,8 @@ export function ClientListPage() {
         onCancel={() => setApprovalIntent(null)}
         onConfirm={(approverId, reason) => {
           if (approvalIntent === 'create') void confirmCreateClient(approverId, reason)
-          if (approvalIntent === 'update') void confirmUpdateClient(approverId, reason)
           if (approvalIntent === 'delete') void submitDeleteClient(approverId, reason)
+          if (approvalIntent === 'closeCase') void submitCloseCase(approverId, reason)
         }}
       />
     </div>
@@ -672,14 +752,8 @@ function approvalReason(payload: Record<string, unknown>): string {
   return typeof reason === 'string' ? reason.trim() : ''
 }
 
-function clientApprovalLabelFromPayload(payloadJson?: string | null): string | undefined {
-  const payload = parseApprovalPayload(payloadJson)
-  const abbr = typeof payload.abbr === 'string' ? payload.abbr.trim() : ''
-  const nameEn = typeof payload.nameEn === 'string' ? payload.nameEn.trim() : ''
-  const nameChn = typeof payload.nameChn === 'string' ? payload.nameChn.trim() : ''
-  if (abbr && nameEn) return `${abbr} · ${nameEn}`
-  if (abbr) return abbr
-  return nameEn || nameChn || undefined
+function isClientApprovalType(type: string): boolean {
+  return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT'
 }
 
 function formatDateTime(value?: string | null): string {
@@ -821,6 +895,10 @@ function clientToFormData(client: Client): ClientFormData {
   const { id: _id, ...form } = client
   return {
     ...form,
+    ...deriveClientDateFields({
+      dateOfBirth: form.dateOfBirth,
+      dateOfOrdination: form.dateOfOrdination,
+    }),
     wellbeingIssues: { ...form.wellbeingIssues },
     specialNeeds: { ...form.specialNeeds },
   }
@@ -957,9 +1035,14 @@ interface ClientProfilePanelProps {
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
   canConvertToCase: boolean
+  activeCase?: Case
+  canCloseCase: boolean
+  closeCasePending: boolean
+  closingCase: boolean
   deleting: boolean
   deleteError?: string
   onConfirmDelete: () => void
+  onConfirmCloseCase: () => void
   onEdit: () => void
   onCreateCase: () => void
 }
@@ -977,9 +1060,14 @@ function ClientProfilePanel({
   canDeleteClient,
   canViewDetailedProfile,
   canConvertToCase,
+  activeCase,
+  canCloseCase,
+  closeCasePending,
+  closingCase,
   deleting,
   deleteError,
   onConfirmDelete,
+  onConfirmCloseCase,
   onEdit,
   onCreateCase,
 }: ClientProfilePanelProps) {
@@ -990,62 +1078,10 @@ function ClientProfilePanel({
       <header className="client-profile-header">
         <div>
           <div className="client-profile-title-row">
-            <h1>{client.nameChn} / {client.nameEn}</h1>
-            <span className="abbr-tag">{client.abbr}</span>
-            {approvalOperation ? (
-              <span className={`client-approval-status ${approvalOperation}`}>
-                {t(`clients.approvals.badge.${approvalOperation}`)}
-              </span>
-            ) : null}
+            <h1>{client.abbr || '-'}</h1>
           </div>
-          <p>{client.buddhistTradition} · {client.ordinationStatus} · {client.areaDistrict}</p>
-        </div>
-        <div className="client-profile-actions">
-          {pendingApproval ? (
-            canDecideApproval ? (
-              <>
-                <button className="btn-secondary" type="button" disabled={decidingApproval} onClick={onRejectApproval}>
-                  {t('approvals.reject')}
-                </button>
-                <button className="btn-primary" type="button" disabled={decidingApproval} onClick={onApproveApproval}>
-                  {t('approvals.approve')}
-                </button>
-              </>
-            ) : null
-          ) : canConvertToCase ? (
-            <button className="btn-primary" type="button" onClick={onCreateCase}>
-              {t('clients.profile.convertToCase')}
-            </button>
-          ) : null}
-          {canViewDetailedProfile ? (
-            <>
-              {canUpdateClient ? (
-                <button className="btn-edit" type="button" onClick={onEdit}>
-                  {t('clients.profile.editProfile')}
-                </button>
-              ) : null}
-              {canDeleteClient ? (
-                <button className="btn-danger" type="button" disabled={deleting} onClick={onConfirmDelete}>
-                  {deleting ? t('common.saving') : t('clients.profile.delete')}
-                </button>
-              ) : null}
-            </>
-          ) : null}
         </div>
       </header>
-
-      {pendingApproval ? (
-        <div className={`client-approval-banner ${approvalOperation ?? ''}`}>
-          <div>
-            <strong>{t(`clients.approvals.type.${pendingApproval.type}`, { defaultValue: pendingApproval.type })}</strong>
-            <span>{pendingApproval.requestedByName ?? '-'} · {formatDateTime(pendingApproval.createdAt)}</span>
-          </div>
-          <details>
-            <summary>{t('clients.approvals.reason')}</summary>
-            <p>{approvalReason(parseApprovalPayload(pendingApproval.payloadJson)) || t('clients.approvals.noReason')}</p>
-          </details>
-        </div>
-      ) : null}
 
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
 
@@ -1102,7 +1138,92 @@ function ClientProfilePanel({
           </ProfileSection>
         </>
       ) : null}
+
+      {pendingApproval ? (
+        <ApprovalReviewPanel
+          approval={pendingApproval}
+          approvalOperation={approvalOperation}
+          canDecideApproval={canDecideApproval}
+          decidingApproval={decidingApproval}
+          onApproveApproval={onApproveApproval}
+          onRejectApproval={onRejectApproval}
+        />
+      ) : (
+        <footer className="client-profile-action-footer">
+          {canConvertToCase ? (
+            <button className="btn-primary" type="button" onClick={onCreateCase}>
+              {t('clients.profile.convertToCase')}
+            </button>
+          ) : null}
+          {canCloseCase && activeCase ? (
+            <button className="btn-secondary" type="button" disabled={closingCase || closeCasePending} onClick={onConfirmCloseCase}>
+              {closingCase ? t('common.saving') : closeCasePending ? t('clients.profile.closeCasePending') : t('clients.profile.closeCase')}
+            </button>
+          ) : null}
+          {canViewDetailedProfile && canUpdateClient ? (
+            <button className="btn-edit" type="button" onClick={onEdit}>
+              {t('clients.profile.editProfile')}
+            </button>
+          ) : null}
+          {canViewDetailedProfile && canDeleteClient ? (
+            <button className="btn-danger" type="button" disabled={deleting} onClick={onConfirmDelete}>
+              {deleting ? t('common.saving') : t('clients.profile.delete')}
+            </button>
+          ) : null}
+        </footer>
+      )}
     </article>
+  )
+}
+
+function ApprovalReviewPanel({
+  approval,
+  approvalOperation,
+  canDecideApproval,
+  decidingApproval,
+  onApproveApproval,
+  onRejectApproval,
+}: {
+  approval: ClientApprovalView
+  approvalOperation?: ClientApprovalOperation
+  canDecideApproval: boolean
+  decidingApproval: boolean
+  onApproveApproval: () => void
+  onRejectApproval: () => void
+}) {
+  const { t } = useTranslation()
+  const payload = parseApprovalPayload(approval.payloadJson)
+
+  return (
+    <section className={`client-approval-review ${approvalOperation ?? ''}`}>
+      <div className="client-approval-review-header">
+        <div>
+          <strong>{t(`clients.approvals.type.${approval.type}`, { defaultValue: approval.type })}</strong>
+          <span>{approval.requestedByName ?? '-'} · {formatDateTime(approval.createdAt)}</span>
+        </div>
+        {approvalOperation ? (
+          <span className={`client-approval-status ${approvalOperation}`}>
+            {t(`clients.approvals.badge.${approvalOperation}`)}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="client-approval-reason">
+        <strong>{t('clients.approvals.reason')}</strong>
+        <p>{approvalReason(payload) || t('clients.approvals.noReason')}</p>
+      </div>
+
+      {canDecideApproval ? (
+        <div className="client-approval-actions">
+          <button className="btn-secondary" type="button" disabled={decidingApproval} onClick={onRejectApproval}>
+            {t('approvals.reject')}
+          </button>
+          <button className="btn-primary" type="button" disabled={decidingApproval} onClick={onApproveApproval}>
+            {t('approvals.approve')}
+          </button>
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -1138,8 +1259,7 @@ function ClientProfileEditPanel({
       <header className="client-profile-header">
         <div>
           <div className="client-profile-title-row">
-            <h1>{client.nameChn} / {client.nameEn}</h1>
-            <span className="abbr-tag">{client.abbr}</span>
+            <h1>{form.abbr || client.abbr || '-'}</h1>
           </div>
           <p>{t('clients.profile.editTitle')}</p>
         </div>
@@ -1205,7 +1325,7 @@ function ClientProfileEditPanel({
               onChange={(value) => onFieldChange('gender', value as Client['gender'])}
             />
             <TextField label={t('clients.profile.field.dob')} type="date" value={form.dateOfBirth} onChange={(value) => onFieldChange('dateOfBirth', value)} />
-            <TextField label={t('clients.profile.field.age')} type="number" value={String(form.age)} onChange={(value) => onFieldChange('age', Number(value))} />
+            <TextField label={t('clients.profile.field.age')} type="number" value={String(form.age)} readOnly onChange={() => undefined} />
             <SelectField
               label={t('clients.profile.field.maritalStatus')}
               value={form.maritalStatus}
@@ -1237,7 +1357,7 @@ function ClientProfileEditPanel({
             <TextField label={t('clients.profile.field.dateOrdination')} type="date" value={form.dateOfOrdination} onChange={(value) => onFieldChange('dateOfOrdination', value)} />
             <TextField label={t('clients.profile.field.countryOrdination')} value={form.countryOfOrdination} onChange={(value) => onFieldChange('countryOfOrdination', value)} />
             <TextField label={t('clients.profile.field.placeOrdination')} value={form.placeOfOrdination} onChange={(value) => onFieldChange('placeOfOrdination', value)} fullWidth />
-            <TextField label={t('clients.profile.field.ordinationYears')} type="number" value={String(form.ordinationYears)} onChange={(value) => onFieldChange('ordinationYears', Number(value))} />
+            <TextField label={t('clients.profile.field.ordinationYears')} type="number" value={String(form.ordinationYears)} readOnly onChange={() => undefined} />
           </ProfileSection>
 
           <ProfileSection title={t('clients.profile.section.membership')}>

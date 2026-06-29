@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { serviceSelectionsForMode } from '../src/features/cases/components/caseServiceRequestUtils.js'
+import { selectedServiceForMode, serviceSelectionsForMode } from '../src/features/cases/components/caseServiceRequestUtils.ts'
 
 describe('serviceSelectionsForMode', () => {
   it('keeps only add selections in add mode', () => {
@@ -14,6 +14,27 @@ describe('serviceSelectionsForMode', () => {
     assert.deepEqual(serviceSelectionsForMode('remove', ['housing'], ['food']), {
       servicesToAdd: [],
       servicesToRemove: ['food'],
+    })
+  })
+
+  it('builds a single-service add request from a dropdown selection', () => {
+    assert.deepEqual(selectedServiceForMode('add', 'housing'), {
+      servicesToAdd: ['housing'],
+      servicesToRemove: [],
+    })
+  })
+
+  it('builds a single-service remove request from a dropdown selection', () => {
+    assert.deepEqual(selectedServiceForMode('remove', 'food'), {
+      servicesToAdd: [],
+      servicesToRemove: ['food'],
+    })
+  })
+
+  it('ignores an empty dropdown selection', () => {
+    assert.deepEqual(selectedServiceForMode('add', ''), {
+      servicesToAdd: [],
+      servicesToRemove: [],
     })
   })
 })

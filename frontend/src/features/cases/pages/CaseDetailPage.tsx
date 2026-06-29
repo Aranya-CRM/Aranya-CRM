@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useAccess } from '../../../shared/auth'
-import { addLocalPendingApproval, removeLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, BackButton } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
 import { useCaseAuditLog, useCaseFlags, useCase, useCaseNotes, useDeleteCase } from '../hooks'
-import { mergePendingCaseApprovals, staleLocalCaseApprovalIds } from './caseApprovalUtils'
 import './cases.css'
 
 interface CaseApprovalView {
@@ -35,8 +33,7 @@ export function CaseDetailPage() {
   const { data: notes = [] } = useCaseNotes(id)
   const { data: auditLog = [] } = useCaseAuditLog(id)
   const { data: flags = [] } = useCaseFlags(id)
-  const pendingCaseApprovals = useLocalPendingApprovals('CASE', id)
-  const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
+  const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const approvalAssignees = useApprovalAssigneeOptions()
@@ -50,18 +47,9 @@ export function CaseDetailPage() {
       approval.type === 'DELETE_CASE' && String(approval.targetId) === String(id)
     ))
   ), [id, pendingApprovals])
-  const closeApprovalItems = useMemo(() => (
-    mergePendingCaseApprovals(serverCloseApprovals, pendingCaseApprovals, pendingApprovalsUpdatedAt)
-      .filter((approval) => approval.type === 'DELETE_CASE')
-  ), [pendingApprovalsUpdatedAt, pendingCaseApprovals, serverCloseApprovals])
   const serverCloseApproval = serverCloseApprovals[0]
-  const closeApproval = closeApprovalItems[0]
+  const closeApproval = serverCloseApproval
   const closeApprovalPending = Boolean(closeApproval)
-
-  useEffect(() => {
-    if (pendingApprovalsUpdatedAt <= 0) return
-    staleLocalCaseApprovalIds(serverCloseApprovals, pendingCaseApprovals, pendingApprovalsUpdatedAt).forEach(removeLocalPendingApproval)
-  }, [pendingApprovalsUpdatedAt, pendingCaseApprovals, serverCloseApprovals])
 
   if (isLoading) {
     return (
@@ -98,7 +86,7 @@ export function CaseDetailPage() {
       <div className="case-detail-card">
         <CaseDetailHeader
           caseData={caseData}
-          actions={closeApproval && canDecideApproval(serverCloseApproval, user?.id) ? (
+          actions={closeApproval && resolve('approvals:decide') && canDecideApproval(serverCloseApproval, user?.id) ? (
             <>
               <button
                 className="btn-secondary"
@@ -118,14 +106,25 @@ export function CaseDetailPage() {
               </button>
             </>
           ) : canDeleteCase ? (
-            <button
-              className="btn-danger"
-              type="button"
-              disabled={closeApprovalPending}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              {closeApprovalPending ? t('cases.detail.closePending') : t('cases.detail.delete')}
-            </button>
+            <details className="case-detail-more-menu">
+              <summary aria-label={t('cases.detail.moreActions')}>
+                <span aria-hidden="true" className="case-detail-more-icon">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </summary>
+              <div className="case-detail-more-menu-panel">
+                <button
+                  className="case-detail-more-danger"
+                  type="button"
+                  disabled={closeApprovalPending}
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  {closeApprovalPending ? t('cases.detail.closePending') : t('cases.detail.delete')}
+                </button>
+              </div>
+            </details>
           ) : null}
         />
         {closeApproval ? (
@@ -147,13 +146,7 @@ export function CaseDetailPage() {
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={async (approverId, reason) => {
           if (!caseData) return
-          const approval = await deleteCase.mutateAsync({ id: caseData.id, approverId, reason })
-          addLocalPendingApproval({
-            ...approval,
-            targetType: approval.targetType ?? 'CASE',
-            targetId: approval.targetId ?? caseData.id,
-            targetLabel: approval.targetLabel ?? caseData.caseNo,
-          })
+          await deleteCase.mutateAsync({ id: caseData.id, approverId, reason })
           setShowDeleteConfirm(false)
         }}
       />

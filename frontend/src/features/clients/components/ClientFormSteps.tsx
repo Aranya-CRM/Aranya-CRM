@@ -1,5 +1,6 @@
 import type { Client, WellbeingDomain } from '../types'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
+import { deriveClientDateFields } from '../pages/clientProfileUtils'
 
 export type ClientFormData = Omit<Client, 'id'>
 export type ClientFormFieldUpdater = <K extends keyof ClientFormData>(
@@ -185,6 +186,11 @@ function IdentityStep({ form, updateField }: StepProps) {
 }
 
 function PersonalStep({ form, updateField }: StepProps) {
+  function updateDateOfBirth(value: string) {
+    updateField('dateOfBirth', value)
+    updateField('age', deriveClientDateFields({ ...form, dateOfBirth: value }).age)
+  }
+
   return (
     <div className="form-grid">
       <SelectField
@@ -193,8 +199,8 @@ function PersonalStep({ form, updateField }: StepProps) {
         options={['Male', 'Female']}
         onChange={(value) => updateField('gender', value as Client['gender'])}
       />
-      <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={(value) => updateField('dateOfBirth', value)} />
-      <TextField label="年龄 / Age" type="number" value={String(form.age)} onChange={(value) => updateField('age', Number(value))} />
+      <TextField label="出生日期 / Date of Birth" type="date" value={form.dateOfBirth} onChange={updateDateOfBirth} />
+      <TextField label="年龄 / Age" type="number" value={String(form.age)} readOnly onChange={() => undefined} />
       <SelectField
         label="婚姻状况 / Marital Status"
         value={form.maritalStatus}
@@ -213,10 +219,15 @@ function PersonalStep({ form, updateField }: StepProps) {
 }
 
 function OrdinationStep({ form, updateField }: StepProps) {
+  function updateDateOfOrdination(value: string) {
+    updateField('dateOfOrdination', value)
+    updateField('ordinationYears', deriveClientDateFields({ ...form, dateOfOrdination: value }).ordinationYears)
+  }
+
   return (
     <div className="form-grid">
       <SelectField
-        label="佛教传承 / Buddhist Tradition"
+        label="佛教传统 / Buddhist Tradition"
         value={form.buddhistTradition}
         options={['Theravada', 'Mahayana', 'Vajrayana']}
         onChange={(value) => updateField('buddhistTradition', value as Client['buddhistTradition'])}
@@ -230,10 +241,10 @@ function OrdinationStep({ form, updateField }: StepProps) {
       <TextField label="剃度日期 / Date of Tonsure" type="date" value={form.dateOfTonsure} onChange={(value) => updateField('dateOfTonsure', value)} />
       <TextField label="剃度国家 / Country of Tonsure" value={form.countryOfTonsure} onChange={(value) => updateField('countryOfTonsure', value)} />
       <TextField label="剃度地点 / Place of Tonsure" value={form.placeOfTonsure} onChange={(value) => updateField('placeOfTonsure', value)} fullWidth />
-      <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOfOrdination} onChange={(value) => updateField('dateOfOrdination', value)} />
+      <TextField label="受戒日期 / Date of Ordination" type="date" value={form.dateOfOrdination} onChange={updateDateOfOrdination} />
       <TextField label="受戒国家 / Country of Ordination" value={form.countryOfOrdination} onChange={(value) => updateField('countryOfOrdination', value)} />
       <TextField label="受戒地点 / Place of Ordination" value={form.placeOfOrdination} onChange={(value) => updateField('placeOfOrdination', value)} fullWidth />
-      <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} onChange={(value) => updateField('ordinationYears', Number(value))} />
+      <TextField label="戒龄 / Ordination Years" type="number" value={String(form.ordinationYears)} readOnly onChange={() => undefined} />
     </div>
   )
 }
