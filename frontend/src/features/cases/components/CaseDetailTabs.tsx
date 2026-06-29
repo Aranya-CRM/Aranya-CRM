@@ -399,7 +399,9 @@ interface PendingApprovalView {
   targetType?: string | null
   targetId?: number | string | null
   payloadJson?: string | null
+  requestedById?: number | null
   requestedByName?: string | null
+  assignedApproverId?: number | null
   createdAt?: string | null
 }
 
@@ -450,6 +452,7 @@ function parsePendingServicePayload(payloadJson?: string | null): PendingService
 function ServicesTab({ caseData }: { caseData: Case }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
+  const { user } = useAuth()
   const [servicesToAdd, setServicesToAdd] = useState<Array<keyof CaseServices>>([])
   const [servicesToRemove, setServicesToRemove] = useState<Array<keyof CaseServices>>([])
   const [serviceRequestMode, setServiceRequestMode] = useState<ServiceRequestMode | null>(null)
@@ -501,6 +504,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   }
 
   async function decideServiceApproval(approval: ServerApprovalRequest, approved: boolean) {
+    if (!canDecideServiceApproval(approval, user?.id)) return
     if (approved) {
       await approveRequest.mutateAsync({ id: approval.id, data: {} })
       setApprovalMessage(t('cases.services.approvalApproved'))
@@ -588,6 +592,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
             const serverPendingApproval = pendingApproval
               ? serverServiceApprovals.find((approval) => approval.id === pendingApproval.id)
               : undefined
+            const canDecidePendingApproval = canDecideServiceApproval(serverPendingApproval, user?.id)
 
             return (
               <article className={'case-service-card' + (servicePending ? ' pending' : '')} key={serviceKey}>
@@ -605,6 +610,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
                   <ServiceApprovalSummary
                     approval={pendingApproval}
                     serverApproval={serverPendingApproval}
+                    canDecideApproval={canDecidePendingApproval}
                     deciding={approveRequest.isPending || rejectRequest.isPending}
                     onApprove={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, true) : undefined}
                     onReject={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, false) : undefined}
@@ -769,12 +775,14 @@ function serviceIconLabel(serviceKey: keyof CaseServices): string {
 function ServiceApprovalSummary({
   approval,
   serverApproval,
+  canDecideApproval,
   deciding,
   onApprove,
   onReject,
 }: {
   approval: PendingApprovalView
   serverApproval?: ServerApprovalRequest
+  canDecideApproval: boolean
   deciding: boolean
   onApprove: () => void
   onReject: () => void
@@ -798,7 +806,7 @@ function ServiceApprovalSummary({
         <summary>{t('cases.approvals.reason')}</summary>
         <p>{reason || t('cases.approvals.noReason')}</p>
       </details>
-      {serverApproval ? (
+      {serverApproval && canDecideApproval ? (
         <div className="case-service-approval-actions">
           <button className="btn-secondary btn-compact" type="button" disabled={deciding} onClick={onReject}>
             {t('approvals.reject')}
@@ -810,6 +818,15 @@ function ServiceApprovalSummary({
       ) : null}
     </div>
   )
+}
+
+function canDecideServiceApproval(
+  approval: Pick<PendingApprovalView, 'requestedById' | 'assignedApproverId'> | undefined,
+  currentUserId: number | undefined,
+) {
+  if (!approval || currentUserId === undefined) return false
+  if (approval.requestedById === currentUserId) return false
+  return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 
 function approvalReason(payloadJson?: string | null): string {

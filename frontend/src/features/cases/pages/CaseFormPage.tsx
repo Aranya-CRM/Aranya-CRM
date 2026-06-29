@@ -117,6 +117,7 @@ export function CaseFormPage() {
       setSubmittedApprovalId(approval.id)
       setSuccessMessage(t('cases.form.approvalSubmittedWithId', { id: approval.id }))
       setShowApprovalConfirm(false)
+      navigate('/cases')
     } catch {
       setErrorMessage(t('cases.form.saveError'))
     }

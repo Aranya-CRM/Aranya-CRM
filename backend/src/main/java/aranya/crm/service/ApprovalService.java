@@ -136,6 +136,16 @@ public class ApprovalService {
                 .toList();
     }
 
+    public boolean hasPendingRequest(String type, String targetType, Long targetId) {
+        if (type == null || targetType == null || targetId == null) return false;
+        return approvalRequestRepository.existsByStatusAndTypeAndTargetTypeAndTargetId(
+                STATUS_PENDING,
+                normalizeRequired(type, "Approval type is required"),
+                normalizeRequired(targetType, "Target type is required"),
+                targetId
+        );
+    }
+
     @Transactional
     public ApprovalRequestResponse approve(Long approvalId, User decidedBy, String comment) {
         return decide(approvalId, decidedBy, STATUS_APPROVED, comment);
