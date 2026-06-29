@@ -301,6 +301,30 @@
       "placeholder": "Add a case note",
       "followupPlaceholder": "Follow-up (optional)"
     },
+    "documents": {
+      "title": "Documents",
+      "upload": "Upload",
+      "back": "Back",
+      "uploadHint": "Click or drag a file to this area to upload",
+      "uploadHintSub": "Supports a single or bulk upload. PDF, images and Office files up to 20 MB.",
+      "fileNameLabel": "File name (optional)",
+      "fileNamePlaceholder": "Leave blank to keep the original name",
+      "fileUnit": "files",
+      "previewUnsupported": "Preview is not available for this format. Please download to view.",
+      "previewDemoHint": "Preview will appear here once files are connected (demo).",
+      "category": {
+        "ordination": "Ordination Certificate",
+        "medical": "Medical Records",
+        "financial": "Financial Records",
+        "legal": "Legal Documents (Will, LPA, ACP, Living Will)"
+      },
+      "download": "Download",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this document? This cannot be undone.",
+      "empty": "No documents in this category yet.",
+      "count_one": "{{count}} file",
+      "count_other": "{{count}} files"
+    },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
       "compliance": {

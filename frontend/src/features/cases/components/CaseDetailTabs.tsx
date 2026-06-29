@@ -13,6 +13,7 @@ import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase, useUpdateCaseServi
 import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
+import { CaseDocumentsTab } from './CaseDocumentsTab'
 import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
 import { AddCaseEventForm } from './AddCaseEventForm'
@@ -83,7 +84,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
         {activeTab === 'services'  ? <ServicesTab  caseData={caseData} /> : null}
         {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} /> : null}
         {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
-        {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
+        {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
         {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
         {activeTab === 'audit' && isManager ? (
