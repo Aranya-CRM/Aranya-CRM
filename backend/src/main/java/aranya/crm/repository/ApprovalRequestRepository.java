@@ -14,4 +14,11 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
 
     @EntityGraph(attributePaths = {"requestedBy", "decidedBy"})
     Optional<ApprovalRequest> findFirstByStatusAndIdempotencyKeyOrderByCreatedAtAscIdAsc(String status, String idempotencyKey);
+
+    boolean existsByStatusAndTypeAndTargetTypeAndTargetId(
+            String status,
+            String type,
+            String targetType,
+            Long targetId
+    );
 }

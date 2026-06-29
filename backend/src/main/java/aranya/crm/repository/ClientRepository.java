@@ -49,6 +49,13 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
                 WHERE cc.client = c
                 AND LOWER(cc.status) NOT IN ('closed', 'deleted')
             )
+            AND NOT EXISTS (
+                SELECT 1 FROM ApprovalRequest ar
+                WHERE ar.status = 'PENDING'
+                AND ar.type = 'CASE_CREATE'
+                AND ar.targetType = 'CLIENT'
+                AND ar.targetId = c.id
+            )
             AND LOWER(c.membershipStatus) = 'active'
             ORDER BY c.createdAt DESC
             """)

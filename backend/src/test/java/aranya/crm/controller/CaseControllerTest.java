@@ -82,7 +82,7 @@ class CaseControllerTest {
     void createCase_submitsApprovalRequest() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:create"))).thenReturn(true);
-        when(approvalService.createRequest(eq("CASE_CREATE"), eq("CLIENT"), eq(5L), any(), eq(requester)))
+        when(approvalService.createRequest(eq("CASE_CREATE"), eq("CLIENT"), eq(5L), any(), eq(requester), any(), any()))
                 .thenReturn(approvalResponse(100L, "CASE_CREATE", "CLIENT", 5L));
 
         mockMvc.perform(post("/api/v1/cases")
@@ -106,11 +106,35 @@ class CaseControllerTest {
     }
 
     @Test
+    @DisplayName("createCase rejects duplicate pending case create approvals for the same client")
+    void createCase_rejectsDuplicatePendingCaseCreateApproval() throws Exception {
+        User requester = user(10L, "Social Worker");
+        when(capEval.hasCap(any(), eq("cases:create"))).thenReturn(true);
+        when(approvalService.hasPendingRequest("CASE_CREATE", "CLIENT", 5L)).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/cases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "clientId": 5,
+                                  "openedAt": "2026-06-15",
+                                  "status": "OPEN",
+                                  "colorCode": "GREEN",
+                                  "services": ["mealDelivery"]
+                                }
+                                """)
+                        .with(authentication(auth(requester, "SOCIAL_WORKER"))))
+                .andExpect(status().isConflict());
+
+        verify(approvalService, never()).createRequest(eq("CASE_CREATE"), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     @DisplayName("updateCaseServices submits an approval request instead of updating services")
     void updateCaseServices_submitsApprovalRequest() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:services.create"))).thenReturn(true);
-        when(approvalService.createRequest(eq("CASE_SERVICE_UPDATE"), eq("CASE"), eq(7L), any(), eq(requester)))
+        when(approvalService.createRequest(eq("CASE_SERVICE_UPDATE"), eq("CASE"), eq(7L), any(), eq(requester), any(), any()))
                 .thenReturn(approvalResponse(101L, "CASE_SERVICE_UPDATE", "CASE", 7L));
 
         mockMvc.perform(patch("/api/v1/cases/7/services")

@@ -157,6 +157,16 @@ class ApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("hasPendingRequest checks pending request existence by type and target")
+    void hasPendingRequest_checksPendingRequestExistenceByTypeAndTarget() {
+        when(approvalRequestRepository.existsByStatusAndTypeAndTargetTypeAndTargetId(
+                "PENDING", "CASE_CREATE", "CLIENT", 5L))
+                .thenReturn(true);
+
+        assertThat(approvalService.hasPendingRequest("CASE_CREATE", "CLIENT", 5L)).isTrue();
+    }
+
+    @Test
     @DisplayName("approve marks a pending request as approved")
     void approve_marksPendingRequestApproved() {
         ApprovalRequest request = request(7L, "CASE_CREATE", "PENDING", user(10L, "Requester"));

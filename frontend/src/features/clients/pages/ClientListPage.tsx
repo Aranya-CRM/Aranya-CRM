@@ -255,6 +255,7 @@ export function ClientListPage() {
         targetLabel: result.targetLabel ?? clientApprovalLabelFromPayload(result.payloadJson) ?? newClientForm.abbr,
       })
       setApprovalMessage(t('clients.approvalSubmittedWithId', { id: result.id }))
+      navigate('/clients')
     }
   }
 

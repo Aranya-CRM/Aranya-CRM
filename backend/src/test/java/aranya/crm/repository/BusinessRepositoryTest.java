@@ -49,6 +49,7 @@ class BusinessRepositoryTest {
     @DisplayName("ApprovalRequestRepository exposes pending approval queue lookup")
     void approvalRequestRepository_exposesPendingQueueLookup() throws Exception {
         assertMethod(ApprovalRequestRepository.class, "findByStatusOrderByCreatedAtAscIdAsc", List.class, String.class);
+        assertMethod(ApprovalRequestRepository.class, "existsByStatusAndTypeAndTargetTypeAndTargetId", boolean.class, String.class, String.class, String.class, Long.class);
     }
 
     private static void assertMethod(
