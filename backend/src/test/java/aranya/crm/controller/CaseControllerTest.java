@@ -134,6 +134,7 @@ class CaseControllerTest {
     void updateCaseServices_submitsApprovalRequest() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:services.create"))).thenReturn(true);
+        when(caseService.listSelectedServiceKeys(7L)).thenReturn(List.of("mealDelivery"));
         when(approvalService.createRequest(eq("CASE_SERVICE_UPDATE"), eq("CASE"), eq(7L), any(), eq(requester), any(), any()))
                 .thenReturn(approvalResponse(101L, "CASE_SERVICE_UPDATE", "CASE", 7L));
 
@@ -153,7 +154,7 @@ class CaseControllerTest {
     void createServiceEvent_createsAppointmentImmediately() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:services.create"))).thenReturn(true);
-        when(caseService.executeApprovedCreateServiceEvent(eq(7L), any(), eq(requester)))
+        when(caseService.createServiceEvent(eq(7L), any(), eq(requester)))
                 .thenReturn(ServiceEventResponse.builder()
                         .id(33L)
                         .caseId(7L)
