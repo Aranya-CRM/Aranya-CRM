@@ -77,23 +77,11 @@ public class ClientController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("@capEval.hasCap(authentication, 'clients:update')")
-    public ResponseEntity<ApprovalRequestResponse> updateClient(
+    public ResponseEntity<ClientDetailResponse> updateClient(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateClientRequest req,
-            @CurrentUser User currentUser,
-            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
-            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
+            @Valid @RequestBody UpdateClientRequest req
     ) {
-        ApprovalRequestResponse approval = approvalService.createRequest(
-                "CLIENT_UPDATE",
-                "CLIENT",
-                id,
-                req,
-                currentUser,
-                approverId,
-                approvalReason
-        );
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
+        return ResponseEntity.ok(clientService.updateClient(id, req));
     }
 
     @DeleteMapping("/{id}")

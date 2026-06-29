@@ -130,12 +130,6 @@ public class ApprovalService {
                 .toList();
     }
 
-    public List<ApprovalRequestResponse> listPending() {
-        return approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc(STATUS_PENDING).stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
     public boolean hasPendingRequest(String type, String targetType, Long targetId) {
         if (type == null || targetType == null || targetId == null) return false;
         return approvalRequestRepository.existsByStatusAndTypeAndTargetTypeAndTargetId(
@@ -247,10 +241,46 @@ public class ApprovalService {
         }
 
         Long assignedApproverId = readAssignedApproverId(request);
-        if (isApprovalManager(currentUser)) {
-            return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        if (assignedApproverId != null && assignedApproverId.equals(currentUser.getId())) {
+            return true;
         }
-        return assignedApproverId != null && assignedApproverId.equals(currentUser.getId());
+
+        if (canViewPendingTarget(request, currentUser)) {
+            return true;
+        }
+
+        return isApprovalManager(currentUser) && assignedApproverId == null;
+    }
+
+    private boolean canViewPendingTarget(ApprovalRequest request, User currentUser) {
+        String type = request.getType();
+        if ("CLIENT_CREATE".equals(type) || "CLIENT_UPDATE".equals(type) || "DELETE_CLIENT".equals(type)) {
+            return canViewClients(currentUser);
+        }
+        if ("CASE_CREATE".equals(type)) {
+            return canViewCases(currentUser) || canViewClients(currentUser);
+        }
+        if ("DELETE_CASE".equals(type) || "CASE_SERVICE_UPDATE".equals(type)) {
+            return canViewCases(currentUser);
+        }
+        return false;
+    }
+
+    private boolean canViewClients(User user) {
+        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+    }
+
+    private boolean canViewCases(User user) {
+        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+    }
+
+    private boolean hasAnyRole(User user, String... roleNames) {
+        for (String roleName : roleNames) {
+            if (hasRole(user, roleName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Long readAssignedApproverId(ApprovalRequest request) {

@@ -3,6 +3,7 @@ import {
   createClient,
   deleteClient,
   fetchClientById,
+  fetchClientsAvailableForCase,
   fetchClients,
   updateClient,
 } from '../api/client.api'
@@ -13,6 +14,7 @@ export const clientQueryKeys = {
   all: ['clients'] as const,
   lists: () => [...clientQueryKeys.all, 'list'] as const,
   list: () => [...clientQueryKeys.lists()] as const,
+  availableForCase: () => [...clientQueryKeys.lists(), 'available-for-case'] as const,
   details: () => [...clientQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...clientQueryKeys.details(), id] as const,
 }
@@ -25,6 +27,13 @@ export function useClients() {
   return useQuery({
     queryKey: clientQueryKeys.list(),
     queryFn: fetchClients,
+  })
+}
+
+export function useClientsAvailableForCase() {
+  return useQuery({
+    queryKey: clientQueryKeys.availableForCase(),
+    queryFn: fetchClientsAvailableForCase,
   })
 }
 
