@@ -15,8 +15,12 @@ import { isClientResult, useClient, useClients, useClientsAvailableForCase, useC
 import type { Client, WellbeingDomain } from '../types'
 import {
   applyClientCaseFilter,
+  applyClientStatusFilter,
   countActiveClientFilters,
   deriveClientDateFields,
+  isClientClosed,
+  profileActionGroups,
+  type ClientArchiveFilter,
   type ClientCaseFilter,
 } from './clientProfileUtils'
 import './clients.css'
@@ -109,6 +113,7 @@ export function ClientListPage() {
   const [search, setSearch] = useState('')
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [filterCase, setFilterCase] = useState<ClientCaseFilter>('all')
+  const [filterArchive, setFilterArchive] = useState<ClientArchiveFilter>('current')
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
   const filterMenuRef = useRef<HTMLDivElement | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -125,7 +130,7 @@ export function ClientListPage() {
   const canViewDetailedProfile = resolve('clients:view.full')
   const canConvertToCase = resolve('cases:create')
   const canCloseCase = resolve('cases:delete')
-  const activeFilterCount = countActiveClientFilters(filterTradition, filterCase)
+  const activeFilterCount = countActiveClientFilters(filterTradition, filterCase, filterArchive)
 
   const withoutCaseIds = useMemo(
     () => new Set(clientsAvailableForCase.map((client) => client.id)),
@@ -133,7 +138,7 @@ export function ClientListPage() {
   )
 
   const filtered = useMemo(() => {
-    return applyClientCaseFilter(clients, withoutCaseIds, filterCase).filter((client) => {
+    return applyClientCaseFilter(applyClientStatusFilter(clients, filterArchive), withoutCaseIds, filterCase).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
@@ -143,7 +148,7 @@ export function ClientListPage() {
       const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
       return matchSearch && matchTradition
     })
-  }, [clients, filterCase, filterTradition, search, withoutCaseIds])
+  }, [clients, filterArchive, filterCase, filterTradition, search, withoutCaseIds])
 
   const clientApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
@@ -162,7 +167,7 @@ export function ClientListPage() {
   }, [clientApprovalItems])
 
   const createApprovalDirectoryItems = useMemo(() => {
-    if (filterCase === 'with_case') return []
+    if (filterArchive === 'closed' || filterCase === 'with_case') return []
     return clientApprovalItems
       .filter((approval) => approval.type === 'CLIENT_CREATE')
       .map((approval): ClientDirectoryItem => ({
@@ -172,7 +177,7 @@ export function ClientListPage() {
         operation: 'create',
       }))
       .filter((item) => clientDirectoryItemMatches(item, search, filterTradition))
-  }, [clientApprovalItems, filterCase, filterTradition, search])
+  }, [clientApprovalItems, filterArchive, filterCase, filterTradition, search])
 
   const directoryItems = useMemo(() => {
     return [
@@ -214,6 +219,7 @@ export function ClientListPage() {
     : profileClient && profileApproval?.type === 'CLIENT_UPDATE'
       ? applyApprovalToClient(profileClient, profileApproval)
       : profileClient
+  const profileClosed = Boolean(displayProfileClient && isClientClosed(displayProfileClient))
   const changedFields = profileClient && profileApproval?.type === 'CLIENT_UPDATE'
     ? changedClientFields(profileClient, displayProfileClient)
     : new Set<keyof Client>()
@@ -222,7 +228,7 @@ export function ClientListPage() {
     : undefined
   const activeProfileCase = useMemo(() => {
     if (!profileClient) return undefined
-    return cases.find((item) => item.clientId === profileClient.id && item.status !== 'CLOSED')
+    return cases.find((item) => item.clientId === profileClient.id && !['CLOSED', 'DELETED'].includes(String(item.status).toUpperCase()))
   }, [cases, profileClient])
   const closeCasePending = Boolean(activeProfileCase && pendingApprovals.some((approval) => (
     approval.type === 'DELETE_CASE' && String(approval.targetId) === String(activeProfileCase.id)
@@ -241,10 +247,10 @@ export function ClientListPage() {
   }, [selectedClient?.id])
 
   useEffect(() => {
-    if (!routeWantsEdit || !profileClient || !canUpdateClient || editingClientId === profileClient.id) return
+    if (!routeWantsEdit || !profileClient || profileClosed || !canUpdateClient || editingClientId === profileClient.id) return
     setEditingClientId(profileClient.id)
     setEditForm(clientToFormData(profileClient))
-  }, [canUpdateClient, editingClientId, profileClient, routeWantsEdit])
+  }, [canUpdateClient, editingClientId, profileClient, profileClosed, routeWantsEdit])
 
   useEffect(() => {
     if (!filterMenuOpen) return
@@ -303,6 +309,7 @@ export function ClientListPage() {
   }
 
   function beginEditClient(client: Client) {
+    if (isClientClosed(client)) return
     setEditingClientId(client.id)
     setEditForm(clientToFormData(client))
   }
@@ -441,31 +448,42 @@ export function ClientListPage() {
               </button>
               {filterMenuOpen ? (
                 <div className="client-filter-popover" role="menu">
-                  <label className="client-filter-field">
-                    <span>{t('clients.filterTraditionLabel')}</span>
-                    <select
-                      className="filter-select"
-                      value={filterTradition}
-                      onChange={(event) => setFilterTradition(event.target.value)}
-                    >
-                      <option value="all">{t('clients.filterAll')}</option>
-                      {TRADITIONS.map((tradition) => (
-                        <option key={tradition} value={tradition}>{tradition}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="client-filter-field">
-                    <span>{t('clients.filterCaseLabel')}</span>
-                    <select
-                      className="filter-select"
-                      value={filterCase}
-                      onChange={(event) => setFilterCase(event.target.value as ClientCaseFilter)}
-                    >
-                      <option value="all">{t('clients.filterCaseAll')}</option>
-                      <option value="with_case">{t('clients.filterWithCase')}</option>
-                      <option value="without_case">{t('clients.filterWithoutCase')}</option>
-                    </select>
-                  </label>
+                  <FilterGroup label={t('clients.filterArchiveLabel')}>
+                    {(['current', 'closed'] as ClientArchiveFilter[]).map((value) => (
+                      <FilterChip
+                        key={value}
+                        active={filterArchive === value}
+                        onClick={() => setFilterArchive(value)}
+                      >
+                        {value === 'closed' ? t('clients.filterClosed') : t('clients.filterCurrent')}
+                      </FilterChip>
+                    ))}
+                  </FilterGroup>
+                  <FilterGroup label={t('clients.filterTraditionLabel')}>
+                    <FilterChip active={filterTradition === 'all'} onClick={() => setFilterTradition('all')}>
+                      {t('clients.filterAllShort')}
+                    </FilterChip>
+                    {TRADITIONS.map((tradition) => (
+                      <FilterChip
+                        key={tradition}
+                        active={filterTradition === tradition}
+                        onClick={() => setFilterTradition(tradition)}
+                      >
+                        {tradition}
+                      </FilterChip>
+                    ))}
+                  </FilterGroup>
+                  <FilterGroup label={t('clients.filterCaseLabel')}>
+                    <FilterChip active={filterCase === 'all'} onClick={() => setFilterCase('all')}>
+                      {t('clients.filterCaseAllShort')}
+                    </FilterChip>
+                    <FilterChip active={filterCase === 'with_case'} onClick={() => setFilterCase('with_case')}>
+                      {t('clients.filterWithCase')}
+                    </FilterChip>
+                    <FilterChip active={filterCase === 'without_case'} onClick={() => setFilterCase('without_case')}>
+                      {t('clients.filterWithoutCase')}
+                    </FilterChip>
+                  </FilterGroup>
                   {activeFilterCount > 0 ? (
                     <button
                       className="client-filter-clear"
@@ -473,6 +491,7 @@ export function ClientListPage() {
                       onClick={() => {
                         setFilterTradition('all')
                         setFilterCase('all')
+                        setFilterArchive('current')
                       }}
                     >
                       {t('clients.filterClear')}
@@ -501,7 +520,8 @@ export function ClientListPage() {
                 className={
                   'client-directory-item' +
                   (directoryItemActive(item, selectedClient?.id, selectedCreateApproval?.id) ? ' active' : '') +
-                  (item.operation ? ` pending ${item.operation}` : '')
+                  (item.operation ? ` pending ${item.operation}` : '') +
+                  (item.client && isClientClosed(item.client) ? ' closed' : '')
                 }
                 type="button"
                 onClick={() => item.approval?.type === 'CLIENT_CREATE'
@@ -561,12 +581,13 @@ export function ClientListPage() {
                 decidingApproval={approveRequest.isPending || rejectRequest.isPending}
                 onApproveApproval={() => serverProfileApproval ? void approveRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
                 onRejectApproval={() => serverProfileApproval ? void rejectRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
-                canUpdateClient={!profileApproval && canUpdateClient}
-                canDeleteClient={!profileApproval && canDeleteClient}
+                closed={profileClosed}
+                canUpdateClient={!profileApproval && !profileClosed && canUpdateClient}
+                canDeleteClient={!profileApproval && !profileClosed && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={!profileApproval && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
+                canConvertToCase={!profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
                 activeCase={activeProfileCase}
-                canCloseCase={!profileApproval && canCloseCase && Boolean(activeProfileCase)}
+                canCloseCase={!profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
                 closeCasePending={closeCasePending}
                 closingCase={closeCase.isPending}
                 deleting={deleteClient.isPending}
@@ -752,6 +773,23 @@ function approvalReason(payload: Record<string, unknown>): string {
   return typeof reason === 'string' ? reason.trim() : ''
 }
 
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="client-filter-group">
+      <span>{label}</span>
+      <div className="client-filter-chip-row">{children}</div>
+    </section>
+  )
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button className={'client-filter-chip' + (active ? ' active' : '')} type="button" onClick={onClick}>
+      {children}
+    </button>
+  )
+}
+
 function isClientApprovalType(type: string): boolean {
   return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT'
 }
@@ -832,6 +870,7 @@ function specialNeedsFromPayload(value: unknown): Client['specialNeeds'] | undef
 function emptyClientProfile(): Client {
   return {
     id: '',
+    membershipStatus: 'ACTIVE',
     abbr: '',
     nameEn: '',
     nameChn: '',
@@ -1031,6 +1070,7 @@ interface ClientProfilePanelProps {
   decidingApproval: boolean
   onApproveApproval: () => void
   onRejectApproval: () => void
+  closed: boolean
   canUpdateClient: boolean
   canDeleteClient: boolean
   canViewDetailedProfile: boolean
@@ -1056,6 +1096,7 @@ function ClientProfilePanel({
   decidingApproval,
   onApproveApproval,
   onRejectApproval,
+  closed,
   canUpdateClient,
   canDeleteClient,
   canViewDetailedProfile,
@@ -1072,13 +1113,21 @@ function ClientProfilePanel({
   onCreateCase,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
+  const actionGroups = profileActionGroups({
+    canEdit: canViewDetailedProfile && canUpdateClient,
+    canConvertToCase,
+    canCloseProfile: canViewDetailedProfile && canDeleteClient,
+    canCloseCase: canCloseCase && Boolean(activeCase),
+    closed,
+  })
 
   return (
-    <article className="client-profile">
+    <article className={'client-profile' + (closed ? ' closed' : '')}>
       <header className="client-profile-header">
         <div>
           <div className="client-profile-title-row">
             <h1>{client.abbr || '-'}</h1>
+            {closed ? <span className="client-profile-status closed">{t('clients.profile.closedStatus')}</span> : null}
           </div>
         </div>
       </header>
@@ -1148,30 +1197,34 @@ function ClientProfilePanel({
           onApproveApproval={onApproveApproval}
           onRejectApproval={onRejectApproval}
         />
-      ) : (
-        <footer className="client-profile-action-footer">
-          {canConvertToCase ? (
-            <button className="btn-primary" type="button" onClick={onCreateCase}>
-              {t('clients.profile.convertToCase')}
-            </button>
-          ) : null}
-          {canCloseCase && activeCase ? (
-            <button className="btn-secondary" type="button" disabled={closingCase || closeCasePending} onClick={onConfirmCloseCase}>
-              {closingCase ? t('common.saving') : closeCasePending ? t('clients.profile.closeCasePending') : t('clients.profile.closeCase')}
-            </button>
-          ) : null}
-          {canViewDetailedProfile && canUpdateClient ? (
-            <button className="btn-edit" type="button" onClick={onEdit}>
-              {t('clients.profile.editProfile')}
-            </button>
-          ) : null}
-          {canViewDetailedProfile && canDeleteClient ? (
-            <button className="btn-danger" type="button" disabled={deleting} onClick={onConfirmDelete}>
-              {deleting ? t('common.saving') : t('clients.profile.delete')}
-            </button>
-          ) : null}
+      ) : actionGroups.primary.length || actionGroups.secondary.length ? (
+        <footer className="client-profile-action-footer split">
+          <div className="client-profile-secondary-actions">
+            {actionGroups.secondary.includes('convertToCase') ? (
+              <button className="btn-secondary client-subtle-action" type="button" onClick={onCreateCase}>
+                {t('clients.profile.convertToCase')}
+              </button>
+            ) : null}
+            {actionGroups.secondary.includes('closeCase') ? (
+              <button className="btn-secondary client-subtle-action" type="button" disabled={closingCase || closeCasePending} onClick={onConfirmCloseCase}>
+                {closingCase ? t('common.saving') : closeCasePending ? t('clients.profile.closeCasePending') : t('clients.profile.closeCase')}
+              </button>
+            ) : null}
+            {actionGroups.secondary.includes('closeProfile') ? (
+              <button className="btn-secondary client-subtle-action" type="button" disabled={deleting} onClick={onConfirmDelete}>
+                {deleting ? t('common.saving') : t('clients.profile.delete')}
+              </button>
+            ) : null}
+          </div>
+          <div className="client-profile-primary-actions">
+            {actionGroups.primary.includes('editProfile') ? (
+              <button className="btn-edit" type="button" onClick={onEdit}>
+                {t('clients.profile.editProfile')}
+              </button>
+            ) : null}
+          </div>
         </footer>
-      )}
+      ) : null}
     </article>
   )
 }
@@ -1442,6 +1495,7 @@ function buildNewClientPayload(form: NewClientForm): Omit<Client, 'id'> {
   const today = new Date().toISOString().slice(0, 10)
 
   return {
+    membershipStatus: 'ACTIVE',
     abbr: form.abbr.trim(),
     nameEn: form.nameEn.trim(),
     nameChn: form.nameChn.trim(),

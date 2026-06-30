@@ -104,33 +104,62 @@
   right: 0;
   z-index: 5;
   width: min(262px, calc(100vw - 32px));
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #d7dce5;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
 }
 
-.client-filter-field {
+.client-filter-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef1f5;
 }
 
-.client-filter-field span {
+.client-filter-group:first-child {
+  padding-top: 0;
+}
+
+.client-filter-group span {
   color: #40506a;
   font-size: 12px;
   font-weight: 800;
 }
 
-.client-filter-field .filter-select {
-  width: 100%;
-  min-width: 0;
+.client-filter-chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.client-filter-chip {
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid #d7dce5;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.client-filter-chip:hover {
+  background: #f3f5f8;
+}
+
+.client-filter-chip.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
 }
 
 .client-filter-clear {
   width: 100%;
+  margin-top: 10px;
   padding: 7px 10px;
   border: 1px solid #d7dce5;
   border-radius: 5px;
@@ -242,6 +271,29 @@
 
 .client-directory-item.pending.delete {
   border-left-color: #991b1b;
+}
+
+.client-directory-item.closed {
+  background: #fafafa;
+  color: #98a2b3;
+}
+
+.client-directory-item.closed .client-directory-name strong,
+.client-directory-item.closed .client-directory-en,
+.client-directory-item.closed .client-directory-meta {
+  color: #98a2b3;
+}
+
+.client-directory-item.closed .abbr-tag,
+.client-directory-item.closed .client-directory-name span {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #a3acba;
+}
+
+.client-directory-item.closed.active {
+  border-left-color: #a3acba;
+  background: #f4f5f7;
 }
 
 .client-directory-approval-badge,
@@ -448,6 +500,50 @@
 .client-profile-action-footer {
   padding-top: 22px;
   border-top: 1px solid #dfe4ec;
+}
+
+.client-profile-action-footer.split {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.client-profile-secondary-actions,
+.client-profile-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-subtle-action {
+  border-color: #d7dce5;
+  background: #ffffff;
+  color: #697386;
+}
+
+.client-subtle-action:hover:not(:disabled) {
+  background: #f3f5f8;
+  color: #344054;
+}
+
+.client-profile-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.client-profile-status.closed {
+  border: 1px solid #d7dce5;
+  background: #f3f5f8;
+  color: #697386;
+}
+
+.client-profile.closed .client-info-cell strong {
+  color: #697386;
 }
 
 .client-profile-section h3 {

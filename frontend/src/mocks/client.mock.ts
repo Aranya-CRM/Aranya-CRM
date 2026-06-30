@@ -20,6 +20,7 @@ const defaultSpecialNeeds = {
 export const clientMockData: Client[] = [
   {
     id: 'client-001',
+    membershipStatus: 'ACTIVE',
     abbr: 'VXA',
     nameEn: 'Venerable Xian Ai',
     nameChn: '显碍师父',
@@ -66,6 +67,7 @@ export const clientMockData: Client[] = [
   },
   {
     id: 'client-002',
+    membershipStatus: 'ACTIVE',
     abbr: 'AC',
     nameEn: 'Ajahn Chah',
     nameChn: '释觉慧',
@@ -112,6 +114,7 @@ export const clientMockData: Client[] = [
   },
   {
     id: 'client-003',
+    membershipStatus: 'ACTIVE',
     abbr: 'BD',
     nameEn: 'Bodhi',
     nameChn: '释德行',
@@ -158,6 +161,7 @@ export const clientMockData: Client[] = [
   },
   {
     id: 'client-004',
+    membershipStatus: 'ACTIVE',
     abbr: 'PS',
     nameEn: 'Pasanno',
     nameChn: '释妙音',
@@ -204,6 +208,7 @@ export const clientMockData: Client[] = [
   },
   {
     id: 'client-005',
+    membershipStatus: 'ACTIVE',
     abbr: 'TH',
     nameEn: 'Thanissaro',
     nameChn: '释慧空',

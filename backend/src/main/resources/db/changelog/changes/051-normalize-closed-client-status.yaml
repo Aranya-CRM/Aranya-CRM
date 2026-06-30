@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 051-normalize-closed-client-status
+      author: codex
+      comment: "Use CLOSED, not DELETED, for closed member profiles."
+      changes:
+        - sql:
+            sql: |
+              UPDATE client
+              SET membership_status = 'CLOSED'
+              WHERE UPPER(membership_status) = 'DELETED';
+      rollback:
+        - sql:
+            sql: SELECT 1;

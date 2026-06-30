@@ -2,10 +2,14 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   applyClientCaseFilter,
+  applyClientStatusFilter,
   calculateCompletedYears,
   countActiveClientFilters,
   deriveClientDateFields,
+  isClientClosed,
   mapBackendClientResponse,
+  profileActionGroups,
+  type ClientArchiveFilter,
   type ClientCaseFilter,
   type ClientDateFields,
 } from '../src/features/clients/pages/clientProfileUtils.ts'
@@ -33,16 +37,17 @@ describe('client profile date utilities', () => {
 
 describe('client case filters', () => {
   const clients = [
-    { id: '1', abbr: 'VXA' },
-    { id: '2', abbr: 'VKB' },
-    { id: '3', abbr: 'VKC' },
+    { id: '1', abbr: 'VXA', membershipStatus: 'ACTIVE' },
+    { id: '2', abbr: 'VKB', membershipStatus: 'ACTIVE' },
+    { id: '3', abbr: 'VKC', membershipStatus: 'ACTIVE' },
+    { id: '4', abbr: 'VKD', membershipStatus: 'CLOSED' },
   ]
   const withoutCaseIds = new Set(['2'])
 
   it('returns only clients with an active case when the case filter is with_case', () => {
     assert.deepEqual(
       applyClientCaseFilter(clients, withoutCaseIds, 'with_case' satisfies ClientCaseFilter).map((client) => client.abbr),
-      ['VXA', 'VKC'],
+      ['VXA', 'VKC', 'VKD'],
     )
   })
 
@@ -53,10 +58,56 @@ describe('client case filters', () => {
     )
   })
 
+  it('returns current or closed clients from the status filter', () => {
+    assert.deepEqual(
+      applyClientStatusFilter(clients, 'current' satisfies ClientArchiveFilter).map((client) => client.abbr),
+      ['VXA', 'VKB', 'VKC'],
+    )
+    assert.deepEqual(
+      applyClientStatusFilter(clients, 'closed' satisfies ClientArchiveFilter).map((client) => client.abbr),
+      ['VKD'],
+    )
+  })
+
   it('counts active directory filters for the collapsed filter button', () => {
-    assert.equal(countActiveClientFilters('all', 'all'), 0)
-    assert.equal(countActiveClientFilters('Mahayana', 'all'), 1)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case'), 2)
+    assert.equal(countActiveClientFilters('all', 'all', 'current'), 0)
+    assert.equal(countActiveClientFilters('Mahayana', 'all', 'current'), 1)
+    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'current'), 2)
+    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'closed'), 3)
+  })
+})
+
+describe('client closed profile behavior', () => {
+  it('maps closed membership status and treats legacy deleted profiles as closed', () => {
+    assert.equal(isClientClosed({ id: '1', membershipStatus: 'CLOSED' }), true)
+    assert.equal(isClientClosed({ id: '2', membershipStatus: 'DELETED' }), true)
+    assert.equal(isClientClosed({ id: '3', membershipStatus: 'ACTIVE' }), false)
+  })
+
+  it('separates frequent edit action from secondary close and convert actions', () => {
+    assert.deepEqual(profileActionGroups({
+      canEdit: true,
+      canConvertToCase: true,
+      canCloseProfile: true,
+      canCloseCase: false,
+      closed: false,
+    }), {
+      primary: ['editProfile'],
+      secondary: ['convertToCase', 'closeProfile'],
+    })
+  })
+
+  it('hides all profile actions for closed clients', () => {
+    assert.deepEqual(profileActionGroups({
+      canEdit: true,
+      canConvertToCase: true,
+      canCloseProfile: true,
+      canCloseCase: true,
+      closed: true,
+    }), {
+      primary: [],
+      secondary: [],
+    })
   })
 })
 
@@ -71,6 +122,7 @@ describe('backend client mapping', () => {
       dateOfBirth: '1956-12-03',
       dateOfOrdination: '2014-11-04',
       buddhistTradition: 'Mahayana',
+      membershipStatus: 'CLOSED',
       wellbeingPhysicalHealth: true,
       specialNeeds: 'hearing,visual',
     }, new Date('2026-06-29T12:00:00+08:00'))
@@ -80,6 +132,7 @@ describe('backend client mapping', () => {
     assert.equal(mapped.ordinationCertificate, 'Completed')
     assert.equal(mapped.age, 69)
     assert.equal(mapped.ordinationYears, 11)
+    assert.equal(mapped.membershipStatus, 'CLOSED')
     assert.equal(mapped.wellbeingIssues.physicalHealth, true)
     assert.equal(mapped.specialNeeds.hearing, true)
     assert.equal(mapped.specialNeeds.visual, true)

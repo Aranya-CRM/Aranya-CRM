@@ -34,6 +34,7 @@ const EMPTY_SPECIAL_NEEDS: Record<SpecialNeedKey, boolean> = {
 
 function emptyClient(): ClientFormData {
   return {
+    membershipStatus: 'ACTIVE',
     abbr: '',
     nameEn: '',
     nameChn: '',
