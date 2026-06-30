@@ -642,15 +642,11 @@
     "unnamedMonastic": "Unnamed monastic",
     "status": {
       "DRAFT": "Draft",
-      "SUBMITTED": "Submitted",
-      "ARCHIVED": "Archived",
-      "RETURNED": "Returned"
+      "SUBMITTED": "Submitted"
     },
     "folder": {
       "DRAFT": "Draft",
-      "SUBMITTED": "Submitted",
-      "ARCHIVED": "Approved",
-      "RETURNED": "Returned"
+      "SUBMITTED": "Submitted"
     },
     "mailbox": {
       "title": "Reports",

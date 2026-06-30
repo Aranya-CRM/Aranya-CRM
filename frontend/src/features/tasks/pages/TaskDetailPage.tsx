@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import { fetchReportById, fetchReports } from '../../reports/api/report.api'
+import { isCurrentReportStatus, reportStatusKey } from '../../reports/reportStatus'
 import type { ReportDetail, ReportSummary } from '../../reports/types'
 import { useCase, useCreateCaseNote, useDeleteCaseNote, useOwnCaseNotes } from '../../cases/hooks'
 import type { ServiceEvent } from '../../cases/types'
@@ -23,15 +24,6 @@ function reportMatchesTask(report: ReportSummary, caseId: string | undefined, cl
     return String(report.caseId) === caseId
   }
   return reportClientMatches(report, clientId)
-}
-
-function reportStatusKey(report: ReportSummary | ReportDetail): 'DRAFT' | 'SUBMITTED' {
-  if (report.status === 'DRAFT') return 'DRAFT'
-  return 'SUBMITTED'
-}
-
-function isCurrentReportStatus(report: ReportSummary): boolean {
-  return report.status === 'DRAFT' || report.status === 'SUBMITTED' || !report.status
 }
 
 function mergeReportSummary(reports: ReportSummary[], report: ReportDetail): ReportSummary[] {
@@ -135,7 +127,7 @@ export function TaskDetailPage() {
     }
   }, [caseId, location.pathname, location.search, navigate, returnedReport, t])
 
-  const myReports = reports.filter((report) => reportMatchesTask(report, caseId, caseData?.clientId) && isCurrentReportStatus(report))
+  const myReports = reports.filter((report) => reportMatchesTask(report, caseId, caseData?.clientId) && isCurrentReportStatus(report.status))
   const returnTo = `/tasks/${taskEvent?.id ?? id ?? ''}`
 
   async function handleAddNote(event: FormEvent<HTMLFormElement>) {
@@ -206,7 +198,7 @@ export function TaskDetailPage() {
               {myReports.map((report) => (
                 <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports/${report.id}?returnTo=${encodeURIComponent(returnTo)}`)}>
                   <span>{report.typeOfVisit || report.programmeName || t('reports.detail.title')}</span>
-                  <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report)}`)}</span>
+                  <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report.status)}`)}</span>
                 </button>
               ))}
             </div>

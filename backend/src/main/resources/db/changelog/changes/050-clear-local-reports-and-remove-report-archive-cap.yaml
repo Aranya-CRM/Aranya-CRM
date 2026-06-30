@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 050-normalize-report-statuses
+      author: codex
+      comment: "Constrain visit reports to DRAFT and SUBMITTED statuses."
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE visit_report
+              SET status = 'DRAFT'
+              WHERE UPPER(status) = 'DRAFT';
+
+              UPDATE visit_report
+              SET status = 'SUBMITTED'
+              WHERE UPPER(status) <> 'DRAFT';
+
+              ALTER TABLE visit_report
+              DROP CONSTRAINT IF EXISTS chk_visit_report_status_two_state;
+
+              ALTER TABLE visit_report
+              ADD CONSTRAINT chk_visit_report_status_two_state
+              CHECK (status IN ('DRAFT', 'SUBMITTED'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE visit_report
+              DROP CONSTRAINT IF EXISTS chk_visit_report_status_two_state;
+
+  - changeSet:
+      id: 050-remove-report-archive-cap
+      author: codex
+      comment: "Remove obsolete report approve/archive capability; reports only use DRAFT and SUBMITTED statuses."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE cap_def_id IN (
+                SELECT id FROM cap_definition WHERE cap_key = 'reports:approve_archive'
+              );
+
+              DELETE FROM cap_definition
+              WHERE cap_key = 'reports:approve_archive';
+      rollback:
+        - sql:
+            sql: SELECT 1;
+
+  - changeSet:
+      id: 050-clear-local-visit-reports
+      author: codex
+      context: dev, test
+      comment: "Clear local seeded visit reports that no longer match the active case data."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM visit_report;
+      rollback:
+        - sql:
+            sql: SELECT 1;

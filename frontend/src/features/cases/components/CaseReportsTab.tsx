@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { deleteReport, fetchReportById, fetchReports } from '../../reports/api/report.api'
+import { isSubmittedReport, reportStatusKey } from '../../reports/reportStatus'
 import type { ReportDetail, ReportSummary } from '../../reports/types'
 import type { Case } from '../types'
 
@@ -15,8 +16,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function statusLabel(status: string | null | undefined, t: (k: string) => string): string {
-  if (status === 'DRAFT') return t('reports.status.DRAFT')
-  return t('reports.status.SUBMITTED')
+  return t(`reports.status.${reportStatusKey(status)}`)
 }
 
 function reportBelongsToCase(report: ReportSummary, caseData: Case): boolean {
@@ -27,7 +27,7 @@ function reportBelongsToCase(report: ReportSummary, caseData: Case): boolean {
 }
 
 function isVisibleCaseReport(report: ReportSummary): boolean {
-  return report.status === 'SUBMITTED' || report.status === 'ARCHIVED' || !report.status
+  return isSubmittedReport(report.status)
 }
 
 export function CaseReportsTab({ caseData, isManager }: Props) {

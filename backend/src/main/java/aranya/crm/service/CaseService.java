@@ -642,7 +642,7 @@ public class CaseService {
                     EXISTS (
                         SELECT 1 FROM visit_report vr
                         WHERE vr.service_appointment_id = sa.id
-                          AND vr.status IN ('SUBMITTED', 'ARCHIVED')
+                          AND vr.status = 'SUBMITTED'
                     ) AS report_submitted,
                     au.id AS assigned_user_id,
                     au.full_name AS assigned_user_name,
