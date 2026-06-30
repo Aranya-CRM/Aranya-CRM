@@ -50,10 +50,11 @@ export async function rejectRequest(id: number, data: DecideApprovalPayload): Pr
   return res.data
 }
 
-export function usePendingApprovals() {
+export function usePendingApprovals(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: approvalQueryKeys.pending(),
     queryFn: fetchPendingApprovals,
+    enabled: options?.enabled ?? true,
     refetchInterval: PENDING_APPROVALS_REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,

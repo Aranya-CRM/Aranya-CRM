@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner, PageHeader } from '../../../shared/ui'
+import { reportStatusKey } from '../../reports/reportStatus'
 import { fetchDashboardData } from '../api/dashboard.api'
 import type {
   DashboardAction,
@@ -225,7 +226,7 @@ function RecentReports({ items }: { items: DashboardItem[] }) {
                   {displayText(item.createdByName, 'Unknown')} · {formatDate(item.dateOfVisit)} · {displayText(item.reportType, 'Visit')}
                 </span>
               </span>
-              <span className="report-pill">{t(`reports.status.${item.statusCode ?? 'SUBMITTED'}`)}</span>
+              <span className="report-pill">{t(`reports.status.${reportStatusKey(item.statusCode)}`)}</span>
             </button>
           ))
         )}

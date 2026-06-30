@@ -642,15 +642,11 @@
     "unnamedMonastic": "未命名会员",
     "status": {
       "DRAFT": "草稿",
-      "SUBMITTED": "已提交",
-      "ARCHIVED": "已归档",
-      "RETURNED": "已退回"
+      "SUBMITTED": "已提交"
     },
     "folder": {
       "DRAFT": "草稿",
-      "SUBMITTED": "已提交",
-      "ARCHIVED": "已审批",
-      "RETURNED": "退回"
+      "SUBMITTED": "已提交"
     },
     "mailbox": {
       "title": "报告",

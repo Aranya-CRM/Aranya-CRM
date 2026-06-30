@@ -114,9 +114,31 @@
 }
 
 .nav-label {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
   color: inherit;
   line-height: 1.4;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nav-item.active .nav-badge {
+  background: #ffffff;
+  color: var(--brand-strong);
 }
 
 .lang-switcher-btn {

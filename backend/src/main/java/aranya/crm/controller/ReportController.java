@@ -96,15 +96,6 @@ public class ReportController {
         return ResponseEntity.ok(reportService.submitReport(id, currentUser));
     }
 
-    @PostMapping("/{id}/approve")
-    @PreAuthorize("@capEval.hasCap(authentication, 'reports:approve_archive')")
-    public ResponseEntity<ReportDetailResponse> approveReport(
-            @CurrentUser User currentUser,
-            @PathVariable Long id
-    ) {
-        return ResponseEntity.ok(reportService.approveReport(id, currentUser));
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteReport(
             @CurrentUser User currentUser,
