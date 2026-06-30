@@ -35,7 +35,9 @@ export async function fetchClients(): Promise<Client[]> {
   if (mode === 'mock') return clientMockData
 
   try {
-    const res = await http.get<BackendClientResponse[]>('/v1/clients')
+    const res = await http.get<BackendClientResponse[]>('/v1/clients', {
+      params: { membershipStatus: 'all' },
+    })
     return res.data.map((client) => mapBackendClientResponse(client))
   } catch {
     if (mode === 'auto') return clientMockData
@@ -117,13 +119,13 @@ export async function updateClient(id: string, data: Partial<Client>, options?: 
 
 export async function deleteClient(id: string, options?: ApprovalOptions): Promise<ApprovalRequest | void> {
   const mode = getDataMode()
-  const removeMockClient = () => {
+  const closeMockClient = () => {
     const idx = clientMockData.findIndex((c) => c.id === id)
-    if (idx >= 0) clientMockData.splice(idx, 1)
+    if (idx >= 0) clientMockData[idx] = { ...clientMockData[idx], membershipStatus: 'CLOSED' }
   }
 
   if (mode === 'mock') {
-    removeMockClient()
+    closeMockClient()
     return
   }
 
@@ -132,7 +134,7 @@ export async function deleteClient(id: string, options?: ApprovalOptions): Promi
     return res.data
   } catch {
     if (mode === 'auto') {
-      removeMockClient()
+      closeMockClient()
       return
     }
     throw new Error('Failed to delete client')

@@ -6,6 +6,8 @@ export interface ClientDateFields {
 }
 
 export type ClientCaseFilter = 'all' | 'with_case' | 'without_case'
+export type ClientArchiveFilter = 'current' | 'closed'
+export type ClientProfileAction = 'convertToCase' | 'closeCase' | 'editProfile' | 'closeProfile'
 
 export type BackendClientResponse = {
   id: number | string
@@ -57,6 +59,7 @@ export type BackendClientResponse = {
   payNowInfo?: string | null
   nextOfKinContact?: string | null
   comments?: string | null
+  membershipStatus?: string | null
 }
 
 const emptyWellbeing = {
@@ -108,8 +111,48 @@ export function applyClientCaseFilter<T extends { id: string }>(
   })
 }
 
-export function countActiveClientFilters(traditionFilter: string, caseFilter: ClientCaseFilter): number {
-  return Number(traditionFilter !== 'all') + Number(caseFilter !== 'all')
+export function isClientClosed(client: { membershipStatus?: string | null }): boolean {
+  const status = (client.membershipStatus ?? '').trim().toUpperCase()
+  return status === 'CLOSED' || status === 'DELETED'
+}
+
+export function applyClientStatusFilter<T extends { membershipStatus?: string | null }>(
+  clients: T[],
+  filter: ClientArchiveFilter,
+): T[] {
+  return clients.filter((client) => filter === 'closed' ? isClientClosed(client) : !isClientClosed(client))
+}
+
+export function countActiveClientFilters(
+  traditionFilter: string,
+  caseFilter: ClientCaseFilter,
+  archiveFilter: ClientArchiveFilter,
+): number {
+  return Number(traditionFilter !== 'all') + Number(caseFilter !== 'all') + Number(archiveFilter !== 'current')
+}
+
+export function profileActionGroups({
+  canEdit,
+  canConvertToCase,
+  canCloseProfile,
+  canCloseCase,
+  closed,
+}: {
+  canEdit: boolean
+  canConvertToCase: boolean
+  canCloseProfile: boolean
+  canCloseCase: boolean
+  closed: boolean
+}): { primary: ClientProfileAction[]; secondary: ClientProfileAction[] } {
+  if (closed) return { primary: [], secondary: [] }
+  return {
+    primary: canEdit ? ['editProfile'] : [],
+    secondary: [
+      ...(canConvertToCase ? ['convertToCase' as const] : []),
+      ...(canCloseCase ? ['closeCase' as const] : []),
+      ...(canCloseProfile ? ['closeProfile' as const] : []),
+    ],
+  }
 }
 
 export function mapBackendClientResponse(source: BackendClientResponse, referenceDate = new Date()): Client {
@@ -118,6 +161,7 @@ export function mapBackendClientResponse(source: BackendClientResponse, referenc
 
   return {
     id: String(source.id),
+    membershipStatus: text(source.membershipStatus || 'ACTIVE').toUpperCase() as Client['membershipStatus'],
     abbr: text(source.abbr),
     nameEn: text(source.nameEn),
     nameChn: text(source.nameChn),

@@ -36,6 +36,14 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
     boolean existsActiveCaseByClientId(@Param("clientId") Long clientId);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT cc FROM ClientCase cc
+            WHERE cc.client.id = :clientId
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    List<ClientCase> findActiveCasesByClientId(@Param("clientId") Long clientId);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
     List<ClientCase> findByStatusIgnoreCaseOrderByOpenedAtDescIdDesc(String status);
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
