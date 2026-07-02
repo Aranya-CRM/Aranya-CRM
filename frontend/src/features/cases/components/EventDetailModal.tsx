@@ -21,7 +21,7 @@ export interface EventDetail {
   title: string
   start?: string | null
   end?: string | null
-  source: 'OWN_CASE' | 'OTHER_CASE' | 'EXTERNAL'
+  source: 'OWN_CASE' | 'OTHER_CASE' | 'EXTERNAL' | 'PERSONAL'
   serviceName?: string | null
   assignedUserName?: string | null
   location?: string | null
@@ -96,7 +96,11 @@ export function EventDetailModal({ detail, onClose, onEdit, onDelete, onSync, de
 
           {detail.source !== 'OWN_CASE' ? (
             <div className="event-detail-source">
-              {detail.source === 'OTHER_CASE' ? t('cases.services.sourceOtherCase') : t('cases.services.sourceExternal')}
+              {detail.source === 'OTHER_CASE'
+                ? t('cases.services.sourceOtherCase')
+                : detail.source === 'PERSONAL'
+                  ? t('cases.services.sourcePersonal')
+                  : t('cases.services.sourceExternal')}
               {detail.calendarName ? ` · ${detail.calendarName}` : ''}
             </div>
           ) : null}
