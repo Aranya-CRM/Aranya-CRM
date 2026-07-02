@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseNote, deleteServiceEvent, fetchCaseAuditLog, fetchCaseById, fetchCaseFlags, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent } from '../api/case.api'
-import type { ApprovalOptions, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload } from '../api/case.api'
+import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseDocument, deleteCaseNote, deleteServiceEvent, fetchCaseAuditLog, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCaseFlags, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
+import type { ApprovalOptions, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
 
 export const caseQueryKeys = {
@@ -9,6 +9,7 @@ export const caseQueryKeys = {
   list: () => [...caseQueryKeys.lists()] as const,
   details: () => [...caseQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...caseQueryKeys.details(), id] as const,
+  documents: (id: string) => [...caseQueryKeys.detail(id), 'documents'] as const,
 }
 
 export function useCases() {
@@ -63,6 +64,44 @@ export function useDeleteCaseNote(caseId: string | undefined) {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(caseId), 'notes'] })
       queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(caseId), 'notes', 'mine'] })
+    },
+  })
+}
+
+export function useCaseDocuments(caseId: string | undefined) {
+  return useQuery({
+    queryKey: caseId ? caseQueryKeys.documents(caseId) : ['cases', 'documents'],
+    queryFn: () => fetchCaseDocuments(caseId!),
+    enabled: Boolean(caseId),
+  })
+}
+
+export function useUploadCaseDocument(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: Omit<UploadCaseDocumentPayload, 'caseId'>) => uploadCaseDocument({ ...data, caseId: caseId! }),
+    onSuccess: () => {
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.documents(caseId) })
+    },
+  })
+}
+
+export function useCaseDocumentDownloadUrl(caseId: string | undefined) {
+  return useMutation({
+    mutationFn: (documentId: number) => fetchCaseDocumentDownloadUrl(caseId!, documentId),
+  })
+}
+
+export function useDeleteCaseDocument(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentId: number) => deleteCaseDocument(caseId!, documentId),
+    onSuccess: () => {
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.documents(caseId) })
     },
   })
 }

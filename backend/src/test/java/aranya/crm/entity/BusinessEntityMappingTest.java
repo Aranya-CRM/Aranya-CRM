@@ -3,6 +3,9 @@ package aranya.crm.entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -67,7 +70,31 @@ class BusinessEntityMappingTest {
         assertThat(new CaseNote().getVisibility()).isEqualTo("INTERNAL");
         assertThat(new ServiceAppointment().getStatus()).isEqualTo("SCHEDULED");
         assertThat(new Document().getStatus()).isEqualTo("ACTIVE");
+        assertThat(new CaseDocument().getStatus()).isEqualTo("ACTIVE");
         assertThat(new ApprovalRequest().getStatus()).isEqualTo("PENDING");
+    }
+
+    @Test
+    @DisplayName("Document entities store GCS metadata and fixed case categories")
+    void documentEntities_storeGcsMetadataAndFixedCaseCategories() throws Exception {
+        assertColumn(Document.class, "bucketName", "bucket_name", true);
+        assertColumn(Document.class, "objectKey", "object_key", true);
+        assertColumn(Document.class, "checksumSha256", "checksum_sha256", true);
+        assertThat(Document.class.getDeclaredFields())
+                .extracting(Field::getName)
+                .doesNotContain("s3Bucket", "s3Key");
+
+        Field category = CaseDocument.class.getDeclaredField("category");
+        Column categoryColumn = category.getAnnotation(Column.class);
+        assertThat(categoryColumn).isNotNull();
+        assertThat(categoryColumn.name()).isEqualTo("category");
+        assertThat(categoryColumn.nullable()).isFalse();
+        assertThat(category.getAnnotation(Enumerated.class)).isNotNull();
+        assertThat(category.getAnnotation(Enumerated.class).value()).isEqualTo(EnumType.STRING);
+
+        assertThat(DocumentCategory.values())
+                .extracting(Enum::name)
+                .containsExactly("ORDINATION", "MEDICAL", "FINANCIAL", "LEGAL");
     }
 
     private static void assertManyToOne(
@@ -83,5 +110,18 @@ class BusinessEntityMappingTest {
         assertThat(joinColumn).isNotNull();
         assertThat(joinColumn.name()).isEqualTo(joinColumnName);
         assertThat(joinColumn.nullable()).isEqualTo(nullable);
+    }
+
+    private static void assertColumn(
+            Class<?> entityClass,
+            String fieldName,
+            String columnName,
+            boolean nullable
+    ) throws Exception {
+        Field field = entityClass.getDeclaredField(fieldName);
+        Column column = field.getAnnotation(Column.class);
+        assertThat(column).isNotNull();
+        assertThat(column.name()).isEqualTo(columnName);
+        assertThat(column.nullable()).isEqualTo(nullable);
     }
 }

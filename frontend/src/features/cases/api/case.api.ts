@@ -1,6 +1,6 @@
 import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -267,6 +267,13 @@ export interface CreateCaseNotePayload {
   followUp?: string
 }
 
+export interface UploadCaseDocumentPayload {
+  caseId: string
+  category: CaseDocumentCategory
+  file: File
+  displayName?: string
+}
+
 export async function createCaseNote(data: CreateCaseNotePayload): Promise<CaseNote> {
   const mode = getDataMode()
   if (mode === 'mock') {
@@ -323,6 +330,38 @@ export async function deleteCaseNote(caseId: string, noteId: string): Promise<vo
     }
     throw new Error('Failed to delete case note')
   }
+}
+
+export async function fetchCaseDocuments(caseId: string): Promise<CaseDocument[]> {
+  const mode = getDataMode()
+  if (mode === 'mock') return []
+
+  try {
+    const res = await http.get<CaseDocument[]>(`/v1/cases/${caseId}/documents`)
+    return res.data ?? []
+  } catch {
+    if (mode === 'auto') return []
+    throw new Error('Failed to fetch case documents')
+  }
+}
+
+export async function uploadCaseDocument(data: UploadCaseDocumentPayload): Promise<CaseDocument> {
+  const formData = new FormData()
+  formData.append('category', data.category)
+  formData.append('file', data.file)
+  if (data.displayName?.trim()) formData.append('displayName', data.displayName.trim())
+
+  const res = await http.post<CaseDocument>(`/v1/cases/${data.caseId}/documents`, formData)
+  return res.data
+}
+
+export async function fetchCaseDocumentDownloadUrl(caseId: string, documentId: number): Promise<DocumentDownloadUrl> {
+  const res = await http.get<DocumentDownloadUrl>(`/v1/cases/${caseId}/documents/${documentId}/download-url`)
+  return res.data
+}
+
+export async function deleteCaseDocument(caseId: string, documentId: number): Promise<void> {
+  await http.delete(`/v1/cases/${caseId}/documents/${documentId}`)
 }
 
 export async function fetchCaseStatusHistory(caseId: string): Promise<CaseStatusChange[]> {

@@ -63,6 +63,8 @@ public class UiManifestService {
 
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
             caps.keySet().removeIf(capKey -> capKey.startsWith("route:") && !capKey.equals("route:tasks"));
+            caps.remove("cases:view");
+            caps.keySet().removeIf(capKey -> capKey.startsWith("cases:documents."));
             caps.put("route:tasks", "YES");
             caps.put("tasks.list", "YES");
             return;

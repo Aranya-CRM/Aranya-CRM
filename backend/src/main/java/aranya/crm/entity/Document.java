@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,11 +32,11 @@ public class Document {
     @Column(name = "store_name", nullable = false)
     private String storeName;
 
-    @Column(name = "s3_bucket")
-    private String s3Bucket;
+    @Column(name = "bucket_name")
+    private String bucketName;
 
-    @Column(name = "s3_key", length = 500)
-    private String s3Key;
+    @Column(name = "object_key", length = 500)
+    private String objectKey;
 
     @Column(name = "mime_type", length = 100)
     private String mimeType;
@@ -62,6 +63,9 @@ public class Document {
     @Column(name = "checksum")
     private String checksum;
 
+    @Column(name = "checksum_sha256", length = 64)
+    private String checksumSha256;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -70,5 +74,10 @@ public class Document {
         if (this.uploadedAt == null) {
             this.uploadedAt = LocalDateTime.now();
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

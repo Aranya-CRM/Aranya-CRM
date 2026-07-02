@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 053-drop-legacy-document-s3-columns
+      author: system
+      comment: Drop legacy S3 metadata columns after moving document storage metadata to GCS-neutral names
+      changes:
+        - dropColumn:
+            tableName: document
+            columnName: s3_key
+        - dropColumn:
+            tableName: document
+            columnName: s3_bucket
+      rollback:
+        - addColumn:
+            tableName: document
+            columns:
+              - column:
+                  name: s3_bucket
+                  type: VARCHAR(255)
+              - column:
+                  name: s3_key
+                  type: VARCHAR(500)

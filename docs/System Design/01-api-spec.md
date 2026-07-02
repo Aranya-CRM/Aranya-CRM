@@ -733,6 +733,18 @@ Notes:
 - POST/PATCH bodies use `CreateServiceEventRequest`. `scheduledEnd`, when provided, must not be before `scheduledStart` (otherwise `400`).
 - `ServiceEventResponse` includes `synced` (true when a `google_event_id` exists) and `googleCalendarId` (the calendar the mirror currently lives on). The frontend shows a "not synced" badge + retry when integration is enabled but `synced=false`.
 
+### Case document endpoints
+
+| Method & Path | Cap | Purpose |
+|---------------|-----|---------|
+| `GET /api/v1/cases/{id}/documents` | `cases:view` | List active case files grouped by fixed category on the frontend. |
+| `POST /api/v1/cases/{id}/documents` | `cases:view` + `cases:documents.upload` | Multipart upload with `category`, `file`, and optional `displayName`; metadata is stored in the database and file bytes in GCS. |
+| `GET /api/v1/cases/{id}/documents/{documentId}/download-url` | `cases:view` | Return a short-lived signed GCS URL for preview/download. |
+| `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Soft-delete the case-document metadata link; the GCS object is retained. |
+
+- Categories are exactly `ORDINATION`, `MEDICAL`, `FINANCIAL`, and `LEGAL`.
+- No sensitive-file visibility split and no Google Drive source metadata exist in this phase.
+
 ## 11. APIs Not Yet Implemented
 
 The frontend contains service modules for clients, cases, reports, and auth support. The backend currently does not expose the following planned endpoints:

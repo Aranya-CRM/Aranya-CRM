@@ -62,6 +62,8 @@ class UiManifestServiceTest {
             handler.processRow(resultSet("route:dashboard", "YES"));
             handler.processRow(resultSet("route:reports", "YES"));
             handler.processRow(resultSet("route:tasks", "YES"));
+            handler.processRow(resultSet("cases:view", "OWN"));
+            handler.processRow(resultSet("cases:documents.upload", "YES"));
             return null;
         }).when(jdbcTemplate).query(
                 anyString(),
@@ -73,7 +75,12 @@ class UiManifestServiceTest {
 
         assertThat(result).containsEntry("route:tasks", "YES");
         assertThat(result).containsEntry("tasks.list", "YES");
-        assertThat(result).doesNotContainKeys("route:dashboard", "route:reports");
+        assertThat(result).doesNotContainKeys(
+                "route:dashboard",
+                "route:reports",
+                "cases:view",
+                "cases:documents.upload"
+        );
         verify(jdbcTemplate).query(
                 anyString(),
                 any(RowCallbackHandler.class),
