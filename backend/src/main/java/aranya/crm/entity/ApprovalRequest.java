@@ -65,6 +65,10 @@ public class ApprovalRequest {
     @Column(name = "decided_at")
     private LocalDateTime decidedAt;
 
+    /** 到期时间(仅对有时限的类型设置,如 CASE_CREATE);超过后未决则自动过期。 */
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

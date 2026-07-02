@@ -3,7 +3,7 @@ import { http } from '../../../shared/api'
 import { caseQueryKeys } from '../../cases/hooks'
 import { clientQueryKeys } from '../../clients/hooks'
 
-export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
 
 export interface ApprovalRequest {
   id: number
