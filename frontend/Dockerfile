@@ -12,6 +12,9 @@ ARG VITE_FIREBASE_API_KEY=
 ARG VITE_FIREBASE_AUTH_DOMAIN=
 ARG VITE_FIREBASE_PROJECT_ID=
 ARG VITE_FIREBASE_APP_ID=
+# Google OAuth Web client id（公开值），用于「我的日历」个人 Google 日历叠加(GIS 前端授权)。
+# 云端通过构建参数注入;本地留空则沿用 .env(未配置时该功能自动隐藏)。
+ARG VITE_GOOGLE_OAUTH_CLIENT_ID=
 COPY package*.json ./
 RUN npm ci
 COPY . .
@@ -20,7 +23,8 @@ RUN if [ -n "$VITE_FIREBASE_API_KEY" ]; then \
       { echo "VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY"; \
         echo "VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN"; \
         echo "VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID"; \
-        echo "VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID"; } > .env; \
+        echo "VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID"; \
+        echo "VITE_GOOGLE_OAUTH_CLIENT_ID=$VITE_GOOGLE_OAUTH_CLIENT_ID"; } > .env; \
     else \
       unset VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID; \
     fi && npm run build:docker

@@ -183,7 +183,18 @@ export interface ServiceCalendarEvent {
   }
 }
 
-export type CalendarEventSource = 'OWN_CASE' | 'OTHER_CASE' | 'EXTERNAL'
+export type CalendarEventSource = 'OWN_CASE' | 'OTHER_CASE' | 'EXTERNAL' | 'PERSONAL'
+
+/** 从用户个人 Google 日历(primary)直连读回的事件(只读展示) */
+export interface PersonalCalendarEvent {
+  id: string
+  title: string | null
+  start: string | null
+  end: string | null
+  allDay: boolean
+  location?: string | null
+  description?: string | null
+}
 
 /** 从后端 /calendar-events 读回的 Google 共享日历事件 */
 export interface SharedCalendarEvent {
