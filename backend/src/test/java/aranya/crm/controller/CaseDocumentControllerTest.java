@@ -138,7 +138,7 @@ class CaseDocumentControllerTest {
     void createDownloadUrl_returnsSignedUrl() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.createDownloadUrl(7L, 99L))
+        when(caseDocumentService.createDownloadUrl(7L, 99L, true))
                 .thenReturn(DocumentDownloadResponse.builder()
                         .url("https://signed.example.test/medical.pdf")
                         .fileName("Medical_Report.pdf")
@@ -150,6 +150,25 @@ class CaseDocumentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").value("https://signed.example.test/medical.pdf"))
                 .andExpect(jsonPath("$.fileName").value("Medical_Report.pdf"));
+    }
+
+    @Test
+    @DisplayName("createDownloadUrl supports inline preview disposition")
+    void createDownloadUrl_supportsInlinePreviewDisposition() throws Exception {
+        User requester = user(10L, "Social Worker");
+        when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
+        when(caseDocumentService.createDownloadUrl(7L, 99L, false))
+                .thenReturn(DocumentDownloadResponse.builder()
+                        .url("https://signed.example.test/medical-preview.pdf")
+                        .fileName("Medical_Report.pdf")
+                        .expiresInSeconds(600L)
+                        .build());
+
+        mockMvc.perform(get("/api/v1/cases/7/documents/99/download-url")
+                        .param("disposition", "inline")
+                        .with(authentication(auth(requester, "SOCIAL_WORKER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").value("https://signed.example.test/medical-preview.pdf"));
     }
 
     @Test

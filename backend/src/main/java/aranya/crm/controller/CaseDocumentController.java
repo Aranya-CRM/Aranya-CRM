@@ -52,9 +52,11 @@ public class CaseDocumentController {
     @GetMapping("/{documentId}/download-url")
     public ResponseEntity<DocumentDownloadResponse> createDownloadUrl(
             @PathVariable Long caseId,
-            @PathVariable Long documentId
+            @PathVariable Long documentId,
+            @RequestParam(name = "disposition", defaultValue = "attachment") String disposition
     ) {
-        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId));
+        boolean forceDownload = !"inline".equalsIgnoreCase(disposition);
+        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload));
     }
 
     @DeleteMapping("/{documentId}")

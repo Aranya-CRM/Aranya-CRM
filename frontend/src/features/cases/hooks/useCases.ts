@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseDocument, deleteCaseNote, deleteServiceEvent, fetchCaseAuditLog, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCaseFlags, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
-import type { ApprovalOptions, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
+import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
+
+type CaseDocumentUrlRequest = number | { documentId: number; disposition?: CaseDocumentUrlDisposition }
 
 export const caseQueryKeys = {
   all: ['cases'] as const,
@@ -90,7 +92,11 @@ export function useUploadCaseDocument(caseId: string | undefined) {
 
 export function useCaseDocumentDownloadUrl(caseId: string | undefined) {
   return useMutation({
-    mutationFn: (documentId: number) => fetchCaseDocumentDownloadUrl(caseId!, documentId),
+    mutationFn: (request: CaseDocumentUrlRequest) => {
+      const documentId = typeof request === 'number' ? request : request.documentId
+      const disposition = typeof request === 'number' ? 'attachment' : request.disposition
+      return fetchCaseDocumentDownloadUrl(caseId!, documentId, disposition)
+    },
   })
 }
 

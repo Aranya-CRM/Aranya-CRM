@@ -274,6 +274,8 @@ export interface UploadCaseDocumentPayload {
   displayName?: string
 }
 
+export type CaseDocumentUrlDisposition = 'attachment' | 'inline'
+
 export async function createCaseNote(data: CreateCaseNotePayload): Promise<CaseNote> {
   const mode = getDataMode()
   if (mode === 'mock') {
@@ -355,8 +357,10 @@ export async function uploadCaseDocument(data: UploadCaseDocumentPayload): Promi
   return res.data
 }
 
-export async function fetchCaseDocumentDownloadUrl(caseId: string, documentId: number): Promise<DocumentDownloadUrl> {
-  const res = await http.get<DocumentDownloadUrl>(`/v1/cases/${caseId}/documents/${documentId}/download-url`)
+export async function fetchCaseDocumentDownloadUrl(caseId: string, documentId: number, disposition: CaseDocumentUrlDisposition = 'attachment'): Promise<DocumentDownloadUrl> {
+  const res = await http.get<DocumentDownloadUrl>(`/v1/cases/${caseId}/documents/${documentId}/download-url`, {
+    params: { disposition },
+  })
   return res.data
 }
 

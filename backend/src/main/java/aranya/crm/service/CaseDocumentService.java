@@ -114,10 +114,19 @@ public class CaseDocumentService {
     }
 
     public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId) {
+        return createDownloadUrl(caseId, documentId, true);
+    }
+
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload) {
         requireActiveCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         Document document = caseDocument.getDocument();
-        URI uri = fileStorageService.createReadUrl(document.getObjectKey(), document.getMimeType());
+        URI uri = fileStorageService.createReadUrl(
+                document.getObjectKey(),
+                document.getMimeType(),
+                document.getFileName(),
+                forceDownload
+        );
         return DocumentDownloadResponse.builder()
                 .url(uri.toString())
                 .fileName(document.getFileName())
@@ -129,8 +138,11 @@ public class CaseDocumentService {
     public void deleteCaseDocument(Long caseId, Long documentId) {
         requireActiveCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
-        caseDocument.setStatus(DELETED);
-        caseDocumentRepository.save(caseDocument);
+        Document document = caseDocument.getDocument();
+        fileStorageService.deleteObject(document.getObjectKey());
+        caseDocumentRepository.delete(caseDocument);
+        caseDocumentRepository.flush();
+        documentRepository.delete(document);
     }
 
     private ClientCase requireActiveCase(Long caseId) {

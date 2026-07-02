@@ -32,7 +32,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.aryEq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -135,8 +134,8 @@ class CaseDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("deleteCaseDocument marks association deleted without deleting storage object")
-    void deleteCaseDocument_marksAssociationDeletedWithoutDeletingStorageObject() {
+    @DisplayName("deleteCaseDocument deletes storage object and metadata")
+    void deleteCaseDocument_deletesStorageObjectAndMetadata() {
         CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.LEGAL, "ACTIVE");
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
         when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
@@ -144,9 +143,10 @@ class CaseDocumentServiceTest {
 
         service().deleteCaseDocument(7L, 99L);
 
-        assertThat(caseDocument.getStatus()).isEqualTo("DELETED");
-        verify(caseDocumentRepository).save(caseDocument);
-        verifyNoInteractions(fileStorageService);
+        verify(fileStorageService).deleteObject("cases/7/documents/99/medical.pdf");
+        verify(caseDocumentRepository).delete(caseDocument);
+        verify(caseDocumentRepository).flush();
+        verify(documentRepository).delete(caseDocument.getDocument());
     }
 
     @Test
@@ -156,13 +156,28 @@ class CaseDocumentServiceTest {
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
         when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
                 .thenReturn(Optional.of(caseDocument));
-        when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf"))
+        when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", true))
                 .thenReturn(URI.create("https://signed.example.test/medical.pdf"));
 
         DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L);
 
         assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical.pdf");
         assertThat(response.getFileName()).isEqualTo("Medical_Report.pdf");
+    }
+
+    @Test
+    @DisplayName("createDownloadUrl can request inline preview URL")
+    void createDownloadUrl_canRequestInlinePreviewUrl() {
+        CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.MEDICAL, "ACTIVE");
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
+        when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
+                .thenReturn(Optional.of(caseDocument));
+        when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", false))
+                .thenReturn(URI.create("https://signed.example.test/medical-preview.pdf"));
+
+        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, false);
+
+        assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical-preview.pdf");
     }
 
     @Test

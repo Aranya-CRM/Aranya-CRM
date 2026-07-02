@@ -43,9 +43,10 @@ function downloadUrl(url: string, fileName: string) {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = fileName
-  anchor.target = '_blank'
-  anchor.rel = 'noreferrer'
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
+  anchor.remove()
 }
 
 function documentActionError(error: unknown, fallback: string, translate: (key: string) => string): string {
@@ -217,7 +218,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
     }
     setActionError(null)
     try {
-      const result = await downloadMutation.mutateAsync(doc.documentId)
+      const result = await downloadMutation.mutateAsync({ documentId: doc.documentId, disposition: 'inline' })
       setPreviewDoc({ ...doc, previewUrl: result.url })
     } catch (error) {
       setActionError(documentActionError(error, t('cases.documents.downloadError'), t))

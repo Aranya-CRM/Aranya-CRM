@@ -739,8 +739,8 @@ Notes:
 |---------------|-----|---------|
 | `GET /api/v1/cases/{id}/documents` | `cases:view` | List active case files grouped by fixed category on the frontend. |
 | `POST /api/v1/cases/{id}/documents` | `cases:view` + `cases:documents.upload` | Multipart upload with `category`, `file`, and optional `displayName`; metadata is stored in the database and file bytes in GCS. |
-| `GET /api/v1/cases/{id}/documents/{documentId}/download-url` | `cases:view` | Return a short-lived signed GCS URL for preview/download. |
-| `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Soft-delete the case-document metadata link; the GCS object is retained. |
+| `GET /api/v1/cases/{id}/documents/{documentId}/download-url` | `cases:view` | Return a short-lived signed GCS URL. Query `disposition=attachment` forces browser download; `disposition=inline` supports preview. |
+| `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Permanently delete the GCS object, case-document link, and document metadata. |
 
 - Categories are exactly `ORDINATION`, `MEDICAL`, `FINANCIAL`, and `LEGAL`.
 - No sensitive-file visibility split and no Google Drive source metadata exist in this phase.
