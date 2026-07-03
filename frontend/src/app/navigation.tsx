@@ -56,6 +56,16 @@ function TasksIcon() {
   )
 }
 
+function DriveImportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 3h8l4 8-4 8H8l-4-8z" />
+      <path d="M8 11h8" />
+      <path d="M12 11v6" />
+    </svg>
+  )
+}
+
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -109,6 +119,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/reports',
     labelKey: 'nav.reports',
     icon: <ReportsIcon />,
+  },
+  {
+    id: 'driveImport',
+    routeId: 'cases:documents.import',
+    path: '/admin/drive-import',
+    labelKey: 'nav.driveImport',
+    icon: <DriveImportIcon />,
   },
 ]
 

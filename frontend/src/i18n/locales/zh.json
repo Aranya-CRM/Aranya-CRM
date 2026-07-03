@@ -7,7 +7,35 @@
     "approvals": "审批",
     "tasks": "协助",
     "users": "用户管理",
-    "profile": "查看个人主页"
+    "profile": "查看个人主页",
+    "driveImport": "Drive 导入"
+  },
+  "driveImport": {
+    "title": "Google Drive 导入",
+    "subtitle": "一次性迁移:浏览组织 Drive,把文件指派到 case 与分类,再导入到文件存储。",
+    "root": "Drive",
+    "searchCase": "搜索个案…",
+    "selectCase": "选择目标个案",
+    "assignSelected": "指派选中({{count}})",
+    "name": "名称",
+    "type": "类型",
+    "size": "大小",
+    "modified": "修改时间",
+    "folder": "文件夹",
+    "emptyFolder": "该文件夹为空。",
+    "staged": "待导入({{count}})",
+    "stagingEmpty": "尚未加入文件。勾选文件并指派到个案。",
+    "import": "导入 {{count}} 个文件",
+    "importing": "导入中…",
+    "results": "结果",
+    "pickCaseFirst": "请先选择目标个案。",
+    "loadError": "加载 Drive 文件失败。",
+    "importError": "导入失败。",
+    "status": {
+      "IMPORTED": "已导入",
+      "SKIPPED": "已跳过",
+      "FAILED": "失败"
+    }
   },
   "profile": {
     "title": "个人主页",

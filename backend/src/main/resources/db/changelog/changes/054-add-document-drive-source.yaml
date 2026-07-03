@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 054-add-document-drive-source
+      author: ShiDu
+      comment: Track document source (UPLOAD/DRIVE_IMPORT) and Drive file id for one-time Drive migration idempotency.
+      changes:
+        - addColumn:
+            tableName: document
+            columns:
+              - column:
+                  name: source
+                  type: VARCHAR(20)
+                  defaultValue: UPLOAD
+                  constraints:
+                    nullable: false
+              - column:
+                  name: drive_file_id
+                  type: VARCHAR(128)
+        - sql:
+            sql: |
+              ALTER TABLE document
+                ADD CONSTRAINT ck_document_source
+                CHECK (source IN ('UPLOAD', 'DRIVE_IMPORT'));
+              CREATE INDEX idx_document_drive_file_id
+                ON document (drive_file_id);
+      rollback:
+        - sql:
+            sql: |
+              DROP INDEX IF EXISTS idx_document_drive_file_id;
+              ALTER TABLE document DROP CONSTRAINT IF EXISTS ck_document_source;
+        - dropColumn:
+            tableName: document
+            columnName: drive_file_id
+        - dropColumn:
+            tableName: document
+            columnName: source
