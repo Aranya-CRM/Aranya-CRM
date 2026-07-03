@@ -73,6 +73,11 @@ google:
     oauth-client-id: ${GOOGLE_CALENDAR_OAUTH_CLIENT_ID:}
     oauth-client-secret: ${GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET:}
     oauth-refresh-token: ${GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN:}
+  # Drive 导入(一次性历史文件迁移):复用上面 calendar 的 OAuth 凭据(infotech,
+  # refresh token 需同时含 drive.readonly scope)。enabled=false 时导入功能停用。
+  drive:
+    enabled: ${GOOGLE_DRIVE_ENABLED:false}
+    root-folder-id: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:}
 
 storage:
   max-upload-size-mb: ${FILE_STORAGE_MAX_UPLOAD_SIZE_MB:25}

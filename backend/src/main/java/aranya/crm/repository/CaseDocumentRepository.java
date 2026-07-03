@@ -14,4 +14,7 @@ public interface CaseDocumentRepository extends JpaRepository<CaseDocument, Long
 
     @EntityGraph(attributePaths = {"clientCase", "document", "document.uploadedBy", "linkedBy"})
     Optional<CaseDocument> findByClientCase_IdAndDocument_IdAndStatus(Long caseId, Long documentId, String status);
+
+    /** 幂等判断:该 case 是否已导入过某个 Drive 文件(ACTIVE 记录)。 */
+    boolean existsByClientCase_IdAndStatusAndDocument_DriveFileId(Long caseId, String status, String driveFileId);
 }

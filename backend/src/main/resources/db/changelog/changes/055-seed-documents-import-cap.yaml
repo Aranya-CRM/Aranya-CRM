@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 055-1-seed-documents-import-cap-def
+      author: ShiDu
+      comment: Add cases:documents.import cap for the one-time Google Drive migration console.
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO cap_definition (cap_key, domain, description)
+              VALUES ('cases:documents.import', 'cases', 'Import case documents from the organization Google Drive')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+  - changeSet:
+      id: 055-2-seed-documents-import-role-caps
+      author: ShiDu
+      comment: Grant Drive import to managers only.
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, t.sv
+              FROM (VALUES
+                ('FULL_MANAGER', 'cases:documents.import', 'ALL'),
+                ('MANAGER',      'cases:documents.import', 'ALL')
+              ) AS t(rn, ck, sv)
+              JOIN role r ON r.name = t.rn
+              JOIN cap_definition cd ON cd.cap_key = t.ck
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

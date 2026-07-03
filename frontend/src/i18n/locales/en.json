@@ -7,7 +7,35 @@
     "approvals": "Approvals",
     "tasks": "Help with",
     "users": "Users",
-    "profile": "View profile"
+    "profile": "View profile",
+    "driveImport": "Drive Import"
+  },
+  "driveImport": {
+    "title": "Google Drive Import",
+    "subtitle": "One-time migration: browse the organization Drive, assign files to a case and category, then import into storage.",
+    "root": "Drive",
+    "searchCase": "Search case…",
+    "selectCase": "Select target case",
+    "assignSelected": "Assign selected ({{count}})",
+    "name": "Name",
+    "type": "Type",
+    "size": "Size",
+    "modified": "Modified",
+    "folder": "Folder",
+    "emptyFolder": "This folder is empty.",
+    "staged": "To import ({{count}})",
+    "stagingEmpty": "No files staged. Select files and assign them to a case.",
+    "import": "Import {{count}} file(s)",
+    "importing": "Importing…",
+    "results": "Results",
+    "pickCaseFirst": "Select a target case first.",
+    "loadError": "Failed to load Drive files.",
+    "importError": "Import failed.",
+    "status": {
+      "IMPORTED": "Imported",
+      "SKIPPED": "Skipped",
+      "FAILED": "Failed"
+    }
   },
   "profile": {
     "title": "My Profile",

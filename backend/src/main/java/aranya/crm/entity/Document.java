@@ -66,6 +66,14 @@ public class Document {
     @Column(name = "checksum_sha256", length = 64)
     private String checksumSha256;
 
+    /** 来源:UPLOAD(用户上传)或 DRIVE_IMPORT(从组织 Google Drive 迁入) */
+    @Column(name = "source", nullable = false, length = 20)
+    private String source = "UPLOAD";
+
+    /** Drive 导入的原始文件 id;用于迁移幂等(同一 case 不重复导入同一 Drive 文件) */
+    @Column(name = "drive_file_id", length = 128)
+    private String driveFileId;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
