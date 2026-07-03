@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
@@ -76,6 +77,9 @@ public class CaseController {
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        if (approvalService.hasPendingRequest("CASE_CREATE", "CLIENT", request.getClientId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Client already has a pending case creation approval");
+        }
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "CASE_CREATE",
                 "CLIENT",

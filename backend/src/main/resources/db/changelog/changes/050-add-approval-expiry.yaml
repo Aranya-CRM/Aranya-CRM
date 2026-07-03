@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 050-add-approval-expiry
+      author: ShiDu
+      comment: >
+        Add expires_at + EXPIRED status so CASE_CREATE (convert/create case) approvals
+        must be decided within 30 days, otherwise they auto-expire.
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE approval_request ADD COLUMN expires_at TIMESTAMP;
+
+              ALTER TABLE approval_request DROP CONSTRAINT ck_approval_request_status;
+              ALTER TABLE approval_request ADD CONSTRAINT ck_approval_request_status
+                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'));
+
+              -- 现存待审批的建案申请:补上 30 天到期时间(自创建起算)
+              UPDATE approval_request
+                 SET expires_at = created_at + INTERVAL '30 days'
+               WHERE type = 'CASE_CREATE'
+                 AND status = 'PENDING'
+                 AND expires_at IS NULL;
+
+              CREATE INDEX idx_approval_request_expiry
+                ON approval_request (status, expires_at);
+      rollback:
+        - sql:
+            sql: |
+              DROP INDEX IF EXISTS idx_approval_request_expiry;
+              ALTER TABLE approval_request DROP CONSTRAINT ck_approval_request_status;
+              ALTER TABLE approval_request ADD CONSTRAINT ck_approval_request_status
+                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'));
+              ALTER TABLE approval_request DROP COLUMN expires_at;

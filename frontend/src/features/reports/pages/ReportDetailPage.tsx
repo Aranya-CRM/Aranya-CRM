@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader } from '../../../shared/ui'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
 import { deleteReport, fetchReportById, submitReport } from '../api/report.api'
+import { reportStatusKey } from '../reportStatus'
 import type { ReportDetail } from '../types'
 import './reports.css'
 
@@ -112,7 +113,7 @@ export function ReportDetailPage() {
     )
   }
 
-  const status = report.status ?? 'SUBMITTED'
+  const status = reportStatusKey(report.status)
   const clientName = isZh ? report.clientNameChn || report.clientNameEn : report.clientNameEn || report.clientNameChn
   const editPath = withReturnTo(`/reports/${report.id}/edit`, returnTo, clientName || undefined)
 

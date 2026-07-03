@@ -1,9 +1,8 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
 import { getApiErrorMessage } from '../../../shared/api'
-import { addLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
@@ -13,11 +12,12 @@ import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase, useUpdateCaseServi
 import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
 import { CaseAuditTab } from './CaseAuditTab'
+import { CaseDocumentsTab } from './CaseDocumentsTab'
 import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
 import { AddCaseEventForm } from './AddCaseEventForm'
 import { CaseIntensityDot } from './CaseIntensityDot'
-import { serviceSelectionsForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
+import { selectedServiceForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
 
 type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
 
@@ -79,11 +79,11 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
       </div>
 
       <div className="case-detail-tab-content">
-        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} isManager={isManager} /> : null}
+        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} /> : null}
         {activeTab === 'services'  ? <ServicesTab  caseData={caseData} /> : null}
         {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} /> : null}
         {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
-        {activeTab === 'documents' ? <PlaceholderTab tabKey="cases.tab.documents" /> : null}
+        {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
         {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
         {activeTab === 'audit' && isManager ? (
@@ -96,7 +96,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
 
 const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'GREY']
 
-function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boolean }) {
+function OverviewTab({ caseData }: { caseData: Case }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const serviceCount = activeServiceCount(caseData.services)
@@ -108,10 +108,8 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
 
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
   const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
-  const [assignedVolunteer, setAssignedVolunteer] = useState(caseData.assignedVolunteer ?? '')
   const [savedStatus, setSavedStatus] = useState<CaseStatus>(caseData.status)
   const [savedColorCode, setSavedColorCode] = useState<CaseColorCode>(caseData.colorCode)
-  const [savedAssignedVolunteer, setSavedAssignedVolunteer] = useState(caseData.assignedVolunteer ?? '')
   const [savedSocialWorkerId, setSavedSocialWorkerId] = useState(caseData.socialWorkerId ?? '')
   const [savedSocialWorkerName, setSavedSocialWorkerName] = useState(caseData.socialWorker ?? '')
   const [savedComments, setSavedComments] = useState(caseData.comments ?? '')
@@ -119,29 +117,25 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
   const [socialWorkerId, setSocialWorkerId] = useState(caseData.socialWorkerId ?? '')
   const [comments, setComments] = useState(caseData.comments ?? '')
   const [remarks, setRemarks] = useState(caseData.remarks ?? '')
-  const [volunteers, setVolunteers] = useState<UserSummary[]>([])
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const updateCase = useUpdateCase()
 
-  const managerEditing = !isManager || isEditing
   const isDirty =
     status !== savedStatus ||
     colorCode !== savedColorCode ||
-    assignedVolunteer !== savedAssignedVolunteer ||
     socialWorkerId !== savedSocialWorkerId ||
     comments !== savedComments ||
     remarks !== savedRemarks
 
   useEffect(() => {
-    if (!canAssign && !isManager) return
+    if (!canAssign) return
     fetchUsers()
       .then((users) => {
-        setVolunteers(users.filter((u) => u.roles.includes('VOLUNTEER') && u.status === 'ACTIVE'))
         setSocialWorkers(users.filter((u) => u.roles.includes('SOCIAL_WORKER') && u.status === 'ACTIVE'))
       })
       .catch(() => {})
-  }, [canAssign, isManager])
+  }, [canAssign])
 
   async function handleSave() {
     const updated = await updateCase.mutateAsync({
@@ -157,7 +151,6 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
     const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
     setSavedStatus(updated.status)
     setSavedColorCode(updated.colorCode)
-    setSavedAssignedVolunteer(updated.assignedVolunteer ?? assignedVolunteer)
     setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
     setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
     setSavedComments(updated.comments ?? comments)
@@ -168,7 +161,6 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
   function handleCancelEdit() {
     setStatus(savedStatus)
     setColorCode(savedColorCode)
-    setAssignedVolunteer(savedAssignedVolunteer)
     setSocialWorkerId(savedSocialWorkerId)
     setComments(savedComments)
     setRemarks(savedRemarks)
@@ -189,7 +181,7 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
         <InfoCell label={t('cases.overview.dateOpened')} value={caseData.dateOpened} />
         <InfoCell
           label={t('cases.overview.status')}
-          value={canChangeStatus && managerEditing ? (
+          value={canChangeStatus && isEditing ? (
             <select
               className="overview-select"
               value={status}
@@ -205,7 +197,7 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
         />
         <InfoCell
           label={t('cases.overview.caseworker')}
-          value={isManager && managerEditing ? (
+          value={canAssign && isEditing ? (
             <select
               className="overview-select"
               value={socialWorkerId}
@@ -220,28 +212,9 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
             savedSocialWorkerName || '—'
           )}
         />
-        {!isManager ? (
-          <InfoCell
-            label={t('cases.overview.volunteer')}
-            value={canAssign && managerEditing ? (
-              <select
-                className="overview-select"
-                value={assignedVolunteer}
-                onChange={(e) => setAssignedVolunteer(e.target.value)}
-              >
-                <option value="">—</option>
-                {volunteers.map((v) => (
-                  <option key={v.id} value={v.fullName}>{v.fullName}</option>
-                ))}
-              </select>
-            ) : (
-              savedAssignedVolunteer || '—'
-            )}
-          />
-        ) : null}
         <InfoCell
           label={t('cases.overview.intensity')}
-          value={canEditIntensity && managerEditing ? (
+          value={canEditIntensity && isEditing ? (
             <div className="overview-intensity-select-row">
               <CaseIntensityDot colorCode={colorCode} />
               <select
@@ -267,7 +240,7 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
         />
         <InfoCell
           label={t('cases.overview.comments')}
-          value={isManager && managerEditing ? (
+          value={isEditing ? (
             <textarea className="overview-textarea" value={comments} onChange={(e) => setComments(e.target.value)} />
           ) : (
             savedComments || '—'
@@ -276,7 +249,7 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
         />
         <InfoCell
           label={t('cases.overview.remarks')}
-          value={isManager && managerEditing ? (
+          value={isEditing ? (
             <textarea className="overview-textarea" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           ) : (
             savedRemarks || '—'
@@ -294,7 +267,7 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
 
       {canEdit ? (
         <div className="case-overview-save-row">
-          {isManager && !isEditing ? (
+          {!isEditing ? (
             <button className="btn-primary" type="button" onClick={handleEditClick}>
               {t('common.edit')}
             </button>
@@ -308,11 +281,9 @@ function OverviewTab({ caseData, isManager }: { caseData: Case; isManager: boole
             >
               {updateCase.isPending ? t('common.saving') : t('common.save')}
             </button>
-            {isManager ? (
-              <button className="btn-secondary" type="button" disabled={updateCase.isPending} onClick={handleCancelEdit}>
-                {t('common.cancel')}
-              </button>
-            ) : null}
+            <button className="btn-secondary" type="button" disabled={updateCase.isPending} onClick={handleCancelEdit}>
+              {t('common.cancel')}
+            </button>
             </>
           )}
         </div>
@@ -399,7 +370,9 @@ interface PendingApprovalView {
   targetType?: string | null
   targetId?: number | string | null
   payloadJson?: string | null
+  requestedById?: number | null
   requestedByName?: string | null
+  assignedApproverId?: number | null
   createdAt?: string | null
 }
 
@@ -450,32 +423,25 @@ function parsePendingServicePayload(payloadJson?: string | null): PendingService
 function ServicesTab({ caseData }: { caseData: Case }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
-  const [servicesToAdd, setServicesToAdd] = useState<Array<keyof CaseServices>>([])
-  const [servicesToRemove, setServicesToRemove] = useState<Array<keyof CaseServices>>([])
+  const { user } = useAuth()
+  const [selectedService, setSelectedService] = useState<keyof CaseServices | ''>('')
   const [serviceRequestMode, setServiceRequestMode] = useState<ServiceRequestMode | null>(null)
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
   const [serviceApprovalError, setServiceApprovalError] = useState('')
   const updateServices = useUpdateCaseServices(caseData.id)
   const canRequestServices = resolve('cases:services.create')
-  const [approvalMessage, setApprovalMessage] = useState('')
-  const localPendingCaseApprovals = useLocalPendingApprovals('CASE', caseData.id)
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const approvalAssignees = useApprovalAssigneeOptions()
 
   const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
-  const serverServiceApprovals = pendingApprovals.filter((approval) => (
+  const serverServiceApprovals = useMemo(() => pendingApprovals.filter((approval) => (
     approval.type === 'CASE_SERVICE_UPDATE' &&
     approval.targetType === 'CASE' &&
     String(approval.targetId) === String(caseData.id)
-  ))
-  const pendingServiceApprovals: PendingApprovalView[] = [
-    ...serverServiceApprovals,
-    ...localPendingCaseApprovals.filter((localApproval) => (
-      !serverServiceApprovals.some((approval) => approval.id === localApproval.id)
-    )),
-  ]
+  )), [caseData.id, pendingApprovals])
+  const pendingServiceApprovals = serverServiceApprovals
   const pendingServiceChanges = pendingServiceApprovals
     .filter((approval) => approval.type === 'CASE_SERVICE_UPDATE')
     .flatMap((approval) => parsePendingServicePayload(approval.payloadJson))
@@ -485,12 +451,11 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   const availableServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>)
     .filter((key) => !caseData.services[key] && !pendingAddKeys.includes(key))
   const removableServiceKeys = displayedServiceKeys.filter((key) => !pendingRemoveKeys.includes(key))
-  const activeServicesToAdd = serviceRequestMode
-    ? serviceSelectionsForMode(serviceRequestMode, servicesToAdd, servicesToRemove).servicesToAdd
-    : []
-  const activeServicesToRemove = serviceRequestMode
-    ? serviceSelectionsForMode(serviceRequestMode, servicesToAdd, servicesToRemove).servicesToRemove
-    : []
+  const selectedServices = serviceRequestMode
+    ? selectedServiceForMode(serviceRequestMode, selectedService)
+    : { servicesToAdd: [], servicesToRemove: [] }
+  const activeServicesToAdd = selectedServices.servicesToAdd
+  const activeServicesToRemove = selectedServices.servicesToRemove
 
   function pendingApprovalForService(serviceKey: keyof CaseServices, operation: 'add' | 'remove') {
     return pendingServiceApprovals.find((approval) => (
@@ -501,36 +466,17 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   }
 
   async function decideServiceApproval(approval: ServerApprovalRequest, approved: boolean) {
+    if (!resolve('approvals:decide')) return
+    if (!canDecideServiceApproval(approval, user?.id)) return
     if (approved) {
       await approveRequest.mutateAsync({ id: approval.id, data: {} })
-      setApprovalMessage(t('cases.services.approvalApproved'))
       return
     }
     await rejectRequest.mutateAsync({ id: approval.id, data: {} })
-    setApprovalMessage(t('cases.services.approvalRejected'))
-  }
-
-  function toggleServiceToAdd(serviceKey: keyof CaseServices, checked: boolean) {
-    setServicesToAdd((current) => {
-      if (checked) {
-        return current.includes(serviceKey) ? current : [...current, serviceKey]
-      }
-      return current.filter((key) => key !== serviceKey)
-    })
-  }
-
-  function toggleServiceToRemove(serviceKey: keyof CaseServices, checked: boolean) {
-    setServicesToRemove((current) => {
-      if (checked) {
-        return current.includes(serviceKey) ? current : [...current, serviceKey]
-      }
-      return current.filter((key) => key !== serviceKey)
-    })
   }
 
   function openServiceRequest(mode: ServiceRequestMode) {
-    setServicesToAdd([])
-    setServicesToRemove([])
+    setSelectedService('')
     setServiceApprovalError('')
     setServiceRequestMode(mode)
   }
@@ -550,22 +496,8 @@ function ServicesTab({ caseData }: { caseData: Case }) {
         .filter((key) => !pendingRemoveKeys.includes(key))
       const nextServices = uniqueServiceKeys([...currentRequestedServices, ...activeServicesToAdd])
         .filter((key) => !activeServicesToRemove.includes(key))
-      const approval = await updateServices.mutateAsync({ services: nextServices, approverId, reason })
-      addLocalPendingApproval({
-        ...approval,
-        targetType: approval.targetType ?? 'CASE',
-        targetId: approval.targetId ?? caseData.id,
-        targetLabel: approval.targetLabel ?? caseData.caseNo,
-        payloadJson: JSON.stringify({
-          operation: 'update',
-          addServiceKeys: activeServicesToAdd,
-          removeServiceKeys: activeServicesToRemove,
-          _approval: { reason: reason ?? '' },
-        }),
-      })
-      setApprovalMessage(t('cases.services.approvalSubmitted'))
-      setServicesToAdd([])
-      setServicesToRemove([])
+      await updateServices.mutateAsync({ services: nextServices, approverId, reason })
+      setSelectedService('')
       setServiceRequestMode(null)
       setShowServiceApprovalConfirm(false)
     } catch (error) {
@@ -575,154 +507,124 @@ function ServicesTab({ caseData }: { caseData: Case }) {
 
   return (
     <>
-      {approvalMessage ? <div className="case-placeholder-text">{approvalMessage}</div> : null}
+      <section className="case-service-panel">
+        {displayedServiceKeys.length > 0 ? (
+          <div className="case-service-card-grid">
+            {displayedServiceKeys.map((serviceKey) => {
+              const addPending = pendingAddKeys.includes(serviceKey)
+              const removePending = pendingRemoveKeys.includes(serviceKey)
+              const servicePending = addPending || removePending
+              const pendingOperation = addPending ? 'add' : removePending ? 'remove' : null
+              const pendingApproval = pendingOperation ? pendingApprovalForService(serviceKey, pendingOperation) : undefined
+              const serverPendingApproval = pendingApproval
+                ? serverServiceApprovals.find((approval) => approval.id === pendingApproval.id)
+                : undefined
+              const canDecidePendingApproval = resolve('approvals:decide') && canDecideServiceApproval(serverPendingApproval, user?.id)
 
-      {displayedServiceKeys.length > 0 ? (
-        <div className="case-service-card-grid">
-          {displayedServiceKeys.map((serviceKey) => {
-            const addPending = pendingAddKeys.includes(serviceKey)
-            const removePending = pendingRemoveKeys.includes(serviceKey)
-            const servicePending = addPending || removePending
-            const pendingOperation = addPending ? 'add' : removePending ? 'remove' : null
-            const pendingApproval = pendingOperation ? pendingApprovalForService(serviceKey, pendingOperation) : undefined
-            const serverPendingApproval = pendingApproval
-              ? serverServiceApprovals.find((approval) => approval.id === pendingApproval.id)
-              : undefined
+              return (
+                <article className={'case-service-card' + (servicePending ? ' pending' : '')} key={serviceKey}>
+                  <header className="case-service-card-header">
+                    <span className={`case-service-icon service-icon-${serviceKey}`}>{serviceIconLabel(serviceKey)}</span>
+                    <div>
+                      <h3>{t(`cases.service.${serviceKey}`)}</h3>
+                      <p>{t(`cases.serviceGroup.${CASE_SERVICE_GROUPS[serviceKey]}`)}</p>
+                      {addPending ? <span className="case-service-pending-badge">{t('cases.services.addPending')}</span> : null}
+                      {removePending ? <span className="case-service-pending-badge remove">{t('cases.services.removePending')}</span> : null}
+                    </div>
+                  </header>
 
-            return (
-              <article className={'case-service-card' + (servicePending ? ' pending' : '')} key={serviceKey}>
-                <header className="case-service-card-header">
-                  <span className={`case-service-icon service-icon-${serviceKey}`}>{serviceIconLabel(serviceKey)}</span>
-                  <div>
-                    <h3>{t(`cases.service.${serviceKey}`)}</h3>
-                    <p>{t(`cases.serviceGroup.${CASE_SERVICE_GROUPS[serviceKey]}`)}</p>
-                    {addPending ? <span className="case-service-pending-badge">{t('cases.services.addPending')}</span> : null}
-                    {removePending ? <span className="case-service-pending-badge remove">{t('cases.services.removePending')}</span> : null}
-                  </div>
-                </header>
-
-                {pendingApproval ? (
-                  <ServiceApprovalSummary
-                    approval={pendingApproval}
-                    serverApproval={serverPendingApproval}
-                    deciding={approveRequest.isPending || rejectRequest.isPending}
-                    onApprove={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, true) : undefined}
-                    onReject={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, false) : undefined}
-                  />
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="case-placeholder-text">{t('cases.services.empty')}</p>
-      )}
-
-      {canRequestServices ? (
-        <div className="case-service-request-actions">
-          {!serviceRequestMode ? (
-            <>
-              <button
-                className="btn-primary"
-                type="button"
-                disabled={availableServiceKeys.length === 0}
-                onClick={() => openServiceRequest('add')}
-              >
-                {t('cases.services.addService')}
-              </button>
-              <button
-                className="btn-danger"
-                type="button"
-                disabled={removableServiceKeys.length === 0}
-                onClick={() => openServiceRequest('remove')}
-              >
-                {t('cases.services.removeService')}
-              </button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-
-      {canRequestServices && serviceRequestMode ? (
-        <form className="case-event-form case-service-request-form single" onSubmit={submitServiceApproval}>
-          <h3>{t(`cases.services.${serviceRequestMode === 'add' ? 'addService' : 'removeService'}`)}</h3>
-          {serviceRequestMode === 'add' ? (
-            <div className="case-form-field case-service-request-field">
-              <span>{t('cases.services.addService')}</span>
-              <div className="case-service-check-panel compact">
-                {SERVICE_GROUP_KEYS.map((groupKey) => {
-                  const groupServices = availableServiceKeys.filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
-                  if (groupServices.length === 0) return null
-                  return (
-                    <section className="case-service-check-group" key={groupKey}>
-                      <h3>{t(`cases.serviceGroup.${groupKey}`)}</h3>
-                      <div className="case-service-check-grid">
-                        {groupServices.map((key) => (
-                          <label className="case-service-check-option" key={key}>
-                            <input
-                              type="checkbox"
-                              checked={servicesToAdd.includes(key)}
-                              onChange={(event) => toggleServiceToAdd(key, event.target.checked)}
-                            />
-                            <span>{t(`cases.service.${key}`)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  )
-                })}
-                {availableServiceKeys.length === 0 ? <p className="case-service-empty">{t('cases.services.noAvailableServices')}</p> : null}
-              </div>
-            </div>
-          ) : null}
-          {serviceRequestMode === 'remove' ? (
-            <div className="case-form-field case-service-request-field">
-              <span>{t('cases.services.removeService')}</span>
-              <div className="case-service-check-panel compact">
-                {SERVICE_GROUP_KEYS.map((groupKey) => {
-                  const groupServices = removableServiceKeys.filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
-                  if (groupServices.length === 0) return null
-                  return (
-                    <section className="case-service-check-group" key={groupKey}>
-                      <h3>{t(`cases.serviceGroup.${groupKey}`)}</h3>
-                      <div className="case-service-check-grid">
-                        {groupServices.map((key) => (
-                          <label className="case-service-check-option" key={key}>
-                            <input
-                              type="checkbox"
-                              checked={servicesToRemove.includes(key)}
-                              onChange={(event) => toggleServiceToRemove(key, event.target.checked)}
-                            />
-                            <span>{t(`cases.service.${key}`)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  )
-                })}
-                {removableServiceKeys.length === 0 ? <p className="case-service-empty">{t('cases.services.noRemovableServices')}</p> : null}
-              </div>
-            </div>
-          ) : null}
-          <div className="case-service-request-submit-row">
-            <button className="btn-primary" type="submit" disabled={updateServices.isPending || (activeServicesToAdd.length === 0 && activeServicesToRemove.length === 0)}>
-              {updateServices.isPending ? t('common.saving') : t('cases.services.requestService')}
-            </button>
-            <button
-              className="btn-secondary"
-              type="button"
-              disabled={updateServices.isPending}
-              onClick={() => {
-                setServiceRequestMode(null)
-                setServicesToAdd([])
-                setServicesToRemove([])
-              }}
-            >
-              {t('common.cancel')}
-            </button>
+                  {pendingApproval ? (
+                    <ServiceApprovalSummary
+                      approval={pendingApproval}
+                      serverApproval={serverPendingApproval}
+                      canDecideApproval={canDecidePendingApproval}
+                      deciding={approveRequest.isPending || rejectRequest.isPending}
+                      onApprove={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, true) : undefined}
+                      onReject={() => serverPendingApproval ? void decideServiceApproval(serverPendingApproval, false) : undefined}
+                    />
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
-        </form>
-      ) : null}
+        ) : (
+          <p className="case-placeholder-text">{t('cases.services.empty')}</p>
+        )}
+
+        {canRequestServices ? (
+          <div className="case-service-request-actions">
+            {!serviceRequestMode ? (
+              <>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  disabled={availableServiceKeys.length === 0}
+                  onClick={() => openServiceRequest('add')}
+                >
+                  {t('cases.services.addService')}
+                </button>
+                <button
+                  className="btn-danger"
+                  type="button"
+                  disabled={removableServiceKeys.length === 0}
+                  onClick={() => openServiceRequest('remove')}
+                >
+                  {t('cases.services.removeService')}
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
+        {canRequestServices && serviceRequestMode ? (
+          <form className="case-event-form case-service-request-form single" onSubmit={submitServiceApproval}>
+            <h3>{t(`cases.services.${serviceRequestMode === 'add' ? 'addService' : 'removeService'}`)}</h3>
+            <label className="case-form-field case-service-request-field">
+              <span>{t(`cases.services.${serviceRequestMode === 'add' ? 'selectServiceToAdd' : 'selectServiceToRemove'}`)}</span>
+              <select
+                className="overview-select case-service-request-select"
+                value={selectedService}
+                onChange={(event) => setSelectedService(event.target.value as keyof CaseServices | '')}
+              >
+                <option value="">{t('cases.services.selectPlaceholder')}</option>
+                {SERVICE_GROUP_KEYS.map((groupKey) => {
+                  const groupServices = (serviceRequestMode === 'add' ? availableServiceKeys : removableServiceKeys)
+                    .filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
+                  if (groupServices.length === 0) return null
+                  return (
+                    <optgroup key={groupKey} label={t(`cases.serviceGroup.${groupKey}`)}>
+                      {groupServices.map((key) => (
+                        <option key={key} value={key}>{t(`cases.service.${key}`)}</option>
+                      ))}
+                    </optgroup>
+                  )
+                })}
+              </select>
+              {(serviceRequestMode === 'add' ? availableServiceKeys : removableServiceKeys).length === 0 ? (
+                <span className="case-service-empty">
+                  {t(`cases.services.${serviceRequestMode === 'add' ? 'noAvailableServices' : 'noRemovableServices'}`)}
+                </span>
+              ) : null}
+            </label>
+            <div className="case-service-request-submit-row">
+              <button className="btn-primary" type="submit" disabled={updateServices.isPending || (activeServicesToAdd.length === 0 && activeServicesToRemove.length === 0)}>
+                {updateServices.isPending ? t('common.saving') : t('cases.services.requestService')}
+              </button>
+              <button
+                className="btn-secondary"
+                type="button"
+                disabled={updateServices.isPending}
+                onClick={() => {
+                  setServiceRequestMode(null)
+                  setSelectedService('')
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </section>
 
       <ApprovalConfirmModal
         open={showServiceApprovalConfirm}
@@ -769,12 +671,14 @@ function serviceIconLabel(serviceKey: keyof CaseServices): string {
 function ServiceApprovalSummary({
   approval,
   serverApproval,
+  canDecideApproval,
   deciding,
   onApprove,
   onReject,
 }: {
   approval: PendingApprovalView
   serverApproval?: ServerApprovalRequest
+  canDecideApproval: boolean
   deciding: boolean
   onApprove: () => void
   onReject: () => void
@@ -798,7 +702,7 @@ function ServiceApprovalSummary({
         <summary>{t('cases.approvals.reason')}</summary>
         <p>{reason || t('cases.approvals.noReason')}</p>
       </details>
-      {serverApproval ? (
+      {serverApproval && canDecideApproval ? (
         <div className="case-service-approval-actions">
           <button className="btn-secondary btn-compact" type="button" disabled={deciding} onClick={onReject}>
             {t('approvals.reject')}
@@ -810,6 +714,15 @@ function ServiceApprovalSummary({
       ) : null}
     </div>
   )
+}
+
+function canDecideServiceApproval(
+  approval: Pick<PendingApprovalView, 'requestedById' | 'assignedApproverId'> | undefined,
+  currentUserId: number | undefined,
+) {
+  if (!approval || currentUserId === undefined) return false
+  if (approval.requestedById === currentUserId) return false
+  return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 
 function approvalReason(payloadJson?: string | null): string {

@@ -32,6 +32,12 @@ public class ApprovalService {
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
+    private static final String STATUS_EXPIRED = "EXPIRED";
+    /** 建案(转为个案/创建个案)审批必须在此天数内有结果,否则自动过期。 */
+    private static final int CASE_CREATE_APPROVAL_TTL_DAYS = 30;
+    private static final String CASE_CREATE_TYPE = "CASE_CREATE";
+    private static final String EXPIRED_COMMENT =
+            "Auto-expired: no decision within " + CASE_CREATE_APPROVAL_TTL_DAYS + " days";
     private static final String APPROVAL_META_FIELD = "_approval";
     private static final String ASSIGNED_APPROVER_ID_FIELD = "assignedApproverId";
     private static final String REASON_FIELD = "reason";
@@ -110,6 +116,10 @@ public class ApprovalService {
         request.setPayloadJson(payloadJson);
         request.setIdempotencyKey(idempotencyKey);
         request.setRequestedBy(requester);
+        // 建案审批设 30 天时限;超时未决由定时任务/决策前校验自动过期
+        if (CASE_CREATE_TYPE.equals(normalizedType)) {
+            request.setExpiresAt(LocalDateTime.now().plusDays(CASE_CREATE_APPROVAL_TTL_DAYS));
+        }
 
         try {
             return toResponse(approvalRequestRepository.save(request));
@@ -130,10 +140,14 @@ public class ApprovalService {
                 .toList();
     }
 
-    public List<ApprovalRequestResponse> listPending() {
-        return approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc(STATUS_PENDING).stream()
-                .map(this::toResponse)
-                .toList();
+    public boolean hasPendingRequest(String type, String targetType, Long targetId) {
+        if (type == null || targetType == null || targetId == null) return false;
+        return approvalRequestRepository.existsByStatusAndTypeAndTargetTypeAndTargetId(
+                STATUS_PENDING,
+                normalizeRequired(type, "Approval type is required"),
+                normalizeRequired(targetType, "Target type is required"),
+                targetId
+        );
     }
 
     @Transactional
@@ -152,6 +166,7 @@ public class ApprovalService {
         ApprovalRequest request = approvalRequestRepository.findById(approvalId)
                 .orElseThrow(() -> new EntityNotFoundException("Approval request not found: " + approvalId));
         requirePending(request);
+        requireNotExpired(request);
         requireAllowedDecisionUser(request, decisionUser);
 
         request.setStatus(decisionStatus);
@@ -237,10 +252,46 @@ public class ApprovalService {
         }
 
         Long assignedApproverId = readAssignedApproverId(request);
-        if (isApprovalManager(currentUser)) {
-            return assignedApproverId == null || assignedApproverId.equals(currentUser.getId());
+        if (assignedApproverId != null && assignedApproverId.equals(currentUser.getId())) {
+            return true;
         }
-        return assignedApproverId != null && assignedApproverId.equals(currentUser.getId());
+
+        if (canViewPendingTarget(request, currentUser)) {
+            return true;
+        }
+
+        return isApprovalManager(currentUser) && assignedApproverId == null;
+    }
+
+    private boolean canViewPendingTarget(ApprovalRequest request, User currentUser) {
+        String type = request.getType();
+        if ("CLIENT_CREATE".equals(type) || "CLIENT_UPDATE".equals(type) || "DELETE_CLIENT".equals(type)) {
+            return canViewClients(currentUser);
+        }
+        if ("CASE_CREATE".equals(type)) {
+            return canViewCases(currentUser) || canViewClients(currentUser);
+        }
+        if ("DELETE_CASE".equals(type) || "CASE_SERVICE_UPDATE".equals(type)) {
+            return canViewCases(currentUser);
+        }
+        return false;
+    }
+
+    private boolean canViewClients(User user) {
+        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+    }
+
+    private boolean canViewCases(User user) {
+        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+    }
+
+    private boolean hasAnyRole(User user, String... roleNames) {
+        for (String roleName : roleNames) {
+            if (hasRole(user, roleName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Long readAssignedApproverId(ApprovalRequest request) {
@@ -271,6 +322,31 @@ public class ApprovalService {
         if (!STATUS_PENDING.equals(request.getStatus())) {
             throw new IllegalStateException("Only pending approval requests can be decided");
         }
+    }
+
+    /** 决策前兜底:若已过时限则立即置为 EXPIRED 并拒绝本次决策(避免定时任务的空窗期内被批准)。 */
+    private void requireNotExpired(ApprovalRequest request) {
+        LocalDateTime expiresAt = request.getExpiresAt();
+        if (expiresAt != null && LocalDateTime.now().isAfter(expiresAt)) {
+            request.setStatus(STATUS_EXPIRED);
+            request.setDecidedAt(LocalDateTime.now());
+            request.setDecisionComment(EXPIRED_COMMENT);
+            approvalRequestRepository.save(request);
+            throw new IllegalStateException("Approval request has expired and can no longer be decided");
+        }
+    }
+
+    /**
+     * 批量过期:把所有已过时限仍处于 PENDING 的申请置为 EXPIRED。
+     * 由定时任务(ApprovalExpiryScheduler)周期性调用。
+     * @return 本次过期的申请数量
+     */
+    @Transactional
+    public int expireOverdue() {
+        return jdbcTemplate.update(
+                "UPDATE approval_request SET status = ?, decided_at = CURRENT_TIMESTAMP, decision_comment = ? "
+                        + "WHERE status = ? AND expires_at IS NOT NULL AND expires_at < CURRENT_TIMESTAMP",
+                STATUS_EXPIRED, EXPIRED_COMMENT, STATUS_PENDING);
     }
 
     private void requireUser(User user, String message) {

@@ -6,6 +6,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { ErrorBanner } from '../../../shared/ui'
 import { deleteReport, fetchReportById, fetchReports, submitReport } from '../api/report.api'
 import { formatServiceTitle } from '../../../shared/format/serviceTitle'
+import { isCurrentReportStatus, reportStatusKey } from '../reportStatus'
 import type { ReportDetail, ReportStatus, ReportSummary } from '../types'
 import './reports.css'
 
@@ -26,11 +27,10 @@ function reportTime(r: ReportSummary): string {
 }
 
 function groupByStatus(reports: ReportSummary[]): Record<ReportStatus, ReportSummary[]> {
-  const groups: Record<ReportStatus, ReportSummary[]> = { DRAFT: [], SUBMITTED: [], ARCHIVED: [], RETURNED: [] }
+  const groups: Record<ReportStatus, ReportSummary[]> = { DRAFT: [], SUBMITTED: [] }
   for (const r of reports) {
-    const status = (r.status ?? 'SUBMITTED') as ReportStatus
-    if (status === 'DRAFT' || status === 'SUBMITTED') {
-      groups[status].push(r)
+    if (isCurrentReportStatus(r.status)) {
+      groups[reportStatusKey(r.status)].push(r)
     }
   }
   for (const status of Object.keys(groups) as ReportStatus[]) {
@@ -139,7 +139,7 @@ export function ReportOverviewPage() {
     try {
       const updated = await submitReport(selectedReport.id)
       setSelectedReport(updated)
-      patchStatus(updated.id, (updated.status ?? 'SUBMITTED') as ReportStatus)
+      patchStatus(updated.id, reportStatusKey(updated.status))
     } catch {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
@@ -310,7 +310,7 @@ function DetailPane({
   onDelete: () => void
   t: T
 }) {
-  const status = (report.status ?? 'SUBMITTED') as ReportStatus
+  const status = reportStatusKey(report.status)
   const isOwn = report.createdById != null && report.createdById === myId
   const isEditable = status === 'DRAFT'
 
@@ -355,7 +355,7 @@ function FieldView({ label, value, wide = false }: { label: string; value: strin
 
 function ReportDetailReadView({ report }: { report: ReportDetail }) {
   const { t } = useTranslation()
-  const status = (report.status ?? 'SUBMITTED') as ReportStatus
+  const status = reportStatusKey(report.status)
   return (
     <section className="report-reader-card report-reader-card-continuous">
       <span className={`report-status-pill report-status-pill-${status.toLowerCase()}`}>

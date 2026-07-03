@@ -67,14 +67,29 @@ class ApprovalControllerTest {
     @Test
     @DisplayName("Manager can list pending approvals")
     void listPending_returnsPendingApprovals() throws Exception {
+        User manager = manager();
         when(capEval.hasCap(any(), eq("approvals:view"))).thenReturn(true);
-        when(approvalService.listPending()).thenReturn(List.of(approval(1L, "CASE_CREATE", "PENDING")));
+        when(approvalService.listPending(eq(manager))).thenReturn(List.of(approval(1L, "CASE_CREATE", "PENDING")));
 
         mockMvc.perform(get("/api/v1/approvals")
-                        .with(authentication(auth(manager()))))
+                        .with(authentication(auth(manager))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].type").value("CASE_CREATE"));
+    }
+
+    @Test
+    @DisplayName("View-only users can list pending approvals for visible business content")
+    void listPending_allowsBusinessViewers() throws Exception {
+        User viewer = user(30L, "viewer", "Viewer User");
+        when(capEval.hasCap(any(), eq("clients:view"))).thenReturn(true);
+        when(approvalService.listPending(eq(viewer))).thenReturn(List.of(approval(3L, "CLIENT_CREATE", "PENDING")));
+
+        mockMvc.perform(get("/api/v1/approvals")
+                        .with(authentication(auth(viewer, "ROLE_VIEW_MANAGER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(3))
+                .andExpect(jsonPath("$[0].type").value("CLIENT_CREATE"));
     }
 
     @Test
@@ -118,20 +133,28 @@ class ApprovalControllerTest {
     }
 
     private static User manager() {
-        User user = new User();
-        user.setId(10L);
-        user.setUsername("manager");
-        user.setEmail("manager@test.com");
-        user.setFullName("Manager User");
-        user.setStatus("ACTIVE");
-        return user;
+        return user(10L, "manager", "Manager User");
     }
 
     private static UsernamePasswordAuthenticationToken auth(User user) {
+        return auth(user, "ROLE_MANAGER");
+    }
+
+    private static UsernamePasswordAuthenticationToken auth(User user, String role) {
         return new UsernamePasswordAuthenticationToken(
                 user,
                 null,
-                List.of(new SimpleGrantedAuthority("ROLE_MANAGER"))
+                List.of(new SimpleGrantedAuthority(role))
         );
+    }
+
+    private static User user(Long id, String username, String fullName) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername(username);
+        user.setEmail(username + "@test.com");
+        user.setFullName(fullName);
+        user.setStatus("ACTIVE");
+        return user;
     }
 }

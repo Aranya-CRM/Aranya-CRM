@@ -1,4 +1,4 @@
-export type ReportStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'RETURNED'
+export type ReportStatus = 'DRAFT' | 'SUBMITTED'
 
 export interface ReportSummary {
   id: number

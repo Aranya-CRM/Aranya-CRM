@@ -2,8 +2,11 @@ package aranya.crm.service;
 
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.entity.ApprovalRequest;
+import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
+import aranya.crm.entity.UserRole;
 import aranya.crm.repository.ApprovalRequestRepository;
+import aranya.crm.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -49,6 +52,9 @@ class ApprovalServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private ApprovalService approvalService;
 
@@ -62,6 +68,7 @@ class ApprovalServiceTest {
     @DisplayName("createRequest stores a pending approval request with serialized payload")
     void createRequest_storesPendingRequestWithSerializedPayload() {
         User requester = user(10L, "Social Worker");
+        stubLoadUser(requester);
         when(approvalActionRegistry.supports("CASE_CREATE")).thenReturn(true);
         when(approvalRequestRepository.save(any(ApprovalRequest.class))).thenAnswer(invocation -> {
             ApprovalRequest saved = invocation.getArgument(0);
@@ -97,13 +104,15 @@ class ApprovalServiceTest {
     @Test
     @DisplayName("listPending exposes case code as target label")
     void listPending_exposesCaseCodeAsTargetLabel() {
+        User viewer = user(30L, "Viewer", "VIEW_MANAGER");
         ApprovalRequest request = request(7L, "DELETE_CASE", "PENDING", user(10L, "Requester"));
         request.setTargetType("CASE");
         request.setTargetId(12L);
         when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(12L))).thenReturn(List.of("ASDFL/2026/C/012"));
         when(approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc("PENDING")).thenReturn(List.of(request));
+        stubLoadUser(viewer);
 
-        List<ApprovalRequestResponse> result = approvalService.listPending();
+        List<ApprovalRequestResponse> result = approvalService.listPending(viewer);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getTargetLabel()).isEqualTo("ASDFL/2026/C/012");
@@ -116,6 +125,7 @@ class ApprovalServiceTest {
         ApprovalRequest existing = request(88L, "CASE_CREATE", "PENDING", requester);
         existing.setIdempotencyKey("existing-key");
 
+        stubLoadUser(requester);
         when(approvalActionRegistry.supports("CASE_CREATE")).thenReturn(true);
         when(approvalRequestRepository.findFirstByStatusAndIdempotencyKeyOrderByCreatedAtAscIdAsc(eq("PENDING"), any()))
                 .thenReturn(Optional.of(existing));
@@ -135,20 +145,42 @@ class ApprovalServiceTest {
     @Test
     @DisplayName("createRequest rejects unknown approval types")
     void createRequest_rejectsUnknownType() {
+        User requester = user(10L, "Requester");
+        stubLoadUser(requester);
         when(approvalActionRegistry.supports("UNKNOWN")).thenReturn(false);
 
-        assertThatThrownBy(() -> approvalService.createRequest("UNKNOWN", null, null, null, user(10L, "Requester")))
+        assertThatThrownBy(() -> approvalService.createRequest("UNKNOWN", null, null, null, requester))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unsupported approval type: UNKNOWN");
     }
 
     @Test
+    @DisplayName("listPending shows business pending requests to users who can view that content")
+    void listPending_showsBusinessPendingRequestsToViewers() {
+        User requester = user(10L, "Requester", "SOCIAL_WORKER");
+        User viewer = user(30L, "Viewer", "VIEW_MANAGER");
+        ApprovalRequest clientCreate = request(1L, "CLIENT_CREATE", "PENDING", requester);
+        ApprovalRequest caseService = request(2L, "CASE_SERVICE_UPDATE", "PENDING", requester);
+        caseService.setTargetType("CASE");
+        caseService.setTargetId(7L);
+        when(approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc("PENDING"))
+                .thenReturn(List.of(clientCreate, caseService));
+        stubLoadUser(viewer);
+
+        List<ApprovalRequestResponse> result = approvalService.listPending(viewer);
+
+        assertThat(result).extracting(ApprovalRequestResponse::getId).containsExactly(1L, 2L);
+    }
+
+    @Test
     @DisplayName("listPending returns pending requests ordered by repository query")
     void listPending_returnsPendingRequests() {
+        User viewer = user(30L, "Viewer", "VIEW_MANAGER");
         ApprovalRequest request = request(7L, "CASE_SERVICE_UPDATE", "PENDING", user(10L, "Requester"));
         when(approvalRequestRepository.findByStatusOrderByCreatedAtAscIdAsc("PENDING")).thenReturn(List.of(request));
+        stubLoadUser(viewer);
 
-        List<ApprovalRequestResponse> result = approvalService.listPending();
+        List<ApprovalRequestResponse> result = approvalService.listPending(viewer);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(7L);
@@ -157,11 +189,22 @@ class ApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("hasPendingRequest checks pending request existence by type and target")
+    void hasPendingRequest_checksPendingRequestExistenceByTypeAndTarget() {
+        when(approvalRequestRepository.existsByStatusAndTypeAndTargetTypeAndTargetId(
+                "PENDING", "CASE_CREATE", "CLIENT", 5L))
+                .thenReturn(true);
+
+        assertThat(approvalService.hasPendingRequest("CASE_CREATE", "CLIENT", 5L)).isTrue();
+    }
+
+    @Test
     @DisplayName("approve marks a pending request as approved")
     void approve_marksPendingRequestApproved() {
         ApprovalRequest request = request(7L, "CASE_CREATE", "PENDING", user(10L, "Requester"));
         User manager = user(20L, "Manager");
         when(approvalRequestRepository.findById(7L)).thenReturn(Optional.of(request));
+        stubLoadUser(manager);
 
         ApprovalRequestResponse result = approvalService.approve(7L, manager, "Looks valid");
 
@@ -180,6 +223,7 @@ class ApprovalServiceTest {
         ApprovalRequest request = request(8L, "DELETE_REPORT", "PENDING", user(10L, "Requester"));
         User manager = user(20L, "Manager");
         when(approvalRequestRepository.findById(8L)).thenReturn(Optional.of(request));
+        stubLoadUser(manager);
 
         ApprovalRequestResponse result = approvalService.reject(8L, manager, "Missing reason");
 
@@ -192,9 +236,11 @@ class ApprovalServiceTest {
     @Test
     @DisplayName("approve throws when request does not exist")
     void approve_throwsWhenRequestDoesNotExist() {
+        User manager = user(20L, "Manager");
         when(approvalRequestRepository.findById(404L)).thenReturn(Optional.empty());
+        stubLoadUser(manager);
 
-        assertThatThrownBy(() -> approvalService.approve(404L, user(20L, "Manager"), null))
+        assertThatThrownBy(() -> approvalService.approve(404L, manager, null))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Approval request not found: 404");
     }
@@ -203,9 +249,11 @@ class ApprovalServiceTest {
     @DisplayName("reject throws when request is not pending")
     void reject_throwsWhenRequestIsNotPending() {
         ApprovalRequest request = request(8L, "DELETE_REPORT", "APPROVED", user(10L, "Requester"));
+        User manager = user(20L, "Manager");
         when(approvalRequestRepository.findById(8L)).thenReturn(Optional.of(request));
+        stubLoadUser(manager);
 
-        assertThatThrownBy(() -> approvalService.reject(8L, user(20L, "Manager"), null))
+        assertThatThrownBy(() -> approvalService.reject(8L, manager, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Only pending approval requests can be decided");
     }
@@ -224,11 +272,27 @@ class ApprovalServiceTest {
     }
 
     private User user(Long id, String fullName) {
+        return user(id, fullName, new String[0]);
+    }
+
+    private User user(Long id, String fullName, String... roles) {
         User user = new User();
         user.setId(id);
         user.setFullName(fullName);
         user.setUsername("user" + id);
         user.setEmail("user" + id + "@test.com");
+        for (String roleName : roles) {
+            Role role = new Role();
+            role.setName(roleName);
+            UserRole userRole = new UserRole();
+            userRole.setUser(user);
+            userRole.setRole(role);
+            user.getUserRoles().add(userRole);
+        }
         return user;
+    }
+
+    private void stubLoadUser(User user) {
+        when(userRepository.findByIdWithRoles(user.getId())).thenReturn(Optional.of(user));
     }
 }

@@ -58,8 +58,8 @@
     "serviceUpdate": "添加服务需要审批。确认后会提交审批申请，经理通过后服务会显示在服务模块。",
     "serviceRemove": "删除 {{service}} 需要审批。确认后会提交审批申请，经理通过后该服务会从服务模块移除。",
     "clientCreate": "新增会员需要审批。确认后会提交审批申请，审批通过后会员才会显示。",
-    "clientUpdate": "编辑会员档案需要审批。确认后会提交审批申请，审批通过后修改才会生效。",
-    "clientDelete": "删除会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。"
+    "clientUpdate": "编辑会员档案会直接保存。",
+    "clientDelete": "关闭会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。"
   },
   "approvals": {
     "title": "审批",
@@ -89,7 +89,7 @@
       "CASE_SERVICE_UPDATE": "更新个案服务",
       "CLIENT_CREATE": "新增会员",
       "CLIENT_UPDATE": "编辑会员",
-      "DELETE_CLIENT": "删除会员",
+      "DELETE_CLIENT": "关闭会员档案",
       "DELETE_CASE": "关闭个案",
       "DELETE_REPORT": "删除报告"
     }
@@ -136,7 +136,7 @@
       "intensity": "强度",
       "caseNo": "个案编号",
       "monastic": "会员",
-      "tradition": "传承",
+      "tradition": "传统",
       "caseworker": "主要社工",
       "status": "状态",
       "opened": "开案日期",
@@ -160,12 +160,12 @@
       }
     },
     "color": {
-      "RED": "红色 · 迫切护理需求",
-      "ORANGE": "橙色 · 高度关注",
-      "YELLOW": "黄色 · 定期跟进",
-      "GREEN": "绿色 · 情况稳定",
-      "GREY": "灰色 · 低度活跃",
-      "BLACK": "黑色 · 已关闭"
+      "RED": "迫切护理需求",
+      "ORANGE": "高度关注",
+      "YELLOW": "定期跟进",
+      "GREEN": "情况稳定",
+      "GREY": "低度活跃",
+      "BLACK": "已关闭"
     },
     "status": {
       "OPEN": "进行中",
@@ -213,6 +213,7 @@
       "address": "地址",
       "manpower": "人力安排",
       "instructions": "注意事项(Kappiya)",
+      "content": "内容",
       "titlePreview": "标题预览",
       "requiredFields": "请选择服务类型和开始时间。",
       "createError": "创建事件失败,请重试。",
@@ -222,6 +223,12 @@
       "legendOwn": "当前个案",
       "legendOther": "其他个案",
       "legendExternal": "其他共享事件",
+      "legendPersonal": "我的日历",
+      "sourcePersonal": "来自我的日历",
+      "myCalendar": "我的日历",
+      "filterLabel": "日历:",
+      "connectGoogle": "连接 Google 日历",
+      "disconnect": "断开",
       "calendarPlaceholder": "暂无服务事件",
       "empty": "暂无已添加服务。",
       "addService": "添加服务",
@@ -244,17 +251,16 @@
       "requestService": "提交审批",
       "applyService": "服务管理",
       "removeService": "删除服务",
+      "selectServiceToAdd": "选择要添加的服务",
+      "selectServiceToRemove": "选择要删除的服务",
+      "selectPlaceholder": "请选择服务",
       "noAvailableServices": "暂无可新增服务。",
       "noRemovableServices": "暂无可删除服务。",
       "addPending": "新增审批中",
       "removePending": "删除审批中",
       "noEvents": "暂无服务事件。",
       "eventCreated": "服务事件已创建。",
-      "removeApprovalSubmitted": "删除服务的审批申请已提交，经理通过后服务会被移除。",
-      "approvalSubmitted": "审批申请已提交，经理通过后变更才会显示。",
-      "approvalSubmitError": "审批提交失败，请确认审批人权限后重试。",
-      "approvalApproved": "审批已通过。",
-      "approvalRejected": "审批已拒绝。"
+      "approvalSubmitError": "审批提交失败，请确认审批人权限后重试。"
     },
     "serviceGroup": {
       "housing": "居住与住宿",
@@ -291,7 +297,8 @@
     },
     "detail": {
       "delete": "关闭个案",
-      "closePending": "关闭审批中"
+      "closePending": "关闭审批中",
+      "moreActions": "更多操作"
     },
     "notes": {
       "empty": "暂无案例笔记",
@@ -300,6 +307,30 @@
       "addNote": "新增笔记",
       "placeholder": "添加案例笔记",
       "followupPlaceholder": "后续跟进（可选）"
+    },
+    "documents": {
+      "title": "案例文件",
+      "upload": "上传文件",
+      "back": "返回",
+      "uploadHint": "点击或拖拽文件到此区域上传",
+      "uploadHintSub": "支持单个或批量上传。PDF、图片及 Office 文件,单个不超过 20 MB。",
+      "fileNameLabel": "文件名(可选)",
+      "fileNamePlaceholder": "留空则保留原始文件名",
+      "fileUnit": "个文件",
+      "previewUnsupported": "此格式暂不支持在线预览,请下载查看。",
+      "previewDemoHint": "接入文件后此处显示预览(示例)。",
+      "category": {
+        "ordination": "出家证明",
+        "medical": "医疗记录",
+        "financial": "财务记录",
+        "legal": "法律文件(Will、LPA、ACP、Living Will)"
+      },
+      "download": "下载",
+      "delete": "删除",
+      "deleteConfirm": "确定删除该文件?此操作不可撤销。",
+      "empty": "该分类下暂无文件",
+      "count_one": "{{count}} 个文件",
+      "count_other": "{{count}} 个文件"
     },
     "placeholder": "{{tab}}功能即将推出",
     "audit": {
@@ -375,9 +406,8 @@
       "intensity": "个案强度",
       "services": "服务模块",
       "serviceRequired": "请至少添加一个服务后再提交审批。",
-      "approvalSubmitted": "个案申请已提交，等待经理审批。",
-      "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，经理通过后个案才会显示。",
-      "approvalSubmittedButton": "已提交审批",
+      "selectedServices": "已选服务",
+      "noSelectedServices": "尚未添加服务",
       "submittingApproval": "提交审批中...",
       "submitForApproval": "提交审批"
     },
@@ -403,7 +433,19 @@
     "pageTitle": "会员档案",
     "pageSubtitle": "Client Profiles",
     "search": "搜索法名或缩写",
-    "filterAll": "传承 · 全部",
+    "filterButton": "Filter",
+    "filterAll": "佛教传统 · 全部",
+    "filterAllShort": "全部",
+    "filterArchiveLabel": "档案状态",
+    "filterCurrent": "当前档案",
+    "filterClosed": "已关闭",
+    "filterTraditionLabel": "按佛教传统筛选",
+    "filterCaseLabel": "按个案状态筛选",
+    "filterCaseAll": "个案 · 全部",
+    "filterCaseAllShort": "全部",
+    "filterWithCase": "已有个案",
+    "filterWithoutCase": "无个案",
+    "filterClear": "清除筛选",
     "addBtn": "新增会员",
     "loading": "加载中",
     "empty": "暂无匹配档案",
@@ -415,7 +457,6 @@
     "accessDenied": "权限不足",
     "accessDeniedMsg": "当前账户不可创建或编辑会员档案。",
     "saveError": "保存失败",
-    "approvalSubmittedWithId": "审批申请 #{{id}} 已提交，审批通过后变更才会显示。",
     "approvals": {
       "title": "待审批会员",
       "pending": "待审批",
@@ -424,12 +465,12 @@
       "badge": {
         "create": "待新增",
         "update": "待编辑",
-        "delete": "待删除"
+        "delete": "待关闭"
       },
       "type": {
         "CLIENT_CREATE": "新增会员申请",
         "CLIENT_UPDATE": "编辑会员申请",
-        "DELETE_CLIENT": "删除会员申请"
+        "DELETE_CLIENT": "关闭档案申请"
       }
     },
     "form": {
@@ -450,7 +491,7 @@
       "nameChn": "法名（中）",
       "nameEn": "法名（英）",
       "abbr": "缩写",
-      "tradition": "传承",
+      "tradition": "佛教传统",
       "ordinationStatus": "出家身份",
       "areaDistrict": "地区",
       "cancel": "取消",
@@ -459,9 +500,12 @@
     },
     "profile": {
       "convertToClient": "转为客户",
-      "convertToCase": "创建个案",
+      "convertToCase": "转为个案",
+      "closeCase": "关闭个案",
+      "closeCasePending": "关闭审批中",
       "editProfile": "编辑档案",
-      "delete": "删除档案",
+      "delete": "关闭档案",
+      "closedStatus": "已关闭",
       "editTitle": "编辑档案",
       "saving": "保存中...",
       "save": "保存修改",
@@ -506,7 +550,7 @@
         "ethnicity": "族群",
         "dialectGroup": "方言群",
         "nextOfKin": "紧急联系人",
-        "buddhistTradition": "佛教传承",
+        "buddhistTradition": "佛教传统",
         "ordinationStatus": "戒别",
         "dateTonsure": "剃度日期",
         "countryTonsure": "剃度国家",
@@ -611,15 +655,11 @@
     "unnamedMonastic": "未命名会员",
     "status": {
       "DRAFT": "草稿",
-      "SUBMITTED": "已提交",
-      "ARCHIVED": "已归档",
-      "RETURNED": "已退回"
+      "SUBMITTED": "已提交"
     },
     "folder": {
       "DRAFT": "草稿",
-      "SUBMITTED": "已提交",
-      "ARCHIVED": "已审批",
-      "RETURNED": "退回"
+      "SUBMITTED": "已提交"
     },
     "mailbox": {
       "title": "报告",

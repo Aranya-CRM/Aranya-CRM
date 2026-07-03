@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { removeLocalPendingApproval, useLocalPendingApprovals } from '../../../shared/approvals/localPendingApprovals'
 import { useAccess } from '../../../shared/auth'
 import { PageHeader } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
@@ -14,7 +13,6 @@ import {
 } from '../components'
 import { useCases } from '../hooks'
 import type { Case, CaseColorCode, CaseStatus } from '../types'
-import { mergePendingCaseApprovals, staleLocalCaseApprovalIds } from './caseApprovalUtils'
 import './cases.css'
 
 const COLOR_ORDER: Record<CaseColorCode, number> = {
@@ -46,8 +44,7 @@ export function CaseListPage() {
   const { user } = useAuth()
   const { data: cases = [], isLoading } = useCases()
   const { data: users = [] } = useUsers()
-  const { data: pendingApprovals = [], dataUpdatedAt: pendingApprovalsUpdatedAt } = usePendingApprovals()
-  const localPendingApprovals = useLocalPendingApprovals()
+  const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
@@ -55,17 +52,12 @@ export function CaseListPage() {
   const selectedApprovalId = searchParams.get('approval')
 
   const caseApprovalItems = useMemo(() => {
-    return mergePendingCaseApprovals(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt)
-  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
+    return pendingApprovals.filter((approval) => isCaseApprovalType(approval.type))
+  }, [pendingApprovals])
 
   const userNameById = useMemo(() => {
     return new Map(users.map((item) => [String(item.id), item.fullName || item.username || item.email || String(item.id)]))
   }, [users])
-
-  useEffect(() => {
-    if (pendingApprovalsUpdatedAt <= 0) return
-    staleLocalCaseApprovalIds(pendingApprovals, localPendingApprovals, pendingApprovalsUpdatedAt).forEach(removeLocalPendingApproval)
-  }, [localPendingApprovals, pendingApprovals, pendingApprovalsUpdatedAt])
 
   const pendingCloseApprovalByCaseId = useMemo(() => {
     const map = new Map<string, CaseApprovalView>()
@@ -159,7 +151,7 @@ export function CaseListPage() {
         <CaseApprovalDetailPanel
           approval={selectedCreateApproval}
           userNameById={userNameById}
-          canDecideApproval={canDecideApproval(serverSelectedCreateApproval, user?.id)}
+          canDecideApproval={resolve('approvals:decide') && canDecideApproval(serverSelectedCreateApproval, user?.id)}
           deciding={approveRequest.isPending || rejectRequest.isPending}
           onApprove={() => serverSelectedCreateApproval ? void approveRequest.mutateAsync({ id: serverSelectedCreateApproval.id, data: {} }) : undefined}
           onReject={() => serverSelectedCreateApproval ? void rejectRequest.mutateAsync({ id: serverSelectedCreateApproval.id, data: {} }) : undefined}
@@ -301,6 +293,10 @@ function canDecideApproval(approval: CaseApprovalView | undefined, currentUserId
   if (!approval || currentUserId === undefined) return false
   if (approval.requestedById === currentUserId) return false
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
+}
+
+function isCaseApprovalType(type: string): boolean {
+  return type === 'CASE_CREATE' || type === 'DELETE_CASE'
 }
 
 function parseApprovalPayload(payloadJson?: string | null): Record<string, unknown> {

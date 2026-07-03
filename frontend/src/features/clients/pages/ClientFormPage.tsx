@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
-import { addLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal, BackButton, PageHeader } from '../../../shared/ui'
 import {
@@ -35,6 +34,7 @@ const EMPTY_SPECIAL_NEEDS: Record<SpecialNeedKey, boolean> = {
 
 function emptyClient(): ClientFormData {
   return {
+    membershipStatus: 'ACTIVE',
     abbr: '',
     nameEn: '',
     nameChn: '',
@@ -150,25 +150,12 @@ export function ClientFormPage() {
         if (isClientResult(result)) {
           navigate(`/clients/${result.id}`)
         } else {
-          addLocalPendingApproval({
-            ...result,
-            targetType: result.targetType ?? 'CLIENT',
-            targetId: result.targetId ?? id,
-            targetLabel: result.targetLabel ?? form.abbr,
-          })
-          alert(t('clients.approvalSubmittedWithId', { id: result.id }))
           navigate(`/clients/${id}`)
         }
       } else {
         if (isClientResult(result)) {
           navigate(`/clients/${result.id}`)
         } else {
-          addLocalPendingApproval({
-            ...result,
-            targetType: result.targetType ?? 'CLIENT',
-            targetLabel: result.targetLabel ?? form.abbr,
-          })
-          alert(t('clients.approvalSubmittedWithId', { id: result.id }))
           navigate('/clients')
         }
       }

@@ -58,8 +58,8 @@
     "serviceUpdate": "Adding services requires approval. After confirmation, approved services will appear in the service module.",
     "serviceRemove": "Removing {{service}} requires approval. After confirmation, the service will be removed after manager approval.",
     "clientCreate": "Creating a member requires approval. After confirmation, the member appears only after approval.",
-    "clientUpdate": "Editing a member profile requires approval. After confirmation, changes take effect after approval.",
-    "clientDelete": "Deleting a member profile requires approval. After confirmation, the profile is removed from the active list after approval."
+    "clientUpdate": "Editing a member profile saves directly.",
+    "clientDelete": "Closing a member profile requires approval. After confirmation, the profile is removed from the active list after approval."
   },
   "approvals": {
     "title": "Approvals",
@@ -89,7 +89,7 @@
       "CASE_SERVICE_UPDATE": "Update Case Services",
       "CLIENT_CREATE": "Create Member",
       "CLIENT_UPDATE": "Edit Member",
-      "DELETE_CLIENT": "Delete Member",
+      "DELETE_CLIENT": "Close Member Profile",
       "DELETE_CASE": "Close Case",
       "DELETE_REPORT": "Delete Report"
     }
@@ -160,12 +160,12 @@
       }
     },
     "color": {
-      "RED": "Red · Critical Care Needed",
-      "ORANGE": "Orange · High Attention",
-      "YELLOW": "Yellow · Regular Follow-up",
-      "GREEN": "Green · Stable",
-      "GREY": "Grey · Low Activity",
-      "BLACK": "Black · Closed"
+      "RED": "Critical Care Needed",
+      "ORANGE": "High Attention",
+      "YELLOW": "Regular Follow-up",
+      "GREEN": "Stable",
+      "GREY": "Low Activity",
+      "BLACK": "Closed"
     },
     "status": {
       "OPEN": "Open",
@@ -213,6 +213,7 @@
       "address": "Address",
       "manpower": "Manpower",
       "instructions": "Instructions for Kappiya",
+      "content": "Content",
       "titlePreview": "Title preview",
       "requiredFields": "Please select a service and start time.",
       "createError": "Failed to create event. Please try again.",
@@ -222,6 +223,12 @@
       "legendOwn": "This case",
       "legendOther": "Other cases",
       "legendExternal": "Other shared events",
+      "legendPersonal": "My calendar",
+      "sourcePersonal": "From my calendar",
+      "myCalendar": "My calendar",
+      "filterLabel": "Calendars:",
+      "connectGoogle": "Connect Google Calendar",
+      "disconnect": "Disconnect",
       "calendarPlaceholder": "No service events",
       "empty": "No services added yet.",
       "addService": "Add Service",
@@ -244,17 +251,16 @@
       "requestService": "Submit for Approval",
       "applyService": "Service Management",
       "removeService": "Remove Service",
+      "selectServiceToAdd": "Select service to add",
+      "selectServiceToRemove": "Select service to remove",
+      "selectPlaceholder": "Select a service",
       "noAvailableServices": "No services available to add.",
       "noRemovableServices": "No services available to remove.",
       "addPending": "Add pending",
       "removePending": "Removal pending",
       "noEvents": "No service events yet.",
       "eventCreated": "Service event created.",
-      "removeApprovalSubmitted": "Service removal request submitted. The service will be removed after manager approval.",
-      "approvalSubmitted": "Approval request submitted. The change will appear after manager approval.",
-      "approvalSubmitError": "Failed to submit approval. Check the approver permissions and try again.",
-      "approvalApproved": "Approval approved.",
-      "approvalRejected": "Approval rejected."
+      "approvalSubmitError": "Failed to submit approval. Check the approver permissions and try again."
     },
     "serviceGroup": {
       "housing": "Housing & Accommodation",
@@ -291,7 +297,8 @@
     },
     "detail": {
       "delete": "Close Case",
-      "closePending": "Close Pending"
+      "closePending": "Close Pending",
+      "moreActions": "More actions"
     },
     "notes": {
       "empty": "No notes yet.",
@@ -300,6 +307,30 @@
       "addNote": "Add Note",
       "placeholder": "Add a case note",
       "followupPlaceholder": "Follow-up (optional)"
+    },
+    "documents": {
+      "title": "Documents",
+      "upload": "Upload",
+      "back": "Back",
+      "uploadHint": "Click or drag a file to this area to upload",
+      "uploadHintSub": "Supports a single or bulk upload. PDF, images and Office files up to 20 MB.",
+      "fileNameLabel": "File name (optional)",
+      "fileNamePlaceholder": "Leave blank to keep the original name",
+      "fileUnit": "files",
+      "previewUnsupported": "Preview is not available for this format. Please download to view.",
+      "previewDemoHint": "Preview will appear here once files are connected (demo).",
+      "category": {
+        "ordination": "Ordination Certificate",
+        "medical": "Medical Records",
+        "financial": "Financial Records",
+        "legal": "Legal Documents (Will, LPA, ACP, Living Will)"
+      },
+      "download": "Download",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this document? This cannot be undone.",
+      "empty": "No documents in this category yet.",
+      "count_one": "{{count}} file",
+      "count_other": "{{count}} files"
     },
     "placeholder": "{{tab}} coming soon.",
     "audit": {
@@ -375,9 +406,8 @@
       "intensity": "Case Intensity",
       "services": "Service Modules",
       "serviceRequired": "Select at least one service before submitting for approval.",
-      "approvalSubmitted": "Case request submitted for manager approval.",
-      "approvalSubmittedWithId": "Approval request #{{id}} submitted. The case will appear after manager approval.",
-      "approvalSubmittedButton": "Submitted for Approval",
+      "selectedServices": "Selected Services",
+      "noSelectedServices": "No services selected",
       "submittingApproval": "Submitting...",
       "submitForApproval": "Submit for Approval"
     },
@@ -403,7 +433,19 @@
     "pageTitle": "Member Profiles",
     "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
-    "filterAll": "Tradition · All",
+    "filterButton": "Filter",
+    "filterAll": "Buddhist Tradition · All",
+    "filterAllShort": "All",
+    "filterArchiveLabel": "Profile Status",
+    "filterCurrent": "Current",
+    "filterClosed": "Closed",
+    "filterTraditionLabel": "Filter by Buddhist tradition",
+    "filterCaseLabel": "Filter by case status",
+    "filterCaseAll": "Case · All",
+    "filterCaseAllShort": "All",
+    "filterWithCase": "With Case",
+    "filterWithoutCase": "Without Case",
+    "filterClear": "Clear filters",
     "addBtn": "New Monastic",
     "loading": "Loading",
     "empty": "No clients found",
@@ -415,7 +457,6 @@
     "accessDenied": "Access Denied",
     "accessDeniedMsg": "Your current access does not allow creating or editing client profiles.",
     "saveError": "Failed to save.",
-    "approvalSubmittedWithId": "Approval request #{{id}} submitted. The change will appear after approval.",
     "approvals": {
       "title": "Pending Member Approvals",
       "pending": "Pending approval",
@@ -424,12 +465,12 @@
       "badge": {
         "create": "Pending Add",
         "update": "Pending Edit",
-        "delete": "Pending Delete"
+        "delete": "Pending Close"
       },
       "type": {
         "CLIENT_CREATE": "New Member Request",
         "CLIENT_UPDATE": "Edit Member Request",
-        "DELETE_CLIENT": "Delete Member Request"
+        "DELETE_CLIENT": "Close Profile Request"
       }
     },
     "form": {
@@ -459,9 +500,12 @@
     },
     "profile": {
       "convertToClient": "Convert to Client",
-      "convertToCase": "Create Case",
+      "convertToCase": "Convert to Case",
+      "closeCase": "Close Case",
+      "closeCasePending": "Close Pending",
       "editProfile": "Edit Profile",
-      "delete": "Delete",
+      "delete": "Close Profile",
+      "closedStatus": "Closed",
       "editTitle": "Edit Profile",
       "saving": "Saving...",
       "save": "Save Changes",
@@ -611,15 +655,11 @@
     "unnamedMonastic": "Unnamed monastic",
     "status": {
       "DRAFT": "Draft",
-      "SUBMITTED": "Submitted",
-      "ARCHIVED": "Archived",
-      "RETURNED": "Returned"
+      "SUBMITTED": "Submitted"
     },
     "folder": {
       "DRAFT": "Draft",
-      "SUBMITTED": "Submitted",
-      "ARCHIVED": "Approved",
-      "RETURNED": "Returned"
+      "SUBMITTED": "Submitted"
     },
     "mailbox": {
       "title": "Reports",

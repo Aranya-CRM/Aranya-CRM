@@ -20,6 +20,14 @@ function toLocalInput(value?: string | null): string {
   return value ? value.slice(0, 16) : ''
 }
 
+/** 编辑模式预填:把旧的分段字段(议程/流程/地址/人力/注意事项)合并为单一「内容」文本。 */
+function combineContent(event?: ServiceEvent): string {
+  if (!event) return ''
+  return [event.agenda, event.schedule, event.address, event.manpower, event.instructions]
+    .filter((p) => p && p.trim())
+    .join('\n\n')
+}
+
 /** 「增添/编辑事件」卡片弹窗 —— 按组织日历模板采集字段,创建/更新后镜像到 Google 共享日历。 */
 export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const { t } = useTranslation()
@@ -45,11 +53,7 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const [scheduledStart, setScheduledStart] = useState(toLocalInput(event?.scheduledStart))
   const [scheduledEnd, setScheduledEnd] = useState(toLocalInput(event?.scheduledEnd))
   const [location, setLocation] = useState(event?.location ?? '')
-  const [address, setAddress] = useState(event?.address ?? '')
-  const [agenda, setAgenda] = useState(event?.agenda ?? '')
-  const [schedule, setSchedule] = useState(event?.schedule ?? '')
-  const [manpower, setManpower] = useState(event?.manpower ?? '')
-  const [instructions, setInstructions] = useState(event?.instructions ?? '')
+  const [content, setContent] = useState(() => combineContent(event))
   const [users, setUsers] = useState<UserSummary[]>([])
   const [formError, setFormError] = useState<string>()
 
@@ -95,11 +99,7 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
       scheduledStart,
       scheduledEnd: scheduledEnd || undefined,
       location: location.trim() || undefined,
-      address: address.trim() || undefined,
-      agenda: agenda.trim() || undefined,
-      schedule: schedule.trim() || undefined,
-      manpower: manpower.trim() || undefined,
-      instructions: instructions.trim() || undefined,
+      agenda: content.trim() || undefined,
     }
     try {
       if (isEdit && event) {
@@ -121,23 +121,12 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
         onSubmit={submit}
       >
         <header className="event-modal-header">
-          <h2>{isEdit ? t('cases.services.editEvent') : t('cases.services.addCalendarEvent')}</h2>
+          <h2>{titlePreview || (isEdit ? t('cases.services.editEvent') : t('cases.services.addCalendarEvent'))}</h2>
           <button type="button" className="event-modal-close" aria-label="Close" onClick={onDone}>×</button>
         </header>
 
         <div className="event-modal-body">
           <div className="event-form-grid">
-            {calendarOptions.length > 0 ? (
-              <label className="wide">
-                <span>{t('cases.services.calendar')}</span>
-                <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>
-                  {calendarOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}{c.isDefault ? ` (${t('cases.services.calendarDefault')})` : ''}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
             <label>
               <span>{t('cases.services.service')}</span>
               <select value={serviceKey} required onChange={(e) => setServiceKey(e.target.value as keyof CaseServices)}>
@@ -177,52 +166,26 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
               />
             </label>
 
-            {titlePreview ? (
-              <div className="wide event-title-preview">
-                <span>{t('cases.services.titlePreview')}</span>
-                <strong>{titlePreview}</strong>
-              </div>
+            <label className="wide">
+              <span>{t('cases.services.content')}</span>
+              <textarea
+                className="ta-xl"
+                value={content}
+                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara\n\nAddress:\nClinic: ...\nVihara: ...\n\nManpower:\nMedical Kappiya:\nMedical Caseworker:'}
+                onChange={(e) => setContent(e.target.value)}
+              />
+            </label>
+
+            {calendarOptions.length > 0 ? (
+              <label className="wide">
+                <span>{t('cases.services.calendar')}</span>
+                <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>
+                  {calendarOptions.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.isDefault ? ` (${t('cases.services.calendarDefault')})` : ''}</option>
+                  ))}
+                </select>
+              </label>
             ) : null}
-
-            <label className="wide">
-              <span>{t('cases.services.agenda')}</span>
-              <textarea className="ta-sm" value={agenda} onChange={(e) => setAgenda(e.target.value)} />
-            </label>
-
-            <label className="wide">
-              <span>{t('cases.services.schedule')}</span>
-              <textarea
-                className="ta-lg"
-                value={schedule}
-                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara'}
-                onChange={(e) => setSchedule(e.target.value)}
-              />
-            </label>
-
-            <label className="wide">
-              <span>{t('cases.services.address')}</span>
-              <textarea
-                className="ta-lg"
-                value={address}
-                placeholder={'Clinic: ...\nVihara: ...'}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </label>
-
-            <label className="wide">
-              <span>{t('cases.services.manpower')}</span>
-              <textarea
-                className="ta-lg"
-                value={manpower}
-                placeholder={'Medical Kappiya:\nMedical Caseworker:\nMedical Transport:'}
-                onChange={(e) => setManpower(e.target.value)}
-              />
-            </label>
-
-            <label className="wide">
-              <span>{t('cases.services.instructions')}</span>
-              <textarea className="ta-lg" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
-            </label>
 
             {formError ? <div className="wide case-form-error">{formError}</div> : null}
           </div>

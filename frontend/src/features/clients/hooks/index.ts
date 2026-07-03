@@ -3,6 +3,7 @@ export {
   isClientResult,
   useClient,
   useClients,
+  useClientsAvailableForCase,
   useCreateClient,
   useDeleteClient,
   useUpdateClient,

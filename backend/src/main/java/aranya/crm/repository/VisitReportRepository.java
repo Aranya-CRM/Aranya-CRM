@@ -56,8 +56,8 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
 
     /**
      * Reports authored by someone other than the given user, limited to statuses
-     * that are visible to reviewers (e.g. SUBMITTED/ARCHIVED). Drafts and returned
-     * reports stay private to their author and are therefore excluded.
+     * that are visible to reviewers. Drafts stay private to their author and are
+     * therefore excluded.
      */
     @EntityGraph(attributePaths = {"client", "createdBy"})
     List<VisitReport> findByCreatedByIdNotAndStatusInOrderByCreatedAtDescIdDesc(

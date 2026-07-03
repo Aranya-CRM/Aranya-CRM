@@ -6,8 +6,10 @@ import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
 import aranya.crm.dto.response.RelatedContactResponse;
 import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.RelatedContact;
 import aranya.crm.entity.User;
+import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.RelatedContactRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,15 +25,17 @@ import java.util.function.Consumer;
 @Transactional(readOnly = true)
 public class ClientService {
 
+    private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String CLOSED_STATUS = "CLOSED";
+    private static final String DELETED_STATUS = "DELETED";
+
     private final ClientRepository clientRepository;
     private final RelatedContactRepository relatedContactRepository;
+    private final CaseRepository caseRepository;
 
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
         String normalizedQuery = normalizeFilter(q);
-        String normalizedStatus = normalizeFilter(membershipStatus);
-        if (normalizedStatus == null) {
-            normalizedStatus = "ACTIVE";
-        }
+        String normalizedStatus = normalizeMembershipStatusFilter(membershipStatus);
 
         List<Client> clients;
         if (normalizedQuery == null && normalizedStatus == null) {
@@ -71,6 +75,7 @@ public class ClientService {
         client.setAreaDistrict(req.getAreaDistrict());
         client.setPreferredLanguage(req.getPreferredLanguage());
         client.setContact(req.getContact());
+        client.setMembershipStatus(ACTIVE_STATUS);
         clientRepository.save(client);
 
         return getClientDetail(client.getId());
@@ -142,8 +147,18 @@ public class ClientService {
     public void executeApprovedDeleteClient(Long clientId) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
-        client.setMembershipStatus("DELETED");
+        client.setMembershipStatus(CLOSED_STATUS);
         clientRepository.save(client);
+        closeClientActiveCases(clientId);
+    }
+
+    private void closeClientActiveCases(Long clientId) {
+        List<ClientCase> activeCases = caseRepository.findActiveCasesByClientId(clientId);
+        activeCases.forEach(clientCase -> {
+            clientCase.setStatus(DELETED_STATUS);
+            clientCase.setClosedAt(java.time.LocalDateTime.now());
+        });
+        caseRepository.saveAll(activeCases);
     }
 
     private static <T> void set(T value, Consumer<T> setter) {
@@ -254,5 +269,19 @@ public class ClientService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeMembershipStatusFilter(String value) {
+        String normalized = normalizeFilter(value);
+        if (normalized == null) {
+            return ACTIVE_STATUS;
+        }
+        if ("all".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        if (DELETED_STATUS.equalsIgnoreCase(normalized)) {
+            return CLOSED_STATUS;
+        }
+        return normalized;
     }
 }

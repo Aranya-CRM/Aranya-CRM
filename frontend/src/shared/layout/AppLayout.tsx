@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
+import { countApprovalNavBadges } from '../../features/approvals/approvalNavBadges'
+import { usePendingApprovals } from '../../features/approvals/api/approval.api'
 import { useAccess } from '../auth'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import './AppLayout.css'
@@ -26,6 +28,11 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { canRoute, resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
+  const canDecideApprovals = resolve('approvals:decide')
+  const { data: pendingApprovals = [] } = usePendingApprovals({ enabled: canDecideApprovals })
+  const approvalBadgeCounts = canDecideApprovals
+    ? countApprovalNavBadges(pendingApprovals, user?.id)
+    : { clients: 0, cases: 0 }
 
   const TIMEOUT_MS = 180 * 60 * 1000
   const WARNING_MS = 2 * 60 * 1000
@@ -51,6 +58,12 @@ export function AppLayout({ children }: AppLayoutProps) {
     navigate(item.path)
   }
 
+  function approvalBadgeCountFor(item: NavigationItem): number {
+    if (item.id === 'clients') return approvalBadgeCounts.clients
+    if (item.id === 'cases') return approvalBadgeCounts.cases
+    return 0
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -62,6 +75,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <nav className="nav" aria-label="Sidebar Navigation">
           {visibleItems.map((item) => {
             const isActive = location.pathname.startsWith(item.path)
+            const approvalBadgeCount = approvalBadgeCountFor(item)
 
             return (
               <a
@@ -78,40 +92,33 @@ export function AppLayout({ children }: AppLayoutProps) {
                   {item.icon}
                 </span>
                 <span className="nav-label">{t(item.labelKey)}</span>
+                {approvalBadgeCount > 0 ? (
+                  <span className="nav-badge" aria-label={`${approvalBadgeCount} pending approvals`}>
+                    {approvalBadgeCount}
+                  </span>
+                ) : null}
               </a>
             )
           })}
         </nav>
-
-        <button
-          type="button"
-          className={'sidebar-profile' + (location.pathname.startsWith('/profile') ? ' active' : '')}
-          onClick={() => navigate('/profile')}
-          aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
-        >
-          <span className="sidebar-profile-avatar" aria-hidden="true">
-            {profileInitials(user?.fullName)}
-          </span>
-          <span className="sidebar-profile-text">
-            <span className="sidebar-profile-name">{user?.fullName ?? 'User'}</span>
-            <span className="sidebar-profile-link">{t('nav.profile')}</span>
-          </span>
-        </button>
       </aside>
 
       <section className="main">
         <header className="topbar">
-          <div>
-            <div className="topbar-title">{t('layout.topbarTitle')}</div>
-            <div className="topbar-subtitle">{t('layout.topbarSubtitle')}</div>
-          </div>
           <div className="topbar-right">
             <LanguageSwitcher />
-            <div className="topbar-user">
-              <span className="topbar-user-name">
-                {user?.fullName ?? 'User'}
+            <button
+              type="button"
+              className={'topbar-profile' + (location.pathname.startsWith('/profile') ? ' active' : '')}
+              onClick={() => navigate('/profile')}
+              aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
+              title={t('nav.profile')}
+            >
+              <span className="topbar-profile-avatar" aria-hidden="true">
+                {profileInitials(user?.fullName)}
               </span>
-            </div>
+              <span className="topbar-profile-name">{user?.fullName ?? 'User'}</span>
+            </button>
             <button className="logout-btn" type="button" onClick={logout} title={t('layout.logout')}>
               <LogoutIcon />
             </button>

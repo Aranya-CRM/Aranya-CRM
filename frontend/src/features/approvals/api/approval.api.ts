@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { http } from '../../../shared/api'
-import { removeLocalPendingApproval } from '../../../shared/approvals/localPendingApprovals'
 import { caseQueryKeys } from '../../cases/hooks'
 import { clientQueryKeys } from '../../clients/hooks'
 
-export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
 
 export interface ApprovalRequest {
   id: number
@@ -34,6 +33,8 @@ export const approvalQueryKeys = {
   pending: () => [...approvalQueryKeys.all, 'pending'] as const,
 }
 
+export const PENDING_APPROVALS_REFETCH_INTERVAL_MS = 3000
+
 export async function fetchPendingApprovals(): Promise<ApprovalRequest[]> {
   const res = await http.get<ApprovalRequest[]>('/v1/approvals')
   return res.data
@@ -49,10 +50,14 @@ export async function rejectRequest(id: number, data: DecideApprovalPayload): Pr
   return res.data
 }
 
-export function usePendingApprovals() {
+export function usePendingApprovals(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: approvalQueryKeys.pending(),
     queryFn: fetchPendingApprovals,
+    enabled: options?.enabled ?? true,
+    refetchInterval: PENDING_APPROVALS_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -61,8 +66,7 @@ export function useApproveRequest() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => approveRequest(id, data),
-    onSuccess: (approval) => {
-      removeLocalPendingApproval(approval.id)
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
@@ -75,8 +79,7 @@ export function useRejectRequest() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: DecideApprovalPayload }) => rejectRequest(id, data),
-    onSuccess: (approval) => {
-      removeLocalPendingApproval(approval.id)
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
