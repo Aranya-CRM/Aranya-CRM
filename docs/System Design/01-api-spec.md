@@ -36,6 +36,8 @@ Implemented HTTP API groups:
 | Users | `GET /api/v1/users`, `POST /api/v1/users/invite`, `PATCH /api/v1/users/{id}/roles`, `PATCH /api/v1/users/{id}/status`, `DELETE /api/v1/users/{id}` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
+| Case documents | `GET/POST /api/v1/cases/{id}/documents`, `GET /api/v1/cases/{id}/documents/{documentId}/download-url`, `DELETE /api/v1/cases/{id}/documents/{documentId}` |
+| Drive migration | `GET /api/v1/admin/drive/files`, `POST /api/v1/admin/drive/import` |
 
 Not implemented as backend HTTP APIs yet:
 
@@ -743,7 +745,25 @@ Notes:
 | `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Permanently delete the GCS object, case-document link, and document metadata. |
 
 - Categories are exactly `ORDINATION`, `MEDICAL`, `FINANCIAL`, and `LEGAL`.
-- No sensitive-file visibility split and no Google Drive source metadata exist in this phase.
+- No sensitive-file visibility split in this phase. `document` carries a `source` (`UPLOAD` / `DRIVE_IMPORT`) and, for imports, a `drive_file_id`.
+
+### Drive migration endpoints
+
+One-time migration console for importing historical files from the organization Google Drive into GCS-backed case documents. Reads Drive as the shared `infotech` account (its OAuth refresh token must include `drive.readonly`).
+
+| Method & Path | Cap | Purpose |
+|---------------|-----|---------|
+| `GET /api/v1/admin/drive/files?folderId={id}` | `cases:documents.import` | List folders/files under a Drive folder (omit `folderId` for the configured root). Google-native docs report an `exportAs` hint (e.g. `PDF`). |
+| `POST /api/v1/admin/drive/import` | `cases:documents.import` | Batch import: body `{ items: [{ driveFileId, caseId, category, displayName? }] }`. Returns a per-item result (`IMPORTED` / `SKIPPED` / `FAILED`). |
+
+- `cases:documents.import` is granted to managers only.
+- Controlled by `google.drive.*` config; when disabled or credentials are missing, both endpoints return `503 DRIVE_IMPORT_UNAVAILABLE` (safe degrade).
+- Idempotent: a `(caseId, driveFileId)` already imported is `SKIPPED`. Each item imports in its own transaction, so one failure does not block the rest.
+- Google-native documents are exported before storage (Docs→PDF, Sheets→XLSX, Slides→PDF, Drawings→PNG, others→PDF).
+
+### Approval expiry
+
+`CASE_CREATE` approvals (convert/create case) carry an `expires_at` of `created_at + 30 days`. Overdue pending requests are auto-set to status `EXPIRED` by a daily scheduled sweep (and defensively at decision time), so a create-case approval always reaches a result within 30 days. Other approval types have no time limit.
 
 ## 11. APIs Not Yet Implemented
 
