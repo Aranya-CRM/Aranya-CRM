@@ -61,6 +61,11 @@ services:
       # ── SERVICE_ACCOUNT 模式(备用;经下方 bind-mount 注入)──
       GOOGLE_CALENDAR_SA_PATH: file:/run/secrets/google-calendar-sa-dev.json
       GOOGLE_CALENDAR_IMPERSONATE: ${GOOGLE_CALENDAR_IMPERSONATE:-}
+      # ── Case 文件存储(GCS;本地测试也会写入该 bucket) ──
+      FILE_STORAGE_MAX_UPLOAD_SIZE_MB: ${FILE_STORAGE_MAX_UPLOAD_SIZE_MB:-25}
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-}
+      GCS_SIGNED_URL_TTL_MINUTES: ${GCS_SIGNED_URL_TTL_MINUTES:-10}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcs-storage-sa-dev.json
     ports:
       - "8080:8080"
     volumes:
@@ -73,6 +78,12 @@ services:
       - type: bind
         source: ../../backend/src/main/resources/google-calendar-sa-dev.json
         target: /run/secrets/google-calendar-sa-dev.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${GCS_CREDENTIALS_HOST_PATH:-../../backend/src/main/resources/gcs-storage-sa-dev.json}
+        target: /run/secrets/gcs-storage-sa-dev.json
         read_only: true
         bind:
           create_host_path: false

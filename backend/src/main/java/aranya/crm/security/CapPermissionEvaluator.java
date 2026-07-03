@@ -123,6 +123,9 @@ public class CapPermissionEvaluator {
             if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
                 return "YES";
             }
+            if (capKey.equals("cases:view") || capKey.startsWith("cases:documents.")) {
+                return "NO";
+            }
             if (capKey.startsWith("route:")) {
                 return "NO";
             }

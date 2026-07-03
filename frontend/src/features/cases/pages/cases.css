@@ -2227,14 +2227,17 @@
   color: var(--text-main);
 }
 
-.case-document-name-field input {
+.case-document-name-field input,
+.case-document-name-field select {
   padding: 8px 12px;
   border: 1px solid #e0e0e8;
   border-radius: 6px;
   font-size: 13px;
+  background: #fff;
 }
 
-.case-document-name-field input:focus {
+.case-document-name-field input:focus,
+.case-document-name-field select:focus {
   outline: none;
   border-color: #6d28d9;
 }

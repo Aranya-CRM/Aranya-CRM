@@ -33,6 +33,11 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:25MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:25MB}
+
   liquibase:
     enabled: true
     change-log: classpath:/db/changelog/db.changelog-master.yaml
@@ -68,6 +73,12 @@ google:
     oauth-client-id: ${GOOGLE_CALENDAR_OAUTH_CLIENT_ID:}
     oauth-client-secret: ${GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET:}
     oauth-refresh-token: ${GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN:}
+
+storage:
+  max-upload-size-mb: ${FILE_STORAGE_MAX_UPLOAD_SIZE_MB:25}
+  gcs:
+    bucket-name: ${GCS_BUCKET_NAME:}
+    signed-url-ttl-minutes: ${GCS_SIGNED_URL_TTL_MINUTES:10}
 
 management:
   endpoints:
