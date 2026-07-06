@@ -535,6 +535,7 @@
     "profile": {
       "convertToClient": "Convert to Client",
       "convertToCase": "Convert to Case",
+      "viewCase": "View Case",
       "closeCase": "Close Case",
       "closeCasePending": "Close Pending",
       "editProfile": "Edit Profile",

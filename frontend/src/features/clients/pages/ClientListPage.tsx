@@ -596,6 +596,7 @@ export function ClientListPage() {
                 onConfirmCloseCase={() => void confirmCloseCase()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
+                onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
               />
             )}
           </>
@@ -1085,6 +1086,7 @@ interface ClientProfilePanelProps {
   onConfirmCloseCase: () => void
   onEdit: () => void
   onCreateCase: () => void
+  onViewCase: () => void
 }
 
 function ClientProfilePanel({
@@ -1111,6 +1113,7 @@ function ClientProfilePanel({
   onConfirmCloseCase,
   onEdit,
   onCreateCase,
+  onViewCase,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
   const actionGroups = profileActionGroups({
@@ -1197,7 +1200,7 @@ function ClientProfilePanel({
           onApproveApproval={onApproveApproval}
           onRejectApproval={onRejectApproval}
         />
-      ) : actionGroups.primary.length || actionGroups.secondary.length ? (
+      ) : actionGroups.primary.length || actionGroups.secondary.length || activeCase ? (
         <footer className="client-profile-action-footer split">
           <div className="client-profile-secondary-actions">
             {actionGroups.secondary.includes('convertToCase') ? (
@@ -1217,6 +1220,13 @@ function ClientProfilePanel({
             ) : null}
           </div>
           <div className="client-profile-primary-actions">
+            {activeCase ? (
+              <button className="client-profile-case-link" type="button" onClick={onViewCase}>
+                <span className="client-profile-case-link-label">{t('clients.profile.viewCase')}</span>
+                <span className="client-profile-case-link-no">{activeCase.caseNo}</span>
+                <span aria-hidden="true" className="client-profile-case-link-arrow">→</span>
+              </button>
+            ) : null}
             {actionGroups.primary.includes('editProfile') ? (
               <button className="btn-edit" type="button" onClick={onEdit}>
                 {t('clients.profile.editProfile')}
