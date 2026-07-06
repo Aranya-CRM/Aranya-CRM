@@ -1,6 +1,7 @@
 package aranya.crm.service;
 
 import aranya.crm.config.FileStorageProperties;
+import aranya.crm.entity.DocumentCategory;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -29,12 +30,13 @@ class GcsFileStorageServiceTest {
     private Storage storage;
 
     @Test
-    @DisplayName("storeCaseDocument writes bytes under case/document object key")
-    void storeCaseDocument_writesBytesUnderCaseDocumentObjectKey() {
+    @DisplayName("storeCaseDocument writes bytes under readable case/category object key")
+    void storeCaseDocument_writesBytesUnderReadableCaseCategoryObjectKey() {
         GcsFileStorageService service = new GcsFileStorageService(storage, properties());
 
         GcsFileStorageService.StoredFile stored = service.storeCaseDocument(
-                7L,
+                "ASDFL/2026/C/006",
+                DocumentCategory.ORDINATION,
                 99L,
                 "  Ordination Certificate 2026.pdf  ",
                 "application/pdf",
@@ -47,8 +49,8 @@ class GcsFileStorageServiceTest {
 
         assertThat(stored.bucketName()).isEqualTo("aranya-case-files-dev");
         assertThat(stored.objectKey())
-                .startsWith("cases/7/documents/99/")
-                .endsWith("-Ordination_Certificate_2026.pdf");
+                .startsWith("cases/ASDFL-2026-C-006/Ordination Certificate/")
+                .endsWith("-99-Ordination_Certificate_2026.pdf");
         assertThat(blobInfo.getValue().getBucket()).isEqualTo("aranya-case-files-dev");
         assertThat(blobInfo.getValue().getName()).isEqualTo(stored.objectKey());
         assertThat(blobInfo.getValue().getContentType()).isEqualTo("application/pdf");

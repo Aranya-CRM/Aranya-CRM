@@ -118,6 +118,8 @@ class UiManifestServiceTest {
         assertThat(result).containsEntry("cases:view", "ALL");
         assertThat(result).containsEntry("cases:create", "WORKFLOW");
         assertThat(result).containsEntry("cases:services.create", "WORKFLOW");
+        assertThat(result).containsEntry("cases:documents.upload", "ALL");
+        assertThat(result).containsEntry("cases:documents.delete", "ALL");
         assertThat(result).doesNotContainKeys("clients:update", "clients:delete");
     }
 

@@ -89,14 +89,15 @@ class CaseDocumentServiceTest {
             return document;
         });
         when(fileStorageService.storeCaseDocument(
-                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq("ASDFL/2026/C/006"),
+                org.mockito.ArgumentMatchers.eq(DocumentCategory.ORDINATION),
                 org.mockito.ArgumentMatchers.eq(99L),
                 org.mockito.ArgumentMatchers.eq("Ordination Certificate.pdf"),
                 org.mockito.ArgumentMatchers.eq("application/pdf"),
                 aryEq("pdf-bytes".getBytes())))
                 .thenReturn(new GcsFileStorageService.StoredFile(
                         "case-files-dev",
-                        "cases/7/documents/99/file.pdf",
+                        "cases/ASDFL-2026-C-006/Ordination Certificate/20260706T101530Z-99-Ordination_Certificate.pdf",
                         "application/pdf",
                         9L
                 ));
@@ -115,7 +116,8 @@ class CaseDocumentServiceTest {
         ArgumentCaptor<Document> documentCaptor = ArgumentCaptor.forClass(Document.class);
         verify(documentRepository, org.mockito.Mockito.times(2)).save(documentCaptor.capture());
         assertThat(documentCaptor.getAllValues().get(1).getBucketName()).isEqualTo("case-files-dev");
-        assertThat(documentCaptor.getAllValues().get(1).getObjectKey()).isEqualTo("cases/7/documents/99/file.pdf");
+        assertThat(documentCaptor.getAllValues().get(1).getObjectKey())
+                .isEqualTo("cases/ASDFL-2026-C-006/Ordination Certificate/20260706T101530Z-99-Ordination_Certificate.pdf");
         assertThat(documentCaptor.getAllValues().get(1).getChecksumSha256()).hasSize(64);
     }
 
@@ -130,7 +132,7 @@ class CaseDocumentServiceTest {
                 .hasMessage("File must not be empty");
 
         verify(documentRepository, never()).save(any());
-        verify(fileStorageService, never()).storeCaseDocument(any(), any(), any(), any(), any());
+        verify(fileStorageService, never()).storeCaseDocument(any(), any(), any(), any(), any(), any());
     }
 
     @Test

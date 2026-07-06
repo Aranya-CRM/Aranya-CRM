@@ -745,6 +745,10 @@ Notes:
 | `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Permanently delete the GCS object, case-document link, and document metadata. |
 
 - Categories are exactly `ORDINATION`, `MEDICAL`, `FINANCIAL`, and `LEGAL`.
+- GCS object keys are business-readable: `cases/{safeCaseCode}/{categoryFolder}/{timestamp}-{documentId}-{safeFileName}`.
+  For example, case code `ASDFL/2026/C/006` is stored under `cases/ASDFL-2026-C-006/Medical Records/...`.
+  Category folders use the full English labels: `Ordination Certificate`, `Medical Records`,
+  `Financial Records`, and `Legal Documents`.
 - No sensitive-file visibility split in this phase. `document` carries a `source` (`UPLOAD` / `DRIVE_IMPORT`) and, for imports, a `drive_file_id`.
 
 ### Drive migration endpoints

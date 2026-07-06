@@ -68,7 +68,7 @@ public class DriveDocumentImporter {
         document = documentRepository.save(document);
 
         GcsFileStorageService.StoredFile stored = fileStorageService.storeCaseDocument(
-                caseId, document.getId(), fileName, contentType, bytes);
+                clientCase.getCaseCode(), item.getCategory(), document.getId(), fileName, contentType, bytes);
         document.setBucketName(stored.bucketName());
         document.setObjectKey(stored.objectKey());
         document.setMimeType(stored.contentType());
