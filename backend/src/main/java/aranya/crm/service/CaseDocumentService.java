@@ -91,7 +91,8 @@ public class CaseDocumentService {
         document = documentRepository.save(document);
 
         GcsFileStorageService.StoredFile stored = fileStorageService.storeCaseDocument(
-                caseId,
+                clientCase.getCaseCode(),
+                category,
                 document.getId(),
                 fileName,
                 contentType,

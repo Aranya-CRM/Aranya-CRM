@@ -147,6 +147,9 @@ public class CapPermissionEvaluator {
             if (capKey.equals("cases:services.create")) {
                 return "WORKFLOW";
             }
+            if (capKey.equals("cases:documents.upload") || capKey.equals("cases:documents.delete")) {
+                return "ALL";
+            }
             if (capKey.equals("approvals:create")) {
                 return "YES";
             }

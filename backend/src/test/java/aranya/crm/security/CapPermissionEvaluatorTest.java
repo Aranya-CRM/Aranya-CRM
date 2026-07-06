@@ -28,4 +28,20 @@ class CapPermissionEvaluatorTest {
         assertThat(evaluator.capScope(authentication, "cases:view")).isEqualTo("NO");
         verifyNoInteractions(jdbcTemplate);
     }
+
+    @Test
+    @DisplayName("social workers can delete case documents")
+    void socialWorkers_canDeleteCaseDocuments() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        CapPermissionEvaluator evaluator = new CapPermissionEvaluator(jdbcTemplate);
+        Authentication authentication = new TestingAuthenticationToken(
+                "sw@test.com",
+                "n/a",
+                "ROLE_SOCIAL_WORKER"
+        );
+
+        assertThat(evaluator.hasCap(authentication, "cases:documents.delete")).isTrue();
+        assertThat(evaluator.capScope(authentication, "cases:documents.delete")).isEqualTo("ALL");
+        verifyNoInteractions(jdbcTemplate);
+    }
 }

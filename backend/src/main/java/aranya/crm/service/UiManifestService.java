@@ -77,6 +77,8 @@ public class UiManifestService {
             caps.put("cases:view", "ALL");
             caps.put("cases:create", "WORKFLOW");
             caps.put("cases:services.create", "WORKFLOW");
+            caps.put("cases:documents.upload", "ALL");
+            caps.put("cases:documents.delete", "ALL");
             caps.put("approvals:create", "YES");
         }
 

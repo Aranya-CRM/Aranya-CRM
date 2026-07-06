@@ -1,6 +1,7 @@
 package aranya.crm.service;
 
 import aranya.crm.config.FileStorageProperties;
+import aranya.crm.entity.DocumentCategory;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -12,13 +13,18 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class GcsFileStorageService {
+
+    private static final DateTimeFormatter OBJECT_TIMESTAMP_FORMAT =
+            DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
 
     private final Storage storage;
     private final FileStorageProperties properties;
@@ -29,14 +35,15 @@ public class GcsFileStorageService {
     }
 
     public StoredFile storeCaseDocument(
-            Long caseId,
+            String caseCode,
+            DocumentCategory category,
             Long documentId,
             String originalFileName,
             String contentType,
             byte[] bytes
     ) {
         String bucketName = requireBucketName();
-        String objectKey = objectKey(caseId, documentId, originalFileName);
+        String objectKey = objectKey(caseCode, category, documentId, originalFileName);
         String resolvedContentType = normalizeContentType(contentType);
         BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, objectKey))
                 .setContentType(resolvedContentType)
@@ -93,13 +100,34 @@ public class GcsFileStorageService {
         );
     }
 
-    private String objectKey(Long caseId, Long documentId, String originalFileName) {
-        return "cases/%d/documents/%d/%s-%s".formatted(
-                caseId,
+    private String objectKey(String caseCode, DocumentCategory category, Long documentId, String originalFileName) {
+        return "cases/%s/%s/%s-%d-%s".formatted(
+                safePathSegment(caseCode),
+                categoryFolderName(category),
+                OBJECT_TIMESTAMP_FORMAT.format(Instant.now()),
                 documentId,
-                UUID.randomUUID(),
                 safeFileName(originalFileName)
         );
+    }
+
+    private String categoryFolderName(DocumentCategory category) {
+        if (category == null) {
+            throw new IllegalArgumentException("Document category is required");
+        }
+        return switch (category) {
+            case ORDINATION -> "Ordination Certificate";
+            case MEDICAL -> "Medical Records";
+            case FINANCIAL -> "Financial Records";
+            case LEGAL -> "Legal Documents";
+        };
+    }
+
+    private String safePathSegment(String value) {
+        String segment = value == null || value.isBlank() ? "case" : value.trim();
+        String normalized = segment.replaceAll("[^A-Za-z0-9._-]", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-+|-+$", "");
+        return normalized.isBlank() ? "case" : normalized;
     }
 
     private String safeFileName(String originalFileName) {
