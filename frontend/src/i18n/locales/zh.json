@@ -535,6 +535,7 @@
     "profile": {
       "convertToClient": "转为客户",
       "convertToCase": "转为个案",
+      "viewCase": "查看个案",
       "closeCase": "关闭个案",
       "closeCasePending": "关闭审批中",
       "editProfile": "编辑档案",
