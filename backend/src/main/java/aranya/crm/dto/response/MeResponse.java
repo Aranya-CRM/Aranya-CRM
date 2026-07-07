@@ -15,5 +15,6 @@ public class MeResponse {
     private String phone;
     private boolean emailVerified;
     private String status;
+    private String preferredLanguage;
     private OffsetDateTime createdAt;
 }

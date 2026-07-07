@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 059-add-user-preferred-language
+      author: ShiDu
+      comment: Per-user UI language preference (zh/en); null = fall back to browser/default at the frontend.
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: preferred_language
+                  type: VARCHAR(8)
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: preferred_language

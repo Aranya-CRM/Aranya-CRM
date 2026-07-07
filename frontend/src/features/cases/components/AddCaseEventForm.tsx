@@ -74,7 +74,8 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     }
   }, [calendarOptions, calendarId, isEdit, event])
 
-  const serviceLabel = serviceKey ? t(`cases.service.${serviceKey}`) : ''
+  // 预览标题始终用英文,与后端实际保存/镜像到 Google 的英文标题一致(不随界面语言变化)
+  const serviceLabel = serviceKey ? t(`cases.service.${serviceKey}`, { lng: 'en' }) : ''
   const seqPrefix = event?.eventSeq != null ? `${String(event.eventSeq).padStart(3, '0')} ` : ''
   const titlePreview = serviceKey
     ? `${seqPrefix}${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`

@@ -225,7 +225,7 @@
 .task-note-delete {
   border: 0;
   background: transparent;
-  color: #dc2626;
+  color: var(--text-main);
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;

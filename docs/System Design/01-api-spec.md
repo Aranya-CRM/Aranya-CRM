@@ -159,6 +159,26 @@ Notes:
 - This endpoint intentionally does not expose roles or capabilities.
 - Role/capability data is returned by `GET /api/v1/ui/manifest`.
 - `UserService.syncFromFirebase` may update `emailVerified` and `fullName` from the Firebase token during authentication.
+- `preferredLanguage` (`zh` | `en` | `null`) carries the user's saved UI language preference; `null` means the frontend falls back to browser/default.
+
+### PATCH `/api/v1/auth/me/language`
+
+Persists the current user's UI language preference (follows the account across devices/browsers).
+
+Authorization:
+
+- Authenticated Firebase user
+- No role requirement
+
+Request:
+
+```json
+{ "language": "en" }
+```
+
+- `language` is required and must be `zh` or `en` (case-insensitive); any other value returns `400`.
+
+Response: the updated `MeResponse` (same shape as `GET /api/v1/auth/me`, with the new `preferredLanguage`).
 
 ## 6. UI Manifest API
 

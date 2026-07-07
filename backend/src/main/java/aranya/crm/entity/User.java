@@ -41,6 +41,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
+    @Column(name = "preferred_language", length = 8)
+    private String preferredLanguage; // 界面语言偏好 zh/en;null = 前端按浏览器/默认兜底
+
     @Column(name = "invited_at")
     private OffsetDateTime invitedAt; // 仅 INVITED 用户写入,用于超期未接受邀请的提醒
 
