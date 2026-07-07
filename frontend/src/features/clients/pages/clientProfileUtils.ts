@@ -101,13 +101,13 @@ export function deriveClientDateFields(fields: ClientDateFields, referenceDate =
 
 export function applyClientCaseFilter<T extends { id: string }>(
   clients: T[],
-  withoutCaseIds: Set<string>,
+  withCaseIds: Set<string>,
   filter: ClientCaseFilter,
 ): T[] {
   if (filter === 'all') return clients
   return clients.filter((client) => {
-    const hasNoCase = withoutCaseIds.has(client.id)
-    return filter === 'without_case' ? hasNoCase : !hasNoCase
+    const hasCase = withCaseIds.has(client.id)
+    return filter === 'with_case' ? hasCase : !hasCase
   })
 }
 

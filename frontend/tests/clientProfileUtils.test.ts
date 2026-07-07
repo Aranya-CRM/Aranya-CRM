@@ -42,18 +42,18 @@ describe('client case filters', () => {
     { id: '3', abbr: 'VKC', membershipStatus: 'ACTIVE' },
     { id: '4', abbr: 'VKD', membershipStatus: 'CLOSED' },
   ]
-  const withoutCaseIds = new Set(['2'])
+  const withCaseIds = new Set(['1', '3', '4'])
 
   it('returns only clients with an active case when the case filter is with_case', () => {
     assert.deepEqual(
-      applyClientCaseFilter(clients, withoutCaseIds, 'with_case' satisfies ClientCaseFilter).map((client) => client.abbr),
+      applyClientCaseFilter(clients, withCaseIds, 'with_case' satisfies ClientCaseFilter).map((client) => client.abbr),
       ['VXA', 'VKC', 'VKD'],
     )
   })
 
   it('returns only clients without an active case when the case filter is without_case', () => {
     assert.deepEqual(
-      applyClientCaseFilter(clients, withoutCaseIds, 'without_case' satisfies ClientCaseFilter).map((client) => client.abbr),
+      applyClientCaseFilter(clients, withCaseIds, 'without_case' satisfies ClientCaseFilter).map((client) => client.abbr),
       ['VKB'],
     )
   })
