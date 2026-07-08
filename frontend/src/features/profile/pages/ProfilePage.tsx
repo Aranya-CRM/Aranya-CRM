@@ -1,8 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useAccess } from '../../../shared/auth'
-import { InviteUserModal } from '../../users/components/InviteUserModal'
 import '../../../shared/ui/shared.css'
 import './profile.css'
 
@@ -27,9 +24,6 @@ function formatDate(value?: string | null): string {
 export function ProfilePage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { resolve } = useAccess()
-  const canInvite = resolve('admin:users.manage')
-  const [showInviteModal, setShowInviteModal] = useState(false)
 
   if (!user) return null
 
@@ -40,13 +34,6 @@ export function ProfilePage() {
           <h1 className="page-title">{t('profile.title')}</h1>
           <div className="page-subtitle">{t('profile.subtitle')}</div>
         </div>
-        {canInvite ? (
-          <div className="page-header-actions">
-            <button className="btn-primary" type="button" onClick={() => setShowInviteModal(true)}>
-              + {t('users.addBtn')}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <div className="card profile-card">
@@ -90,10 +77,6 @@ export function ProfilePage() {
           </div>
         </dl>
       </div>
-
-      {canInvite ? (
-        <InviteUserModal open={showInviteModal} onClose={() => setShowInviteModal(false)} />
-      ) : null}
     </div>
   )
 }

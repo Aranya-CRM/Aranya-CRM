@@ -3,10 +3,10 @@ import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { sendInviteSetupEmail } from '../../auth/api/auth'
 import { getApiErrorCode } from '../../../shared/api'
-import { inviteErrorKey } from '../inviteErrors'
-import { useInviteUser } from '../hooks'
-import type { InviteUserPayload } from '../types'
-import { RoleCheckboxGroup, UserModal, UserTextField } from './UserModal'
+import { inviteErrorKey } from '../../users/inviteErrors'
+import { RoleCheckboxGroup, UserModal, UserTextField } from '../../users/components/UserModal'
+import type { InviteUserPayload } from '../../users/types'
+import { useInviteUser } from '../hooks/useAdminUsers'
 
 const initialInviteForm: InviteUserPayload = {
   username: '',
@@ -23,7 +23,7 @@ interface InviteUserModalProps {
   onInvited?: () => void
 }
 
-/** 可复用的「邀请用户」弹窗,自含表单状态、提交与发邮件逻辑。 */
+/** Admin Dashboard「邀请用户」弹窗,自含表单状态、提交与 Firebase 设密码邮件逻辑。 */
 export function InviteUserModal({ open, onClose, onInvited }: InviteUserModalProps) {
   const { t } = useTranslation()
   const inviteUser = useInviteUser()

@@ -8,7 +8,22 @@
     "tasks": "协助",
     "users": "用户管理",
     "profile": "查看个人主页",
-    "driveImport": "Drive 导入"
+    "driveImport": "Drive 导入",
+    "admin": "管理控制台"
+  },
+  "admin": {
+    "title": "管理控制台",
+    "subtitle": "系统与账号管理",
+    "comingSoon": "即将上线",
+    "nav": {
+      "accounts": "账号管理",
+      "audit": "审计日志",
+      "settings": "组织设置"
+    },
+    "accounts": {
+      "title": "账号管理",
+      "subtitle": "管理系统用户、邀请与角色权限。"
+    }
   },
   "driveImport": {
     "title": "Google Drive 导入",

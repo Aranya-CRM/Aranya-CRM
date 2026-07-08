@@ -66,6 +66,15 @@ function DriveImportIcon() {
   )
 }
 
+function AdminIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3l7 3v5c0 4.2-2.8 7.5-7 9-4.2-1.5-7-4.8-7-9V6z" />
+      <path d="M9.5 12l1.8 1.8L15 10" />
+    </svg>
+  )
+}
+
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -126,6 +135,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/admin/drive-import',
     labelKey: 'nav.driveImport',
     icon: <DriveImportIcon />,
+  },
+  {
+    id: 'admin',
+    routeId: 'route:users',
+    path: '/admin',
+    labelKey: 'nav.admin',
+    icon: <AdminIcon />,
   },
 ]
 
