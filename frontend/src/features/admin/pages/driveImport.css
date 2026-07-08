@@ -165,7 +165,7 @@
 .drive-staging-remove {
   border: none;
   background: none;
-  color: #dc2626;
+  color: var(--text-main);
   font-size: 18px;
   cursor: pointer;
   flex-shrink: 0;

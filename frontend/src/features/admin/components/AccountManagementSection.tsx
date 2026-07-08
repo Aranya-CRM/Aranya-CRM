@@ -2,27 +2,24 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { ErrorBanner, PageHeader, SectionCard, TableShell } from '../../../shared/ui'
-import {
-  useDeleteUser,
-  useUpdateUserRoles,
-  useUpdateUserStatus,
-  useUsers,
-} from '../hooks'
-import type { UserRole, UserStatus, UserSummary } from '../types'
-import { InviteUserModal } from '../components/InviteUserModal'
-import { RoleCheckboxGroup, UserModal } from '../components/UserModal'
-import './users.css'
+import { ErrorBanner, SectionCard, TableShell } from '../../../shared/ui'
+import { RoleCheckboxGroup, UserModal } from '../../users/components/UserModal'
+import type { UserRole, UserStatus, UserSummary } from '../../users/types'
+import { useAdminUsers, useDeleteUser, useUpdateUserRoles, useUpdateUserStatus } from '../hooks/useAdminUsers'
+import { InviteUserModal } from './InviteUserModal'
+import '../../users/pages/users.css'
+import '../pages/adminDashboard.css'
 
 function normalizeText(value: string | null | undefined, fallback = '-'): string {
   const text = value?.trim()
   return text || fallback
 }
 
-export function UsersPage() {
+/** Admin Dashboard —— 账号管理分区(用户列表 / 邀请 / 角色 / 状态 / 删除)。 */
+export function AccountManagementSection() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
-  const { data: users = [], isLoading, isError } = useUsers()
+  const { data: users = [], isLoading, isError } = useAdminUsers()
   const updateRoles = useUpdateUserRoles()
   const updateStatus = useUpdateUserStatus()
   const deleteUser = useDeleteUser()
@@ -35,25 +32,16 @@ export function UsersPage() {
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return users
-
-    return users.filter((user) => {
-      return (
-        user.fullName.toLowerCase().includes(q) ||
-        user.username.toLowerCase().includes(q) ||
-        user.email.toLowerCase().includes(q) ||
-        user.roles.some((role) => String(role).toLowerCase().includes(q))
-      )
-    })
+    return users.filter((user) => (
+      user.fullName.toLowerCase().includes(q) ||
+      user.username.toLowerCase().includes(q) ||
+      user.email.toLowerCase().includes(q) ||
+      user.roles.some((role) => String(role).toLowerCase().includes(q))
+    ))
   }, [search, users])
 
-  const activeUsers = useMemo(
-    () => users.filter((user) => user.status === 'ACTIVE').length,
-    [users],
-  )
-  const volunteers = useMemo(
-    () => users.filter((user) => user.roles.includes('VOLUNTEER')).length,
-    [users],
-  )
+  const activeUsers = useMemo(() => users.filter((u) => u.status === 'ACTIVE').length, [users])
+  const volunteers = useMemo(() => users.filter((u) => u.roles.includes('VOLUNTEER')).length, [users])
 
   function openRoleEditor(user: UserSummary) {
     setFormError(undefined)
@@ -72,17 +60,12 @@ export function UsersPage() {
     event.preventDefault()
     if (!editingUser) return
     setFormError(undefined)
-
     if (editingRoles.length === 0) {
       setFormError(t('users.error.roleRequired'))
       return
     }
-
     try {
-      await updateRoles.mutateAsync({
-        id: editingUser.id,
-        data: { roles: editingRoles },
-      })
+      await updateRoles.mutateAsync({ id: editingUser.id, data: { roles: editingRoles } })
       closeRoleEditor()
     } catch {
       setFormError(t('users.error.roles'))
@@ -97,11 +80,10 @@ export function UsersPage() {
         : t('users.confirm.deactivate', { name: user.fullName }),
     )
     if (!confirmed) return
-
     try {
       await updateStatus.mutateAsync({ id: user.id, data: { status: nextStatus } })
     } catch {
-      // Mutation error state renders the page-level banner.
+      // Mutation error state renders the section-level banner.
     }
   }
 
@@ -111,7 +93,7 @@ export function UsersPage() {
     try {
       await deleteUser.mutateAsync(user.id)
     } catch {
-      // Mutation error state renders the page-level banner.
+      // Mutation error state renders the section-level banner.
     }
   }
 
@@ -119,21 +101,15 @@ export function UsersPage() {
 
   return (
     <div className="users-page">
-      <PageHeader
-        title={t('users.pageTitle')}
-        actions={(
-          <button className="users-primary-button" type="button" onClick={() => setShowInviteModal(true)}>
-            + {t('users.addBtn')}
-          </button>
-        )}
-      />
-
-      <section className="users-manager-banner" aria-label="Manager user management notice">
+      <div className="admin-section-header">
         <div>
-          <strong>{t('users.managerView')}</strong>
-          <span>{t('users.managerDesc')}</span>
+          <h2>{t('admin.accounts.title')}</h2>
+          <p>{t('admin.accounts.subtitle')}</p>
         </div>
-      </section>
+        <button className="users-primary-button" type="button" onClick={() => setShowInviteModal(true)}>
+          + {t('users.addBtn')}
+        </button>
+      </div>
 
       {isError ? <ErrorBanner message={t('users.error.load')} /> : null}
       {actionError ? <ErrorBanner message={t('users.error.action')} /> : null}
@@ -171,17 +147,12 @@ export function UsersPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td className="users-table-state" colSpan={6}>{t('users.table.loading')}</td>
-                </tr>
+                <tr><td className="users-table-state" colSpan={6}>{t('users.table.loading')}</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td className="users-table-state" colSpan={6}>{t('users.table.empty')}</td>
-                </tr>
+                <tr><td className="users-table-state" colSpan={6}>{t('users.table.empty')}</td></tr>
               ) : (
                 filteredUsers.map((user) => {
                   const isSelf = user.id === currentUser?.id
-
                   return (
                     <tr key={user.id}>
                       <td>
@@ -269,13 +240,9 @@ export function UsersPage() {
           onClose={closeRoleEditor}
           onSubmit={submitRoleUpdate}
         >
-          <RoleCheckboxGroup
-            roles={editingRoles}
-            onSelect={(role) => setEditingRoles([role])}
-          />
+          <RoleCheckboxGroup roles={editingRoles} onSelect={(role) => setEditingRoles([role])} />
         </UserModal>
       ) : null}
-
     </div>
   )
 }

@@ -105,8 +105,24 @@ public class UserService {
                 .phone(user.getPhone())
                 .emailVerified(user.isEmailVerified())
                 .status(user.getStatus())
+                .preferredLanguage(user.getPreferredLanguage())
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+
+    /** 更新当前用户的界面语言偏好(zh/en)。跟随账号,跨设备/浏览器生效。 */
+    public MeResponse updateMyLanguage(User user, String language) {
+        user.setPreferredLanguage(normalizeLanguage(language));
+        userRepository.save(user);
+        return getCurrentUser(user);
+    }
+
+    private String normalizeLanguage(String language) {
+        String value = language == null ? "" : language.trim().toLowerCase();
+        if (!value.equals("zh") && !value.equals("en")) {
+            throw new IllegalArgumentException("Unsupported language: " + language);
+        }
+        return value;
     }
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {

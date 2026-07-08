@@ -8,7 +8,28 @@
     "tasks": "Help with",
     "users": "Users",
     "profile": "View profile",
-    "driveImport": "Drive Import"
+    "driveImport": "Drive Import",
+    "admin": "Admin Console"
+  },
+  "admin": {
+    "title": "Admin Console",
+    "subtitle": "System & account administration",
+    "badge": "Backend",
+    "enter": "Admin Console",
+    "backToApp": "Back to app",
+    "comingSoon": "Coming soon",
+    "nav": {
+      "accounts": "Accounts",
+      "audit": "Audit log",
+      "settings": "Org settings"
+    },
+    "accounts": {
+      "title": "Account Management",
+      "subtitle": "Manage system users, invitations and role permissions."
+    },
+    "placeholder": {
+      "desc": "This section is on the roadmap and coming soon."
+    }
   },
   "driveImport": {
     "title": "Google Drive Import",

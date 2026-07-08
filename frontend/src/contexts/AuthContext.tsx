@@ -14,6 +14,7 @@ import {
 import { getCurrentUser, type MeResponse } from '../features/auth/api/user.api'
 import { getUiManifest } from '../features/auth/api/uiManifest.api'
 import type { ScopeValue } from '../types/capManifest'
+import i18n from '../i18n'
 
 interface AuthContextValue {
   /** True while the Firebase session + backend profile check is in flight. */
@@ -44,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ])
       setUser(me)
       setCaps(capsManifest.caps)
+      // 账号级语言偏好优先:登录后按用户偏好切换界面语言(跨设备生效)
+      if ((me.preferredLanguage === 'zh' || me.preferredLanguage === 'en') && me.preferredLanguage !== i18n.language) {
+        void i18n.changeLanguage(me.preferredLanguage)
+      }
     } catch {
       setUser(null)
       setCaps(EMPTY_CAPS)

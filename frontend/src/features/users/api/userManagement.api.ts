@@ -1,37 +1,11 @@
 import { http } from '../../../shared/api'
-import type {
-  InviteUserPayload,
-  UpdateUserRolesPayload,
-  UpdateUserStatusPayload,
-  UserSummary,
-} from '../types'
+import type { UserSummary } from '../types'
 
+/**
+ * 只读的可指派用户列表 —— 供派工负责人下拉、审批指派等非管理场景使用。
+ * 账号管理写操作(邀请/角色/状态/删除)见 features/admin/api/adminUser.api.ts。
+ */
 export async function fetchUsers(): Promise<UserSummary[]> {
   const res = await http.get<UserSummary[]>('/v1/users')
   return res.data
-}
-
-export async function inviteUser(data: InviteUserPayload): Promise<UserSummary> {
-  const res = await http.post<UserSummary>('/v1/users/invite', data)
-  return res.data
-}
-
-export async function updateUserRoles(
-  id: number,
-  data: UpdateUserRolesPayload,
-): Promise<UserSummary> {
-  const res = await http.patch<UserSummary>(`/v1/users/${id}/roles`, data)
-  return res.data
-}
-
-export async function updateUserStatus(
-  id: number,
-  data: UpdateUserStatusPayload,
-): Promise<UserSummary> {
-  const res = await http.patch<UserSummary>(`/v1/users/${id}/status`, data)
-  return res.data
-}
-
-export async function deleteUser(id: number): Promise<void> {
-  await http.delete(`/v1/users/${id}`)
 }

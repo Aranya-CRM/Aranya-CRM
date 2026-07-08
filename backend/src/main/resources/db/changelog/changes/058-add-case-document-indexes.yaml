@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 058-add-case-document-indexes
+      author: ShiDu
+      comment: Index case_document hot read path (case_id + status) and back the unindexed foreign keys on case_document/document.
+      changes:
+        - createIndex:
+            indexName: idx_case_document_case_status
+            tableName: case_document
+            columns:
+              - column:
+                  name: case_id
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_case_document_document_id
+            tableName: case_document
+            columns:
+              - column:
+                  name: document_id
+        - createIndex:
+            indexName: idx_case_document_linked_by
+            tableName: case_document
+            columns:
+              - column:
+                  name: linked_by
+        - createIndex:
+            indexName: idx_document_uploaded_by
+            tableName: document
+            columns:
+              - column:
+                  name: uploaded_by
+      rollback:
+        - dropIndex:
+            indexName: idx_document_uploaded_by
+            tableName: document
+        - dropIndex:
+            indexName: idx_case_document_linked_by
+            tableName: case_document
+        - dropIndex:
+            indexName: idx_case_document_document_id
+            tableName: case_document
+        - dropIndex:
+            indexName: idx_case_document_case_status
+            tableName: case_document
