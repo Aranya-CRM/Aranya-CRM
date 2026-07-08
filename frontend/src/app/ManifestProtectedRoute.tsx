@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuth } from '../contexts/AuthContext'
-import { AppLayout } from '../shared/layout'
+import { AdminLayout, AppLayout } from '../shared/layout'
 import { useAccess } from '../shared/auth'
 import { getDefaultRoute } from '../shared/auth/defaultRoute'
 import '../shared/ui/shared.css'
@@ -15,6 +15,7 @@ interface ManifestProtectedRouteProps {
 export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedRouteProps) {
   const { loading, authenticated, caps } = useAuth()
   const { canRoute, resolve } = useAccess()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -33,6 +34,11 @@ export function ManifestProtectedRoute({ routeId, children }: ManifestProtectedR
     || caps[routeId] !== undefined || resolve(routeId) || canRoute(routeId)
   if (!allowed) {
     return <Navigate to={getDefaultRoute(caps)} replace />
+  }
+
+  // 后台管理路由用独立的 AdminLayout(自有侧栏),与业务前台的 AppLayout 分开。
+  if (location.pathname.startsWith('/admin')) {
+    return <AdminLayout>{children}</AdminLayout>
   }
 
   return <AppLayout>{children}</AppLayout>

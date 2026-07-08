@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 060-1-admin-route-users
+      author: ShiDu
+      comment: "Grant ADMIN (Admin Support) route:users so it can reach the Backend Dashboard account-management section (admin:users.manage is already held)."
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN'
+                AND cd.cap_key = 'route:users'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'route:users');
+
+  - changeSet:
+      id: 060-2-admin-route-audit
+      author: ShiDu
+      comment: "Grant ADMIN route:audit so the Backend Dashboard audit section is reachable (data caps wired when audit lands)."
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN'
+                AND cd.cap_key = 'route:audit'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'route:audit');

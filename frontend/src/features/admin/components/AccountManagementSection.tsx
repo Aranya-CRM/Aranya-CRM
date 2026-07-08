@@ -8,6 +8,7 @@ import type { UserRole, UserStatus, UserSummary } from '../../users/types'
 import { useAdminUsers, useDeleteUser, useUpdateUserRoles, useUpdateUserStatus } from '../hooks/useAdminUsers'
 import { InviteUserModal } from './InviteUserModal'
 import '../../users/pages/users.css'
+import '../pages/adminDashboard.css'
 
 function normalizeText(value: string | null | undefined, fallback = '-'): string {
   const text = value?.trim()

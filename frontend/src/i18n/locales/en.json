@@ -14,6 +14,9 @@
   "admin": {
     "title": "Admin Console",
     "subtitle": "System & account administration",
+    "badge": "Backend",
+    "enter": "Admin Console",
+    "backToApp": "Back to app",
     "comingSoon": "Coming soon",
     "nav": {
       "accounts": "Accounts",
@@ -23,6 +26,9 @@
     "accounts": {
       "title": "Account Management",
       "subtitle": "Manage system users, invitations and role permissions."
+    },
+    "placeholder": {
+      "desc": "This section is on the roadmap and coming soon."
     }
   },
   "driveImport": {
