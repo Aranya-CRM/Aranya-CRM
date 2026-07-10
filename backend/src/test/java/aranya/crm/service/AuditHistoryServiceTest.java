@@ -1,0 +1,145 @@
+package aranya.crm.service;
+
+import aranya.crm.dto.response.AuditHistoryEntryResponse;
+import aranya.crm.entity.ApprovalRequest;
+import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.User;
+import aranya.crm.repository.ApprovalRequestRepository;
+import aranya.crm.repository.CaseRepository;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class AuditHistoryServiceTest {
+
+    @Mock
+    private ApprovalRequestRepository approvalRequestRepository;
+
+    @Mock
+    private CaseRepository caseRepository;
+
+    @InjectMocks
+    private AuditHistoryService auditHistoryService;
+
+    @Test
+    @DisplayName("listCaseAuditHistory returns approval-backed case history newest first")
+    void listCaseAuditHistory_returnsApprovalBackedCaseHistoryNewestFirst() {
+        ApprovalRequest older = request(8L, "CASE_SERVICE_UPDATE", "APPROVED", "CASE", 7L);
+        older.setCreatedAt(LocalDateTime.of(2026, 7, 10, 9, 0));
+        older.setDecidedAt(LocalDateTime.of(2026, 7, 10, 10, 0));
+        older.setDecisionComment("Approved service change");
+        older.setDecidedBy(user(20L, "Manager"));
+
+        ApprovalRequest newer = request(9L, "DELETE_CASE", "PENDING", "CASE", 7L);
+        newer.setCreatedAt(LocalDateTime.of(2026, 7, 10, 11, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, 3L)));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L))
+                .thenReturn(List.of(newer, older));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L))
+                .thenReturn(List.of());
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L);
+
+        assertThat(result).extracting(AuditHistoryEntryResponse::getId).containsExactly("approval-9", "approval-8");
+        assertThat(result.get(0).getAction()).isEqualTo("DELETE_CASE");
+        assertThat(result.get(0).getDecisionStatus()).isEqualTo("pending");
+        assertThat(result.get(0).getLifecycleStatus()).isEqualTo("active");
+        assertThat(result.get(0).isCanEdit()).isFalse();
+        assertThat(result.get(0).isCanDelete()).isFalse();
+        assertThat(result.get(1).getDecisionStatus()).isEqualTo("approved");
+        assertThat(result.get(1).getDecidedByName()).isEqualTo("Manager");
+        assertThat(result.get(1).getReason()).isEqualTo("Need support module");
+        assertThat(result.get(1).getMetadata()).containsEntry("addServiceKeys", "legalAid");
+        assertThat(result.get(1).getMetadata()).containsEntry("removeServiceKeys", "mealDelivery");
+    }
+
+    @Test
+    @DisplayName("listCaseAuditHistory maps sensitive file archive requests to archived lifecycle")
+    void listCaseAuditHistory_mapsSensitiveFileArchiveLifecycle() {
+        ApprovalRequest request = request(10L, "SENSITIVE_FILE_ARCHIVE", "APPROVED", "CASE", 7L);
+        request.setCreatedAt(LocalDateTime.of(2026, 7, 10, 12, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, 3L)));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L))
+                .thenReturn(List.of(request));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L))
+                .thenReturn(List.of());
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getLifecycleStatus()).isEqualTo("archived");
+        assertThat(result.get(0).getTargetType()).isEqualTo("CASE");
+    }
+
+    @Test
+    @DisplayName("listCaseAuditHistory includes approvals for the case member")
+    void listCaseAuditHistory_includesCaseMemberApprovals() {
+        ApprovalRequest clientUpdate = request(11L, "CLIENT_UPDATE", "APPROVED", "CLIENT", 3L);
+        clientUpdate.setCreatedAt(LocalDateTime.of(2026, 7, 10, 13, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, 3L)));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L))
+                .thenReturn(List.of());
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L))
+                .thenReturn(List.of(clientUpdate));
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAction()).isEqualTo("CLIENT_UPDATE");
+        assertThat(result.get(0).getTargetType()).isEqualTo("CLIENT");
+        assertThat(result.get(0).getCaseId()).isEqualTo(7L);
+    }
+
+    private ApprovalRequest request(Long id, String type, String status, String targetType, Long targetId) {
+        ObjectNode payload = JsonNodeFactory.instance.objectNode();
+        payload.put("caseId", targetId);
+        payload.putArray("addServiceKeys").add("legalAid");
+        payload.putArray("removeServiceKeys").add("mealDelivery");
+        ObjectNode approval = payload.putObject("_approval");
+        approval.put("reason", "Need support module");
+
+        ApprovalRequest request = new ApprovalRequest();
+        request.setId(id);
+        request.setType(type);
+        request.setStatus(status);
+        request.setTargetType(targetType);
+        request.setTargetId(targetId);
+        request.setRequestedBy(user(10L, "Requester"));
+        request.setPayloadJson(payload);
+        request.setCreatedAt(LocalDateTime.of(2026, 7, 10, 9, 0));
+        return request;
+    }
+
+    private User user(Long id, String fullName) {
+        User user = new User();
+        user.setId(id);
+        user.setFullName(fullName);
+        return user;
+    }
+
+    private ClientCase clientCase(Long caseId, Long clientId) {
+        Client client = new Client();
+        client.setId(clientId);
+        ClientCase clientCase = new ClientCase();
+        clientCase.setId(caseId);
+        clientCase.setClient(client);
+        return clientCase;
+    }
+}

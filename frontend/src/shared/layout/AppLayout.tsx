@@ -1,7 +1,13 @@
 import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
+import {
+  ADMIN_ENTRY_ROUTE_IDS,
+  AdminIcon,
+  NAVIGATION_ITEMS,
+  LogoutIcon,
+  type NavigationItem,
+} from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { countApprovalNavBadges } from '../../features/approvals/approvalNavBadges'
 import { usePendingApprovals } from '../../features/approvals/api/approval.api'
@@ -53,6 +59,9 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (isVolunteerOnly && item.id !== 'tasks') return false
     return resolve(item.routeId) || canRoute(item.routeId)
   })
+  const canEnterAdmin = ADMIN_ENTRY_ROUTE_IDS.some((routeId) => resolve(routeId) || canRoute(routeId))
+    || resolve('admin:console.access')
+    || canRoute('admin:console.access')
 
 
   function handleNavClick(item: NavigationItem) {
@@ -102,6 +111,22 @@ export function AppLayout({ children }: AppLayoutProps) {
             )
           })}
         </nav>
+
+        {canEnterAdmin ? (
+          <a
+            className="sidebar-admin-entry"
+            href="/admin"
+            onClick={(event) => {
+              event.preventDefault()
+              navigate('/admin')
+            }}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              <AdminIcon />
+            </span>
+            <span className="nav-label">{t('nav.admin')}</span>
+          </a>
+        ) : null}
 
       </aside>
 

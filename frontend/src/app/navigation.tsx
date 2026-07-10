@@ -66,7 +66,7 @@ function DriveImportIcon() {
   )
 }
 
-function AdminIcon() {
+export function AdminIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="9" cy="8" r="3" />

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseDocument, deleteCaseNote, deleteServiceEvent, fetchCaseAuditLog, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCaseFlags, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
+import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseDocument, deleteCaseNote, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
 import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
 
@@ -109,22 +109,6 @@ export function useDeleteCaseDocument(caseId: string | undefined) {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.documents(caseId) })
     },
-  })
-}
-
-export function useCaseAuditLog(caseId: string | undefined) {
-  return useQuery({
-    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'audit-log'] : ['cases', 'audit-log'],
-    queryFn: () => fetchCaseAuditLog(caseId!),
-    enabled: Boolean(caseId),
-  })
-}
-
-export function useCaseFlags(caseId: string | undefined) {
-  return useQuery({
-    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'flags'] : ['cases', 'flags'],
-    queryFn: () => fetchCaseFlags(caseId!),
-    enabled: Boolean(caseId),
   })
 }
 
