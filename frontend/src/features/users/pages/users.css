@@ -160,6 +160,11 @@
   color: var(--role-manager-fg);
 }
 
+.users-role-admin {
+  background: var(--role-admin-bg);
+  color: var(--role-admin-fg);
+}
+
 .users-role-social_worker {
   background: var(--role-social-bg);
   color: var(--role-social-fg);

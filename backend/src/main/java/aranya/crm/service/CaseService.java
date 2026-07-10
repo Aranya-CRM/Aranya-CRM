@@ -723,7 +723,7 @@ public class CaseService {
     }
 
     private void requireAssignable(User actor, User assigned) {
-        boolean actorManager = hasRole(actor, "MANAGER") || hasRole(actor, "FULL_MANAGER") || hasRole(actor, "TEAM_LEAD");
+        boolean actorManager = hasRole(actor, "MANAGER") || hasRole(actor, "ADMIN") || hasRole(actor, "FULL_MANAGER") || hasRole(actor, "TEAM_LEAD");
         boolean actorSocialWorker = hasRole(actor, "SOCIAL_WORKER");
         boolean assignedVolunteer = hasRole(assigned, "VOLUNTEER");
         if (actorManager && "ACTIVE".equals(assigned.getStatus())) {

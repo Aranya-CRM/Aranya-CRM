@@ -155,7 +155,7 @@ public class CapPermissionEvaluator {
             }
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
             if (capKey.equals("approvals:view")
                     || capKey.equals("approvals:decide")
                     || capKey.equals("approvals:create")) {

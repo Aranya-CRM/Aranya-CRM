@@ -278,11 +278,11 @@ public class ApprovalService {
     }
 
     private boolean canViewClients(User user) {
-        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+        return hasAnyRole(user, "MANAGER", "ADMIN", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
     }
 
     private boolean canViewCases(User user) {
-        return hasAnyRole(user, "MANAGER", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+        return hasAnyRole(user, "MANAGER", "ADMIN", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
     }
 
     private boolean hasAnyRole(User user, String... roleNames) {
@@ -315,7 +315,7 @@ public class ApprovalService {
     }
 
     private boolean isApprovalManager(User user) {
-        return hasRole(user, "MANAGER") || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
+        return hasRole(user, "MANAGER") || hasRole(user, "ADMIN") || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
     }
 
     private void requirePending(ApprovalRequest request) {

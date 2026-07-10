@@ -157,3 +157,6 @@ export const ADMIN_NAV_ITEMS: NavigationItem[] = [
     icon: <DriveImportIcon />,
   },
 ]
+
+/** 进入后台的入口只由 Admin shell cap 控制;后台内部菜单仍按各自 cap 门控。 */
+export const ADMIN_ENTRY_ROUTE_IDS = ['route:admin']

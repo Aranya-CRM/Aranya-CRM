@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 062-1-admin-mirrors-manager-caps
+      author: Codex
+      comment: "Make ADMIN inherit exactly the legacy MANAGER capabilities, plus the dedicated Admin entry route."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id <> (SELECT id FROM cap_definition WHERE cap_key = 'route:admin');
+
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT admin_role.id, manager_caps.cap_def_id, manager_caps.scope_value
+              FROM role admin_role
+              JOIN role manager_role ON manager_role.name = 'MANAGER'
+              JOIN role_cap manager_caps ON manager_caps.role_id = manager_role.id
+              WHERE admin_role.name = 'ADMIN'
+              ON CONFLICT (role_id, cap_def_id) DO UPDATE
+              SET scope_value = EXCLUDED.scope_value;
+
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN'
+                AND cd.cap_key = 'route:admin'
+              ON CONFLICT (role_id, cap_def_id) DO UPDATE
+              SET scope_value = EXCLUDED.scope_value;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id IN (
+                  SELECT cap_def_id
+                  FROM role_cap
+                  WHERE role_id = (SELECT id FROM role WHERE name = 'MANAGER')
+                );

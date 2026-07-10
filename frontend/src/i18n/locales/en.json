@@ -663,6 +663,7 @@
       "delete": "Remove or deactivate {{name}}'s account?"
     },
     "role": {
+      "ADMIN": "Admin",
       "MANAGER": "Manager",
       "SOCIAL_WORKER": "Social Worker",
       "VOLUNTEER": "Volunteer"
