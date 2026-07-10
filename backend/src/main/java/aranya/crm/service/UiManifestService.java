@@ -82,7 +82,7 @@ public class UiManifestService {
             caps.put("approvals:create", "YES");
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
             caps.put("approvals:view", "YES");
             caps.put("approvals:decide", "YES");
             caps.put("approvals:create", "YES");

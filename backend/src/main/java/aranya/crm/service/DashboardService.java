@@ -47,7 +47,7 @@ public class DashboardService {
             sections.add(volunteerRecentReports(currentUser.getId()));
             sections.add(volunteerQuickActions());
         }
-        if (roles.contains("MANAGER")) {
+        if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
             sections.add(managerStats());
             sections.add(managerRecentCases());
             sections.add(managerRecentReports());

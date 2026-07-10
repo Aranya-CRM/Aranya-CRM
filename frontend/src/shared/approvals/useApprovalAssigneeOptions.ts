@@ -49,5 +49,5 @@ function hasApprovalManagerRole(roles: Set<string>): boolean {
 }
 
 function isApprovalManagerRole(role: string): boolean {
-  return role === 'MANAGER' || role === 'FULL_MANAGER' || role === 'TEAM_LEAD'
+  return role === 'MANAGER' || role === 'ADMIN' || role === 'FULL_MANAGER' || role === 'TEAM_LEAD'
 }

@@ -130,6 +130,8 @@
   /* ── 角色 Badge / Role (紫色系区分状态) ─────────────── */
   --role-manager-bg: var(--purple-50);
   --role-manager-fg: var(--purple-800);
+  --role-admin-bg: var(--slate-100);
+  --role-admin-fg: var(--slate-800);
   --role-volunteer-bg: var(--amber-50);
   --role-volunteer-fg: var(--amber-800);
   --role-social-bg: var(--blue-50);
