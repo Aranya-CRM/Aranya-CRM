@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 061-1-define-admin-console-access
+      author: ShiDu
+      comment: "Single authoritative capability that gates entry to the Backend Dashboard (admin console)."
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO cap_definition (cap_key, domain, description) VALUES
+                ('admin:console.access', 'admin', 'Access the Backend Dashboard (admin console)')
+              ON CONFLICT (cap_key) DO NOTHING;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM cap_definition WHERE cap_key = 'admin:console.access';
+
+  - changeSet:
+      id: 061-2-grant-admin-console-access
+      author: ShiDu
+      comment: "Grant admin:console.access to the management/admin tier that operates the Backend Dashboard."
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE cd.cap_key = 'admin:console.access'
+                AND r.name IN ('ADMIN', 'MANAGER', 'FULL_MANAGER', 'TEAM_LEAD')
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'admin:console.access');

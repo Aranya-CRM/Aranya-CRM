@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 063-admin-backend-only-routes
+      author: ShiDu
+      comment: "Make ADMIN a backend-only persona: revoke front-app route caps (route:dashboard, route:clients). ADMIN keeps only backend routes (users/audit/console). Membership/system capability caps are left in place (dormant until surfaced in the backend)."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id IN (
+                  SELECT id FROM cap_definition WHERE cap_key IN ('route:dashboard', 'route:clients')
+                );
+      rollback:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN'
+                AND cd.cap_key IN ('route:dashboard', 'route:clients')
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

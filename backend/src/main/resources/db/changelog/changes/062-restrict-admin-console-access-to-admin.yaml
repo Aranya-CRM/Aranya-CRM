@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 062-restrict-admin-console-access-to-admin
+      author: ShiDu
+      comment: "Backend Dashboard is ADMIN-only: revoke admin:console.access from the manager tier, leaving only the ADMIN role."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'admin:console.access')
+                AND role_id IN (SELECT id FROM role WHERE name IN ('MANAGER', 'FULL_MANAGER', 'TEAM_LEAD'));
+      rollback:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE cd.cap_key = 'admin:console.access'
+                AND r.name IN ('MANAGER', 'FULL_MANAGER', 'TEAM_LEAD')
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

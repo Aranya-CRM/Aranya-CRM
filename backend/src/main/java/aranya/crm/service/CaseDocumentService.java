@@ -13,9 +13,11 @@ import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.DocumentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -135,15 +137,27 @@ public class CaseDocumentService {
                 .build();
     }
 
+    /**
+     * 移除个案文档 —— 遵循数据治理政策(retain by default):
+     * - §9 敏感文档(医疗 / 法律)永不删除,应改为归档或取代 → 直接拒绝;
+     * - §7 其余文档为软删除:仅标记 status=DELETED,保留 GCS 对象与数据库记录以便日后恢复,
+     *   绝不做物理删除(既不删 GCS blob,也不删表行)。
+     */
     @Transactional
     public void deleteCaseDocument(Long caseId, Long documentId) {
         requireActiveCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
-        Document document = caseDocument.getDocument();
-        fileStorageService.deleteObject(document.getObjectKey());
-        caseDocumentRepository.delete(caseDocument);
-        caseDocumentRepository.flush();
-        documentRepository.delete(document);
+        if (isSensitive(caseDocument.getCategory())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Sensitive documents (medical/legal) cannot be deleted; archive or supersede instead");
+        }
+        caseDocument.setStatus(DELETED);
+        caseDocumentRepository.save(caseDocument);
+    }
+
+    /** 政策 §9 视为「永不删除」的敏感类别。 */
+    private static boolean isSensitive(DocumentCategory category) {
+        return category == DocumentCategory.MEDICAL || category == DocumentCategory.LEGAL;
     }
 
     private ClientCase requireActiveCase(Long caseId) {
