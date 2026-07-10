@@ -663,7 +663,8 @@
       "delete": "确认移除或停用 {{name}} 的账号？"
     },
     "role": {
-      "MANAGER": "管理员",
+      "ADMIN": "管理员",
+      "MANAGER": "经理",
       "SOCIAL_WORKER": "社工",
       "VOLUNTEER": "义工"
     },

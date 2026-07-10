@@ -1,6 +1,6 @@
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'INVITED'
 
-export type UserRole = 'MANAGER' | 'SOCIAL_WORKER' | 'VOLUNTEER' | string
+export type UserRole = 'ADMIN' | 'MANAGER' | 'SOCIAL_WORKER' | 'VOLUNTEER' | string
 
 export interface UserSummary {
   id: number

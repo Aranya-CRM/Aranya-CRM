@@ -192,5 +192,5 @@ export const ADMIN_NAV_ITEMS: NavigationItem[] = [
   },
 ]
 
-/** 进入后台的入口对哪些用户可见(任一 cap 命中即显示「后台管理」入口)。 */
-export const ADMIN_ENTRY_ROUTE_IDS = ['route:users', 'route:audit', 'cases:documents.import']
+/** 进入后台的入口只由 Admin shell cap 控制;后台内部菜单仍按各自 cap 门控。 */
+export const ADMIN_ENTRY_ROUTE_IDS = ['route:admin']

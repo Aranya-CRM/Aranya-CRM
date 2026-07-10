@@ -1,0 +1,103 @@
+databaseChangeLog:
+  - changeSet:
+      id: 061-1-add-admin-entry-route-cap
+      author: Codex
+      comment: "Add a dedicated Admin shell route cap so only ADMIN can see the main Admin entry."
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO cap_definition (cap_key, domain, description)
+              VALUES ('route:admin', 'route', 'Route access: admin shell entry')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN'
+                AND cd.cap_key = 'route:admin'
+              ON CONFLICT (role_id, cap_def_id) DO UPDATE
+              SET scope_value = EXCLUDED.scope_value;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'route:admin');
+
+              DELETE FROM cap_definition WHERE cap_key = 'route:admin';
+
+  - changeSet:
+      id: 061-2-set-e1415356-admin-role
+      author: Codex
+      context: dev
+      comment: "Set e1415356@u.nus.edu to ADMIN and remove legacy MANAGER assignment."
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              DO $$
+              DECLARE
+                target_user_id BIGINT;
+                admin_role_id BIGINT;
+              BEGIN
+                SELECT id
+                INTO target_user_id
+                FROM users
+                WHERE firebase_uid = 'gYF5JKsLlmWOWpevAnKWNg03rJq2'
+                   OR email = 'e1415356@u.nus.edu'
+                ORDER BY
+                  CASE
+                    WHEN firebase_uid = 'gYF5JKsLlmWOWpevAnKWNg03rJq2' THEN 0
+                    ELSE 1
+                  END
+                LIMIT 1;
+
+                IF target_user_id IS NULL THEN
+                  INSERT INTO users (
+                    firebase_uid,
+                    username,
+                    full_name,
+                    email,
+                    email_verified,
+                    status
+                  )
+                  VALUES (
+                    'gYF5JKsLlmWOWpevAnKWNg03rJq2',
+                    'e1415356',
+                    'e1415356@u.nus.edu',
+                    'e1415356@u.nus.edu',
+                    true,
+                    'ACTIVE'
+                  )
+                  RETURNING id INTO target_user_id;
+                ELSE
+                  UPDATE users
+                  SET
+                    firebase_uid = 'gYF5JKsLlmWOWpevAnKWNg03rJq2',
+                    username = COALESCE(NULLIF(username, ''), 'e1415356'),
+                    email = 'e1415356@u.nus.edu',
+                    full_name = COALESCE(NULLIF(full_name, ''), 'e1415356@u.nus.edu'),
+                    email_verified = true,
+                    status = 'ACTIVE',
+                    updated_at = NOW()
+                  WHERE id = target_user_id;
+                END IF;
+
+                SELECT id
+                INTO admin_role_id
+                FROM role
+                WHERE name = 'ADMIN';
+
+                DELETE FROM user_role
+                WHERE user_id = target_user_id
+                  AND role_id <> admin_role_id;
+
+                INSERT INTO user_role (user_id, role_id, assigned_at, assigned_by)
+                VALUES (target_user_id, admin_role_id, NOW(), NULL)
+                ON CONFLICT (user_id, role_id) DO NOTHING;
+              END $$;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM user_role
+              WHERE user_id = (SELECT id FROM users WHERE email = 'e1415356@u.nus.edu')
+                AND role_id = (SELECT id FROM role WHERE name = 'ADMIN');
