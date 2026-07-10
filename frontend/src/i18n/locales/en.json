@@ -7,7 +7,56 @@
     "approvals": "Approvals",
     "tasks": "Help with",
     "users": "Users",
-    "profile": "View profile"
+    "profile": "View profile",
+    "driveImport": "Drive Import",
+    "admin": "Admin Console"
+  },
+  "admin": {
+    "title": "Admin Console",
+    "subtitle": "System & account administration",
+    "badge": "Backend",
+    "enter": "Admin Console",
+    "backToApp": "Back to app",
+    "comingSoon": "Coming soon",
+    "nav": {
+      "accounts": "Accounts",
+      "audit": "Audit log",
+      "settings": "Org settings"
+    },
+    "accounts": {
+      "title": "Account Management",
+      "subtitle": "Manage system users, invitations and role permissions."
+    },
+    "placeholder": {
+      "desc": "This section is on the roadmap and coming soon."
+    }
+  },
+  "driveImport": {
+    "title": "Google Drive Import",
+    "subtitle": "One-time migration: browse the organization Drive, assign files to a case and category, then import into storage.",
+    "root": "Drive",
+    "searchCase": "Search case…",
+    "selectCase": "Select target case",
+    "assignSelected": "Assign selected ({{count}})",
+    "name": "Name",
+    "type": "Type",
+    "size": "Size",
+    "modified": "Modified",
+    "folder": "Folder",
+    "emptyFolder": "This folder is empty.",
+    "staged": "To import ({{count}})",
+    "stagingEmpty": "No files staged. Select files and assign them to a case.",
+    "import": "Import {{count}} file(s)",
+    "importing": "Importing…",
+    "results": "Results",
+    "pickCaseFirst": "Select a target case first.",
+    "loadError": "Failed to load Drive files.",
+    "importError": "Import failed.",
+    "status": {
+      "IMPORTED": "Imported",
+      "SKIPPED": "Skipped",
+      "FAILED": "Failed"
+    }
   },
   "profile": {
     "title": "My Profile",
@@ -313,12 +362,12 @@
       "upload": "Upload",
       "back": "Back",
       "uploadHint": "Click or drag a file to this area to upload",
-      "uploadHintSub": "Supports a single or bulk upload. PDF, images and Office files up to 20 MB.",
+      "uploadHintSub": "Supports a single or bulk upload. PDF, images and Office files up to 25 MB.",
+      "categoryLabel": "Category",
       "fileNameLabel": "File name (optional)",
       "fileNamePlaceholder": "Leave blank to keep the original name",
       "fileUnit": "files",
       "previewUnsupported": "Preview is not available for this format. Please download to view.",
-      "previewDemoHint": "Preview will appear here once files are connected (demo).",
       "category": {
         "ordination": "Ordination Certificate",
         "medical": "Medical Records",
@@ -328,6 +377,12 @@
       "download": "Download",
       "delete": "Delete",
       "deleteConfirm": "Delete this document? This cannot be undone.",
+      "loadError": "Failed to load documents. Please try again later.",
+      "uploadError": "Failed to upload document. Please try again later.",
+      "storageUnavailable": "File storage is not configured. Configure the GCS bucket before uploading.",
+      "fileTooLarge": "File exceeds the upload size limit. Choose a file up to 25 MB.",
+      "downloadError": "Failed to create download link. Please try again later.",
+      "deleteError": "Failed to delete document. Please try again later.",
       "empty": "No documents in this category yet.",
       "count_one": "{{count}} file",
       "count_other": "{{count}} files"
@@ -501,6 +556,7 @@
     "profile": {
       "convertToClient": "Convert to Client",
       "convertToCase": "Convert to Case",
+      "viewCase": "View Case",
       "closeCase": "Close Case",
       "closeCasePending": "Close Pending",
       "editProfile": "Edit Profile",
@@ -607,6 +663,7 @@
       "delete": "Remove or deactivate {{name}}'s account?"
     },
     "role": {
+      "ADMIN": "Admin",
       "MANAGER": "Manager",
       "SOCIAL_WORKER": "Social Worker",
       "VOLUNTEER": "Volunteer"

@@ -15,6 +15,7 @@
         <java.version>17</java.version>
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.8.6</springdoc.version>
+        <google.cloud.storage.version>2.69.0</google.cloud.storage.version>
         <sonar.projectKey>aranya-crm</sonar.projectKey>
         <sonar.projectName>Aranya CRM Backend</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
@@ -40,6 +41,12 @@
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-calendar</artifactId>
             <version>v3-rev20240906-2.0.0</version>
+        </dependency>
+        <!-- Google Drive API (一次性历史文件迁移导入,复用 infotech OAuth) -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-drive</artifactId>
+            <version>v3-rev20241206-2.0.0</version>
         </dependency>
         <!-- Web -->
         <dependency>
@@ -87,6 +94,13 @@
             <groupId>com.google.cloud.sql</groupId>
             <artifactId>postgres-socket-factory</artifactId>
             <version>1.20.1</version>
+        </dependency>
+
+        <!-- Google Cloud Storage -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>${google.cloud.storage.version}</version>
         </dependency>
 
         <!-- Liquibase -->

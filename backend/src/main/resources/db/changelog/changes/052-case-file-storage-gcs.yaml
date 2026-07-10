@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 052-case-file-storage-gcs
+      author: system
+      comment: Add GCS metadata and fixed case document categories
+      changes:
+        - addColumn:
+            tableName: document
+            columns:
+              - column:
+                  name: bucket_name
+                  type: VARCHAR(255)
+              - column:
+                  name: object_key
+                  type: VARCHAR(500)
+              - column:
+                  name: checksum_sha256
+                  type: VARCHAR(64)
+        - addColumn:
+            tableName: case_document
+            columns:
+              - column:
+                  name: category
+                  type: VARCHAR(30)
+                  defaultValue: ORDINATION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: |
+              ALTER TABLE case_document
+                ADD CONSTRAINT ck_case_document_category
+                CHECK (category IN ('ORDINATION', 'MEDICAL', 'FINANCIAL', 'LEGAL'));
+              ALTER TABLE case_document
+                ADD CONSTRAINT ck_case_document_status
+                CHECK (status IN ('ACTIVE', 'DELETED'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE case_document DROP CONSTRAINT IF EXISTS ck_case_document_status;
+              ALTER TABLE case_document DROP CONSTRAINT IF EXISTS ck_case_document_category;
+        - dropColumn:
+            tableName: case_document
+            columnName: status
+        - dropColumn:
+            tableName: case_document
+            columnName: category
+        - dropColumn:
+            tableName: document
+            columnName: checksum_sha256
+        - dropColumn:
+            tableName: document
+            columnName: object_key
+        - dropColumn:
+            tableName: document
+            columnName: bucket_name

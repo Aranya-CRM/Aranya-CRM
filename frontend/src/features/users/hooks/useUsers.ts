@@ -1,16 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  deleteUser,
-  fetchUsers,
-  inviteUser,
-  updateUserRoles,
-  updateUserStatus,
-} from '../api/userManagement.api'
-import type {
-  InviteUserPayload,
-  UpdateUserRolesPayload,
-  UpdateUserStatusPayload,
-} from '../types'
+import { useQuery } from '@tanstack/react-query'
+import { fetchUsers } from '../api/userManagement.api'
 
 export const userQueryKeys = {
   all: ['users'] as const,
@@ -18,55 +7,10 @@ export const userQueryKeys = {
   list: () => [...userQueryKeys.lists()] as const,
 }
 
+/** 只读用户列表(派工/审批指派下拉)。账号管理的增删改见 features/admin。 */
 export function useUsers() {
   return useQuery({
     queryKey: userQueryKeys.list(),
     queryFn: fetchUsers,
-  })
-}
-
-export function useInviteUser() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: InviteUserPayload) => inviteUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-    },
-  })
-}
-
-export function useUpdateUserRoles() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateUserRolesPayload }) =>
-      updateUserRoles(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-    },
-  })
-}
-
-export function useUpdateUserStatus() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateUserStatusPayload }) =>
-      updateUserStatus(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-    },
-  })
-}
-
-export function useDeleteUser() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (id: number) => deleteUser(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-    },
   })
 }

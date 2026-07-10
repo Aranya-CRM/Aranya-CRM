@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,11 +32,11 @@ public class Document {
     @Column(name = "store_name", nullable = false)
     private String storeName;
 
-    @Column(name = "s3_bucket")
-    private String s3Bucket;
+    @Column(name = "bucket_name")
+    private String bucketName;
 
-    @Column(name = "s3_key", length = 500)
-    private String s3Key;
+    @Column(name = "object_key", length = 500)
+    private String objectKey;
 
     @Column(name = "mime_type", length = 100)
     private String mimeType;
@@ -62,6 +63,17 @@ public class Document {
     @Column(name = "checksum")
     private String checksum;
 
+    @Column(name = "checksum_sha256", length = 64)
+    private String checksumSha256;
+
+    /** 来源:UPLOAD(用户上传)或 DRIVE_IMPORT(从组织 Google Drive 迁入) */
+    @Column(name = "source", nullable = false, length = 20)
+    private String source = "UPLOAD";
+
+    /** Drive 导入的原始文件 id;用于迁移幂等(同一 case 不重复导入同一 Drive 文件) */
+    @Column(name = "drive_file_id", length = 128)
+    private String driveFileId;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -70,5 +82,10 @@ public class Document {
         if (this.uploadedAt == null) {
             this.uploadedAt = LocalDateTime.now();
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

@@ -7,7 +7,56 @@
     "approvals": "审批",
     "tasks": "协助",
     "users": "用户管理",
-    "profile": "查看个人主页"
+    "profile": "查看个人主页",
+    "driveImport": "Drive 导入",
+    "admin": "管理控制台"
+  },
+  "admin": {
+    "title": "后台管理",
+    "subtitle": "系统与账号管理",
+    "badge": "后台",
+    "enter": "后台管理",
+    "backToApp": "返回应用",
+    "comingSoon": "即将上线",
+    "nav": {
+      "accounts": "账号管理",
+      "audit": "审计日志",
+      "settings": "组织设置"
+    },
+    "accounts": {
+      "title": "账号管理",
+      "subtitle": "管理系统用户、邀请与角色权限。"
+    },
+    "placeholder": {
+      "desc": "此分区功能正在规划中,敬请期待。"
+    }
+  },
+  "driveImport": {
+    "title": "Google Drive 导入",
+    "subtitle": "一次性迁移:浏览组织 Drive,把文件指派到 case 与分类,再导入到文件存储。",
+    "root": "Drive",
+    "searchCase": "搜索个案…",
+    "selectCase": "选择目标个案",
+    "assignSelected": "指派选中({{count}})",
+    "name": "名称",
+    "type": "类型",
+    "size": "大小",
+    "modified": "修改时间",
+    "folder": "文件夹",
+    "emptyFolder": "该文件夹为空。",
+    "staged": "待导入({{count}})",
+    "stagingEmpty": "尚未加入文件。勾选文件并指派到个案。",
+    "import": "导入 {{count}} 个文件",
+    "importing": "导入中…",
+    "results": "结果",
+    "pickCaseFirst": "请先选择目标个案。",
+    "loadError": "加载 Drive 文件失败。",
+    "importError": "导入失败。",
+    "status": {
+      "IMPORTED": "已导入",
+      "SKIPPED": "已跳过",
+      "FAILED": "失败"
+    }
   },
   "profile": {
     "title": "个人主页",
@@ -313,12 +362,12 @@
       "upload": "上传文件",
       "back": "返回",
       "uploadHint": "点击或拖拽文件到此区域上传",
-      "uploadHintSub": "支持单个或批量上传。PDF、图片及 Office 文件,单个不超过 20 MB。",
+      "uploadHintSub": "支持单个或批量上传。PDF、图片及 Office 文件,单个不超过 25 MB。",
+      "categoryLabel": "文件分类",
       "fileNameLabel": "文件名(可选)",
       "fileNamePlaceholder": "留空则保留原始文件名",
       "fileUnit": "个文件",
       "previewUnsupported": "此格式暂不支持在线预览,请下载查看。",
-      "previewDemoHint": "接入文件后此处显示预览(示例)。",
       "category": {
         "ordination": "出家证明",
         "medical": "医疗记录",
@@ -328,6 +377,12 @@
       "download": "下载",
       "delete": "删除",
       "deleteConfirm": "确定删除该文件?此操作不可撤销。",
+      "loadError": "文件加载失败，请稍后重试。",
+      "uploadError": "文件上传失败，请稍后重试。",
+      "storageUnavailable": "文件存储尚未配置，请先配置 GCS bucket 后再上传。",
+      "fileTooLarge": "文件超过上传大小限制，请选择 25 MB 以内的文件。",
+      "downloadError": "文件下载链接生成失败，请稍后重试。",
+      "deleteError": "文件删除失败，请稍后重试。",
       "empty": "该分类下暂无文件",
       "count_one": "{{count}} 个文件",
       "count_other": "{{count}} 个文件"
@@ -501,6 +556,7 @@
     "profile": {
       "convertToClient": "转为客户",
       "convertToCase": "转为个案",
+      "viewCase": "查看个案",
       "closeCase": "关闭个案",
       "closeCasePending": "关闭审批中",
       "editProfile": "编辑档案",
@@ -607,7 +663,8 @@
       "delete": "确认移除或停用 {{name}} 的账号？"
     },
     "role": {
-      "MANAGER": "管理员",
+      "ADMIN": "管理员",
+      "MANAGER": "经理",
       "SOCIAL_WORKER": "社工",
       "VOLUNTEER": "义工"
     },

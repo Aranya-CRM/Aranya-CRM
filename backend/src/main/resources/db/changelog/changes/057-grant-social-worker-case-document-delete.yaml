@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 057-grant-social-worker-case-document-delete
+      author: system
+      comment: Allow social workers to delete case documents
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'ALL'
+              FROM role r
+              JOIN cap_definition cd ON cd.cap_key = 'cases:documents.delete'
+              WHERE r.name = 'SOCIAL_WORKER'
+              ON CONFLICT (role_id, cap_def_id)
+              DO UPDATE SET scope_value = EXCLUDED.scope_value;

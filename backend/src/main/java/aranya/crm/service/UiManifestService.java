@@ -63,6 +63,8 @@ public class UiManifestService {
 
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
             caps.keySet().removeIf(capKey -> capKey.startsWith("route:") && !capKey.equals("route:tasks"));
+            caps.remove("cases:view");
+            caps.keySet().removeIf(capKey -> capKey.startsWith("cases:documents."));
             caps.put("route:tasks", "YES");
             caps.put("tasks.list", "YES");
             return;
@@ -75,10 +77,12 @@ public class UiManifestService {
             caps.put("cases:view", "ALL");
             caps.put("cases:create", "WORKFLOW");
             caps.put("cases:services.create", "WORKFLOW");
+            caps.put("cases:documents.upload", "ALL");
+            caps.put("cases:documents.delete", "ALL");
             caps.put("approvals:create", "YES");
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
             caps.put("approvals:view", "YES");
             caps.put("approvals:decide", "YES");
             caps.put("approvals:create", "YES");

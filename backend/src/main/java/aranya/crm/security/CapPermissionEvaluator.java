@@ -123,6 +123,9 @@ public class CapPermissionEvaluator {
             if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
                 return "YES";
             }
+            if (capKey.equals("cases:view") || capKey.startsWith("cases:documents.")) {
+                return "NO";
+            }
             if (capKey.startsWith("route:")) {
                 return "NO";
             }
@@ -144,12 +147,15 @@ public class CapPermissionEvaluator {
             if (capKey.equals("cases:services.create")) {
                 return "WORKFLOW";
             }
+            if (capKey.equals("cases:documents.upload") || capKey.equals("cases:documents.delete")) {
+                return "ALL";
+            }
             if (capKey.equals("approvals:create")) {
                 return "YES";
             }
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
             if (capKey.equals("approvals:view")
                     || capKey.equals("approvals:decide")
                     || capKey.equals("approvals:create")) {

@@ -1,10 +1,12 @@
 package aranya.crm.controller;
 
 
+import aranya.crm.dto.request.UpdateMyLanguageRequest;
 import aranya.crm.dto.response.MeResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,5 +31,13 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponse> me(@CurrentUser User user){
         return ResponseEntity.ok(userService.getCurrentUser(user));
+    }
+
+    /** 更新当前用户的界面语言偏好(zh/en),跟随账号跨设备生效。 */
+    @PatchMapping("/me/language")
+    public ResponseEntity<MeResponse> updateMyLanguage(
+            @CurrentUser User user,
+            @Valid @RequestBody UpdateMyLanguageRequest req) {
+        return ResponseEntity.ok(userService.updateMyLanguage(user, req.getLanguage()));
     }
 }

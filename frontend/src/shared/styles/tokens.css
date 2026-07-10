@@ -87,10 +87,12 @@
   /* 编辑 (高频,实心蓝) */
   --btn-edit-bg: var(--blue-400);
   --btn-edit-fg: #ffffff;
-  /* 删除 / 关闭 (浅红) */
-  --btn-danger-bg: var(--red-50);
-  --btn-danger-fg: var(--red-800);
-  --btn-danger-border: var(--red-100);
+  /* 删除 / 关闭 (白底黑字 — 不使用红色)
+   * 设计决策:删除/关闭类操作一律「白底 + 黑字 + 中性灰边框」,
+   * 不再用红底传达危险感。所有 .btn-danger 及各 feature 的删除按钮统一遵循此规范。 */
+  --btn-danger-bg: #ffffff;
+  --btn-danger-fg: var(--text-main);
+  --btn-danger-border: var(--border-strong);
   /* 归档 / 标记 / 停用 (琥珀) */
   --btn-warn-bg: var(--amber-50);
   --btn-warn-fg: var(--amber-800);
@@ -128,6 +130,8 @@
   /* ── 角色 Badge / Role (紫色系区分状态) ─────────────── */
   --role-manager-bg: var(--purple-50);
   --role-manager-fg: var(--purple-800);
+  --role-admin-bg: var(--slate-100);
+  --role-admin-fg: var(--slate-800);
   --role-volunteer-bg: var(--amber-50);
   --role-volunteer-fg: var(--amber-800);
   --role-social-bg: var(--blue-50);

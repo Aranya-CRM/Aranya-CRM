@@ -137,8 +137,19 @@ export function ClientListPage() {
     [clientsAvailableForCase],
   )
 
+  // 「有个案」以真实个案列表为准(与资料卡的 activeProfileCase、查看个案按钮同一口径),
+  // 而不是取 /without-case 的补集——后者还会额外排除非 active 会员与待审批会员,会误判。
+  const withCaseIds = useMemo(
+    () => new Set(
+      cases
+        .filter((item) => !['CLOSED', 'DELETED'].includes(String(item.status).toUpperCase()))
+        .map((item) => item.clientId),
+    ),
+    [cases],
+  )
+
   const filtered = useMemo(() => {
-    return applyClientCaseFilter(applyClientStatusFilter(clients, filterArchive), withoutCaseIds, filterCase).filter((client) => {
+    return applyClientCaseFilter(applyClientStatusFilter(clients, filterArchive), withCaseIds, filterCase).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
@@ -148,7 +159,7 @@ export function ClientListPage() {
       const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
       return matchSearch && matchTradition
     })
-  }, [clients, filterArchive, filterCase, filterTradition, search, withoutCaseIds])
+  }, [clients, filterArchive, filterCase, filterTradition, search, withCaseIds])
 
   const clientApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
@@ -596,6 +607,7 @@ export function ClientListPage() {
                 onConfirmCloseCase={() => void confirmCloseCase()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
+                onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
               />
             )}
           </>
@@ -1085,6 +1097,7 @@ interface ClientProfilePanelProps {
   onConfirmCloseCase: () => void
   onEdit: () => void
   onCreateCase: () => void
+  onViewCase: () => void
 }
 
 function ClientProfilePanel({
@@ -1111,6 +1124,7 @@ function ClientProfilePanel({
   onConfirmCloseCase,
   onEdit,
   onCreateCase,
+  onViewCase,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
   const actionGroups = profileActionGroups({
@@ -1197,7 +1211,7 @@ function ClientProfilePanel({
           onApproveApproval={onApproveApproval}
           onRejectApproval={onRejectApproval}
         />
-      ) : actionGroups.primary.length || actionGroups.secondary.length ? (
+      ) : actionGroups.primary.length || actionGroups.secondary.length || activeCase ? (
         <footer className="client-profile-action-footer split">
           <div className="client-profile-secondary-actions">
             {actionGroups.secondary.includes('convertToCase') ? (
@@ -1217,6 +1231,13 @@ function ClientProfilePanel({
             ) : null}
           </div>
           <div className="client-profile-primary-actions">
+            {activeCase ? (
+              <button className="client-profile-case-link" type="button" onClick={onViewCase}>
+                <span className="client-profile-case-link-label">{t('clients.profile.viewCase')}</span>
+                <span className="client-profile-case-link-no">{activeCase.caseNo}</span>
+                <span aria-hidden="true" className="client-profile-case-link-arrow">→</span>
+              </button>
+            ) : null}
             {actionGroups.primary.includes('editProfile') ? (
               <button className="btn-edit" type="button" onClick={onEdit}>
                 {t('clients.profile.editProfile')}

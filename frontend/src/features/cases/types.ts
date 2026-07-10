@@ -131,6 +131,26 @@ export interface CaseNote {
   createdAt: string
 }
 
+export type CaseDocumentCategory = 'ORDINATION' | 'MEDICAL' | 'FINANCIAL' | 'LEGAL'
+
+export interface CaseDocument {
+  id: number
+  documentId: number
+  caseId: number
+  category: CaseDocumentCategory
+  fileName: string
+  mimeType: string
+  fileSize: number
+  uploadedByName?: string | null
+  uploadedAt: string
+}
+
+export interface DocumentDownloadUrl {
+  url: string
+  fileName: string
+  expiresInSeconds: number
+}
+
 export interface CaseStatusChange {
   id: string
   caseId: string

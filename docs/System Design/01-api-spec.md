@@ -33,9 +33,12 @@ Implemented HTTP API groups:
 | Auth profile | `GET /api/v1/auth/me` |
 | UI manifest | `GET /api/v1/ui/manifest` |
 | Dashboard | `GET /api/v1/dashboard` |
-| Users | `GET /api/v1/users`, `POST /api/v1/users/invite`, `PATCH /api/v1/users/{id}/roles`, `PATCH /api/v1/users/{id}/status`, `DELETE /api/v1/users/{id}` |
+| Users (read-only list) | `GET /api/v1/users` |
+| Admin — user management | `GET /api/admin/v1/users`, `POST /api/admin/v1/users/invite`, `PATCH /api/admin/v1/users/{id}/roles`, `PATCH /api/admin/v1/users/{id}/status`, `DELETE /api/admin/v1/users/{id}` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
+| Case documents | `GET/POST /api/v1/cases/{id}/documents`, `GET /api/v1/cases/{id}/documents/{documentId}/download-url`, `DELETE /api/v1/cases/{id}/documents/{documentId}` |
+| Drive migration | `GET /api/v1/admin/drive/files`, `POST /api/v1/admin/drive/import` |
 
 Not implemented as backend HTTP APIs yet:
 
@@ -157,6 +160,26 @@ Notes:
 - This endpoint intentionally does not expose roles or capabilities.
 - Role/capability data is returned by `GET /api/v1/ui/manifest`.
 - `UserService.syncFromFirebase` may update `emailVerified` and `fullName` from the Firebase token during authentication.
+- `preferredLanguage` (`zh` | `en` | `null`) carries the user's saved UI language preference; `null` means the frontend falls back to browser/default.
+
+### PATCH `/api/v1/auth/me/language`
+
+Persists the current user's UI language preference (follows the account across devices/browsers).
+
+Authorization:
+
+- Authenticated Firebase user
+- No role requirement
+
+Request:
+
+```json
+{ "language": "en" }
+```
+
+- `language` is required and must be `zh` or `en` (case-insensitive); any other value returns `400`.
+
+Response: the updated `MeResponse` (same shape as `GET /api/v1/auth/me`, with the new `preferredLanguage`).
 
 ## 6. UI Manifest API
 
@@ -286,16 +309,18 @@ Notes:
 - Dashboard returns data ids and values only. It does not return frontend-owned labels or layout instructions.
 - `pendingReports` is currently returned as `"0"` because report review workflow fields are not implemented.
 
-## 8. User Management API
+## 8. User List API (read-only)
 
-All endpoints in this section require:
-
-- Authenticated Firebase user
-- `ROLE_MANAGER`
+Account management **write** operations have moved to the Admin Dashboard API (section 8a, `/api/admin/v1/users`). This section keeps only the read-only list used by non-admin features (case service-event assignee picker, approval assignee options).
 
 ### GET `/api/v1/users`
 
-Lists local users with their local roles.
+Lists local users with their local roles. Used as the "assignable users" source.
+
+Authorization:
+
+- Authenticated Firebase user
+- `admin:users.manage` **or** `cases:services.create` (so caseworkers can populate assignee dropdowns)
 
 Response:
 
@@ -312,9 +337,17 @@ Response:
 ]
 ```
 
-### POST `/api/v1/users/invite`
+## 8a. Admin Dashboard — User Management API
 
-Creates a local user and assigns local roles.
+Base path `/api/admin/v1/users`. All endpoints require the `admin:users.manage` capability. Logic is delegated to `UserService` (same behavior as the previous `/api/v1/users` write endpoints); only the namespace changed.
+
+### GET `/api/admin/v1/users`
+
+Lists all local users for the admin console (same shape as `GET /api/v1/users`).
+
+### POST `/api/admin/v1/users/invite`
+
+Creates a Firebase Auth account (email marked verified, no password) plus a local user with status `INVITED` and the assigned role; rolls back the Firebase account if local persistence fails. The frontend then triggers Firebase's built-in "set password" email. On first full login (password set + TOTP) the auth filter flips the user to `ACTIVE`.
 
 Request:
 
@@ -330,96 +363,25 @@ Request:
 
 Validation:
 
-- `username`: required, max 50
-- `fullName`: required, max 100
+- `username`: optional, max 50 (derived from email if blank)
+- `fullName`: optional, max 100 (derived from email local part if blank)
 - `email`: required, valid email, max 100
 - `phone`: optional, max 20
-- `roles`: required, non-empty
+- `roles`: required, exactly one role
 
-Response:
+Response: `UserSummaryDto` for the created user (`status: "INVITED"`).
 
-```json
-{
-  "id": 5,
-  "username": "new_user",
-  "email": "new.user@example.com",
-  "fullName": "New User",
-  "status": "ACTIVE",
-  "roles": ["VOLUNTEER"]
-}
-```
+### PATCH `/api/admin/v1/users/{id}/roles`
 
-Current limitation:
+Replaces the user's local role. Request `{ "roles": ["MANAGER"] }` (exactly one role, must exist in the `role` table). Returns the updated `UserSummaryDto`.
 
-- This endpoint creates only the local database user.
-- The current `users.firebase_uid` column is non-null in the database schema, while `UserService.invite` does not set `firebaseUid`. Until that is fixed, this endpoint may fail at persistence time.
-- It does not create a Firebase Auth user and does not send an email invitation yet.
-- The generated temporary password is internal only and is not returned.
+### PATCH `/api/admin/v1/users/{id}/status`
 
-### PATCH `/api/v1/users/{id}/roles`
+Updates local user status. Request `{ "status": "INACTIVE" }` (`ACTIVE` or `INACTIVE`). Managers cannot deactivate their own account (`400`). Returns the updated `UserSummaryDto`.
 
-Replaces all local roles for a user.
+### DELETE `/api/admin/v1/users/{id}`
 
-Request:
-
-```json
-{
-  "roles": ["MANAGER", "SOCIAL_WORKER"]
-}
-```
-
-Validation:
-
-- `roles`: required, non-empty
-- Each role must exist in the local `role` table
-
-Response:
-
-```json
-{
-  "id": 5,
-  "username": "new_user",
-  "email": "new.user@example.com",
-  "fullName": "New User",
-  "status": "ACTIVE",
-  "roles": ["MANAGER", "SOCIAL_WORKER"]
-}
-```
-
-### PATCH `/api/v1/users/{id}/status`
-
-Updates local user status.
-
-Request:
-
-```json
-{
-  "status": "INACTIVE"
-}
-```
-
-Validation:
-
-- `status` must be `ACTIVE` or `INACTIVE`
-
-Response:
-
-```json
-{
-  "id": 5,
-  "username": "new_user",
-  "email": "new.user@example.com",
-  "fullName": "New User",
-  "status": "INACTIVE",
-  "roles": ["VOLUNTEER"]
-}
-```
-
-### DELETE `/api/v1/users/{id}`
-
-Soft-deletes a user by setting local status to `INACTIVE`.
-
-Response:
+Soft-deletes a user by setting local status to `DELETED`. Managers cannot remove their own account (`400`).
 
 ```http
 204 No Content
@@ -732,6 +694,40 @@ Notes:
 
 - POST/PATCH bodies use `CreateServiceEventRequest`. `scheduledEnd`, when provided, must not be before `scheduledStart` (otherwise `400`).
 - `ServiceEventResponse` includes `synced` (true when a `google_event_id` exists) and `googleCalendarId` (the calendar the mirror currently lives on). The frontend shows a "not synced" badge + retry when integration is enabled but `synced=false`.
+
+### Case document endpoints
+
+| Method & Path | Cap | Purpose |
+|---------------|-----|---------|
+| `GET /api/v1/cases/{id}/documents` | `cases:view` | List active case files grouped by fixed category on the frontend. |
+| `POST /api/v1/cases/{id}/documents` | `cases:view` + `cases:documents.upload` | Multipart upload with `category`, `file`, and optional `displayName`; metadata is stored in the database and file bytes in GCS. |
+| `GET /api/v1/cases/{id}/documents/{documentId}/download-url` | `cases:view` | Return a short-lived signed GCS URL. Query `disposition=attachment` forces browser download; `disposition=inline` supports preview. |
+| `DELETE /api/v1/cases/{id}/documents/{documentId}` | `cases:view` + `cases:documents.delete` | Permanently delete the GCS object, case-document link, and document metadata. |
+
+- Categories are exactly `ORDINATION`, `MEDICAL`, `FINANCIAL`, and `LEGAL`.
+- GCS object keys are business-readable: `cases/{safeCaseCode}/{categoryFolder}/{timestamp}-{documentId}-{safeFileName}`.
+  For example, case code `ASDFL/2026/C/006` is stored under `cases/ASDFL-2026-C-006/Medical Records/...`.
+  Category folders use the full English labels: `Ordination Certificate`, `Medical Records`,
+  `Financial Records`, and `Legal Documents`.
+- No sensitive-file visibility split in this phase. `document` carries a `source` (`UPLOAD` / `DRIVE_IMPORT`) and, for imports, a `drive_file_id`.
+
+### Drive migration endpoints
+
+One-time migration console for importing historical files from the organization Google Drive into GCS-backed case documents. Reads Drive as the shared `infotech` account (its OAuth refresh token must include `drive.readonly`).
+
+| Method & Path | Cap | Purpose |
+|---------------|-----|---------|
+| `GET /api/v1/admin/drive/files?folderId={id}` | `cases:documents.import` | List folders/files under a Drive folder (omit `folderId` for the configured root). Google-native docs report an `exportAs` hint (e.g. `PDF`). |
+| `POST /api/v1/admin/drive/import` | `cases:documents.import` | Batch import: body `{ items: [{ driveFileId, caseId, category, displayName? }] }`. Returns a per-item result (`IMPORTED` / `SKIPPED` / `FAILED`). |
+
+- `cases:documents.import` is granted to managers only.
+- Controlled by `google.drive.*` config; when disabled or credentials are missing, both endpoints return `503 DRIVE_IMPORT_UNAVAILABLE` (safe degrade).
+- Idempotent: a `(caseId, driveFileId)` already imported is `SKIPPED`. Each item imports in its own transaction, so one failure does not block the rest.
+- Google-native documents are exported before storage (Docs→PDF, Sheets→XLSX, Slides→PDF, Drawings→PNG, others→PDF).
+
+### Approval expiry
+
+`CASE_CREATE` approvals (convert/create case) carry an `expires_at` of `created_at + 30 days`. Overdue pending requests are auto-set to status `EXPIRED` by a daily scheduled sweep (and defensively at decision time), so a create-case approval always reaches a result within 30 days. Other approval types have no time limit.
 
 ## 11. APIs Not Yet Implemented
 

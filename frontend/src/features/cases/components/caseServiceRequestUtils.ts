@@ -19,3 +19,12 @@ export function selectedServiceForMode<T>(
     ? { servicesToAdd: [selectedService], servicesToRemove: [] }
     : { servicesToAdd: [], servicesToRemove: [selectedService] }
 }
+
+export function selectedServicesForMode<T>(
+  mode: ServiceRequestMode,
+  selectedServices: T[],
+): { servicesToAdd: T[]; servicesToRemove: T[] } {
+  return mode === 'add'
+    ? { servicesToAdd: selectedServices, servicesToRemove: [] }
+    : { servicesToAdd: [], servicesToRemove: selectedServices }
+}

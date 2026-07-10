@@ -721,7 +721,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #9a3412;
+  color: var(--text-main);
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
@@ -729,7 +729,7 @@
 }
 
 .case-detail-more-danger:hover:not(:disabled) {
-  background: #fff7ed;
+  background: var(--bg-hover);
 }
 
 .case-detail-more-danger:disabled {
@@ -1679,11 +1679,31 @@
 
 .case-service-request-actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid #e8ebf0;
+}
+
+.case-service-action-left,
+.case-service-action-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.case-service-action-button {
+  border-color: #d8dde6;
+  background: #ffffff;
+  color: var(--text-main);
+}
+
+.case-service-action-button:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #bfc7d4;
+  filter: none;
 }
 
 .case-service-card-grid {
@@ -1709,11 +1729,31 @@
   background: #f8fbff;
 }
 
+.case-service-card.selectable-remove {
+  cursor: pointer;
+}
+
+.case-service-card.selectable-remove:hover {
+  border-color: #cbd5e1;
+}
+
+.case-service-card.selected-remove {
+  border-color: #fca5a5;
+  background: #fffafa;
+}
+
 .case-service-card-header {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 58px;
+}
+
+.case-service-remove-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .case-service-card-header > div {
@@ -2227,14 +2267,17 @@
   color: var(--text-main);
 }
 
-.case-document-name-field input {
+.case-document-name-field input,
+.case-document-name-field select {
   padding: 8px 12px;
   border: 1px solid #e0e0e8;
   border-radius: 6px;
   font-size: 13px;
+  background: #fff;
 }
 
-.case-document-name-field input:focus {
+.case-document-name-field input:focus,
+.case-document-name-field select:focus {
   outline: none;
   border-color: #6d28d9;
 }
@@ -2383,9 +2426,9 @@
 }
 
 .btn-document-action.danger:hover {
-  border-color: #dc2626;
-  color: #dc2626;
-  background: #fef2f2;
+  border-color: var(--text-main);
+  color: var(--text-main);
+  background: var(--bg-hover);
 }
 
 /* ── Audit Tab ── */

@@ -207,13 +207,13 @@
 }
 .btn-audit:hover:not(:disabled) { filter: brightness(0.97); }
 
-/* 删除 / 关闭个案 — 浅红底(警示但不抢眼) */
+/* 删除 / 关闭个案 — 白底黑字(不使用红色,见 tokens.css --btn-danger-*) */
 .btn-danger {
   border: 1px solid var(--btn-danger-border);
   background: var(--btn-danger-bg);
   color: var(--btn-danger-fg);
 }
-.btn-danger:hover:not(:disabled) { filter: brightness(0.97); }
+.btn-danger:hover:not(:disabled) { background: var(--bg-hover); }
 
 /* 归档 / 标记 / 停用 — 琥珀底(可逆谨慎操作) */
 .btn-warn {

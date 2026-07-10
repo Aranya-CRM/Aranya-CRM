@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, type ReactNode, type SyntheticEvent, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAccess } from '../../../shared/auth/useAccess'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -17,7 +17,7 @@ import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
 import { AddCaseEventForm } from './AddCaseEventForm'
 import { CaseIntensityDot } from './CaseIntensityDot'
-import { selectedServiceForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
+import { selectedServiceForMode, selectedServicesForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
 
 type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
 
@@ -425,6 +425,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   const { resolve } = useAccess()
   const { user } = useAuth()
   const [selectedService, setSelectedService] = useState<keyof CaseServices | ''>('')
+  const [selectedRemoveServices, setSelectedRemoveServices] = useState<Array<keyof CaseServices>>([])
   const [serviceRequestMode, setServiceRequestMode] = useState<ServiceRequestMode | null>(null)
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
   const [serviceApprovalError, setServiceApprovalError] = useState('')
@@ -451,11 +452,13 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   const availableServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>)
     .filter((key) => !caseData.services[key] && !pendingAddKeys.includes(key))
   const removableServiceKeys = displayedServiceKeys.filter((key) => !pendingRemoveKeys.includes(key))
-  const selectedServices = serviceRequestMode
+  const selectedServiceChanges = serviceRequestMode === 'add'
     ? selectedServiceForMode(serviceRequestMode, selectedService)
+    : serviceRequestMode === 'remove'
+      ? selectedServicesForMode(serviceRequestMode, selectedRemoveServices)
     : { servicesToAdd: [], servicesToRemove: [] }
-  const activeServicesToAdd = selectedServices.servicesToAdd
-  const activeServicesToRemove = selectedServices.servicesToRemove
+  const activeServicesToAdd = selectedServiceChanges.servicesToAdd
+  const activeServicesToRemove = selectedServiceChanges.servicesToRemove
 
   function pendingApprovalForService(serviceKey: keyof CaseServices, operation: 'add' | 'remove') {
     return pendingServiceApprovals.find((approval) => (
@@ -477,12 +480,22 @@ function ServicesTab({ caseData }: { caseData: Case }) {
 
   function openServiceRequest(mode: ServiceRequestMode) {
     setSelectedService('')
+    setSelectedRemoveServices([])
     setServiceApprovalError('')
     setServiceRequestMode(mode)
   }
 
-  function submitServiceApproval(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function toggleRemoveService(serviceKey: keyof CaseServices) {
+    if (serviceRequestMode !== 'remove' || !removableServiceKeys.includes(serviceKey)) return
+    setSelectedRemoveServices((current) => (
+      current.includes(serviceKey)
+        ? current.filter((key) => key !== serviceKey)
+        : [...current, serviceKey]
+    ))
+  }
+
+  function submitServiceApproval(event?: FormEvent<HTMLFormElement> | SyntheticEvent) {
+    event?.preventDefault()
     if (!serviceRequestMode || (activeServicesToAdd.length === 0 && activeServicesToRemove.length === 0)) return
     setServiceApprovalError('')
     setShowServiceApprovalConfirm(true)
@@ -498,6 +511,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
         .filter((key) => !activeServicesToRemove.includes(key))
       await updateServices.mutateAsync({ services: nextServices, approverId, reason })
       setSelectedService('')
+      setSelectedRemoveServices([])
       setServiceRequestMode(null)
       setShowServiceApprovalConfirm(false)
     } catch (error) {
@@ -520,10 +534,33 @@ function ServicesTab({ caseData }: { caseData: Case }) {
                 ? serverServiceApprovals.find((approval) => approval.id === pendingApproval.id)
                 : undefined
               const canDecidePendingApproval = resolve('approvals:decide') && canDecideServiceApproval(serverPendingApproval, user?.id)
+              const canSelectForRemoval = serviceRequestMode === 'remove' && removableServiceKeys.includes(serviceKey)
+              const isSelectedForRemoval = selectedRemoveServices.includes(serviceKey)
 
               return (
-                <article className={'case-service-card' + (servicePending ? ' pending' : '')} key={serviceKey}>
-                  <header className="case-service-card-header">
+                <article
+                  className={
+                    'case-service-card'
+                    + (servicePending ? ' pending' : '')
+                    + (canSelectForRemoval ? ' selectable-remove' : '')
+                    + (isSelectedForRemoval ? ' selected-remove' : '')
+                  }
+                  key={serviceKey}
+                >
+                  <header
+                    className="case-service-card-header"
+                    onClick={() => canSelectForRemoval ? toggleRemoveService(serviceKey) : undefined}
+                  >
+                    {canSelectForRemoval ? (
+                      <input
+                        className="case-service-remove-checkbox"
+                        type="checkbox"
+                        checked={isSelectedForRemoval}
+                        onChange={() => toggleRemoveService(serviceKey)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={t('cases.services.selectServiceToRemove')}
+                      />
+                    ) : null}
                     <span className={`case-service-icon service-icon-${serviceKey}`}>{serviceIconLabel(serviceKey)}</span>
                     <div>
                       <h3>{t(`cases.service.${serviceKey}`)}</h3>
@@ -553,34 +590,55 @@ function ServicesTab({ caseData }: { caseData: Case }) {
 
         {canRequestServices ? (
           <div className="case-service-request-actions">
-            {!serviceRequestMode ? (
-              <>
+            <div className="case-service-action-left">
+              {serviceRequestMode === 'remove' ? (
+                <>
+                  <button className="btn-primary" type="button" disabled={updateServices.isPending || activeServicesToRemove.length === 0} onClick={submitServiceApproval}>
+                    {updateServices.isPending ? t('common.saving') : t('cases.services.requestService')}
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    disabled={updateServices.isPending}
+                    onClick={() => {
+                      setServiceRequestMode(null)
+                      setSelectedRemoveServices([])
+                    }}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </>
+              ) : !serviceRequestMode ? (
                 <button
-                  className="btn-primary"
-                  type="button"
-                  disabled={availableServiceKeys.length === 0}
-                  onClick={() => openServiceRequest('add')}
-                >
-                  {t('cases.services.addService')}
-                </button>
-                <button
-                  className="btn-danger"
+                  className="btn-secondary case-service-action-button"
                   type="button"
                   disabled={removableServiceKeys.length === 0}
                   onClick={() => openServiceRequest('remove')}
                 >
                   {t('cases.services.removeService')}
                 </button>
-              </>
-            ) : null}
+              ) : null}
+            </div>
+            <div className="case-service-action-right">
+              {!serviceRequestMode ? (
+                <button
+                  className="btn-secondary case-service-action-button"
+                  type="button"
+                  disabled={availableServiceKeys.length === 0}
+                  onClick={() => openServiceRequest('add')}
+                >
+                  {t('cases.services.addService')}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
-        {canRequestServices && serviceRequestMode ? (
+        {canRequestServices && serviceRequestMode === 'add' ? (
           <form className="case-event-form case-service-request-form single" onSubmit={submitServiceApproval}>
-            <h3>{t(`cases.services.${serviceRequestMode === 'add' ? 'addService' : 'removeService'}`)}</h3>
+            <h3>{t('cases.services.addService')}</h3>
             <label className="case-form-field case-service-request-field">
-              <span>{t(`cases.services.${serviceRequestMode === 'add' ? 'selectServiceToAdd' : 'selectServiceToRemove'}`)}</span>
+              <span>{t('cases.services.selectServiceToAdd')}</span>
               <select
                 className="overview-select case-service-request-select"
                 value={selectedService}
@@ -588,8 +646,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
               >
                 <option value="">{t('cases.services.selectPlaceholder')}</option>
                 {SERVICE_GROUP_KEYS.map((groupKey) => {
-                  const groupServices = (serviceRequestMode === 'add' ? availableServiceKeys : removableServiceKeys)
-                    .filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
+                  const groupServices = availableServiceKeys.filter((key) => CASE_SERVICE_GROUPS[key] === groupKey)
                   if (groupServices.length === 0) return null
                   return (
                     <optgroup key={groupKey} label={t(`cases.serviceGroup.${groupKey}`)}>
@@ -600,9 +657,9 @@ function ServicesTab({ caseData }: { caseData: Case }) {
                   )
                 })}
               </select>
-              {(serviceRequestMode === 'add' ? availableServiceKeys : removableServiceKeys).length === 0 ? (
+              {availableServiceKeys.length === 0 ? (
                 <span className="case-service-empty">
-                  {t(`cases.services.${serviceRequestMode === 'add' ? 'noAvailableServices' : 'noRemovableServices'}`)}
+                  {t('cases.services.noAvailableServices')}
                 </span>
               ) : null}
             </label>
@@ -617,6 +674,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
                 onClick={() => {
                   setServiceRequestMode(null)
                   setSelectedService('')
+                  setSelectedRemoveServices([])
                 }}
               >
                 {t('common.cancel')}
