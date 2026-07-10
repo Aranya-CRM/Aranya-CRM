@@ -52,7 +52,8 @@ gcloud config set project "$PROJECT" >/dev/null
 # ── 1) Enable APIs ───────────────────────────────────────────────────────────
 echo "==> Enabling APIs"
 gcloud services enable run.googleapis.com sqladmin.googleapis.com \
-  artifactregistry.googleapis.com secretmanager.googleapis.com cloudbuild.googleapis.com
+  artifactregistry.googleapis.com secretmanager.googleapis.com cloudbuild.googleapis.com \
+  iamcredentials.googleapis.com
 
 # ── 2) Artifact Registry repo ────────────────────────────────────────────────
 if ! gcloud artifacts repositories describe "$REPO" --location="$REGION" >/dev/null 2>&1; then
@@ -107,6 +108,12 @@ for role in roles/cloudsql.client roles/secretmanager.secretAccessor; do
   gcloud projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:${RUNTIME_SA}" --role="$role" --condition=None >/dev/null
 done
+
+# GCS signed URLs are generated inside Cloud Run using Application Default Credentials.
+# Cloud Run's metadata credentials need signBlob on the runtime service account.
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/iam.serviceAccountTokenCreator" >/dev/null
 
 # ── 6) Build + push backend image ────────────────────────────────────────────
 echo "==> Building backend image $IMAGE"
