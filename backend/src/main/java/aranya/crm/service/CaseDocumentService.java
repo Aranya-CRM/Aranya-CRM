@@ -227,27 +227,27 @@ public class CaseDocumentService {
             throw new IllegalStateException("SHA-256 digest is not available", e);
         }
     }
+    public String resolveFileName(
+        String displayName,
+        String originalFileName
+    ) {
+
+        if (displayName == null || displayName.isBland()) {
+            return originalFileName;
+        }
+
+        String extension = "";
+        int index = originalFileName.lastIndexOf('.');
+
+        if (index >= 0) {
+            extension = originalFileName.substring(index);
+        }
+
+        String name = displayName.trim();
+        if(!name.toLowerCase().endsWith(extension.toLowerCase())) {
+            name += extension;
+        }
+        return name;
+    }
 }
 
-public String resolveFileName(
-    String displayName,
-    String originalFileName
-) {
-
-    if (displayName == null || displayName.isBland()) {
-        return originalFileName;
-    }
-
-    String extension = "";
-    int index = originalFileName.lastIndexOf('.');
-
-    if (index >= 0) {
-        extension = originalFileName.substring(index);
-    }
-
-    String name = displayName.trim();
-    if(!name.toLowerCase().endsWith(extension.toLowerCase())) {
-        name += extension;
-    }
-    return name;
-}
