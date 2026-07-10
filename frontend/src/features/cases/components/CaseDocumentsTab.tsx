@@ -17,6 +17,9 @@ const CATEGORY_DEFS: { key: CategoryKey; apiCategory: CaseDocumentCategory; icon
   { key: 'legal', apiCategory: 'LEGAL', icon: '⚖' },
 ]
 
+// 数据治理政策 §9:敏感文档(医疗 / 法律)永不删除 —— 前端隐藏删除按钮,后端也会拒绝。
+const SENSITIVE_CATEGORIES: CaseDocumentCategory[] = ['MEDICAL', 'LEGAL']
+
 type PreviewDocument = CaseDocument & { previewUrl?: string }
 type SelectedUploadFile = NonNullable<UploadFile['originFileObj']>
 
@@ -295,7 +298,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
                     </div>
                     <div className="case-document-actions">
                       <button type="button" className="btn-document-action" onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}>{t('cases.documents.download')}</button>
-                      {canDelete ? (
+                      {canDelete && !SENSITIVE_CATEGORIES.includes(apiCategory) ? (
                         <button type="button" className="btn-document-action danger" onClick={(e) => { e.stopPropagation(); handleDelete(doc) }}>{t('cases.documents.delete')}</button>
                       ) : null}
                     </div>

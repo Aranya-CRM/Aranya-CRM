@@ -136,19 +136,37 @@ class CaseDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("deleteCaseDocument deletes storage object and metadata")
-    void deleteCaseDocument_deletesStorageObjectAndMetadata() {
-        CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.LEGAL, "ACTIVE");
+    @DisplayName("deleteCaseDocument soft-deletes non-sensitive docs (keeps GCS object and rows)")
+    void deleteCaseDocument_softDeletesNonSensitive() {
+        CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.FINANCIAL, "ACTIVE");
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
         when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
                 .thenReturn(Optional.of(caseDocument));
 
         service().deleteCaseDocument(7L, 99L);
 
-        verify(fileStorageService).deleteObject("cases/7/documents/99/medical.pdf");
-        verify(caseDocumentRepository).delete(caseDocument);
-        verify(caseDocumentRepository).flush();
-        verify(documentRepository).delete(caseDocument.getDocument());
+        assertThat(caseDocument.getStatus()).isEqualTo("DELETED");
+        verify(caseDocumentRepository).save(caseDocument);
+        verify(fileStorageService, never()).deleteObject(any());
+        verify(caseDocumentRepository, never()).delete(any());
+        verify(documentRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deleteCaseDocument rejects sensitive (medical/legal) documents — never physically deleted")
+    void deleteCaseDocument_rejectsSensitive() {
+        CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.MEDICAL, "ACTIVE");
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
+        when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
+                .thenReturn(Optional.of(caseDocument));
+
+        assertThatThrownBy(() -> service().deleteCaseDocument(7L, 99L))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+
+        assertThat(caseDocument.getStatus()).isEqualTo("ACTIVE");
+        verify(fileStorageService, never()).deleteObject(any());
+        verify(caseDocumentRepository, never()).delete(any());
+        verify(caseDocumentRepository, never()).save(any());
     }
 
     @Test
