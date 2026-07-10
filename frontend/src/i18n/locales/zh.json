@@ -484,6 +484,81 @@
       }
     }
   },
+  "auditHistory": {
+    "title": "审计",
+    "subtitle": "{{caseCode}} · 只记录需要审批的操作。普通无审批操作不进入此模块。",
+    "readonly": "不可编辑 / 不可删除",
+    "listLabel": "审批审计记录",
+    "loading": "正在加载真实审批审计记录...",
+    "loadError": "审批审计记录加载失败。请确认后端 audit-history API 可用。",
+    "empty": "暂无需要审批的历史记录。",
+    "filter": {
+      "label": "类型",
+      "all": "全部",
+      "case": "个案",
+      "service": "服务模块",
+      "member": "会员",
+      "file": "文件",
+      "report": "报告"
+    },
+    "stats": {
+      "total": "审批记录",
+      "pending": "待审批",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    },
+    "status": {
+      "pending": "审批中",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "expired": "已过期",
+      "not_required": "无需审批"
+    },
+    "action": {
+      "CASE_CREATE": "创建个案",
+      "DELETE_CASE": "归档个案",
+      "CASE_SERVICE_UPDATE": "服务模块变更",
+      "CLIENT_CREATE": "创建会员档案",
+      "CLIENT_UPDATE": "修改会员档案",
+      "DELETE_CLIENT": "归档会员档案",
+      "DELETE_REPORT": "作废报告",
+      "SENSITIVE_FILE_ARCHIVE": "归档敏感文件",
+      "SENSITIVE_FILE_RESTORE": "恢复敏感文件",
+      "SENSITIVE_FILE_SUPERSEDE": "敏感文件版本替代",
+      "SENSITIVE_FILE_VERSION_CREATE": "敏感文件新版本",
+      "CASE_NOTE_CREATE": "案例笔记创建",
+      "SERVICE_EVENT_CREATE": "服务事件创建"
+    },
+    "content": {
+      "serviceAdd": "添加服务：{{add}}",
+      "serviceRemove": "删除服务：{{remove}}",
+      "serviceAddRemove": "添加服务：{{add}}；删除服务：{{remove}}",
+      "serviceUpdate": "服务模块变更",
+      "fileArchive": "归档敏感文件：{{target}}。文件对象保留。",
+      "fileSupersede": "用新版本替代敏感文件：{{target}}。旧版本保留审计。",
+      "fileRestore": "恢复敏感文件：{{target}}",
+      "CASE_CREATE": "创建个案：{{target}}",
+      "DELETE_CASE": "提出归档个案：{{target}}",
+      "CLIENT_CREATE": "创建会员档案：{{target}}",
+      "CLIENT_UPDATE": "修改会员档案：{{target}}",
+      "DELETE_CLIENT": "提出归档会员档案：{{target}}",
+      "DELETE_REPORT": "提出作废报告：{{target}}"
+    },
+    "fields": {
+      "target": "目标",
+      "createdBy": "创建人",
+      "modifiedBy": "修改人",
+      "archivedBy": "归档人",
+      "restoredBy": "恢复人",
+      "requestedBy": "申请人",
+      "approvedBy": "审批人",
+      "deleteApprovedBy": "删除审批人",
+      "requestedAt": "申请时间",
+      "decidedAt": "审批时间",
+      "approvalId": "审批编号",
+      "reason": "原因"
+    }
+  },
   "clients": {
     "pageTitle": "会员档案",
     "pageSubtitle": "Client Profiles",

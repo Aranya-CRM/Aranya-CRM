@@ -5,13 +5,13 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { getApiErrorMessage } from '../../../shared/api'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
 import { ApprovalConfirmModal } from '../../../shared/ui'
+import { AuditHistoryPanel } from '../../audit-history'
 import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
 import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase, useUpdateCaseServices } from '../hooks'
-import type { AuditLogEntry, Case, CaseColorCode, CaseFlag, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
+import type { Case, CaseColorCode, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
-import { CaseAuditTab } from './CaseAuditTab'
 import { CaseDocumentsTab } from './CaseDocumentsTab'
 import { CaseReportsTab } from './CaseReportsTab'
 import { CaseServiceCalendar } from './CaseServiceCalendar'
@@ -19,7 +19,7 @@ import { AddCaseEventForm } from './AddCaseEventForm'
 import { CaseIntensityDot } from './CaseIntensityDot'
 import { selectedServiceForMode, selectedServicesForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
 
-type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'history' | 'audit'
+type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'audit'
 
 interface TabDef {
   id: TabId
@@ -31,8 +31,6 @@ interface TabDef {
 interface CaseDetailTabsProps {
   caseData: Case
   notes: CaseNote[]
-  auditLog: AuditLogEntry[]
-  flags: CaseFlag[]
   isManager: boolean
 }
 
@@ -40,7 +38,7 @@ function activeServiceCount(services: CaseServices): number {
   return Object.values(services).filter(Boolean).length
 }
 
-export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: CaseDetailTabsProps) {
+export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
@@ -53,8 +51,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
     { id: 'notes',      labelKey: 'cases.tab.notes',     count: notes.length },
     { id: 'documents',  labelKey: 'cases.tab.documents' },
     { id: 'reports',    labelKey: 'cases.tab.reports' },
-    { id: 'history',    labelKey: 'cases.tab.history' },
-    { id: 'audit',      labelKey: 'cases.tab.audit',     managerOnly: true },
+    { id: 'audit',      labelKey: 'cases.tab.audit' },
   ]
 
   const visibleTabs = isManager ? tabs : tabs.filter((t) => !t.managerOnly)
@@ -70,7 +67,6 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
             onClick={() => setActiveTab(tab.id)}
           >
             {t(tab.labelKey)}
-            {tab.id === 'audit' ? ' ⚙' : null}
             {tab.count != null && tab.count > 0 ? (
               <span className="case-tab-badge">{tab.count}</span>
             ) : null}
@@ -85,10 +81,7 @@ export function CaseDetailTabs({ caseData, notes, auditLog, flags, isManager }: 
         {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
         {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
-        {activeTab === 'history'   ? <PlaceholderTab tabKey="cases.tab.history" /> : null}
-        {activeTab === 'audit' && isManager ? (
-          <CaseAuditTab caseData={caseData} notes={notes} auditLog={auditLog} flags={flags} />
-        ) : null}
+        {activeTab === 'audit'     ? <AuditHistoryPanel caseId={caseData.id} caseCode={caseData.caseNo} /> : null}
       </div>
     </>
   )
@@ -918,11 +911,3 @@ function NotesTab({ caseId, notes }: { caseId: string; notes: CaseNote[] }) {
   )
 }
 
-function PlaceholderTab({ tabKey }: { tabKey: string }) {
-  const { t } = useTranslation()
-  return (
-    <p className="case-placeholder-text">
-      {t('cases.placeholder', { tab: t(tabKey) })}
-    </p>
-  )
-}

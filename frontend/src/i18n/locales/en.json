@@ -484,7 +484,82 @@
       }
     }
   },
-    "clients": {
+  "auditHistory": {
+    "title": "Audit",
+    "subtitle": "{{caseCode}} · Only approval-required operations are recorded here. Routine non-approval changes are excluded.",
+    "readonly": "Read-only / immutable",
+    "listLabel": "Approval audit records",
+    "loading": "Loading live approval audit records...",
+    "loadError": "Failed to load audit records. Check that the audit-history API is available.",
+    "empty": "No approval-required history for this case.",
+    "filter": {
+      "label": "Type",
+      "all": "All",
+      "case": "Case",
+      "service": "Service",
+      "member": "Member",
+      "file": "File",
+      "report": "Report"
+    },
+    "stats": {
+      "total": "Approval records",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "not_required": "Not required"
+    },
+    "action": {
+      "CASE_CREATE": "Create case",
+      "DELETE_CASE": "Archive case",
+      "CASE_SERVICE_UPDATE": "Service change",
+      "CLIENT_CREATE": "Create member profile",
+      "CLIENT_UPDATE": "Update member profile",
+      "DELETE_CLIENT": "Archive member profile",
+      "DELETE_REPORT": "Void report",
+      "SENSITIVE_FILE_ARCHIVE": "Archive sensitive file",
+      "SENSITIVE_FILE_RESTORE": "Restore sensitive file",
+      "SENSITIVE_FILE_SUPERSEDE": "Replace sensitive file version",
+      "SENSITIVE_FILE_VERSION_CREATE": "Create sensitive file version",
+      "CASE_NOTE_CREATE": "Create case note",
+      "SERVICE_EVENT_CREATE": "Create service event"
+    },
+    "content": {
+      "serviceAdd": "Add service: {{add}}",
+      "serviceRemove": "Remove service: {{remove}}",
+      "serviceAddRemove": "Add service: {{add}}; remove service: {{remove}}",
+      "serviceUpdate": "Service module change",
+      "fileArchive": "Archive sensitive file: {{target}}. Storage object retained.",
+      "fileSupersede": "Replace sensitive file with a new version: {{target}}. Previous version retained for audit.",
+      "fileRestore": "Restore sensitive file: {{target}}",
+      "CASE_CREATE": "Create case: {{target}}",
+      "DELETE_CASE": "Request case archive: {{target}}",
+      "CLIENT_CREATE": "Create member profile: {{target}}",
+      "CLIENT_UPDATE": "Update member profile: {{target}}",
+      "DELETE_CLIENT": "Request member profile archive: {{target}}",
+      "DELETE_REPORT": "Request report void: {{target}}"
+    },
+    "fields": {
+      "target": "Target",
+      "createdBy": "Created by",
+      "modifiedBy": "Modified by",
+      "archivedBy": "Archived by",
+      "restoredBy": "Restored by",
+      "requestedBy": "Requested by",
+      "approvedBy": "Approved by",
+      "deleteApprovedBy": "Deletion approved by",
+      "requestedAt": "Requested at",
+      "decidedAt": "Decision time",
+      "approvalId": "Approval ID",
+      "reason": "Reason"
+    }
+  },
+  "clients": {
     "pageTitle": "Member Profiles",
     "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
