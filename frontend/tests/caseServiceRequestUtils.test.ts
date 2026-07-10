@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { selectedServiceForMode, serviceSelectionsForMode } from '../src/features/cases/components/caseServiceRequestUtils.ts'
+import { selectedServiceForMode, selectedServicesForMode, serviceSelectionsForMode } from '../src/features/cases/components/caseServiceRequestUtils.ts'
 
 describe('serviceSelectionsForMode', () => {
   it('keeps only add selections in add mode', () => {
@@ -35,6 +35,13 @@ describe('serviceSelectionsForMode', () => {
     assert.deepEqual(selectedServiceForMode('add', ''), {
       servicesToAdd: [],
       servicesToRemove: [],
+    })
+  })
+
+  it('builds a multi-service remove request from checked services', () => {
+    assert.deepEqual(selectedServicesForMode('remove', ['housing', 'food']), {
+      servicesToAdd: [],
+      servicesToRemove: ['housing', 'food'],
     })
   })
 })
