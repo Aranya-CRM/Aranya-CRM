@@ -227,12 +227,12 @@ public class CaseDocumentService {
             throw new IllegalStateException("SHA-256 digest is not available", e);
         }
     }
+
     public String resolveFileName(
         String displayName,
         String originalFileName
     ) {
-
-        if (displayName == null || displayName.isBland()) {
+        if (displayName == null || displayName.isBlank()) {
             return originalFileName;
         }
 
