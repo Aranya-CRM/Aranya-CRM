@@ -1,6 +1,6 @@
 import { encodeHttpHeaderValue, http } from '../../../shared/api'
-import { caseAuditLogMockData, caseFlagMockData, caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type AuditLogEntry, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseFlag, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
+import { emptyCaseServices, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -379,15 +379,6 @@ export async function fetchCaseStatusHistory(caseId: string): Promise<CaseStatus
     if (mode === 'auto') return caseStatusChangeMockData.filter((c) => c.caseId === caseId)
     throw new Error('Failed to fetch case status history')
   }
-}
-
-export async function fetchCaseAuditLog(caseId: string): Promise<AuditLogEntry[]> {
-  const entries = caseAuditLogMockData.filter((e) => e.caseId === caseId)
-  return [...entries].sort((a, b) => b.at.localeCompare(a.at))
-}
-
-export async function fetchCaseFlags(caseId: string): Promise<CaseFlag[]> {
-  return caseFlagMockData.filter((f) => f.caseId === caseId)
 }
 
 function mapBackendCase(source: BackendCase): Case {
