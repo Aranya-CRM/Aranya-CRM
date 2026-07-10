@@ -77,26 +77,6 @@ function AdminIcon() {
   )
 }
 
-function AuditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-      <polyline points="14 3 14 9 20 9" />
-      <line x1="8" y1="13" x2="16" y2="13" />
-      <line x1="8" y1="17" x2="13" y2="17" />
-    </svg>
-  )
-}
-
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-    </svg>
-  )
-}
-
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -170,20 +150,6 @@ export const ADMIN_NAV_ITEMS: NavigationItem[] = [
     icon: <AdminIcon />,
   },
   {
-    id: 'admin-audit',
-    routeId: 'route:audit',
-    path: '/admin/audit',
-    labelKey: 'admin.nav.audit',
-    icon: <AuditIcon />,
-  },
-  {
-    id: 'admin-settings',
-    routeId: 'route:users',
-    path: '/admin/settings',
-    labelKey: 'admin.nav.settings',
-    icon: <SettingsIcon />,
-  },
-  {
     id: 'admin-driveImport',
     routeId: 'cases:documents.import',
     path: '/admin/drive-import',
@@ -191,6 +157,3 @@ export const ADMIN_NAV_ITEMS: NavigationItem[] = [
     icon: <DriveImportIcon />,
   },
 ]
-
-/** 进入后台的入口对哪些用户可见(任一 cap 命中即显示「后台管理」入口)。 */
-export const ADMIN_ENTRY_ROUTE_IDS = ['route:users', 'route:audit', 'cases:documents.import']

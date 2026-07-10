@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 064-revoke-admin-route-audit
+      author: ShiDu
+      comment: "Audit Log and Org Settings sections removed from the Backend Dashboard; revoke ADMIN's now-unused route:audit (granted in 060 for that section). ADMIN keeps route:users for account management."
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM role_cap
+              WHERE role_id = (SELECT id FROM role WHERE name = 'ADMIN')
+                AND cap_def_id = (SELECT id FROM cap_definition WHERE cap_key = 'route:audit');
+      rollback:
+        - sql:
+            sql: |
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r, cap_definition cd
+              WHERE r.name = 'ADMIN' AND cd.cap_key = 'route:audit'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
