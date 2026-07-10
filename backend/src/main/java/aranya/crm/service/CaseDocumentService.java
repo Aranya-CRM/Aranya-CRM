@@ -79,7 +79,7 @@ public class CaseDocumentService {
 
         byte[] bytes = readBytes(file);
         String originalFileName = normalizeFileName(file.getOriginalFilename());
-        String fileName = normalizeFileName(displayName == null || displayName.isBlank() ? originalFileName : displayName);
+        String fileName = resolveFileName(displayName, originalFileName);
         String contentType = normalizeContentType(file.getContentType());
 
         Document document = new Document();
@@ -227,4 +227,27 @@ public class CaseDocumentService {
             throw new IllegalStateException("SHA-256 digest is not available", e);
         }
     }
+
+    public String resolveFileName(
+        String displayName,
+        String originalFileName
+    ) {
+        if (displayName == null || displayName.isBlank()) {
+            return originalFileName;
+        }
+
+        String extension = "";
+        int index = originalFileName.lastIndexOf('.');
+
+        if (index >= 0) {
+            extension = originalFileName.substring(index);
+        }
+
+        String name = displayName.trim();
+        if(!name.toLowerCase().endsWith(extension.toLowerCase())) {
+            name += extension;
+        }
+        return name;
+    }
 }
+
