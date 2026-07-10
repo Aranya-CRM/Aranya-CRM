@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ADMIN_ENTRY_ROUTE_IDS, NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
+import { NAVIGATION_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { countApprovalNavBadges } from '../../features/approvals/approvalNavBadges'
 import { usePendingApprovals } from '../../features/approvals/api/approval.api'
@@ -54,7 +54,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     return resolve(item.routeId) || canRoute(item.routeId)
   })
 
-  const canEnterAdmin = ADMIN_ENTRY_ROUTE_IDS.some((id) => resolve(id) || canRoute(id))
 
   function handleNavClick(item: NavigationItem) {
     navigate(item.path)
@@ -104,24 +103,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
-        {canEnterAdmin ? (
-          <a
-            className="sidebar-admin-entry"
-            href="/admin"
-            onClick={(event) => {
-              event.preventDefault()
-              navigate('/admin')
-            }}
-          >
-            <span className="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3l7 3v5c0 4.2-2.8 7.5-7 9-4.2-1.5-7-4.8-7-9V6z" />
-                <path d="M9.5 12l1.8 1.8L15 10" />
-              </svg>
-            </span>
-            <span className="nav-label">{t('admin.enter')}</span>
-          </a>
-        ) : null}
       </aside>
 
       <section className="main">

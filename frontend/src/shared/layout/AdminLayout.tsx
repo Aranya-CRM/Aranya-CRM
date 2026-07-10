@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ADMIN_NAV_ITEMS, LogoutIcon, type NavigationItem } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { useAccess } from '../auth'
-import { getDefaultRoute } from '../auth/defaultRoute'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import './AppLayout.css'
 import './AdminLayout.css'
@@ -23,7 +22,7 @@ function profileInitials(name?: string): string {
 /** 后台管理(Backend Dashboard)独立外壳 —— 自有侧栏(管理分区)+ 返回前台入口,和业务前台分开。 */
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { t } = useTranslation()
-  const { user, logout, caps } = useAuth()
+  const { user, logout } = useAuth()
   const { canRoute, resolve } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
@@ -41,15 +40,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <h1 className="brand-title">{t('admin.title')}</h1>
           <div className="brand-subtitle">{t('admin.subtitle')}</div>
         </div>
-
-        <button
-          type="button"
-          className="admin-back-link"
-          onClick={() => navigate(getDefaultRoute(caps))}
-        >
-          <span aria-hidden="true">←</span>
-          <span>{t('admin.backToApp')}</span>
-        </button>
 
         <nav className="nav" aria-label="Admin Navigation">
           {visibleItems.map((item) => {
