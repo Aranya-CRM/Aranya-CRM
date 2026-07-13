@@ -547,11 +547,6 @@ export function ClientListPage() {
                     </span>
                   ) : null}
                 </div>
-                {item.display.nameEn || item.display.nameChn ? (
-                  <div className="client-directory-en">
-                    {item.display.nameEn || item.display.nameChn}
-                  </div>
-                ) : null}
               </button>
             ))
           )}

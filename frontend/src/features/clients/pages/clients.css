@@ -243,15 +243,6 @@
   line-height: 1.2;
 }
 
-.client-directory-en {
-  overflow: hidden;
-  margin-top: 4px;
-  color: #40506a;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .client-directory-meta {
   overflow: hidden;
   margin-top: 2px;
