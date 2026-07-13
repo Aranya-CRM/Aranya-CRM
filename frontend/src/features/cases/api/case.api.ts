@@ -17,6 +17,8 @@ type BackendCase = {
   clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  clientGender?: string | null
+  clientOrdinationStatus?: string | null
   venue?: string | null
   createdById?: number | string | null
   createdByName?: string | null
@@ -392,6 +394,8 @@ function mapBackendCase(source: BackendCase): Case {
     clientAbbr: text(source.clientAbbr),
     clientNameEn: text(source.clientNameEn),
     clientNameChn: text(source.clientNameChn),
+    clientGender: text(source.clientGender),
+    clientOrdinationStatus: text(source.clientOrdinationStatus),
     venue: text(source.venue),
     tradition: text(source.tradition),
     socialWorkerId: text(source.createdById),

@@ -210,6 +210,7 @@ public class GoogleCalendarService {
                             .description(event.getDescription())
                             .calendarId(cal.id())
                             .calendarName(cal.name())
+                            .colorId(event.getColorId())
                             .build());
                 }
             } catch (Exception e) {

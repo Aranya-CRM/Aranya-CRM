@@ -4,9 +4,7 @@
     "clients": "会员",
     "cases": "个案管理",
     "reports": "文档管理",
-    "approvals": "审批",
     "tasks": "协助",
-    "users": "用户管理",
     "profile": "查看个人主页",
     "driveImport": "Drive 导入",
     "admin": "管理控制台"
@@ -15,20 +13,12 @@
     "title": "后台管理",
     "subtitle": "系统与账号管理",
     "badge": "后台",
-    "enter": "后台管理",
-    "backToApp": "返回应用",
-    "comingSoon": "即将上线",
     "nav": {
-      "accounts": "账号管理",
-      "audit": "审计日志",
-      "settings": "组织设置"
+      "accounts": "账号管理"
     },
     "accounts": {
       "title": "账号管理",
       "subtitle": "管理系统用户、邀请与角色权限。"
-    },
-    "placeholder": {
-      "desc": "此分区功能正在规划中,敬请期待。"
     }
   },
   "driveImport": {
@@ -74,8 +64,6 @@
   "layout": {
     "brandTitle": "阿兰若个案管理系统",
     "brandSubtitle": "Aranya CRM",
-    "topbarTitle": "阿兰若CRM管理系统",
-    "topbarSubtitle": "Aranya CRM 管理系统",
     "logout": "登出"
   },
   "common": {
@@ -83,11 +71,7 @@
     "cancel": "取消",
     "save": "保存",
     "edit": "编辑",
-    "back": "←",
-    "actions": "操作",
-    "comingSoon": "功能即将推出",
     "saving": "保存中...",
-    "by": "by",
     "delete": "删除",
     "confirm": "确认",
     "close": "关闭"
@@ -105,49 +89,22 @@
     "caseCreate": "创建个案需要经理审批。确认后会提交审批申请，审批通过后个案才会显示。",
     "caseDelete": "关闭个案需要经理审批。确认后会提交审批申请，审批通过后个案会关闭。",
     "serviceUpdate": "添加服务需要审批。确认后会提交审批申请，经理通过后服务会显示在服务模块。",
-    "serviceRemove": "删除 {{service}} 需要审批。确认后会提交审批申请，经理通过后该服务会从服务模块移除。",
     "clientCreate": "新增会员需要审批。确认后会提交审批申请，审批通过后会员才会显示。",
     "clientUpdate": "编辑会员档案会直接保存。",
     "clientDelete": "关闭会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。"
   },
   "approvals": {
-    "title": "审批",
-    "subtitle": "处理待审批的个案、服务与删除申请。",
-    "loadError": "审批列表加载失败，请稍后重试。",
-    "actionError": "审批操作失败，请稍后重试。",
-    "pending": "待处理",
-    "empty": "暂无待审批申请。",
-    "selectPrompt": "请选择一个审批申请。",
-    "listLabel": "审批申请列表",
-    "detailLabel": "审批申请详情",
-    "payload": "申请内容",
-    "noPayload": "无详细内容。",
-    "comment": "审批意见",
-    "commentPlaceholder": "可填写审批意见",
     "approve": "通过",
     "reject": "拒绝",
     "fields": {
       "requestedBy": "申请人",
-      "createdAt": "申请时间",
-      "target": "对象",
-      "status": "状态"
-    },
-    "openTarget": "打开对象页面",
-    "type": {
-      "CASE_CREATE": "创建个案",
-      "CASE_SERVICE_UPDATE": "更新个案服务",
-      "CLIENT_CREATE": "新增会员",
-      "CLIENT_UPDATE": "编辑会员",
-      "DELETE_CLIENT": "关闭会员档案",
-      "DELETE_CASE": "关闭个案",
-      "DELETE_REPORT": "删除报告"
+      "createdAt": "申请时间"
     }
   },
   "dashboard": {
     "pageTitle": "工作台",
     "loading": "正在加载工作台数据",
     "error": "工作台数据加载失败，请稍后重试。",
-    "unnamedMonastic": "未命名会员",
     "stat": {
       "activeMonastics": "在册会员",
       "myAssignedClients": "我的跟进僧人",
@@ -170,8 +127,6 @@
     "noCases": "暂无最近个案",
     "noTasks": "暂无分配任务",
     "noReports": "暂无最近报告",
-    "urgentBanner": "{{count}} 份紧急报告待处理",
-    "viewResolve": "查看",
     "quickActions": "快捷操作",
     "action": {
       "new_case": "新建个案",
@@ -185,24 +140,16 @@
       "intensity": "强度",
       "caseNo": "个案编号",
       "monastic": "会员",
-      "tradition": "传统",
-      "caseworker": "主要社工",
       "status": "状态",
-      "opened": "开案日期",
       "lastUpdated": "最近更新",
-      "actions": "操作",
       "loading": "加载中...",
-      "empty": "暂无匹配个案",
-      "view": "查看",
-      "audit": "审计"
+      "empty": "暂无匹配个案"
     },
     "approvals": {
-      "title": "待审批个案",
       "createCase": "新建个案申请",
       "closeCase": "关闭个案申请",
       "reason": "申请原因",
       "noReason": "未填写申请原因",
-      "targetCase": "目标个案",
       "badge": {
         "create": "待新增",
         "close": "待关闭"
@@ -263,7 +210,6 @@
       "manpower": "人力安排",
       "instructions": "注意事项(Kappiya)",
       "content": "内容",
-      "titlePreview": "标题预览",
       "requiredFields": "请选择服务类型和开始时间。",
       "createError": "创建事件失败,请重试。",
       "sourceOtherCase": "来自其他个案(共享日历)",
@@ -281,34 +227,21 @@
       "calendarPlaceholder": "暂无服务事件",
       "empty": "暂无已添加服务。",
       "addService": "添加服务",
-      "addEvent": "新增服务事件",
       "service": "服务",
       "selectService": "请选择服务",
       "assignee": "负责人",
       "selectAssignee": "请选择负责人",
       "time": "具体时间",
-      "reportDueAt": "报告截止时间（可选）",
       "location": "地点",
-      "workDescription": "需要做什么",
-      "contact": "联系方式",
-      "eventNotes": "备注（可选）",
       "createEvent": "创建事件",
-      "hideEventPanel": "收起事件",
-      "eventHistory": "历史事件",
-      "showEventHistory": "显示历史事件",
-      "hideEventHistory": "隐藏历史事件",
       "requestService": "提交审批",
-      "applyService": "服务管理",
       "removeService": "删除服务",
       "selectServiceToAdd": "选择要添加的服务",
       "selectServiceToRemove": "选择要删除的服务",
       "selectPlaceholder": "请选择服务",
       "noAvailableServices": "暂无可新增服务。",
-      "noRemovableServices": "暂无可删除服务。",
       "addPending": "新增审批中",
       "removePending": "删除审批中",
-      "noEvents": "暂无服务事件。",
-      "eventCreated": "服务事件已创建。",
       "approvalSubmitError": "审批提交失败，请确认审批人权限后重试。"
     },
     "serviceGroup": {
@@ -321,17 +254,14 @@
       "overview": "概览",
       "services": "服务模块",
       "calendar": "事件",
-      "notes": "案例笔记",
       "documents": "文件",
       "reports": "探访报告",
-      "history": "历史",
-      "audit": "审计"
+      "audit": "操作日志"
     },
     "overview": {
       "dateOpened": "开案日期",
       "status": "状态",
       "caseworker": "主责社工",
-      "volunteer": "负责义工",
       "intensity": "个案强度",
       "activeModules": "启用服务模块",
       "activeModulesValue": "{{count}} 项",
@@ -350,23 +280,16 @@
       "moreActions": "更多操作"
     },
     "notes": {
-      "empty": "暂无案例笔记",
-      "by": "记录人",
-      "followup": "跟进",
-      "addNote": "新增笔记",
-      "placeholder": "添加案例笔记",
-      "followupPlaceholder": "后续跟进（可选）"
+      "followup": "跟进"
     },
     "documents": {
       "title": "案例文件",
       "upload": "上传文件",
-      "back": "返回",
       "uploadHint": "点击或拖拽文件到此区域上传",
       "uploadHintSub": "支持单个或批量上传。PDF、图片及 Office 文件,单个不超过 25 MB。",
       "categoryLabel": "文件分类",
       "fileNameLabel": "文件名(可选)",
       "fileNamePlaceholder": "留空则保留原始文件名",
-      "fileUnit": "个文件",
       "previewUnsupported": "此格式暂不支持在线预览,请下载查看。",
       "category": {
         "ordination": "出家证明",
@@ -386,63 +309,6 @@
       "empty": "该分类下暂无文件",
       "count_one": "{{count}} 个文件",
       "count_other": "{{count}} 个文件"
-    },
-    "placeholder": "{{tab}}功能即将推出",
-    "audit": {
-      "compliance": {
-        "title": "合规状态",
-        "subtitle": "根据个案数据自动检查",
-        "passed": "{{count}} / {{total}} 项通过",
-        "sw_assigned": "主责社工已分配",
-        "volunteer_assigned": "义工已分配",
-        "volunteer_assigned_fail": "建议为活跃个案分配跟进义工",
-        "early_note": "开案7天内有案例笔记",
-        "early_note_fail": "开案后应在7天内完成首次评估记录",
-        "has_notes": "至少有一条案例笔记",
-        "tasks_defined": "已建立任务清单",
-        "tasks_defined_fail": "建立任务清单有助于追踪跟进进度",
-        "crisis_for_red": "红色个案: 危机干预服务已启用",
-        "crisis_for_red_fail": "红色级别个案须启用危机干预 (Crisis Intervention) 服务模块",
-        "status_ok": "暂停个案须有案例笔记记录原因"
-      },
-      "flags": {
-        "title": "标记管理",
-        "open": "{{count}} 个未解决标记",
-        "noOpen": "暂无未解决标记",
-        "flagCase": "标记个案",
-        "empty": "暂无标记记录",
-        "statusOpen": "未解决",
-        "statusResolved": "已解决",
-        "flaggedBy": "标记人",
-        "resolvedBy": "已解决",
-        "resolve": "标记为已解决",
-        "resolution": "处理说明"
-      },
-      "flagSeverity": {
-        "HIGH": "高",
-        "MEDIUM": "中",
-        "LOW": "低"
-      },
-      "activityLog": {
-        "title": "操作日志",
-        "count": "{{count}} 条记录",
-        "empty": "暂无操作记录"
-      },
-      "action": {
-        "CASE_CREATED": "个案已创建",
-        "CASE_CLOSED": "个案已关闭",
-        "CASE_REOPENED": "个案已重新开启",
-        "STATUS_CHANGED": "状态已变更",
-        "INTENSITY_CHANGED": "强度已变更",
-        "NOTE_ADDED": "案例笔记已添加",
-        "TASK_COMPLETED": "任务已完成",
-        "TASK_ADDED": "任务已添加",
-        "CASEWORKER_ASSIGNED": "社工已分配",
-        "VOLUNTEER_ASSIGNED": "义工已分配",
-        "SERVICE_UPDATED": "服务模块已更新",
-        "CASE_FLAGGED": "个案已标记",
-        "FLAG_RESOLVED": "标记已解决"
-      }
     },
     "form": {
       "newCase": "新建个案",
@@ -468,13 +334,11 @@
     },
     "list": {
       "count": "{{count}} 个个案",
-      "auditView": "审计视图",
       "newCase": "+ 新建个案"
     },
     "reports": {
       "count": "共 {{count}} 份报告",
       "empty": "暂无探访报告",
-      "newBtn": "+ 新建报告",
       "col": {
         "date": "探访日期",
         "type": "类型",
@@ -561,17 +425,14 @@
   },
   "clients": {
     "pageTitle": "会员档案",
-    "pageSubtitle": "Client Profiles",
     "search": "搜索法名或缩写",
     "filterButton": "Filter",
-    "filterAll": "佛教传统 · 全部",
     "filterAllShort": "全部",
     "filterArchiveLabel": "档案状态",
     "filterCurrent": "当前档案",
     "filterClosed": "已关闭",
     "filterTraditionLabel": "按佛教传统筛选",
     "filterCaseLabel": "按个案状态筛选",
-    "filterCaseAll": "个案 · 全部",
     "filterCaseAllShort": "全部",
     "filterWithCase": "已有个案",
     "filterWithoutCase": "无个案",
@@ -582,14 +443,10 @@
     "profileLoading": "加载完整档案中",
     "profileError": "完整档案加载失败，当前显示列表摘要。",
     "selectPrompt": "请选择一个会员档案",
-    "notFound": "未找到",
-    "backToList": "← 返回列表",
     "accessDenied": "权限不足",
     "accessDeniedMsg": "当前账户不可创建或编辑会员档案。",
     "saveError": "保存失败",
     "approvals": {
-      "title": "待审批会员",
-      "pending": "待审批",
       "reason": "申请原因",
       "noReason": "未填写申请原因",
       "badge": {
@@ -629,7 +486,6 @@
       "create": "创建会员 ->"
     },
     "profile": {
-      "convertToClient": "转为客户",
       "convertToCase": "转为个案",
       "viewCase": "查看个案",
       "closeCase": "关闭个案",
@@ -641,7 +497,6 @@
       "saving": "保存中...",
       "save": "保存修改",
       "cancel": "取消",
-      "volunteerNotice": "当前账户只能查看基础档案。如需完整资料，请联系 Manager。",
       "section": {
         "basicInfo": "基本信息",
         "identity": "身份文件",
@@ -702,9 +557,6 @@
     }
   },
   "users": {
-    "pageTitle": "用户管理",
-    "managerView": "管理员视图",
-    "managerDesc": "您可以创建、编辑、停用或移除用户账号。",
     "addBtn": "邀请用户",
     "search": "搜索姓名、邮箱或角色",
     "error": {
@@ -783,7 +635,6 @@
     "deleteError": "探访报告删除失败，请稍后重试。",
     "missingId": "缺少报告编号。",
     "notFound": "未找到探访报告",
-    "back": "← 返回列表",
     "unnamedMonastic": "未命名会员",
     "status": {
       "DRAFT": "草稿",
@@ -796,31 +647,12 @@
     "mailbox": {
       "title": "报告",
       "empty": "暂无报告",
-      "waitingApproval": "等待审批中",
       "selectHint": "从左侧选择一份报告查看"
     },
     "list": {
-      "title": "探访报告",
-      "myTitle": "我的探访报告",
-      "count": "{{count}} 份报告",
       "newBtn": "+ 提交探访报告",
-      "search": "搜索会员、提交人、地点",
-      "statusFilter": "报告状态",
-      "allTypes": "全部类型",
       "loading": "加载中...",
-      "empty": "暂无探访报告",
-      "colId": "报告编号",
-      "colClient": "会员",
-      "colCreatedBy": "提交人",
-      "colVisitDate": "探访日期",
-      "colVisitType": "探访类型",
-      "colCreatedAt": "提交时间",
-      "colActions": "操作",
-      "view": "查看",
-      "delete": "删除",
-      "confirmDelete": "确认删除报告 RPT-{{id}}？",
-      "loadError": "探访报告加载失败，请稍后重试。",
-      "deleteError": "探访报告删除失败，请稍后重试。"
+      "loadError": "探访报告加载失败，请稍后重试。"
     },
     "form": {
       "title": "提交探访报告",
@@ -851,86 +683,17 @@
       "required": "请选择会员并填写探访日期。",
       "loadError": "会员列表加载失败，请稍后重试。",
       "submitError": "探访报告提交失败，请稍后重试。",
-      "backToReports": "← 返回探访报告",
       "submitting": "提交中...",
-      "submit": "提交报告 →",
       "saveDraft": "保存草稿",
-      "submitFinal": "提交报告",
-      "update": "保存修改"
+      "submitFinal": "提交报告"
     },
     "detail": {
       "title": "探访报告",
-      "visitedPerson": "探访僧人",
-      "submitted": "已提交",
-      "urgent": "紧急",
-      "resolveFlag": "处理标记",
-      "approve": "审批",
-      "approving": "审批中...",
-      "approveError": "审批失败，请重试。",
-      "archive": "归档",
       "edit": "编辑",
       "deleting": "删除中...",
       "delete": "删除",
       "deleteDraft": "删除草稿",
-      "export": "导出报告",
-      "exportTooltip": "导出功能即将上线",
-      "confirmDelete": "确认删除报告 {{id}}？",
-      "urgentBanner": "此报告由 {{name}} 标记为紧急。",
-      "markResolved": "标记为已处理",
-      "noContent": "暂无内容",
-      "submittedBy": "提交人：{{name}}",
-      "createdAt": "提交时间：{{date}}",
-      "field": {
-        "client": "会员",
-        "createdBy": "提交人",
-        "visitDate": "探访日期",
-        "visitTime": "探访时间",
-        "duration": "时长",
-        "location": "地点",
-        "programme": "项目",
-        "visitType": "探访类型"
-      },
-      "section": {
-        "purpose": "探访目的",
-        "whatWasDone": "完成事项",
-        "environment": "环境观察",
-        "sangha": "僧团观察",
-        "other": "其他观察",
-        "reflections": "个人反思",
-        "recommendations": "建议",
-        "highlights": "需关注事项"
-      }
-    }
-    ,
-    "category": {
-      "all": "全部",
-      "befriending": "💙 慈怀探访",
-      "temple": "🏠 寺院改善",
-      "food": "🍱 食物供养",
-      "planning": "📋 善终规划",
-      "case": "📁 个案管理"
-    }
-    ,
-    "statusFilter": {
-      "all": "全部状态"
-    },
-    "overview": {
-      "title": "文档管理",
-      "tabVolunteer": "义工报告",
-      "tabMine": "我的报告",
-      "emptyVolunteer": "暂无义工探访报告",
-      "emptyMine": "暂无我的探访报告",
-      "selectHint": "请选择一份报告查看详情",
-      "selectVolunteer": "请选择义工以查看其提交记录",
-      "searchVolunteer": "搜索义工姓名…",
-      "reportCount": "{{count}} 份报告",
-      "lastDate": "最近提交：",
-      "volunteerCount": "共 {{count}} 名义工",
-      "freshness": {
-        "recent": "近期活跃",
-        "medium": "一般",
-        "old": "需跟进"
-      }
+      "confirmDelete": "确认删除报告 {{id}}？"
     }
   },
   "tasks": {
@@ -947,9 +710,16 @@
       "subject": "主题",
       "time": "时间",
       "location": "地点",
+      "address": "详细地址",
       "todo": "需要做什么",
-      "notes": "补充说明",
       "contact": "联系方式"
+    },
+    "monastic": {
+      "title": "僧人信息",
+      "abbrev": "简称",
+      "tradition": "传统",
+      "gender": "性别",
+      "ordinationStatus": "受戒状态"
     },
     "myNotes": "我的笔记",
     "noReports": "暂无我上传的报告",

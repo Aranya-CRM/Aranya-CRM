@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { Case, ServiceCalendarEvent, ServiceEvent } from '../types'
 import { fetchCalendarOptions, fetchSharedCalendarEvents } from '../api/case.api'
+import { googleEventColor } from '../googleEventColors'
 import { fetchPersonalEvents } from '../api/personalCalendar.api'
 import { useDeleteServiceEvent, useSyncServiceEvent } from '../hooks'
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar'
@@ -146,13 +147,29 @@ export function CaseServiceCalendar({ caseData }: Props) {
 
   const sharedColored: ServiceCalendarEvent[] = sharedEvents
     .filter((ev) => ev.start && (!ev.calendarId || !hiddenShared.includes(ev.calendarId)))
-    .map((ev) => ({
-      id: `g-${ev.id}`,
-      title: ev.title ?? '(untitled)',
-      start: ev.start as string,
-      classNames: [ev.source === 'EXTERNAL' ? 'evt-external' : 'evt-other'],
-      extendedProps: { source: ev.source },
-    }))
+    .map((ev) => {
+      // 事件在 Google 里被单独设过色 → 用 Google 的色;否则回退到按来源区分的默认色
+      const gcolor = googleEventColor(ev.colorId)
+      if (gcolor) {
+        return {
+          id: `g-${ev.id}`,
+          title: ev.title ?? '(untitled)',
+          start: ev.start as string,
+          classNames: ['evt-google'],
+          backgroundColor: gcolor.background,
+          borderColor: gcolor.background,
+          textColor: gcolor.foreground,
+          extendedProps: { source: ev.source },
+        }
+      }
+      return {
+        id: `g-${ev.id}`,
+        title: ev.title ?? '(untitled)',
+        start: ev.start as string,
+        classNames: [ev.source === 'EXTERNAL' ? 'evt-external' : 'evt-other'],
+        extendedProps: { source: ev.source },
+      }
+    })
 
   const personalColored: ServiceCalendarEvent[] = personalEvents
     .filter((ev) => ev.start)
@@ -240,7 +257,7 @@ export function CaseServiceCalendar({ caseData }: Props) {
         plugins={[dayGridPlugin]}
         initialView="dayGridMonth"
         locale={i18n.language === 'zh' ? zhCnLocale : 'en'}
-        firstDay={0}
+        firstDay={1}
         events={events}
         height="auto"
         eventDisplay="block"

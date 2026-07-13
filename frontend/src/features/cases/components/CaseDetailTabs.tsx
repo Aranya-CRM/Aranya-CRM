@@ -9,8 +9,8 @@ import { AuditHistoryPanel } from '../../audit-history'
 import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
-import { useCreateCaseNote, useDeleteCaseNote, useUpdateCase, useUpdateCaseServices } from '../hooks'
-import type { Case, CaseColorCode, CaseNote, CaseServices, CaseStatus, CaseTask } from '../types'
+import { useUpdateCase, useUpdateCaseServices } from '../hooks'
+import type { Case, CaseColorCode, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
 import { CaseDocumentsTab } from './CaseDocumentsTab'
 import { CaseReportsTab } from './CaseReportsTab'
@@ -19,7 +19,7 @@ import { AddCaseEventForm } from './AddCaseEventForm'
 import { CaseIntensityDot } from './CaseIntensityDot'
 import { selectedServiceForMode, selectedServicesForMode, type ServiceRequestMode } from './caseServiceRequestUtils'
 
-type TabId = 'overview' | 'services' | 'calendar' | 'notes' | 'documents' | 'reports' | 'audit'
+type TabId = 'overview' | 'services' | 'calendar' | 'documents' | 'reports' | 'audit'
 
 interface TabDef {
   id: TabId
@@ -30,7 +30,6 @@ interface TabDef {
 
 interface CaseDetailTabsProps {
   caseData: Case
-  notes: CaseNote[]
   isManager: boolean
 }
 
@@ -38,7 +37,7 @@ function activeServiceCount(services: CaseServices): number {
   return Object.values(services).filter(Boolean).length
 }
 
-export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsProps) {
+export function CaseDetailTabs({ caseData, isManager }: CaseDetailTabsProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
@@ -48,7 +47,6 @@ export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsPro
     { id: 'overview',   labelKey: 'cases.tab.overview' },
     { id: 'services',   labelKey: 'cases.tab.services',  count: serviceCount },
     { id: 'calendar',   labelKey: 'cases.tab.calendar' },
-    { id: 'notes',      labelKey: 'cases.tab.notes',     count: notes.length },
     { id: 'documents',  labelKey: 'cases.tab.documents' },
     { id: 'reports',    labelKey: 'cases.tab.reports' },
     { id: 'audit',      labelKey: 'cases.tab.audit' },
@@ -78,7 +76,6 @@ export function CaseDetailTabs({ caseData, notes, isManager }: CaseDetailTabsPro
         {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} /> : null}
         {activeTab === 'services'  ? <ServicesTab  caseData={caseData} /> : null}
         {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} /> : null}
-        {activeTab === 'notes'     ? <NotesTab     caseId={caseData.id} notes={notes} /> : null}
         {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
         {activeTab === 'audit'     ? <AuditHistoryPanel caseId={caseData.id} caseCode={caseData.caseNo} /> : null}
@@ -818,96 +815,6 @@ function CalendarTab({ caseData }: { caseData: Case }) {
         <AddCaseEventForm caseData={caseData} onDone={() => setShowAddEvent(false)} />
       ) : null}
     </div>
-  )
-}
-
-function NotesTab({ caseId, notes }: { caseId: string; notes: CaseNote[] }) {
-  const { t } = useTranslation()
-  const { resolve } = useAccess()
-  const { user } = useAuth()
-
-  const canCreateNote   = resolve('cases:notes.create')
-  const canEditOwnNote  = resolve('cases:notes.update.own')
-  const canDeleteAnyNote = resolve('cases:notes.delete')
-  const createNote = useCreateCaseNote()
-  const deleteNote = useDeleteCaseNote(caseId)
-  const [content, setContent] = useState('')
-  const [followUp, setFollowUp] = useState('')
-
-  async function submitNote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!content.trim()) return
-    await createNote.mutateAsync({ caseId, content: content.trim(), followUp: followUp.trim() || undefined })
-    setContent('')
-    setFollowUp('')
-  }
-
-  return (
-    <>
-      {canCreateNote ? (
-        <form className="case-note-form" onSubmit={(event) => void submitNote(event)}>
-          <textarea
-            className="overview-textarea"
-            value={content}
-            placeholder={t('cases.notes.placeholder')}
-            onChange={(event) => setContent(event.target.value)}
-          />
-          <input
-            className="overview-select"
-            value={followUp}
-            placeholder={t('cases.notes.followupPlaceholder')}
-            onChange={(event) => setFollowUp(event.target.value)}
-          />
-          <div className="case-notes-actions">
-            <button className="btn-primary" type="submit" disabled={createNote.isPending || !content.trim()}>
-              {createNote.isPending ? t('common.saving') : t('cases.notes.addNote')}
-            </button>
-          </div>
-        </form>
-      ) : null}
-
-      {notes.length === 0 ? (
-        <p className="case-placeholder-text">{t('cases.notes.empty')}</p>
-      ) : (
-        <div className="case-note-list">
-          {notes.map((note) => {
-            const isOwn = note.recordedBy === (user?.fullName ?? '')
-            const canDeleteNote = canDeleteAnyNote || (canEditOwnNote && isOwn)
-            return (
-              <div key={note.id} className="case-note-item">
-                <div className="case-note-header">
-                  <span className="case-note-date">{note.date}</span>
-                  <span className="case-note-author">{t('cases.notes.by')}: {note.recordedBy}</span>
-                  {canEditOwnNote && isOwn ? (
-                    <button
-                      className="btn-note-edit"
-                      type="button"
-                      onClick={() => window.alert(t('common.comingSoon'))}
-                    >
-                      {t('common.edit')}
-                    </button>
-                  ) : null}
-                  {canDeleteNote ? (
-                    <button
-                      className="btn-note-edit"
-                      type="button"
-                      disabled={deleteNote.isPending}
-                      onClick={() => void deleteNote.mutateAsync(note.id)}
-                    >
-                      {t('common.delete')}
-                    </button>
-                  ) : null}
-                </div>
-                <p className="case-note-content">{note.content}</p>
-                {note.followUp ? (
-                  <div className="case-note-followup">{t('cases.notes.followup')}: {note.followUp}</div>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </>
   )
 }
 

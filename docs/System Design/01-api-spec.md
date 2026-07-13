@@ -646,12 +646,21 @@ Response:
 
 Returns one case by database id.
 
-Response shape is the same as one item from `GET /api/v1/cases`.
+Response shape is the same as one item from `GET /api/v1/cases`, plus the following detail-only fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `clientAbbr` | string | Monastic abbreviation |
+| `clientGender` | string | From `client.gender` |
+| `clientOrdinationStatus` | string | From `client.ordination_status` |
+| `services` | object | Map of service key → boolean |
+| `serviceEvents` | array | See `ServiceEventResponse` |
 
 Notes:
 
 - Missing case ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
 - Case notes and status history remain frontend fallback/mock behavior until their backend APIs are implemented.
+- `clientGender` / `clientOrdinationStatus` are read by the volunteer task detail page. They are visible to any role that can read a case.
 
 ### GET `/api/v1/cases/{id}/calendar-events`
 
@@ -674,13 +683,15 @@ Response: array of
   "end": "ISO-8601|null",
   "allDay": false,
   "source": "OTHER_CASE | EXTERNAL",
-  "caseId": 123              // present when the event was written by another case
+  "caseId": 123,             // present when the event was written by another case
+  "colorId": "string|null"   // Google event palette id "1"-"11"; null when the event has no per-event colour
 }
 ```
 
 Notes:
 
 - Backed by a Service Account / OAuth single account; controlled by `google.calendar.*` config. When `google.calendar.enabled=false` (or credentials/calendar-id missing) it returns an empty array — the integration degrades safely and never blocks the request.
+- `colorId` is only set for events whose colour was changed manually in Google Calendar. When null, the frontend falls back to its own source-based colours. The id → colour mapping lives in `frontend/src/features/cases/googleEventColors.ts` (sourced from `GET /calendar/v3/colors`, `event` palette).
 - Case service events created via `POST /api/v1/cases/{id}/service-events` are mirrored (best-effort) to the chosen shared calendar and tagged with the case id via extended properties; deletion removes the mirrored event.
 
 ### Service event write endpoints

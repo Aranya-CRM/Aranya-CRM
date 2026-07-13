@@ -20,10 +20,10 @@ function toLocalInput(value?: string | null): string {
   return value ? value.slice(0, 16) : ''
 }
 
-/** 编辑模式预填:把旧的分段字段(议程/流程/地址/人力/注意事项)合并为单一「内容」文本。 */
+/** 编辑模式预填:把旧的分段字段(议程/流程/人力/注意事项)合并为单一「内容」文本。地址独立成字段,不并入。 */
 function combineContent(event?: ServiceEvent): string {
   if (!event) return ''
-  return [event.agenda, event.schedule, event.address, event.manpower, event.instructions]
+  return [event.agenda, event.schedule, event.manpower, event.instructions]
     .filter((p) => p && p.trim())
     .join('\n\n')
 }
@@ -53,6 +53,7 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const [scheduledStart, setScheduledStart] = useState(toLocalInput(event?.scheduledStart))
   const [scheduledEnd, setScheduledEnd] = useState(toLocalInput(event?.scheduledEnd))
   const [location, setLocation] = useState(event?.location ?? '')
+  const [address, setAddress] = useState(event?.address ?? '')
   const [content, setContent] = useState(() => combineContent(event))
   const [users, setUsers] = useState<UserSummary[]>([])
   const [formError, setFormError] = useState<string>()
@@ -100,6 +101,7 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
       scheduledStart,
       scheduledEnd: scheduledEnd || undefined,
       location: location.trim() || undefined,
+      address: address.trim() || undefined,
       agenda: content.trim() || undefined,
     }
     try {
@@ -168,11 +170,20 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
             </label>
 
             <label className="wide">
+              <span>{t('cases.services.address')}</span>
+              <textarea
+                value={address}
+                placeholder={'Clinic: 123 Example Rd, #04-01, Singapore 123456\nVihara: 45 Temple St, Singapore 654321'}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </label>
+
+            <label className="wide">
               <span>{t('cases.services.content')}</span>
               <textarea
                 className="ta-xl"
                 value={content}
-                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara\n\nAddress:\nClinic: ...\nVihara: ...\n\nManpower:\nMedical Kappiya:\nMedical Caseworker:'}
+                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara\n\nManpower:\nMedical Kappiya:\nMedical Caseworker:'}
                 onChange={(e) => setContent(e.target.value)}
               />
             </label>

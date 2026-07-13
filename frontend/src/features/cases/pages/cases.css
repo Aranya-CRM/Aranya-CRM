@@ -1257,6 +1257,17 @@
   color: #1d4ed8;
 }
 
+/* 在 Google 日历里单独设过色的共享事件:颜色走 inline style(FullCalendar 注入),这里只定结构 */
+.service-calendar-wrap .fc-event.evt-google {
+  border-left-width: 3px;
+  border-left-style: solid;
+  filter: brightness(0.94);
+}
+.service-calendar-wrap .fc-event.evt-google .fc-event-title,
+.service-calendar-wrap .fc-event.evt-google .fc-event-time {
+  color: inherit;
+}
+
 /* “+N more” 折叠链接 */
 .service-calendar-wrap .fc-daygrid-more-link {
   font-size: 11px;
@@ -2217,6 +2228,11 @@
 
 .case-document-upload-modal {
   width: min(560px, 92vw);
+}
+
+.case-document-dragger {
+  display: block;
+  margin-bottom: 12px;
 }
 
 .case-document-dragger.ant-upload-wrapper .ant-upload-drag {
