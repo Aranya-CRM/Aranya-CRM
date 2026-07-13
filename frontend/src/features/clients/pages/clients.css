@@ -99,28 +99,73 @@
 }
 
 .client-filter-popover {
-  position: absolute;
-  top: 36px;
-  right: 0;
-  z-index: 5;
-  width: min(262px, calc(100vw - 32px));
-  padding: 14px;
+  position: fixed;
+  z-index: 1000;
+  width: min(386px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 150px));
+  padding: 12px;
   border: 1px solid #d7dce5;
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+  overflow: auto;
+}
+
+.client-filter-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #d7dce5;
+  border-radius: 7px;
+  background: #f3f5f8;
+}
+
+.client-filter-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.client-filter-tabs button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.client-filter-grid,
+.client-filter-sort-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.client-filter-grid {
+  grid-template-columns: 1fr 1fr;
 }
 
 .client-filter-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eef1f5;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #eef1f5;
+  border-radius: 7px;
+  background: #ffffff;
 }
 
-.client-filter-group:first-child {
-  padding-top: 0;
+.client-filter-group.wide {
+  grid-column: 1 / -1;
+}
+
+.client-filter-group.compact .client-filter-chip {
+  flex: 1 1 auto;
 }
 
 .client-filter-group span {
@@ -172,6 +217,25 @@
 
 .client-filter-clear:hover {
   background: #f3f5f8;
+}
+
+.client-filter-sort-reset {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid #d7dce5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.client-filter-sort-reset:hover,
+.client-filter-sort-reset.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
 }
 
 .client-create-btn {

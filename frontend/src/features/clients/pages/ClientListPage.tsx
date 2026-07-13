@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
@@ -15,13 +15,19 @@ import { isClientResult, useClient, useClients, useClientsAvailableForCase, useC
 import type { Client, WellbeingDomain } from '../types'
 import {
   applyClientCaseFilter,
+  applyClientGenderFilter,
+  applyClientOrdinationStatusFilter,
   applyClientStatusFilter,
   countActiveClientFilters,
   deriveClientDateFields,
   isClientClosed,
   profileActionGroups,
+  sortClientDirectory,
   type ClientArchiveFilter,
   type ClientCaseFilter,
+  type ClientDirectorySort,
+  type ClientGenderFilter,
+  type ClientOrdinationStatusFilter,
 } from './clientProfileUtils'
 import './clients.css'
 
@@ -39,6 +45,8 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Sikkhamana',
   'Sayalay',
 ]
+
+const GENDERS: Array<Client['gender']> = ['Female', 'Male']
 
 const WELLBEING_KEYS: Record<WellbeingDomain, string> = {
   physicalHealth:     'clients.wellbeing.physicalHealth',
@@ -85,7 +93,7 @@ interface ClientApprovalView {
 
 interface ClientDirectoryItem {
   key: string
-  display: Pick<Client, 'abbr' | 'nameEn' | 'nameChn' | 'buddhistTradition'>
+  display: Pick<Client, 'abbr' | 'nameEn' | 'nameChn' | 'buddhistTradition' | 'gender' | 'ordinationStatus'>
   client?: Client
   approval?: ClientApprovalView
   operation?: ClientApprovalOperation
@@ -114,7 +122,12 @@ export function ClientListPage() {
   const [filterTradition, setFilterTradition] = useState<string>('all')
   const [filterCase, setFilterCase] = useState<ClientCaseFilter>('all')
   const [filterArchive, setFilterArchive] = useState<ClientArchiveFilter>('current')
+  const [filterGender, setFilterGender] = useState<ClientGenderFilter>('all')
+  const [filterOrdinationStatus, setFilterOrdinationStatus] = useState<ClientOrdinationStatusFilter>('all')
+  const [directorySort, setDirectorySort] = useState<ClientDirectorySort>('default')
+  const [filterPanelTab, setFilterPanelTab] = useState<'filters' | 'sort'>('filters')
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [filterPopoverStyle, setFilterPopoverStyle] = useState<CSSProperties | undefined>()
   const filterMenuRef = useRef<HTMLDivElement | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
@@ -132,7 +145,14 @@ export function ClientListPage() {
   const canConvertToCase = resolve('cases:create')
   const canCloseCase = resolve('cases:delete')
   const isAdminView = resolve('admin:console.access')
-  const activeFilterCount = countActiveClientFilters(filterTradition, filterCase, filterArchive)
+  const activeFilterCount = countActiveClientFilters(
+    filterTradition,
+    filterCase,
+    filterArchive,
+    filterGender,
+    filterOrdinationStatus,
+    directorySort,
+  )
 
   const withoutCaseIds = useMemo(
     () => new Set(clientsAvailableForCase.map((client) => client.id)),
@@ -151,7 +171,17 @@ export function ClientListPage() {
   )
 
   const filtered = useMemo(() => {
-    return applyClientCaseFilter(applyClientStatusFilter(clients, filterArchive), withCaseIds, filterCase).filter((client) => {
+    const matched = applyClientOrdinationStatusFilter(
+      applyClientGenderFilter(
+        applyClientCaseFilter(
+          applyClientStatusFilter(clients, filterArchive),
+          withCaseIds,
+          filterCase,
+        ),
+        filterGender,
+      ),
+      filterOrdinationStatus,
+    ).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
@@ -161,7 +191,8 @@ export function ClientListPage() {
       const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
       return matchSearch && matchTradition
     })
-  }, [clients, filterArchive, filterCase, filterTradition, search, withCaseIds])
+    return sortClientDirectory(matched, directorySort)
+  }, [clients, directorySort, filterArchive, filterCase, filterGender, filterOrdinationStatus, filterTradition, search, withCaseIds])
 
   const clientApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
@@ -189,8 +220,8 @@ export function ClientListPage() {
         approval,
         operation: 'create',
       }))
-      .filter((item) => clientDirectoryItemMatches(item, search, filterTradition))
-  }, [clientApprovalItems, filterArchive, filterCase, filterTradition, search])
+      .filter((item) => clientDirectoryItemMatches(item, search, filterTradition, filterGender, filterOrdinationStatus))
+  }, [clientApprovalItems, filterArchive, filterCase, filterGender, filterOrdinationStatus, filterTradition, search])
 
   const directoryItems = useMemo(() => {
     return [
@@ -292,6 +323,18 @@ export function ClientListPage() {
   function selectApproval(approvalId: number) {
     setProfileCollapsed(false)
     setSearchParams({ approval: String(approvalId) })
+  }
+
+  function toggleFilterMenu() {
+    if (!filterMenuOpen && filterMenuRef.current) {
+      const rect = filterMenuRef.current.getBoundingClientRect()
+      const panelWidth = Math.min(386, window.innerWidth - 32)
+      setFilterPopoverStyle({
+        top: Math.round(rect.bottom + 8),
+        left: Math.round(Math.min(Math.max(16, rect.left), window.innerWidth - panelWidth - 16)),
+      })
+    }
+    setFilterMenuOpen((open) => !open)
   }
 
   function printProfile() {
@@ -459,50 +502,127 @@ export function ClientListPage() {
                 aria-label={t('clients.filterButton')}
                 aria-haspopup="menu"
                 aria-expanded={filterMenuOpen}
-                onClick={() => setFilterMenuOpen((open) => !open)}
+                onClick={toggleFilterMenu}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M4 5h16l-6.4 7.2v5.1l-3.2 1.7v-6.8L4 5z" />
                 </svg>
               </button>
-              {filterMenuOpen ? (
-                <div className="client-filter-popover" role="menu">
-                  <FilterGroup label={t('clients.filterArchiveLabel')}>
-                    {(['current', 'closed'] as ClientArchiveFilter[]).map((value) => (
-                      <FilterChip
-                        key={value}
-                        active={filterArchive === value}
-                        onClick={() => setFilterArchive(value)}
+            </div>
+            {filterMenuOpen ? (
+                <div className="client-filter-popover" role="menu" style={filterPopoverStyle}>
+                  <div className="client-filter-tabs" role="tablist" aria-label={t('clients.filterPanelLabel')}>
+                    <button
+                      className={filterPanelTab === 'filters' ? 'active' : ''}
+                      type="button"
+                      role="tab"
+                      aria-selected={filterPanelTab === 'filters'}
+                      onClick={() => setFilterPanelTab('filters')}
+                    >
+                      {t('clients.filterTabFilters')}
+                    </button>
+                    <button
+                      className={filterPanelTab === 'sort' ? 'active' : ''}
+                      type="button"
+                      role="tab"
+                      aria-selected={filterPanelTab === 'sort'}
+                      onClick={() => setFilterPanelTab('sort')}
+                    >
+                      {t('clients.filterTabSort')}
+                    </button>
+                  </div>
+
+                  {filterPanelTab === 'filters' ? (
+                    <div className="client-filter-grid">
+                      <FilterGroup label={t('clients.filterArchiveLabel')} compact>
+                        {(['current', 'closed'] as ClientArchiveFilter[]).map((value) => (
+                          <FilterChip
+                            key={value}
+                            active={filterArchive === value}
+                            onClick={() => setFilterArchive(value)}
+                          >
+                            {value === 'closed' ? t('clients.filterClosed') : t('clients.filterCurrent')}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterGenderLabel')} compact>
+                        <FilterChip active={filterGender === 'all'} onClick={() => setFilterGender('all')}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {GENDERS.map((gender) => (
+                          <FilterChip key={gender} active={filterGender === gender} onClick={() => setFilterGender(gender)}>
+                            {t(`clients.profile.field.gender${gender}`)}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterTraditionLabel')}>
+                        <FilterChip active={filterTradition === 'all'} onClick={() => setFilterTradition('all')}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {TRADITIONS.map((tradition) => (
+                          <FilterChip
+                            key={tradition}
+                            active={filterTradition === tradition}
+                            onClick={() => setFilterTradition(tradition)}
+                          >
+                            {tradition}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterCaseLabel')}>
+                        <FilterChip active={filterCase === 'all'} onClick={() => setFilterCase('all')}>
+                          {t('clients.filterCaseAllShort')}
+                        </FilterChip>
+                        <FilterChip active={filterCase === 'with_case'} onClick={() => setFilterCase('with_case')}>
+                          {t('clients.filterWithCase')}
+                        </FilterChip>
+                        <FilterChip active={filterCase === 'without_case'} onClick={() => setFilterCase('without_case')}>
+                          {t('clients.filterWithoutCase')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterOrdinationStatusLabel')} wide>
+                        <FilterChip active={filterOrdinationStatus === 'all'} onClick={() => setFilterOrdinationStatus('all')}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {ORDINATION_STATUSES.map((status) => (
+                          <FilterChip
+                            key={status}
+                            active={filterOrdinationStatus === status}
+                            onClick={() => setFilterOrdinationStatus(status)}
+                          >
+                            {status}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                    </div>
+                  ) : (
+                    <div className="client-filter-sort-panel">
+                      <FilterGroup label={t('clients.sortAgeLabel')}>
+                        <FilterChip active={directorySort === 'age_asc'} onClick={() => setDirectorySort('age_asc')}>
+                          {t('clients.sortAgeAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'age_desc'} onClick={() => setDirectorySort('age_desc')}>
+                          {t('clients.sortAgeDesc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.sortOrdinationYearsLabel')}>
+                        <FilterChip active={directorySort === 'ordination_years_asc'} onClick={() => setDirectorySort('ordination_years_asc')}>
+                          {t('clients.sortOrdinationYearsAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'ordination_years_desc'} onClick={() => setDirectorySort('ordination_years_desc')}>
+                          {t('clients.sortOrdinationYearsDesc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <button
+                        className={'client-filter-sort-reset' + (directorySort === 'default' ? ' active' : '')}
+                        type="button"
+                        onClick={() => setDirectorySort('default')}
                       >
-                        {value === 'closed' ? t('clients.filterClosed') : t('clients.filterCurrent')}
-                      </FilterChip>
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup label={t('clients.filterTraditionLabel')}>
-                    <FilterChip active={filterTradition === 'all'} onClick={() => setFilterTradition('all')}>
-                      {t('clients.filterAllShort')}
-                    </FilterChip>
-                    {TRADITIONS.map((tradition) => (
-                      <FilterChip
-                        key={tradition}
-                        active={filterTradition === tradition}
-                        onClick={() => setFilterTradition(tradition)}
-                      >
-                        {tradition}
-                      </FilterChip>
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup label={t('clients.filterCaseLabel')}>
-                    <FilterChip active={filterCase === 'all'} onClick={() => setFilterCase('all')}>
-                      {t('clients.filterCaseAllShort')}
-                    </FilterChip>
-                    <FilterChip active={filterCase === 'with_case'} onClick={() => setFilterCase('with_case')}>
-                      {t('clients.filterWithCase')}
-                    </FilterChip>
-                    <FilterChip active={filterCase === 'without_case'} onClick={() => setFilterCase('without_case')}>
-                      {t('clients.filterWithoutCase')}
-                    </FilterChip>
-                  </FilterGroup>
+                        {t('clients.sortDefault')}
+                      </button>
+                    </div>
+                  )}
+
                   {activeFilterCount > 0 ? (
                     <button
                       className="client-filter-clear"
@@ -511,14 +631,16 @@ export function ClientListPage() {
                         setFilterTradition('all')
                         setFilterCase('all')
                         setFilterArchive('current')
+                        setFilterGender('all')
+                        setFilterOrdinationStatus('all')
+                        setDirectorySort('default')
                       }}
                     >
-                      {t('clients.filterClear')}
+                      {t('clients.filterClear')} · {activeFilterCount}
                     </button>
                   ) : null}
                 </div>
               ) : null}
-            </div>
           </div>
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
@@ -673,7 +795,13 @@ function directoryItemActive(item: ClientDirectoryItem, selectedClientId?: strin
   return Boolean(item.client && item.client.id === selectedClientId)
 }
 
-function clientDirectoryItemMatches(item: ClientDirectoryItem, search: string, tradition: string) {
+function clientDirectoryItemMatches(
+  item: ClientDirectoryItem,
+  search: string,
+  tradition: string,
+  gender: ClientGenderFilter,
+  ordinationStatus: ClientOrdinationStatusFilter,
+) {
   const q = search.trim().toLowerCase()
   const matchesSearch =
     !q ||
@@ -681,7 +809,9 @@ function clientDirectoryItemMatches(item: ClientDirectoryItem, search: string, t
     item.display.nameEn.toLowerCase().includes(q) ||
     item.display.abbr.toLowerCase().includes(q)
   const matchesTradition = tradition === 'all' || item.display.buddhistTradition === tradition
-  return matchesSearch && matchesTradition
+  const matchesGender = gender === 'all' || item.display.gender === gender
+  const matchesOrdinationStatus = ordinationStatus === 'all' || item.display.ordinationStatus === ordinationStatus
+  return matchesSearch && matchesTradition && matchesGender && matchesOrdinationStatus
 }
 
 function clientFromApproval(approval: ClientApprovalView): Client {
@@ -791,9 +921,19 @@ function approvalReason(payload: Record<string, unknown>): string {
   return typeof reason === 'string' ? reason.trim() : ''
 }
 
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({
+  label,
+  children,
+  compact = false,
+  wide = false,
+}: {
+  label: string
+  children: ReactNode
+  compact?: boolean
+  wide?: boolean
+}) {
   return (
-    <section className="client-filter-group">
+    <section className={'client-filter-group' + (compact ? ' compact' : '') + (wide ? ' wide' : '')}>
       <span>{label}</span>
       <div className="client-filter-chip-row">{children}</div>
     </section>
