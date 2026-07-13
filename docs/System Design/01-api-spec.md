@@ -706,6 +706,27 @@ Notes:
 - POST/PATCH bodies use `CreateServiceEventRequest`. `scheduledEnd`, when provided, must not be before `scheduledStart` (otherwise `400`).
 - `ServiceEventResponse` includes `synced` (true when a `google_event_id` exists) and `googleCalendarId` (the calendar the mirror currently lives on). The frontend shows a "not synced" badge + retry when integration is enabled but `synced=false`.
 
+`CreateServiceEventRequest` fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `serviceKey` | string | Required. Must be one of the case's selected services. |
+| `scheduledStart` | ISO-8601 local date-time | Required. |
+| `scheduledEnd` | ISO-8601 local date-time | Optional; must not be before `scheduledStart`. |
+| `assignedUserId` | number | Optional. The assignee sees the event on their task list. |
+| `calendarId` | string | Optional; defaults to the configured default calendar. |
+| `location` | string | Short venue name; goes into the title as `@X`. |
+| `address` | string | Full multi-line address; rendered as `*Address*` in the Google event body. Shown to the assigned volunteer on the task detail page. |
+| `agenda` | string | `*Agenda*` |
+| `schedule` | string | `*Schedule*` |
+| `manpower` | string | `*Manpower*` |
+| `instructions` | string | `*Instructions for Kappiya*` |
+| `workDescription` | string | Free text: what needs doing. |
+| `notes` | string | Free text: contact info etc. |
+| `reportDueAt` | ISO-8601 local date-time | Optional report deadline. |
+
+- `address` is distinct from `location`: `location` is the short label used in the event title, `address` is the full address a volunteer needs in order to get there. Events created before this field was wired up have `address = null` and render as `-`.
+
 ### Case document endpoints
 
 | Method & Path | Cap | Purpose |
