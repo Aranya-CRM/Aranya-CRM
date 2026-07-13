@@ -7,7 +7,7 @@ import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprova
 import { ApprovalConfirmModal, BackButton } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
-import { useCase, useCaseNotes, useDeleteCase } from '../hooks'
+import { useCase, useDeleteCase } from '../hooks'
 import './cases.css'
 
 interface CaseApprovalView {
@@ -30,7 +30,6 @@ export function CaseDetailPage() {
   const { user } = useAuth()
 
   const { data: caseData, isLoading } = useCase(id)
-  const { data: notes = [] } = useCaseNotes(id)
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
@@ -128,7 +127,7 @@ export function CaseDetailPage() {
         {closeApproval ? (
           <CaseCloseApprovalBanner approval={closeApproval} />
         ) : null}
-        <CaseDetailTabs caseData={caseData} notes={notes} isManager={isManager} />
+        <CaseDetailTabs caseData={caseData} isManager={isManager} />
       </div>
 
       <ApprovalConfirmModal

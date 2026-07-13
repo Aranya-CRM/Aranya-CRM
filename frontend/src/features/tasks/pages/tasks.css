@@ -136,6 +136,11 @@
   line-height: 1.5;
 }
 
+/* 多行文本(如事件地址):保留换行 */
+.task-info.multiline strong {
+  white-space: pre-line;
+}
+
 .task-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

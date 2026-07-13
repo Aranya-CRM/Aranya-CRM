@@ -105,6 +105,8 @@ export interface Case {
   clientAbbr?: string
   clientNameEn: string
   clientNameChn: string
+  clientGender?: string
+  clientOrdinationStatus?: string
   venue?: string
   tradition: string
   socialWorkerId?: string
@@ -204,6 +206,8 @@ export interface SharedCalendarEvent {
   description?: string | null
   calendarId?: string | null
   calendarName?: string | null
+  /** Google 事件调色板 id("1"-"11");为空表示事件未单独设色,继承日历默认色 */
+  colorId?: string | null
 }
 
 /** 可写入的共享日历(供增添事件时选择) */

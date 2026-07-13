@@ -142,6 +142,12 @@ function UploadModal({
         </header>
 
         <div className="event-modal-body">
+          <Upload.Dragger {...uploadProps} className="case-document-dragger">
+            <p className="case-document-dragger-icon">⬆</p>
+            <p className="case-document-dragger-text">{t('cases.documents.uploadHint')}</p>
+            <p className="case-document-dragger-hint">{t('cases.documents.uploadHintSub')}</p>
+          </Upload.Dragger>
+
           <label className="case-document-name-field">
             <span>{t('cases.documents.categoryLabel')}</span>
             <select value={category} onChange={(e) => setCategory(e.target.value as CaseDocumentCategory)}>
@@ -152,12 +158,6 @@ function UploadModal({
               ))}
             </select>
           </label>
-
-          <Upload.Dragger {...uploadProps} className="case-document-dragger">
-            <p className="case-document-dragger-icon">⬆</p>
-            <p className="case-document-dragger-text">{t('cases.documents.uploadHint')}</p>
-            <p className="case-document-dragger-hint">{t('cases.documents.uploadHintSub')}</p>
-          </Upload.Dragger>
 
           <label className="case-document-name-field">
             <span>{t('cases.documents.fileNameLabel')}</span>

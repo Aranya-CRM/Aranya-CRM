@@ -526,6 +526,8 @@ public class CaseService {
                 .clientAbbr(clientCase.getClient().getAbbr())
                 .clientNameEn(clientCase.getClient().getNameEn())
                 .clientNameChn(clientCase.getClient().getNameChn())
+                .clientGender(clientCase.getClient().getGender())
+                .clientOrdinationStatus(clientCase.getClient().getOrdinationStatus())
                 .createdById(clientCase.getCreatedBy().getId())
                 .createdByName(clientCase.getCreatedBy().getFullName())
                 .comments(clientCase.getComments())

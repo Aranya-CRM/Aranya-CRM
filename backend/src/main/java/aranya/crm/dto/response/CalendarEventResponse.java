@@ -23,4 +23,5 @@ public class CalendarEventResponse {
     private String description; // Google 事件正文(模板分节原文)
     private String calendarId;   // 事件所属日历 id
     private String calendarName; // 事件所属日历显示名
+    private String colorId;      // Google 事件调色板 id("1"-"11");未单独设色时为空,表示继承日历默认色
 }

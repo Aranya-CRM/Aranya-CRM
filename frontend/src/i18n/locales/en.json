@@ -4,9 +4,7 @@
     "clients": "Members",
     "cases": "Cases",
     "reports": "Reports",
-    "approvals": "Approvals",
     "tasks": "Help with",
-    "users": "Users",
     "profile": "View profile",
     "driveImport": "Drive Import",
     "admin": "Admin Console"
@@ -15,20 +13,12 @@
     "title": "Admin Console",
     "subtitle": "System & account administration",
     "badge": "Backend",
-    "enter": "Admin Console",
-    "backToApp": "Back to app",
-    "comingSoon": "Coming soon",
     "nav": {
-      "accounts": "Accounts",
-      "audit": "Audit log",
-      "settings": "Org settings"
+      "accounts": "Accounts"
     },
     "accounts": {
       "title": "Account Management",
       "subtitle": "Manage system users, invitations and role permissions."
-    },
-    "placeholder": {
-      "desc": "This section is on the roadmap and coming soon."
     }
   },
   "driveImport": {
@@ -74,8 +64,6 @@
   "layout": {
     "brandTitle": "Aranya Case Management",
     "brandSubtitle": "Aranya CRM",
-    "topbarTitle": "Aranya CRM Admin",
-    "topbarSubtitle": "Aranya CRM Admin System",
     "logout": "Logout"
   },
   "common": {
@@ -83,11 +71,7 @@
     "cancel": "Cancel",
     "save": "Save",
     "edit": "Edit",
-    "back": "← Back to List",
-    "actions": "Actions",
-    "comingSoon": "Coming soon",
     "saving": "Saving...",
-    "by": "by",
     "delete": "Delete",
     "confirm": "Confirm",
     "close": "Close"
@@ -105,49 +89,22 @@
     "caseCreate": "Creating a case requires manager approval. After confirmation, the case appears only after approval.",
     "caseDelete": "Closing a case requires manager approval. After confirmation, the case will be closed after approval.",
     "serviceUpdate": "Adding services requires approval. After confirmation, approved services will appear in the service module.",
-    "serviceRemove": "Removing {{service}} requires approval. After confirmation, the service will be removed after manager approval.",
     "clientCreate": "Creating a member requires approval. After confirmation, the member appears only after approval.",
     "clientUpdate": "Editing a member profile saves directly.",
     "clientDelete": "Closing a member profile requires approval. After confirmation, the profile is removed from the active list after approval."
   },
   "approvals": {
-    "title": "Approvals",
-    "subtitle": "Review pending case, service, and deletion requests.",
-    "loadError": "Failed to load approvals.",
-    "actionError": "Failed to update approval request.",
-    "pending": "Pending",
-    "empty": "No pending approvals.",
-    "selectPrompt": "Select an approval request.",
-    "listLabel": "Approval request list",
-    "detailLabel": "Approval request detail",
-    "payload": "Request Payload",
-    "noPayload": "No payload details.",
-    "comment": "Decision Comment",
-    "commentPlaceholder": "Optional comment",
     "approve": "Approve",
     "reject": "Reject",
     "fields": {
       "requestedBy": "Requested By",
-      "createdAt": "Created At",
-      "target": "Target",
-      "status": "Status"
-    },
-    "openTarget": "Open target page",
-    "type": {
-      "CASE_CREATE": "Create Case",
-      "CASE_SERVICE_UPDATE": "Update Case Services",
-      "CLIENT_CREATE": "Create Member",
-      "CLIENT_UPDATE": "Edit Member",
-      "DELETE_CLIENT": "Close Member Profile",
-      "DELETE_CASE": "Close Case",
-      "DELETE_REPORT": "Delete Report"
+      "createdAt": "Created At"
     }
   },
   "dashboard": {
     "pageTitle": "Dashboard",
     "loading": "Loading dashboard data...",
     "error": "Failed to load dashboard data.",
-    "unnamedMonastic": "Unnamed monastic",
     "stat": {
       "activeMonastics": "Active Monastics",
       "myAssignedClients": "My Assigned Monastics",
@@ -170,8 +127,6 @@
     "noCases": "No recent cases",
     "noTasks": "No assigned tasks",
     "noReports": "No recent reports",
-    "urgentBanner": "{{count}} Urgent Report(s) Pending Action",
-    "viewResolve": "View & Resolve",
     "quickActions": "Quick Actions",
     "action": {
       "new_case": "New Case",
@@ -185,24 +140,16 @@
       "intensity": "Intensity",
       "caseNo": "Case Number",
       "monastic": "Monastic",
-      "tradition": "Tradition",
-      "caseworker": "Caseworker",
       "status": "Status",
-      "opened": "Opened",
       "lastUpdated": "Last Updated",
-      "actions": "Actions",
       "loading": "Loading...",
-      "empty": "No cases found",
-      "view": "View",
-      "audit": "Audit"
+      "empty": "No cases found"
     },
     "approvals": {
-      "title": "Pending Case Approvals",
       "createCase": "New Case Request",
       "closeCase": "Close Case Request",
       "reason": "Application Reason",
       "noReason": "No application reason provided",
-      "targetCase": "Target Case",
       "badge": {
         "create": "Pending Add",
         "close": "Pending Close"
@@ -263,7 +210,6 @@
       "manpower": "Manpower",
       "instructions": "Instructions for Kappiya",
       "content": "Content",
-      "titlePreview": "Title preview",
       "requiredFields": "Please select a service and start time.",
       "createError": "Failed to create event. Please try again.",
       "sourceOtherCase": "From another case (shared calendar)",
@@ -281,34 +227,21 @@
       "calendarPlaceholder": "No service events",
       "empty": "No services added yet.",
       "addService": "Add Service",
-      "addEvent": "Add Service Event",
       "service": "Service",
       "selectService": "Select service",
       "assignee": "Assignee",
       "selectAssignee": "Select assignee",
       "time": "Specific Time",
-      "reportDueAt": "Report Due (optional)",
       "location": "Location",
-      "workDescription": "What needs to be done",
-      "contact": "Contact",
-      "eventNotes": "Notes (optional)",
       "createEvent": "Create Event",
-      "hideEventPanel": "Hide Events",
-      "eventHistory": "Event History",
-      "showEventHistory": "Show Event History",
-      "hideEventHistory": "Hide Event History",
       "requestService": "Submit for Approval",
-      "applyService": "Service Management",
       "removeService": "Remove Service",
       "selectServiceToAdd": "Select service to add",
       "selectServiceToRemove": "Select service to remove",
       "selectPlaceholder": "Select a service",
       "noAvailableServices": "No services available to add.",
-      "noRemovableServices": "No services available to remove.",
       "addPending": "Add pending",
       "removePending": "Removal pending",
-      "noEvents": "No service events yet.",
-      "eventCreated": "Service event created.",
       "approvalSubmitError": "Failed to submit approval. Check the approver permissions and try again."
     },
     "serviceGroup": {
@@ -321,17 +254,14 @@
       "overview": "Overview",
       "services": "Services",
       "calendar": "Event",
-      "notes": "Notes",
       "documents": "Documents",
       "reports": "Reports",
-      "history": "History",
-      "audit": "Audit"
+      "audit": "Log"
     },
     "overview": {
       "dateOpened": "Date Opened",
       "status": "Status",
       "caseworker": "Caseworker",
-      "volunteer": "Assigned Volunteer",
       "intensity": "Intensity",
       "activeModules": "Active Modules",
       "activeModulesValue": "{{count}} module(s)",
@@ -350,23 +280,16 @@
       "moreActions": "More actions"
     },
     "notes": {
-      "empty": "No notes yet.",
-      "by": "By",
-      "followup": "Follow-up",
-      "addNote": "Add Note",
-      "placeholder": "Add a case note",
-      "followupPlaceholder": "Follow-up (optional)"
+      "followup": "Follow-up"
     },
     "documents": {
       "title": "Documents",
       "upload": "Upload",
-      "back": "Back",
       "uploadHint": "Click or drag a file to this area to upload",
       "uploadHintSub": "Supports a single or bulk upload. PDF, images and Office files up to 25 MB.",
       "categoryLabel": "Category",
       "fileNameLabel": "File name (optional)",
       "fileNamePlaceholder": "Leave blank to keep the original name",
-      "fileUnit": "files",
       "previewUnsupported": "Preview is not available for this format. Please download to view.",
       "category": {
         "ordination": "Ordination Certificate",
@@ -386,63 +309,6 @@
       "empty": "No documents in this category yet.",
       "count_one": "{{count}} file",
       "count_other": "{{count}} files"
-    },
-    "placeholder": "{{tab}} coming soon.",
-    "audit": {
-      "compliance": {
-        "title": "Compliance Status",
-        "subtitle": "Auto-checked from case data",
-        "passed": "{{count}} / {{total}} passed",
-        "sw_assigned": "Caseworker assigned",
-        "volunteer_assigned": "Volunteer assigned",
-        "volunteer_assigned_fail": "Recommend assigning a follow-up volunteer for active cases",
-        "early_note": "Note recorded within 7 days of opening",
-        "early_note_fail": "First assessment note should be recorded within 7 days of opening",
-        "has_notes": "At least one case note recorded",
-        "tasks_defined": "Task list defined",
-        "tasks_defined_fail": "A task list helps track follow-up progress",
-        "crisis_for_red": "Red case: Crisis Intervention module enabled",
-        "crisis_for_red_fail": "Red cases must have Crisis Intervention module enabled",
-        "status_ok": "Suspended case must have notes explaining reason"
-      },
-      "flags": {
-        "title": "Flag Management",
-        "open": "{{count}} open flag(s)",
-        "noOpen": "No open flags",
-        "flagCase": "Flag Case",
-        "empty": "No flags recorded for this case.",
-        "statusOpen": "Open",
-        "statusResolved": "Resolved",
-        "flaggedBy": "Flagged by",
-        "resolvedBy": "Resolved",
-        "resolve": "Resolve",
-        "resolution": "Resolution"
-      },
-      "flagSeverity": {
-        "HIGH": "High",
-        "MEDIUM": "Medium",
-        "LOW": "Low"
-      },
-      "activityLog": {
-        "title": "Activity Log",
-        "count": "{{count}} entries",
-        "empty": "No activity recorded."
-      },
-      "action": {
-        "CASE_CREATED": "Case Created",
-        "CASE_CLOSED": "Case Closed",
-        "CASE_REOPENED": "Case Reopened",
-        "STATUS_CHANGED": "Status Changed",
-        "INTENSITY_CHANGED": "Intensity Changed",
-        "NOTE_ADDED": "Note Added",
-        "TASK_COMPLETED": "Task Completed",
-        "TASK_ADDED": "Task Added",
-        "CASEWORKER_ASSIGNED": "Caseworker Assigned",
-        "VOLUNTEER_ASSIGNED": "Volunteer Assigned",
-        "SERVICE_UPDATED": "Service Updated",
-        "CASE_FLAGGED": "Case Flagged",
-        "FLAG_RESOLVED": "Flag Resolved"
-      }
     },
     "form": {
       "newCase": "New Case",
@@ -468,13 +334,11 @@
     },
     "list": {
       "count": "{{count}} cases",
-      "auditView": "Audit View",
       "newCase": "+ New Case"
     },
     "reports": {
       "count": "{{count}} report(s)",
       "empty": "No visit reports yet",
-      "newBtn": "+ New Report",
       "col": {
         "date": "Visit Date",
         "type": "Type",
@@ -561,7 +425,6 @@
   },
   "clients": {
     "pageTitle": "Member Profiles",
-    "pageSubtitle": "Member Profiles",
     "search": "Search name or abbreviation",
     "filterButton": "Filter",
     "filterPanelLabel": "Member directory controls",
@@ -576,7 +439,6 @@
     "filterTraditionLabel": "Filter by Buddhist tradition",
     "filterOrdinationStatusLabel": "Ordination Status",
     "filterCaseLabel": "Filter by case status",
-    "filterCaseAll": "Case · All",
     "filterCaseAllShort": "All",
     "filterWithCase": "With Case",
     "filterWithoutCase": "Without Case",
@@ -594,14 +456,10 @@
     "profileLoading": "Loading full profile...",
     "profileError": "Full profile failed to load. Showing list summary.",
     "selectPrompt": "Select a client profile",
-    "notFound": "Client Not Found",
-    "backToList": "← Back to List",
     "accessDenied": "Access Denied",
     "accessDeniedMsg": "Your current access does not allow creating or editing client profiles.",
     "saveError": "Failed to save.",
     "approvals": {
-      "title": "Pending Member Approvals",
-      "pending": "Pending approval",
       "reason": "Application Reason",
       "noReason": "No application reason provided",
       "badge": {
@@ -641,7 +499,6 @@
       "create": "Create Monastic ->"
     },
     "profile": {
-      "convertToClient": "Convert to Client",
       "convertToCase": "Convert to Case",
       "viewCase": "View Case",
       "closeCase": "Close Case",
@@ -720,9 +577,6 @@
     }
   },
   "users": {
-    "pageTitle": "User Management",
-    "managerView": "Manager View",
-    "managerDesc": "You can create, edit, deactivate, or remove user accounts.",
     "addBtn": "Invite User",
     "search": "Search name, email or role",
     "error": {
@@ -801,7 +655,6 @@
     "deleteError": "Failed to delete report.",
     "missingId": "Missing report ID.",
     "notFound": "Report Not Found",
-    "back": "← Back to List",
     "unnamedMonastic": "Unnamed monastic",
     "status": {
       "DRAFT": "Draft",
@@ -814,31 +667,12 @@
     "mailbox": {
       "title": "Reports",
       "empty": "No reports",
-      "waitingApproval": "Awaiting approval",
       "selectHint": "Select a report to view"
     },
     "list": {
-      "title": "Reports",
-      "myTitle": "My Visit Reports",
-      "count": "{{count}} reports",
       "newBtn": "+ Submit Visit Report",
-      "search": "Search reports...",
-      "statusFilter": "Report status",
-      "allTypes": "All Types",
       "loading": "Loading...",
-      "empty": "No reports found",
-      "colId": "Report ID",
-      "colClient": "Client",
-      "colCreatedBy": "Created By",
-      "colVisitDate": "Visit Date",
-      "colVisitType": "Visit Type",
-      "colCreatedAt": "Created At",
-      "colActions": "Actions",
-      "view": "View",
-      "delete": "Delete",
-      "confirmDelete": "Delete report RPT-{{id}}?",
-      "loadError": "Failed to load reports.",
-      "deleteError": "Failed to delete report."
+      "loadError": "Failed to load reports."
     },
     "form": {
       "title": "Submit Observation Report",
@@ -869,86 +703,17 @@
       "required": "Monastic and visit date are required.",
       "loadError": "Failed to load monastics.",
       "submitError": "Failed to submit report.",
-      "backToReports": "← Back to Reports",
       "submitting": "Submitting...",
-      "submit": "Submit Report →",
       "saveDraft": "Save Draft",
-      "submitFinal": "Submit Report",
-      "update": "Save Changes"
+      "submitFinal": "Submit Report"
     },
     "detail": {
       "title": "Observation Report",
-      "visitedPerson": "Visited Monastic",
-      "submitted": "Submitted",
-      "urgent": "Urgent",
-      "resolveFlag": "Resolve Flag",
-      "approve": "Approve",
-      "approving": "Approving...",
-      "approveError": "Failed to approve the report. Please try again.",
-      "archive": "Archive",
       "edit": "Edit",
       "deleting": "Deleting...",
       "delete": "Delete",
       "deleteDraft": "Delete Draft",
-      "export": "Export Report",
-      "exportTooltip": "Export feature coming soon",
-      "confirmDelete": "Delete report {{id}}?",
-      "urgentBanner": "This report was marked URGENT by {{name}}.",
-      "markResolved": "Mark Resolved",
-      "noContent": "No content",
-      "submittedBy": "Submitted by: {{name}}",
-      "createdAt": "Created at {{date}}",
-      "field": {
-        "client": "Client",
-        "createdBy": "Created By",
-        "visitDate": "Visit Date",
-        "visitTime": "Visit Time",
-        "duration": "Duration",
-        "location": "Location",
-        "programme": "Programme",
-        "visitType": "Visit Type"
-      },
-      "section": {
-        "purpose": "Purpose of Visit",
-        "whatWasDone": "What Was Done",
-        "environment": "Environment Observations",
-        "sangha": "Sangha Observations",
-        "other": "Other Observations",
-        "reflections": "Personal Reflections",
-        "recommendations": "Recommendations",
-        "highlights": "Matters to Highlight"
-      }
-    }
-    ,
-    "category": {
-      "all": "All",
-      "befriending": "💙 Befriending",
-      "temple": "🏠 Temple Improvement",
-      "food": "🍱 Food Support",
-      "planning": "📋 Care Planning",
-      "case": "📁 Case Management"
-    }
-    ,
-    "statusFilter": {
-      "all": "All statuses"
-    },
-    "overview": {
-      "title": "Documents",
-      "tabVolunteer": "Volunteer Reports",
-      "tabMine": "My Reports",
-      "emptyVolunteer": "No volunteer reports",
-      "emptyMine": "No reports from you",
-      "selectHint": "Select a report to view details",
-      "selectVolunteer": "Select a volunteer to view their submissions",
-      "searchVolunteer": "Search volunteer name…",
-      "reportCount": "{{count}} reports",
-      "lastDate": "Last: ",
-      "volunteerCount": "{{count}} volunteers",
-      "freshness": {
-        "recent": "Active",
-        "medium": "Moderate",
-        "old": "Follow up"
-      }
+      "confirmDelete": "Delete report {{id}}?"
     }
   },
   "tasks": {
@@ -965,9 +730,16 @@
       "subject": "Subject",
       "time": "Time",
       "location": "Location",
+      "address": "Address",
       "todo": "What is needed",
-      "notes": "Supplementary notes",
       "contact": "Contact"
+    },
+    "monastic": {
+      "title": "Monastic Details",
+      "abbrev": "Abbrev",
+      "tradition": "Tradition",
+      "gender": "Gender",
+      "ordinationStatus": "Ordination Status"
     },
     "myNotes": "My Notes",
     "noReports": "No reports uploaded by you",

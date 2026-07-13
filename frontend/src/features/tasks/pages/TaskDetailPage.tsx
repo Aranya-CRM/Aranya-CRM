@@ -181,8 +181,18 @@ export function TaskDetailPage() {
           <Info label={t('tasks.request.subject')} value={taskEvent.serviceName} />
           <Info label={t('tasks.request.time')} value={taskEvent.scheduledStart} />
           <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
+          <Info label={t('tasks.request.address')} value={taskEvent.address || '-'} wide multiline />
           <Info label={t('tasks.request.todo')} value={taskEvent.workDescription || '-'} wide />
           <Info label={t('tasks.request.contact')} value={taskEvent.notes || '-'} wide />
+        </div>
+      </SectionCard>
+
+      <SectionCard className="task-detail-card" title={t('tasks.monastic.title')} ariaLabel="Monastic" bodyPadding>
+        <div className="task-overview-grid">
+          <Info label={t('tasks.monastic.abbrev')} value={caseData.clientAbbr || '-'} />
+          <Info label={t('tasks.monastic.tradition')} value={caseData.tradition || '-'} />
+          <Info label={t('tasks.monastic.gender')} value={caseData.clientGender || '-'} />
+          <Info label={t('tasks.monastic.ordinationStatus')} value={caseData.clientOrdinationStatus || '-'} />
         </div>
       </SectionCard>
 
@@ -239,9 +249,9 @@ export function TaskDetailPage() {
   )
 }
 
-function Info({ label, value, wide }: { label: string, value: string, wide?: boolean }) {
+function Info({ label, value, wide, multiline }: { label: string, value: string, wide?: boolean, multiline?: boolean }) {
   return (
-    <div className={`task-info${wide ? ' wide' : ''}`}>
+    <div className={`task-info${wide ? ' wide' : ''}${multiline ? ' multiline' : ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
