@@ -91,7 +91,7 @@ public class ApprovalService {
         JsonNode payloadJson = parsePayload(payload);
         String normalizedReason = decodeHeaderValue(reason);
         if (assignedApproverId != null || normalizedReason != null) {
-            payloadJson = withApprovalMeta(payloadJson, requester, assignedApproverId, normalizedReason);
+            payloadJson = withApprovalMeta(normalizedType, payloadJson, requester, assignedApproverId, normalizedReason);
         }
         String idempotencyKey = buildIdempotencyKey(
                 normalizedType,
@@ -184,7 +184,13 @@ public class ApprovalService {
                 .orElseThrow(() -> new AccessDeniedException("Current user not found"));
     }
 
-    private JsonNode withApprovalMeta(JsonNode payloadJson, User requestedBy, Long assignedApproverId, String reason) {
+    private JsonNode withApprovalMeta(
+            String approvalType,
+            JsonNode payloadJson,
+            User requestedBy,
+            Long assignedApproverId,
+            String reason
+    ) {
         ObjectNode objectPayload;
         if (payloadJson == null || payloadJson.isNull()) {
             objectPayload = objectMapper.createObjectNode();
@@ -200,7 +206,7 @@ public class ApprovalService {
         if (assignedApproverId != null) {
             User assignedApprover = userRepository.findByIdWithRoles(assignedApproverId)
                     .orElseThrow(() -> new EntityNotFoundException("Assigned approver not found: " + assignedApproverId));
-            requireValidAssignedApprover(requestedBy, assignedApprover);
+            requireValidAssignedApprover(approvalType, objectPayload, requestedBy, assignedApprover);
             meta.put(ASSIGNED_APPROVER_ID_FIELD, assignedApprover.getId());
         }
         if (reason != null) {
@@ -210,8 +216,14 @@ public class ApprovalService {
         return objectPayload;
     }
 
-    private void requireValidAssignedApprover(User requestedBy, User assignedApprover) {
-        if (assignedApprover.getId().equals(requestedBy.getId())) {
+    private void requireValidAssignedApprover(
+            String approvalType,
+            JsonNode payloadJson,
+            User requestedBy,
+            User assignedApprover
+    ) {
+        boolean assignedToSelf = assignedApprover.getId().equals(requestedBy.getId());
+        if (assignedToSelf && !canManagerSelfApprove(approvalType, payloadJson, requestedBy)) {
             throw new AccessDeniedException("Requester cannot approve their own request");
         }
         if (!"ACTIVE".equals(assignedApprover.getStatus())) {
@@ -235,11 +247,14 @@ public class ApprovalService {
 
     private void requireAllowedDecisionUser(ApprovalRequest request, User decidedBy) {
         User requestedBy = request.getRequestedBy();
+        Long assignedApproverId = readAssignedApproverId(request);
         if (requestedBy != null && requestedBy.getId() != null && requestedBy.getId().equals(decidedBy.getId())) {
-            throw new AccessDeniedException("Requester cannot approve their own request");
+            if (!decidedBy.getId().equals(assignedApproverId)
+                    || !canManagerSelfApprove(request.getType(), request.getPayloadJson(), decidedBy)) {
+                throw new AccessDeniedException("Requester cannot approve their own request");
+            }
         }
 
-        Long assignedApproverId = readAssignedApproverId(request);
         if (assignedApproverId != null && !assignedApproverId.equals(decidedBy.getId())) {
             throw new AccessDeniedException("Only the assigned approver can decide this request");
         }
@@ -316,6 +331,24 @@ public class ApprovalService {
 
     private boolean isApprovalManager(User user) {
         return hasRole(user, "MANAGER") || hasRole(user, "ADMIN") || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
+    }
+
+    private boolean canManagerSelfApprove(String approvalType, JsonNode payloadJson, User user) {
+        if (!hasRole(user, "MANAGER")) {
+            return false;
+        }
+        if ("CASE_CREATE".equals(approvalType) || "CLIENT_CREATE".equals(approvalType)) {
+            return true;
+        }
+        if (!"CASE_SERVICE_UPDATE".equals(approvalType)) {
+            return false;
+        }
+        JsonNode addServiceKeys = payloadJson == null ? null : payloadJson.path("addServiceKeys");
+        JsonNode removeServiceKeys = payloadJson == null ? null : payloadJson.path("removeServiceKeys");
+        return addServiceKeys != null
+                && addServiceKeys.isArray()
+                && addServiceKeys.size() > 0
+                && (removeServiceKeys == null || !removeServiceKeys.isArray() || removeServiceKeys.size() == 0);
     }
 
     private void requirePending(ApprovalRequest request) {

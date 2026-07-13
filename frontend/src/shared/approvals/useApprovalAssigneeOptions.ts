@@ -7,9 +7,14 @@ export interface ApprovalAssigneeOption {
   label: string
 }
 
-export function useApprovalAssigneeOptions() {
+interface ApprovalAssigneeOptionsConfig {
+  allowSelfAssignment?: boolean
+}
+
+export function useApprovalAssigneeOptions(config: ApprovalAssigneeOptionsConfig = {}) {
   const { user: currentUser } = useAuth()
   const usersQuery = useUsers()
+  const allowSelfAssignment = config.allowSelfAssignment === true
 
   const options = useMemo<ApprovalAssigneeOption[]>(() => {
     const users = usersQuery.data ?? []
@@ -28,14 +33,15 @@ export function useApprovalAssigneeOptions() {
       .filter((item) => {
         if (item.status !== 'ACTIVE') return false
         if (!item.roles.some(isApprovalManagerRole)) return false
-        if (item.id === current?.id || item.id === currentUser?.id || item.email === currentUser?.email) return false
+        const isCurrentUser = item.id === current?.id || item.id === currentUser?.id || item.email === currentUser?.email
+        if (isCurrentUser && !(allowSelfAssignment && currentRoles.has('MANAGER'))) return false
         return true
       })
       .map((item) => ({
         id: item.id,
         label: `${item.fullName} (${item.email})`,
       }))
-  }, [currentUser?.email, currentUser?.id, usersQuery.data])
+  }, [allowSelfAssignment, currentUser?.email, currentUser?.id, usersQuery.data])
 
   return {
     options,

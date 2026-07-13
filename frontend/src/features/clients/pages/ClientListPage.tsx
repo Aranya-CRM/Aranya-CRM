@@ -114,7 +114,6 @@ export function ClientListPage() {
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
   const closeCase = useDeleteCase()
-  const approvalAssignees = useApprovalAssigneeOptions()
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
@@ -135,6 +134,7 @@ export function ClientListPage() {
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
   const [profileCollapsed, setProfileCollapsed] = useState(false)
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: approvalIntent === 'create' })
 
   const selectedApprovalId = searchParams.get('approval')
   const selectedClientId = searchParams.get('client') ?? routeClientId
@@ -778,7 +778,9 @@ export function ClientListPage() {
 
 function canDecideApproval(approval: ClientApprovalView | undefined, currentUserId: number | undefined) {
   if (!approval || currentUserId === undefined) return false
-  if (approval.requestedById === currentUserId) return false
+  if (approval.requestedById === currentUserId) {
+    return approval.type === 'CLIENT_CREATE' && approval.assignedApproverId === currentUserId
+  }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 
