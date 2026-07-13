@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
-import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
+import { ApprovalConfirmModal } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
@@ -121,6 +121,7 @@ export function ClientListPage() {
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
+  const [profileCollapsed, setProfileCollapsed] = useState(false)
 
   const selectedApprovalId = searchParams.get('approval')
   const selectedClientId = searchParams.get('client') ?? routeClientId
@@ -130,6 +131,7 @@ export function ClientListPage() {
   const canViewDetailedProfile = resolve('clients:view.full')
   const canConvertToCase = resolve('cases:create')
   const canCloseCase = resolve('cases:delete')
+  const isAdminView = resolve('admin:console.access')
   const activeFilterCount = countActiveClientFilters(filterTradition, filterCase, filterArchive)
 
   const withoutCaseIds = useMemo(
@@ -215,7 +217,8 @@ export function ClientListPage() {
 
   const selectedClient = useMemo(() => {
     if (selectedCreateApproval) return undefined
-    return filtered.find((client) => client.id === selectedClientId) ?? filtered[0]
+    if (!selectedClientId) return undefined
+    return filtered.find((client) => client.id === selectedClientId)
   }, [filtered, selectedClientId, selectedCreateApproval])
   const {
     data: selectedClientDetail,
@@ -247,15 +250,13 @@ export function ClientListPage() {
   const routeWantsEdit = location.pathname.endsWith('/edit')
 
   useEffect(() => {
-    if (selectedCreateApproval) return
-    if (!selectedClient || selectedClient.id === selectedClientId) return
-    setSearchParams({ client: selectedClient.id }, { replace: true })
-  }, [selectedClient, selectedClientId, selectedCreateApproval, setSearchParams])
-
-  useEffect(() => {
     setEditingClientId(null)
     setEditForm(null)
   }, [selectedClient?.id])
+
+  useEffect(() => {
+    setProfileCollapsed(false)
+  }, [selectedClient?.id, selectedCreateApproval?.id])
 
   useEffect(() => {
     if (!routeWantsEdit || !profileClient || profileClosed || !canUpdateClient || editingClientId === profileClient.id) return
@@ -284,10 +285,12 @@ export function ClientListPage() {
   }, [filterMenuOpen])
 
   function selectClient(clientId: string) {
+    setProfileCollapsed(false)
     setSearchParams({ client: clientId })
   }
 
   function selectApproval(approvalId: number) {
+    setProfileCollapsed(false)
     setSearchParams({ approval: String(approvalId) })
   }
 
@@ -553,7 +556,7 @@ export function ClientListPage() {
         </div>
       </aside>
 
-      <main className="client-profile-surface">
+      <main className={'client-profile-surface' + (!displayProfileClient ? ' empty' : '')}>
         {displayProfileClient ? (
           <>
             {isDetailLoading && !selectedCreateApproval ? (
@@ -589,11 +592,12 @@ export function ClientListPage() {
                 onRejectApproval={() => serverProfileApproval ? void rejectRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
                 closed={profileClosed}
                 canUpdateClient={!profileApproval && !profileClosed && canUpdateClient}
-                canDeleteClient={!profileApproval && !profileClosed && canDeleteClient}
+                canDeleteClient={!isAdminView && !profileApproval && !profileClosed && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={!profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
+                canConvertToCase={!isAdminView && !profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
                 activeCase={activeProfileCase}
-                canCloseCase={!profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
+                canCloseCase={!isAdminView && !profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
+                collapsed={profileCollapsed}
                 closeCasePending={closeCasePending}
                 closingCase={closeCase.isPending}
                 deleting={deleteClient.isPending}
@@ -603,11 +607,12 @@ export function ClientListPage() {
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
                 onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
+                onToggleCollapsed={() => setProfileCollapsed((collapsed) => !collapsed)}
               />
             )}
           </>
         ) : (
-          <EmptyState message={t('clients.selectPrompt')} />
+          null
         )}
       </main>
 
@@ -1084,6 +1089,7 @@ interface ClientProfilePanelProps {
   canConvertToCase: boolean
   activeCase?: Case
   canCloseCase: boolean
+  collapsed: boolean
   closeCasePending: boolean
   closingCase: boolean
   deleting: boolean
@@ -1093,6 +1099,7 @@ interface ClientProfilePanelProps {
   onEdit: () => void
   onCreateCase: () => void
   onViewCase: () => void
+  onToggleCollapsed: () => void
 }
 
 function ClientProfilePanel({
@@ -1111,6 +1118,7 @@ function ClientProfilePanel({
   canConvertToCase,
   activeCase,
   canCloseCase,
+  collapsed,
   closeCasePending,
   closingCase,
   deleting,
@@ -1120,6 +1128,7 @@ function ClientProfilePanel({
   onEdit,
   onCreateCase,
   onViewCase,
+  onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
   const actionGroups = profileActionGroups({
@@ -1139,8 +1148,20 @@ function ClientProfilePanel({
             {closed ? <span className="client-profile-status closed">{t('clients.profile.closedStatus')}</span> : null}
           </div>
         </div>
+        <button
+          className="client-profile-collapse-btn"
+          type="button"
+          aria-label={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+          aria-expanded={!collapsed}
+          title={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+          onClick={onToggleCollapsed}
+        >
+          <span aria-hidden="true">{collapsed ? '▾' : '▴'}</span>
+        </button>
       </header>
 
+      {collapsed ? null : (
+        <>
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
 
       <ProfileSection title={t('clients.profile.section.basicInfo')}>
@@ -1241,6 +1262,8 @@ function ClientProfilePanel({
           </div>
         </footer>
       ) : null}
+        </>
+      )}
     </article>
   )
 }

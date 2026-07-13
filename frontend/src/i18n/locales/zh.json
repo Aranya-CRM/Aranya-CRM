@@ -641,6 +641,8 @@
       "saving": "保存中...",
       "save": "保存修改",
       "cancel": "取消",
+      "collapseDetails": "隐藏档案详情",
+      "expandDetails": "显示档案详情",
       "volunteerNotice": "当前账户只能查看基础档案。如需完整资料，请联系 Manager。",
       "section": {
         "basicInfo": "基本信息",
