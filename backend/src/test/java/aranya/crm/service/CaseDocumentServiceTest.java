@@ -153,20 +153,20 @@ class CaseDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("deleteCaseDocument rejects sensitive (medical/legal) documents — never physically deleted")
-    void deleteCaseDocument_rejectsSensitive() {
+    @DisplayName("deleteCaseDocument soft-deletes medical and legal docs without removing storage objects")
+    void deleteCaseDocument_softDeletesMedicalAndLegalDocuments() {
         CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.MEDICAL, "ACTIVE");
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
         when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
                 .thenReturn(Optional.of(caseDocument));
 
-        assertThatThrownBy(() -> service().deleteCaseDocument(7L, 99L))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        service().deleteCaseDocument(7L, 99L);
 
-        assertThat(caseDocument.getStatus()).isEqualTo("ACTIVE");
+        assertThat(caseDocument.getStatus()).isEqualTo("DELETED");
+        verify(caseDocumentRepository).save(caseDocument);
         verify(fileStorageService, never()).deleteObject(any());
         verify(caseDocumentRepository, never()).delete(any());
-        verify(caseDocumentRepository, never()).save(any());
+        verify(documentRepository, never()).delete(any());
     }
 
     @Test
