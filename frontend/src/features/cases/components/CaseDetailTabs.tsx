@@ -427,7 +427,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
-  const approvalAssignees = useApprovalAssigneeOptions()
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: serviceRequestMode === 'add' })
 
   const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
   const serverServiceApprovals = useMemo(() => pendingApprovals.filter((approval) => (
@@ -768,12 +768,22 @@ function ServiceApprovalSummary({
 }
 
 function canDecideServiceApproval(
-  approval: Pick<PendingApprovalView, 'requestedById' | 'assignedApproverId'> | undefined,
+  approval: Pick<PendingApprovalView, 'type' | 'requestedById' | 'assignedApproverId' | 'payloadJson'> | undefined,
   currentUserId: number | undefined,
 ) {
   if (!approval || currentUserId === undefined) return false
-  if (approval.requestedById === currentUserId) return false
+  if (approval.requestedById === currentUserId) {
+    return approval.assignedApproverId === currentUserId && isSelfDecidableServiceAddApproval(approval)
+  }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
+}
+
+function isSelfDecidableServiceAddApproval(
+  approval: Pick<PendingApprovalView, 'type' | 'payloadJson'>,
+): boolean {
+  if (approval.type !== 'CASE_SERVICE_UPDATE') return false
+  const changes = parsePendingServicePayload(approval.payloadJson)
+  return changes.length > 0 && changes.every((change) => change.operation === 'add')
 }
 
 function approvalReason(payloadJson?: string | null): string {

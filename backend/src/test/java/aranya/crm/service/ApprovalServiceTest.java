@@ -9,12 +9,14 @@ import aranya.crm.repository.ApprovalRequestRepository;
 import aranya.crm.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.security.access.AccessDeniedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -199,6 +201,110 @@ class ApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("manager can assign allowed create approvals to self")
+    void createRequest_allowsManagerToAssignAllowedCreateApprovalToSelf() {
+        User manager = user(20L, "Manager", "MANAGER");
+        stubLoadUser(manager);
+        when(approvalActionRegistry.supports("CLIENT_CREATE")).thenReturn(true);
+        when(approvalRequestRepository.save(any(ApprovalRequest.class))).thenAnswer(invocation -> {
+            ApprovalRequest saved = invocation.getArgument(0);
+            saved.setId(90L);
+            return saved;
+        });
+
+        ApprovalRequestResponse result = approvalService.createRequest(
+                "CLIENT_CREATE",
+                "CLIENT",
+                null,
+                Map.of("nameEn", "New Member"),
+                manager,
+                manager.getId(),
+                "Manager submits own member creation"
+        );
+
+        ArgumentCaptor<ApprovalRequest> captor = ArgumentCaptor.forClass(ApprovalRequest.class);
+        verify(approvalRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().getPayloadJson().path("_approval").path("assignedApproverId").asLong())
+                .isEqualTo(manager.getId());
+        assertThat(result.getAssignedApproverId()).isEqualTo(manager.getId());
+    }
+
+    @Test
+    @DisplayName("manager can assign add-service approval to self")
+    void createRequest_allowsManagerToAssignAddServiceApprovalToSelf() {
+        User manager = user(20L, "Manager", "MANAGER");
+        stubLoadUser(manager);
+        when(approvalActionRegistry.supports("CASE_SERVICE_UPDATE")).thenReturn(true);
+        when(approvalRequestRepository.save(any(ApprovalRequest.class))).thenAnswer(invocation -> {
+            ApprovalRequest saved = invocation.getArgument(0);
+            saved.setId(91L);
+            return saved;
+        });
+
+        ApprovalRequestResponse result = approvalService.createRequest(
+                "CASE_SERVICE_UPDATE",
+                "CASE",
+                7L,
+                Map.of(
+                        "operation", "update",
+                        "serviceKeys", List.of("mealDelivery", "legalAid"),
+                        "addServiceKeys", List.of("legalAid"),
+                        "removeServiceKeys", List.of()
+                ),
+                manager,
+                manager.getId(),
+                "Manager adds service"
+        );
+
+        assertThat(result.getAssignedApproverId()).isEqualTo(manager.getId());
+    }
+
+    @Test
+    @DisplayName("manager cannot assign other approval types to self")
+    void createRequest_rejectsManagerSelfAssignmentForOtherApprovalTypes() {
+        User manager = user(20L, "Manager", "MANAGER");
+        stubLoadUser(manager);
+        when(approvalActionRegistry.supports("DELETE_CLIENT")).thenReturn(true);
+
+        assertThatThrownBy(() -> approvalService.createRequest(
+                "DELETE_CLIENT",
+                "CLIENT",
+                5L,
+                null,
+                manager,
+                manager.getId(),
+                "Manager closes own member"
+        ))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Requester cannot approve their own request");
+    }
+
+    @Test
+    @DisplayName("manager cannot assign remove-service approval to self")
+    void createRequest_rejectsManagerSelfAssignmentForRemoveServiceApproval() {
+        User manager = user(20L, "Manager", "MANAGER");
+        stubLoadUser(manager);
+        when(approvalActionRegistry.supports("CASE_SERVICE_UPDATE")).thenReturn(true);
+
+        assertThatThrownBy(() -> approvalService.createRequest(
+                "CASE_SERVICE_UPDATE",
+                "CASE",
+                7L,
+                Map.of(
+                        "operation", "update",
+                        "serviceKeys", List.of("mealDelivery"),
+                        "addServiceKeys", List.of(),
+                        "removeServiceKeys", List.of("legalAid")
+                ),
+                manager,
+                manager.getId(),
+                "Manager removes service"
+        ))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Requester cannot approve their own request");
+    }
+
+    @Test
     @DisplayName("approve marks a pending request as approved")
     void approve_marksPendingRequestApproved() {
         ApprovalRequest request = request(7L, "CASE_CREATE", "PENDING", user(10L, "Requester"));
@@ -215,6 +321,38 @@ class ApprovalServiceTest {
         assertThat(result.getStatus()).isEqualTo("APPROVED");
         assertThat(result.getDecidedByName()).isEqualTo("Manager");
         verify(approvalActionRegistry).execute(request, manager);
+    }
+
+    @Test
+    @DisplayName("manager can decide own assigned create approval")
+    void approve_allowsManagerToDecideOwnAssignedCreateApproval() {
+        User manager = user(20L, "Manager", "MANAGER");
+        ApprovalRequest request = request(7L, "CASE_CREATE", "PENDING", manager);
+        ObjectNode payload = objectMapper.createObjectNode().put("clientId", 5);
+        payload.set("_approval", objectMapper.createObjectNode().put("assignedApproverId", manager.getId()));
+        request.setPayloadJson(payload);
+        when(approvalRequestRepository.findById(7L)).thenReturn(Optional.of(request));
+        stubLoadUser(manager);
+
+        ApprovalRequestResponse result = approvalService.approve(7L, manager, "Looks valid");
+
+        assertThat(request.getStatus()).isEqualTo("APPROVED");
+        assertThat(request.getDecidedBy()).isSameAs(manager);
+        assertThat(result.getDecidedByName()).isEqualTo("Manager");
+        verify(approvalActionRegistry).execute(request, manager);
+    }
+
+    @Test
+    @DisplayName("manager cannot decide own unassigned create approval")
+    void approve_rejectsManagerOwnCreateApprovalWhenNotAssignedToSelf() {
+        User manager = user(20L, "Manager", "MANAGER");
+        ApprovalRequest request = request(7L, "CASE_CREATE", "PENDING", manager);
+        when(approvalRequestRepository.findById(7L)).thenReturn(Optional.of(request));
+        stubLoadUser(manager);
+
+        assertThatThrownBy(() -> approvalService.approve(7L, manager, "Looks valid"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Requester cannot approve their own request");
     }
 
     @Test
@@ -281,6 +419,7 @@ class ApprovalServiceTest {
         user.setFullName(fullName);
         user.setUsername("user" + id);
         user.setEmail("user" + id + "@test.com");
+        user.setStatus("ACTIVE");
         for (String roleName : roles) {
             Role role = new Role();
             role.setName(roleName);

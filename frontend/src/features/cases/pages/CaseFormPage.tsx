@@ -22,7 +22,7 @@ export function CaseFormPage() {
   const [searchParams] = useSearchParams()
   const requestedClientId = searchParams.get('clientId') ?? ''
   const createCase = useCreateCase()
-  const approvalAssignees = useApprovalAssigneeOptions()
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: true })
   const [clients, setClients] = useState<Client[]>([])
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
   const [clientId, setClientId] = useState(requestedClientId)

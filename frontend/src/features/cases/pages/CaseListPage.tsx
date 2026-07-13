@@ -291,7 +291,9 @@ function CaseApprovalDetailPanel({
 
 function canDecideApproval(approval: CaseApprovalView | undefined, currentUserId: number | undefined) {
   if (!approval || currentUserId === undefined) return false
-  if (approval.requestedById === currentUserId) return false
+  if (approval.requestedById === currentUserId) {
+    return approval.type === 'CASE_CREATE' && approval.assignedApproverId === currentUserId
+  }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 
