@@ -188,6 +188,9 @@ public class ClientService {
                 .area(client.getAreaDistrict())
                 .buddhistTradition(client.getBuddhistTradition())
                 .ordinationStatus(client.getOrdinationStatus())
+                .gender(client.getGender())
+                .dateOfBirth(client.getDateOfBirth())
+                .dateOfOrdination(client.getDateOfOrdination())
                 .membershipStatus(client.getMembershipStatus())
                 .build();
     }

@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -18,5 +20,8 @@ public class ClientSummaryResponse {
     private String area;
     private String buddhistTradition;
     private String ordinationStatus;
+    private String gender;
+    private LocalDate dateOfBirth;
+    private LocalDate dateOfOrdination;
     private String membershipStatus;
 }
