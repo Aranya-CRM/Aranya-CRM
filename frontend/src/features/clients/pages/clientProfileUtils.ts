@@ -7,6 +7,9 @@ export interface ClientDateFields {
 
 export type ClientCaseFilter = 'all' | 'with_case' | 'without_case'
 export type ClientArchiveFilter = 'current' | 'closed'
+export type ClientGenderFilter = 'all' | Client['gender']
+export type ClientOrdinationStatusFilter = 'all' | Client['ordinationStatus']
+export type ClientDirectorySort = 'default' | 'ordination_years_asc' | 'ordination_years_desc' | 'age_asc' | 'age_desc'
 export type ClientProfileAction = 'convertToCase' | 'closeCase' | 'editProfile' | 'closeProfile'
 
 export type BackendClientResponse = {
@@ -123,12 +126,70 @@ export function applyClientStatusFilter<T extends { membershipStatus?: string | 
   return clients.filter((client) => filter === 'closed' ? isClientClosed(client) : !isClientClosed(client))
 }
 
+export function applyClientGenderFilter<T extends { gender?: string | null }>(
+  clients: T[],
+  filter: ClientGenderFilter,
+): T[] {
+  if (filter === 'all') return clients
+  return clients.filter((client) => client.gender === filter)
+}
+
+export function applyClientOrdinationStatusFilter<T extends { ordinationStatus?: string | null }>(
+  clients: T[],
+  filter: ClientOrdinationStatusFilter,
+): T[] {
+  if (filter === 'all') return clients
+  return clients.filter((client) => client.ordinationStatus === filter)
+}
+
+export function sortClientDirectory<T extends {
+  age?: number | null
+  ordinationYears?: number | null
+  dateOfBirth?: string | null
+  dateOfOrdination?: string | null
+}>(
+  clients: T[],
+  sort: ClientDirectorySort,
+): T[] {
+  if (sort === 'default') return clients
+
+  const key = sort.startsWith('age') ? 'age' : 'ordinationYears'
+  const dateKey = sort.startsWith('age') ? 'dateOfBirth' : 'dateOfOrdination'
+  const direction = sort.endsWith('desc') ? -1 : 1
+
+  return clients
+    .map((client, index) => ({ client, index }))
+    .sort((a, b) => {
+      const left = sortableNumber(a.client[key], a.client[dateKey])
+      const right = sortableNumber(b.client[key], b.client[dateKey])
+      if (left === undefined && right === undefined) return a.index - b.index
+      if (left === undefined) return 1
+      if (right === undefined) return -1
+      if (left === right) return a.index - b.index
+      return (left - right) * direction
+    })
+    .map((entry) => entry.client)
+}
+
 export function countActiveClientFilters(
   traditionFilter: string,
   caseFilter: ClientCaseFilter,
   archiveFilter: ClientArchiveFilter,
+  genderFilter: ClientGenderFilter = 'all',
+  ordinationStatusFilter: ClientOrdinationStatusFilter = 'all',
+  sort: ClientDirectorySort = 'default',
 ): number {
-  return Number(traditionFilter !== 'all') + Number(caseFilter !== 'all') + Number(archiveFilter !== 'current')
+  return Number(traditionFilter !== 'all') +
+    Number(caseFilter !== 'all') +
+    Number(archiveFilter !== 'current') +
+    Number(genderFilter !== 'all') +
+    Number(ordinationStatusFilter !== 'all') +
+    Number(sort !== 'default')
+}
+
+function sortableNumber(value: number | null | undefined, sourceDate?: string | null): number | undefined {
+  if (!sourceDate) return undefined
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 export function profileActionGroups({
