@@ -641,6 +641,8 @@
       "saving": "Saving...",
       "save": "Save Changes",
       "cancel": "Cancel",
+      "printReport": "Generate Report / Print",
+      "printTitle": "Member Profile Report",
       "collapseDetails": "Hide profile details",
       "expandDetails": "Show profile details",
       "volunteerNotice": "This account can view basic profile information only.",

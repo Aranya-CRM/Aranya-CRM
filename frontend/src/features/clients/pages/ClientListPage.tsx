@@ -294,6 +294,11 @@ export function ClientListPage() {
     setSearchParams({ approval: String(approvalId) })
   }
 
+  function printProfile() {
+    setProfileCollapsed(false)
+    window.setTimeout(() => window.print(), 0)
+  }
+
   function submitNewClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setApprovalIntent('create')
@@ -607,6 +612,7 @@ export function ClientListPage() {
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
                 onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
+                onPrint={printProfile}
                 onToggleCollapsed={() => setProfileCollapsed((collapsed) => !collapsed)}
               />
             )}
@@ -1099,6 +1105,7 @@ interface ClientProfilePanelProps {
   onEdit: () => void
   onCreateCase: () => void
   onViewCase: () => void
+  onPrint: () => void
   onToggleCollapsed: () => void
 }
 
@@ -1128,6 +1135,7 @@ function ClientProfilePanel({
   onEdit,
   onCreateCase,
   onViewCase,
+  onPrint,
   onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
@@ -1143,21 +1151,33 @@ function ClientProfilePanel({
     <article className={'client-profile' + (closed ? ' closed' : '')}>
       <header className="client-profile-header">
         <div>
+          <p className="client-profile-report-title">{t('clients.profile.printTitle')}</p>
           <div className="client-profile-title-row">
             <h1>{client.abbr || '-'}</h1>
             {closed ? <span className="client-profile-status closed">{t('clients.profile.closedStatus')}</span> : null}
           </div>
         </div>
-        <button
-          className="client-profile-collapse-btn"
-          type="button"
-          aria-label={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
-          aria-expanded={!collapsed}
-          title={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
-          onClick={onToggleCollapsed}
-        >
-          <span aria-hidden="true">{collapsed ? '▾' : '▴'}</span>
-        </button>
+        <div className="client-profile-header-actions">
+          <button
+            className="client-profile-icon-btn"
+            type="button"
+            aria-label={t('clients.profile.printReport')}
+            title={t('clients.profile.printReport')}
+            onClick={onPrint}
+          >
+            <span aria-hidden="true">⎙</span>
+          </button>
+          <button
+            className="client-profile-icon-btn"
+            type="button"
+            aria-label={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            aria-expanded={!collapsed}
+            title={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            onClick={onToggleCollapsed}
+          >
+            <span aria-hidden="true">{collapsed ? '▾' : '▴'}</span>
+          </button>
+        </div>
       </header>
 
       {collapsed ? null : (
