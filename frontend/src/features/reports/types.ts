@@ -4,6 +4,7 @@ export interface ReportSummary {
   id: number
   caseId?: number | null
   clientId?: number | null
+  appointmentId?: number | null
   clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
@@ -18,6 +19,14 @@ export interface ReportSummary {
   location?: string | null
   programmeName?: string | null
   typeOfVisit?: string | null
+  eventTitle?: string | null
+  eventScheduledStart?: string | null
+  eventScheduledEnd?: string | null
+  eventLocation?: string | null
+  eventAddress?: string | null
+  eventContent?: string | null
+  serviceKey?: string | null
+  serviceName?: string | null
   status?: ReportStatus | null
   createdAt?: string | null
 }

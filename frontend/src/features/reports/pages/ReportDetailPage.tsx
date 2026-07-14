@@ -72,7 +72,7 @@ export function ReportDetailPage() {
     try {
       const submitted = await submitReport(report.id)
       setReport(submitted)
-      navigate(returnTo.startsWith('/tasks/') ? `${returnTo}?reportId=${submitted.id}` : withReturnTo(`/reports/${submitted.id}`, returnTo), { replace: true })
+      navigate(returnTo.startsWith('/reports/') ? `${returnTo}?reportId=${submitted.id}` : withReturnTo(`/reports/report/${submitted.id}`, returnTo), { replace: true })
     } catch {
       setErrorMessage(t('reports.form.submitError'))
     } finally {
@@ -115,7 +115,7 @@ export function ReportDetailPage() {
 
   const status = reportStatusKey(report.status)
   const clientName = isZh ? report.clientNameChn || report.clientNameEn : report.clientNameEn || report.clientNameChn
-  const editPath = withReturnTo(`/reports/${report.id}/edit`, returnTo, clientName || undefined)
+  const editPath = withReturnTo(`/reports/report/${report.id}/edit`, returnTo, clientName || undefined)
 
   return (
     <div className="report-page">
@@ -128,15 +128,14 @@ export function ReportDetailPage() {
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
       <article className="report-read-flow" aria-label="Report detail">
-        <ReadOnlyField label={t('reports.form.monastic')} value={displayText(clientName)} />
-        <ReadOnlyField label={t('reports.form.staffName')} value={displayText(report.createdByName ?? report.staffName)} />
-        <ReadOnlyField label={t('reports.form.dateOfVisit')} value={formatDate(report.dateOfVisit)} />
+        <ReadOnlyField label={t('tasks.request.subject')} value={displayText(report.eventTitle)} />
+        <ReadOnlyField label={t('reports.form.member')} value={displayText(clientName)} />
+        <ReadOnlyField label={t('reports.form.case')} value={displayText(report.caseCode)} />
+        <ReadOnlyField label={t('reports.form.dateOfVisit')} value={formatDate(report.dateOfVisit ?? report.eventScheduledStart)} />
         <ReadOnlyField label={t('reports.form.timeOfVisit')} value={displayText(report.timeOfVisit)} />
-        <ReadOnlyField label={t('reports.form.duration')} value={displayText(report.durationOfVisit)} />
-        <ReadOnlyField label={t('reports.form.location')} value={displayText(report.location)} />
-        <ReadOnlyField label={t('reports.form.visitType')} value={displayText(report.typeOfVisit)} />
-        <ReadOnlyField label={t('reports.form.programme')} value={displayText(report.programmeName)} />
-        <ReadOnlyField label={t('reports.form.purpose')} value={displayText(report.purposeOfVisit)} />
+        <ReadOnlyField label={t('reports.form.location')} value={displayText(report.eventLocation ?? report.location)} />
+        <ReadOnlyField label={t('tasks.request.address')} value={displayText(report.eventAddress)} />
+        <ReadOnlyField label={t('tasks.request.content')} value={displayText(report.eventContent)} />
         <ReadOnlyField label={t('reports.form.whatWasDone')} value={displayText(report.whatWasDone)} />
         <ReadOnlyField label={t('reports.form.envObs')} value={displayText(report.environmentObservations)} />
         <ReadOnlyField label={t('reports.form.sanghaObs')} value={displayText(report.sanghaObservations)} />

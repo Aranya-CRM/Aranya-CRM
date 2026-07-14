@@ -23,8 +23,14 @@ function toLocalInput(value?: string | null): string {
 /** 编辑模式预填:把旧的分段字段(议程/流程/人力/注意事项)合并为单一「内容」文本。地址独立成字段,不并入。 */
 function combineContent(event?: ServiceEvent): string {
   if (!event) return ''
-  return [event.agenda, event.schedule, event.manpower, event.instructions]
-    .filter((p) => p && p.trim())
+  const seen = new Set<string>()
+  return [event.workDescription, event.agenda, event.schedule, event.manpower, event.instructions]
+    .map((part) => part?.trim())
+    .filter((part): part is string => {
+      if (!part || seen.has(part)) return false
+      seen.add(part)
+      return true
+    })
     .join('\n\n')
 }
 
@@ -102,6 +108,7 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
       scheduledEnd: scheduledEnd || undefined,
       location: location.trim() || undefined,
       address: address.trim() || undefined,
+      workDescription: content.trim() || undefined,
       agenda: content.trim() || undefined,
     }
     try {

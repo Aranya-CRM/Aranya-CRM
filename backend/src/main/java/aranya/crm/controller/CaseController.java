@@ -1,19 +1,16 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.request.CreateCaseRequest;
-import aranya.crm.dto.request.CreateCaseNoteRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
-import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
-import aranya.crm.service.CaseNoteService;
 import aranya.crm.service.CaseService;
 import aranya.crm.service.ApprovalService;
 import jakarta.validation.Valid;
@@ -48,7 +45,6 @@ public class CaseController {
     private static final String APPROVAL_REASON_HEADER = "X-Approval-Reason";
 
     private final CaseService caseService;
-    private final CaseNoteService caseNoteService;
     private final ApprovalService approvalService;
     private final CapPermissionEvaluator capEval;
 
@@ -146,8 +142,12 @@ public class CaseController {
     public ResponseEntity<List<CalendarEventResponse>> listSharedCalendarEvents(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            Authentication authentication
     ) {
+        if (!"ALL".equals(capEval.capScope(authentication, "reports:view"))) {
+            return ResponseEntity.ok(List.of());
+        }
         return ResponseEntity.ok(caseService.listSharedCalendarEvents(id, from, to));
     }
 
@@ -212,34 +212,4 @@ public class CaseController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
-    @GetMapping("/{id}/notes")
-    public ResponseEntity<List<CaseNoteResponse>> listCaseNotes(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean mine,
-            @CurrentUser User currentUser
-    ) {
-        if (mine) {
-            return ResponseEntity.ok(caseNoteService.listOwnCaseNotes(id, currentUser));
-        }
-        return ResponseEntity.ok(caseNoteService.listCaseNotes(id));
-    }
-
-    @PostMapping("/{id}/notes")
-    public ResponseEntity<CaseNoteResponse> createCaseNote(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateCaseNoteRequest request,
-            @CurrentUser User currentUser
-    ) {
-        return ResponseEntity.ok(caseNoteService.createCaseNote(id, request, currentUser));
-    }
-
-    @DeleteMapping("/{caseId}/notes/{noteId}")
-    public ResponseEntity<Void> deleteOwnCaseNote(
-            @PathVariable Long caseId,
-            @PathVariable Long noteId,
-            @CurrentUser User currentUser
-    ) {
-        caseNoteService.deleteOwnCaseNote(caseId, noteId, currentUser);
-        return ResponseEntity.noContent().build();
-    }
 }

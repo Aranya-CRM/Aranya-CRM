@@ -43,19 +43,6 @@ function ReportsIcon() {
   )
 }
 
-function TasksIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <path d="M3 6l1 1 2-2" />
-      <path d="M3 12l1 1 2-2" />
-      <path d="M3 18l1 1 2-2" />
-    </svg>
-  )
-}
-
 function DriveImportIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -116,13 +103,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/cases',
     labelKey: 'nav.cases',
     icon: <CasesIcon />,
-  },
-  {
-    id: 'tasks',
-    routeId: 'route:tasks',
-    path: '/tasks',
-    labelKey: 'nav.tasks',
-    icon: <TasksIcon />,
   },
   {
     id: 'reports',

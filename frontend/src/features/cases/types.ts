@@ -42,6 +42,8 @@ export interface ServiceEvent {
   notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
+  createdById?: number | null
+  createdByName?: string | null
   // 组织日历模板字段
   eventSeq?: number | null
   address?: string | null
@@ -121,16 +123,6 @@ export interface Case {
   services: CaseServices
   serviceEvents?: ServiceEvent[]
   tasks?: CaseTask[]
-}
-
-export interface CaseNote {
-  id: string
-  caseId: string
-  date: string
-  content: string
-  followUp: string
-  recordedBy: string
-  createdAt: string
 }
 
 export type CaseDocumentCategory = 'ORDINATION' | 'MEDICAL' | 'FINANCIAL' | 'LEGAL'

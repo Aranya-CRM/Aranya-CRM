@@ -20,11 +20,12 @@ async function approvalHeaders(options?: ApprovalOptions) {
   return headers
 }
 
-export async function fetchReports(options?: { mine?: boolean, caseId?: string | number }): Promise<ReportSummary[]> {
+export async function fetchReports(options?: { mine?: boolean, caseId?: string | number, appointmentId?: string | number }): Promise<ReportSummary[]> {
   const res = await http.get<ReportSummary[]>('/v1/reports', {
     params: {
       ...(options?.mine ? { mine: true } : {}),
       ...(options?.caseId ? { caseId: options.caseId } : {}),
+      ...(options?.appointmentId ? { appointmentId: options.appointmentId } : {}),
     },
   })
   return res.data

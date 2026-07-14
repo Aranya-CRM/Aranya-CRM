@@ -119,9 +119,20 @@ public class CapPermissionEvaluator {
             return "NO";
         }
 
+        if (roleNames.contains("ADMIN")
+                && (capKey.equals("route:reports")
+                || capKey.equals("route:tasks")
+                || capKey.startsWith("reports:")
+                || capKey.equals("tasks.list"))) {
+            return "NO";
+        }
+
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
-            if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
+            if (capKey.equals("route:reports") || capKey.equals("tasks.list")) {
                 return "YES";
+            }
+            if (capKey.equals("reports:view")) {
+                return "OWN";
             }
             if (capKey.equals("cases:view") || capKey.startsWith("cases:documents.")) {
                 return "NO";
