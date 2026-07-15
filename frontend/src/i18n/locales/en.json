@@ -7,7 +7,8 @@
     "tasks": "Event",
     "profile": "View profile",
     "driveImport": "Drive Import",
-    "admin": "Admin Console"
+    "admin": "Admin Console",
+    "settings": "Settings"
   },
   "admin": {
     "title": "Admin Console",
@@ -19,6 +20,25 @@
     "accounts": {
       "title": "Account Management",
       "subtitle": "Manage system users, invitations and role permissions."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "searchUser": "Search user…",
+    "selectUser": "Select a user to manage their sensitive-file access.",
+    "saved": "Saved",
+    "saveError": "Failed to save. Please try again.",
+    "loadUsersError": "Failed to load users.",
+    "loadAccessError": "Failed to load access settings.",
+    "documentAccess": {
+      "title": "Sensitive file access",
+      "subtitle": "Grant which categories of case documents each user can view.",
+      "category": {
+        "ordination": "Identity / Ordination",
+        "medical": "Medical",
+        "financial": "Financial",
+        "legal": "Legal"
+      }
     }
   },
   "driveImport": {
@@ -512,8 +532,6 @@
       "cancel": "Cancel",
       "printReport": "Generate Report / Print",
       "printTitle": "Member Profile Report",
-      "collapseDetails": "Hide profile details",
-      "expandDetails": "Show profile details",
       "volunteerNotice": "This account can view basic profile information only.",
       "section": {
         "basicInfo": "Basic Info",

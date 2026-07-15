@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -40,10 +41,15 @@ public class CaseDocumentService {
     private final GcsFileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
 
-    public List<CaseDocumentResponse> listCaseDocuments(Long caseId) {
+    /**
+     * 列出个案文档,仅返回调用者有权查看的类别(cases:documents.view.&lt;category&gt;)。
+     * 类别可见性由 controller 依据 role_cap ∪ user_cap 计算后传入。
+     */
+    public List<CaseDocumentResponse> listCaseDocuments(Long caseId, Set<DocumentCategory> viewableCategories) {
         requireActiveCase(caseId);
         return caseDocumentRepository.findByClientCase_IdAndStatusOrderByCategoryAscLinkedAtDescIdDesc(caseId, ACTIVE)
                 .stream()
+                .filter(caseDocument -> viewableCategories.contains(caseDocument.getCategory()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -114,13 +120,17 @@ public class CaseDocumentService {
         return toResponse(caseDocument);
     }
 
-    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId) {
-        return createDownloadUrl(caseId, documentId, true);
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, Set<DocumentCategory> viewableCategories) {
+        return createDownloadUrl(caseId, documentId, true, viewableCategories);
     }
 
-    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload) {
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload, Set<DocumentCategory> viewableCategories) {
         requireActiveCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
+        // 无该类别查看权限时按"不存在"处理,不泄露文件存在性
+        if (!viewableCategories.contains(caseDocument.getCategory())) {
+            throw new EntityNotFoundException("Case document not found: " + documentId);
+        }
         Document document = caseDocument.getDocument();
         URI uri = fileStorageService.createReadUrl(
                 document.getObjectKey(),
