@@ -32,6 +32,7 @@ import java.util.Locale;
 public class CaseDocumentService {
 
     private static final String ACTIVE = "ACTIVE";
+    private static final String CLOSED = "CLOSED";
     private static final String DELETED = "DELETED";
 
     private final CaseRepository caseRepository;
@@ -41,7 +42,7 @@ public class CaseDocumentService {
     private final FileStorageProperties fileStorageProperties;
 
     public List<CaseDocumentResponse> listCaseDocuments(Long caseId) {
-        requireActiveCase(caseId);
+        requireVisibleCase(caseId);
         return caseDocumentRepository.findByClientCase_IdAndStatusOrderByCategoryAscLinkedAtDescIdDesc(caseId, ACTIVE)
                 .stream()
                 .map(this::toResponse)
@@ -66,7 +67,7 @@ public class CaseDocumentService {
             String displayName,
             User currentUser
     ) {
-        ClientCase clientCase = requireActiveCase(caseId);
+        ClientCase clientCase = requireMutableCase(caseId);
         if (category == null) {
             throw new IllegalArgumentException("Document category is required");
         }
@@ -119,7 +120,7 @@ public class CaseDocumentService {
     }
 
     public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload) {
-        requireActiveCase(caseId);
+        requireVisibleCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         Document document = caseDocument.getDocument();
         URI uri = fileStorageService.createReadUrl(
@@ -142,17 +143,25 @@ public class CaseDocumentService {
      */
     @Transactional
     public void deleteCaseDocument(Long caseId, Long documentId) {
-        requireActiveCase(caseId);
+        requireMutableCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         caseDocument.setStatus(DELETED);
         caseDocumentRepository.save(caseDocument);
     }
 
-    private ClientCase requireActiveCase(Long caseId) {
+    private ClientCase requireVisibleCase(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         if (DELETED.equalsIgnoreCase(clientCase.getStatus())) {
             throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        return clientCase;
+    }
+
+    private ClientCase requireMutableCase(Long caseId) {
+        ClientCase clientCase = requireVisibleCase(caseId);
+        if (CLOSED.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new IllegalStateException("Closed cases are read-only");
         }
         return clientCase;
     }

@@ -384,6 +384,13 @@
   color: #991b1b;
 }
 
+.client-directory-approval-badge.restore,
+.client-approval-status.restore {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .client-profile-surface {
   height: 100%;
   overflow: auto;

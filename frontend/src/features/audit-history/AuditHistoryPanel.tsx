@@ -163,7 +163,7 @@ function actorLabelKey(action: AuditAction): string {
   if (action === 'DELETE_CASE' || action === 'DELETE_CLIENT' || action === 'DELETE_REPORT' || action === 'SENSITIVE_FILE_ARCHIVE') {
     return 'auditHistory.fields.archivedBy'
   }
-  if (action === 'SENSITIVE_FILE_RESTORE') return 'auditHistory.fields.restoredBy'
+  if (action === 'RESTORE_CASE' || action === 'RESTORE_CLIENT' || action === 'SENSITIVE_FILE_RESTORE') return 'auditHistory.fields.restoredBy'
   if (action === 'CLIENT_UPDATE' || action === 'CASE_SERVICE_UPDATE' || action === 'SENSITIVE_FILE_SUPERSEDE') {
     return 'auditHistory.fields.modifiedBy'
   }

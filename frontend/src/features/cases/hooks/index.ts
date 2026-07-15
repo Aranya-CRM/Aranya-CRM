@@ -6,6 +6,7 @@ export {
   useCreateServiceEvent,
   useDeleteCase,
   useDeleteServiceEvent,
+  useRestoreCase,
   useSyncServiceEvent,
   useUpdateCase,
   useUpdateCaseServices,

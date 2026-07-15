@@ -5,6 +5,7 @@ import {
   fetchClientById,
   fetchClientsAvailableForCase,
   fetchClients,
+  restoreClient,
   updateClient,
 } from '../api/client.api'
 import type { Client } from '../types'
@@ -86,6 +87,22 @@ export function useDeleteClient() {
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteClient(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['cases'] })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
+    },
+  })
+}
+
+export function useRestoreClient() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => restoreClient(id, { approverId, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.availableForCase() })
+      queryClient.invalidateQueries({ queryKey: ['cases'] })
+      queryClient.invalidateQueries({ queryKey: clientQueryKeys.details() })
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
     },
   })

@@ -88,10 +88,12 @@
     "noApprovers": "当前没有可选审批人，请联系管理员。",
     "caseCreate": "创建个案需要经理审批。确认后会提交审批申请，审批通过后个案才会显示。",
     "caseDelete": "关闭个案需要经理审批。确认后会提交审批申请，审批通过后个案会关闭。",
+    "caseRestore": "恢复个案需要审批。确认后会提交审批申请，审批通过后个案会恢复为进行中。",
     "serviceUpdate": "添加服务需要审批。确认后会提交审批申请，经理通过后服务会显示在服务模块。",
     "clientCreate": "新增会员需要审批。确认后会提交审批申请，审批通过后会员才会显示。",
     "clientUpdate": "编辑会员档案会直接保存。",
-    "clientDelete": "关闭会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。"
+    "clientDelete": "关闭会员档案需要审批。确认后会提交审批申请，审批通过后档案会从活跃列表移除。",
+    "clientRestore": "恢复会员档案需要审批。确认后会提交审批申请，审批通过后档案会恢复到当前档案。"
   },
   "approvals": {
     "approve": "通过",
@@ -148,11 +150,13 @@
     "approvals": {
       "createCase": "新建个案申请",
       "closeCase": "关闭个案申请",
+      "restoreCase": "恢复个案申请",
       "reason": "申请原因",
       "noReason": "未填写申请原因",
       "badge": {
         "create": "待新增",
-        "close": "待关闭"
+        "close": "待关闭",
+        "restore": "待恢复"
       }
     },
     "color": {
@@ -276,6 +280,8 @@
     },
     "detail": {
       "delete": "关闭个案",
+      "restore": "恢复个案",
+      "restorePending": "恢复审批中",
       "closePending": "关闭审批中",
       "moreActions": "更多操作"
     },
@@ -381,10 +387,12 @@
     "action": {
       "CASE_CREATE": "创建个案",
       "DELETE_CASE": "归档个案",
+      "RESTORE_CASE": "恢复个案",
       "CASE_SERVICE_UPDATE": "服务模块变更",
       "CLIENT_CREATE": "创建会员档案",
       "CLIENT_UPDATE": "修改会员档案",
       "DELETE_CLIENT": "归档会员档案",
+      "RESTORE_CLIENT": "恢复会员档案",
       "DELETE_REPORT": "作废报告",
       "SENSITIVE_FILE_ARCHIVE": "归档敏感文件",
       "SENSITIVE_FILE_RESTORE": "恢复敏感文件",
@@ -403,9 +411,11 @@
       "fileRestore": "恢复敏感文件：{{target}}",
       "CASE_CREATE": "创建个案：{{target}}",
       "DELETE_CASE": "提出归档个案：{{target}}",
+      "RESTORE_CASE": "提出恢复个案：{{target}}",
       "CLIENT_CREATE": "创建会员档案：{{target}}",
       "CLIENT_UPDATE": "修改会员档案：{{target}}",
       "DELETE_CLIENT": "提出归档会员档案：{{target}}",
+      "RESTORE_CLIENT": "提出恢复会员档案：{{target}}",
       "DELETE_REPORT": "提出作废报告：{{target}}"
     },
     "fields": {
@@ -465,12 +475,14 @@
       "badge": {
         "create": "待新增",
         "update": "待编辑",
-        "delete": "待关闭"
+        "delete": "待关闭",
+        "restore": "待恢复"
       },
       "type": {
         "CLIENT_CREATE": "新增会员申请",
         "CLIENT_UPDATE": "编辑会员申请",
-        "DELETE_CLIENT": "关闭档案申请"
+        "DELETE_CLIENT": "关闭档案申请",
+        "RESTORE_CLIENT": "恢复档案申请"
       }
     },
     "form": {
@@ -505,6 +517,7 @@
       "closeCasePending": "关闭审批中",
       "editProfile": "编辑档案",
       "delete": "关闭档案",
+      "restoreProfile": "恢复档案",
       "closedStatus": "已关闭",
       "editTitle": "编辑档案",
       "saving": "保存中...",

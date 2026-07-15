@@ -88,10 +88,12 @@
     "noApprovers": "No eligible approver is available. Contact an administrator.",
     "caseCreate": "Creating a case requires manager approval. After confirmation, the case appears only after approval.",
     "caseDelete": "Closing a case requires manager approval. After confirmation, the case will be closed after approval.",
+    "caseRestore": "Restoring a case requires approval. After confirmation, the case will reopen after approval.",
     "serviceUpdate": "Adding services requires approval. After confirmation, approved services will appear in the service module.",
     "clientCreate": "Creating a member requires approval. After confirmation, the member appears only after approval.",
     "clientUpdate": "Editing a member profile saves directly.",
-    "clientDelete": "Closing a member profile requires approval. After confirmation, the profile is removed from the active list after approval."
+    "clientDelete": "Closing a member profile requires approval. After confirmation, the profile is removed from the active list after approval.",
+    "clientRestore": "Restoring a member profile requires approval. After confirmation, the profile returns to the current list after approval."
   },
   "approvals": {
     "approve": "Approve",
@@ -148,11 +150,13 @@
     "approvals": {
       "createCase": "New Case Request",
       "closeCase": "Close Case Request",
+      "restoreCase": "Restore Case Request",
       "reason": "Application Reason",
       "noReason": "No application reason provided",
       "badge": {
         "create": "Pending Add",
-        "close": "Pending Close"
+        "close": "Pending Close",
+        "restore": "Pending Restore"
       }
     },
     "color": {
@@ -276,6 +280,8 @@
     },
     "detail": {
       "delete": "Close Case",
+      "restore": "Restore Case",
+      "restorePending": "Restore Pending",
       "closePending": "Close Pending",
       "moreActions": "More actions"
     },
@@ -381,10 +387,12 @@
     "action": {
       "CASE_CREATE": "Create case",
       "DELETE_CASE": "Archive case",
+      "RESTORE_CASE": "Restore case",
       "CASE_SERVICE_UPDATE": "Service change",
       "CLIENT_CREATE": "Create member profile",
       "CLIENT_UPDATE": "Update member profile",
       "DELETE_CLIENT": "Archive member profile",
+      "RESTORE_CLIENT": "Restore member profile",
       "DELETE_REPORT": "Void report",
       "SENSITIVE_FILE_ARCHIVE": "Archive sensitive file",
       "SENSITIVE_FILE_RESTORE": "Restore sensitive file",
@@ -403,9 +411,11 @@
       "fileRestore": "Restore sensitive file: {{target}}",
       "CASE_CREATE": "Create case: {{target}}",
       "DELETE_CASE": "Request case archive: {{target}}",
+      "RESTORE_CASE": "Request case restore: {{target}}",
       "CLIENT_CREATE": "Create member profile: {{target}}",
       "CLIENT_UPDATE": "Update member profile: {{target}}",
       "DELETE_CLIENT": "Request member profile archive: {{target}}",
+      "RESTORE_CLIENT": "Request member profile restore: {{target}}",
       "DELETE_REPORT": "Request report void: {{target}}"
     },
     "fields": {
@@ -465,12 +475,14 @@
       "badge": {
         "create": "Pending Add",
         "update": "Pending Edit",
-        "delete": "Pending Close"
+        "delete": "Pending Close",
+        "restore": "Pending Restore"
       },
       "type": {
         "CLIENT_CREATE": "New Member Request",
         "CLIENT_UPDATE": "Edit Member Request",
-        "DELETE_CLIENT": "Close Profile Request"
+        "DELETE_CLIENT": "Close Profile Request",
+        "RESTORE_CLIENT": "Restore Profile Request"
       }
     },
     "form": {
@@ -505,6 +517,7 @@
       "closeCasePending": "Close Pending",
       "editProfile": "Edit Profile",
       "delete": "Close Profile",
+      "restoreProfile": "Restore Profile",
       "closedStatus": "Closed",
       "editTitle": "Edit Profile",
       "saving": "Saving...",

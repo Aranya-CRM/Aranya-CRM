@@ -43,6 +43,8 @@ public class ApprovalActionRegistry {
                 "CLIENT_UPDATE", this::executeClientUpdate,
                 "DELETE_CLIENT", (request, _decidedBy) -> clientService.executeApprovedDeleteClient(request.getTargetId()),
                 "DELETE_CASE", (request, _decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId()),
+                "RESTORE_CLIENT", (request, _decidedBy) -> clientService.restoreClient(request.getTargetId()),
+                "RESTORE_CASE", (request, _decidedBy) -> caseService.restoreCase(request.getTargetId()),
                 "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy)
         );
     }

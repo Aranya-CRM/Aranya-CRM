@@ -1,7 +1,9 @@
 export type AuditAction =
   | 'CASE_CREATE'
   | 'DELETE_CASE'
+  | 'RESTORE_CASE'
   | 'DELETE_CLIENT'
+  | 'RESTORE_CLIENT'
   | 'DELETE_REPORT'
   | 'CASE_SERVICE_UPDATE'
   | 'CLIENT_CREATE'
