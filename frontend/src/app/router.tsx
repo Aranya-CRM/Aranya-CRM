@@ -6,6 +6,7 @@ import { clientRoutes } from '../features/clients/routes'
 import { dashboardRoutes } from '../features/dashboard/routes'
 import { profileRoutes } from '../features/profile/routes'
 import { reportRoutes } from '../features/reports/routes'
+import { settingsRoutes } from '../features/settings/routes'
 
 export interface AppRouteConfig {
   path: string
@@ -23,5 +24,6 @@ export const PROTECTED_ROUTES: AppRouteConfig[] = [
   ...caseRoutes,
   ...reportRoutes,
   ...profileRoutes,
+  ...settingsRoutes,
   ...adminRoutes,
 ]

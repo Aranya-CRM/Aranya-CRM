@@ -1,0 +1,128 @@
+databaseChangeLog:
+  - changeSet:
+      id: 066-1-seed-case-document-view-caps
+      author: ShiDu
+      comment: "Per-category case document view capabilities (grantable additional permissions)"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO cap_definition (cap_key, domain, description) VALUES
+                ('cases:documents.view.ordination', 'cases', 'View ordination/identity case documents'),
+                ('cases:documents.view.medical',    'cases', 'View medical case documents'),
+                ('cases:documents.view.financial',  'cases', 'View financial case documents'),
+                ('cases:documents.view.legal',      'cases', 'View legal case documents')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+  - changeSet:
+      id: 066-2-create-user-cap-table
+      author: ShiDu
+      comment: "User-level additional capability grants, layered on top of role_cap baseline"
+      changes:
+        - createTable:
+            tableName: user_cap
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cap_def_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: scope_value
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: granted_by
+                  type: BIGINT
+              - column:
+                  name: granted_at
+                  type: TIMESTAMP
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP
+        - addUniqueConstraint:
+            tableName: user_cap
+            columnNames: user_id, cap_def_id
+            constraintName: uq_user_cap_user_id_cap_def_id
+        - addForeignKeyConstraint:
+            baseTableName: user_cap
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_user_cap_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: user_cap
+            baseColumnNames: cap_def_id
+            referencedTableName: cap_definition
+            referencedColumnNames: id
+            constraintName: fk_user_cap_cap_definition
+        - addForeignKeyConstraint:
+            baseTableName: user_cap
+            baseColumnNames: granted_by
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_user_cap_granted_by
+        - createIndex:
+            tableName: user_cap
+            indexName: idx_user_cap_user_id
+            columns:
+              - column:
+                  name: user_id
+
+  - changeSet:
+      id: 066-3-seed-management-role-document-view-caps
+      author: ShiDu
+      comment: "Management/governance roles keep full case-document visibility across all categories"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r
+              CROSS JOIN cap_definition cd
+              WHERE r.name IN ('ADMIN','MANAGER','FULL_MANAGER','TEAM_LEAD','VIEW_MANAGER')
+                AND cd.cap_key IN (
+                  'cases:documents.view.ordination',
+                  'cases:documents.view.medical',
+                  'cases:documents.view.financial',
+                  'cases:documents.view.legal'
+                )
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
+
+  - changeSet:
+      id: 066-4-seed-existing-social-worker-document-view-caps
+      author: ShiDu
+      comment: "Transition: grant existing ACTIVE social workers all categories so current visibility is not cut off; managers narrow per person afterwards"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO user_cap (user_id, cap_def_id, scope_value, granted_at)
+              SELECT DISTINCT u.id, cd.id, 'YES', now()
+              FROM users u
+              JOIN user_role ur ON ur.user_id = u.id
+              JOIN role r ON r.id = ur.role_id AND r.name = 'SOCIAL_WORKER'
+              CROSS JOIN cap_definition cd
+              WHERE u.status = 'ACTIVE'
+                AND cd.cap_key IN (
+                  'cases:documents.view.ordination',
+                  'cases:documents.view.medical',
+                  'cases:documents.view.financial',
+                  'cases:documents.view.legal'
+                )
+              ON CONFLICT (user_id, cap_def_id) DO NOTHING;

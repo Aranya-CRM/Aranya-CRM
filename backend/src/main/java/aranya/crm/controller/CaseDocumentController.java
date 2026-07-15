@@ -5,6 +5,7 @@ import aranya.crm.dto.response.CaseDocumentResponse;
 import aranya.crm.dto.response.DocumentDownloadResponse;
 import aranya.crm.entity.DocumentCategory;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.CaseDocumentService;
 import aranya.crm.service.GcsFileStorageService;
@@ -22,7 +23,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/cases/{caseId}/documents")
@@ -31,10 +35,14 @@ import java.util.List;
 public class CaseDocumentController {
 
     private final CaseDocumentService caseDocumentService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
-    public ResponseEntity<List<CaseDocumentResponse>> listCaseDocuments(@PathVariable Long caseId) {
-        return ResponseEntity.ok(caseDocumentService.listCaseDocuments(caseId));
+    public ResponseEntity<List<CaseDocumentResponse>> listCaseDocuments(
+            @PathVariable Long caseId,
+            @CurrentUser User currentUser
+    ) {
+        return ResponseEntity.ok(caseDocumentService.listCaseDocuments(caseId, viewableCategories(currentUser)));
     }
 
     @PostMapping
@@ -53,10 +61,11 @@ public class CaseDocumentController {
     public ResponseEntity<DocumentDownloadResponse> createDownloadUrl(
             @PathVariable Long caseId,
             @PathVariable Long documentId,
-            @RequestParam(name = "disposition", defaultValue = "attachment") String disposition
+            @RequestParam(name = "disposition", defaultValue = "attachment") String disposition,
+            @CurrentUser User currentUser
     ) {
         boolean forceDownload = !"inline".equalsIgnoreCase(disposition);
-        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload));
+        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload, viewableCategories(currentUser)));
     }
 
     @DeleteMapping("/{documentId}")
@@ -67,6 +76,17 @@ public class CaseDocumentController {
     ) {
         caseDocumentService.deleteCaseDocument(caseId, documentId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 计算调用者可查看的文档类别集合(cases:documents.view.&lt;category&gt;,含 role_cap ∪ user_cap)。 */
+    private Set<DocumentCategory> viewableCategories(User user) {
+        Set<DocumentCategory> viewable = EnumSet.noneOf(DocumentCategory.class);
+        for (DocumentCategory category : DocumentCategory.values()) {
+            if (capEval.hasCap(user, "cases:documents.view." + category.name().toLowerCase(Locale.ROOT))) {
+                viewable.add(category);
+            }
+        }
+        return viewable;
     }
 
     @ExceptionHandler(GcsFileStorageService.StorageNotConfiguredException.class)
