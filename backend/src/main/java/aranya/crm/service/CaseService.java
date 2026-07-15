@@ -399,13 +399,26 @@ public class CaseService {
     }
 
     public List<ServiceEventResponse> listServiceEvents(Long caseId) {
-        return jdbcTemplate.query(serviceEventSql("WHERE case_id = ? ORDER BY scheduled_start ASC, id ASC"),
+        return jdbcTemplate.query(serviceEventSql("WHERE case_id = ? AND LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"),
                 serviceEventMapper(), caseId);
     }
 
     public List<ServiceEventResponse> listAssignedServiceEvents(Long assignedUserId) {
-        return jdbcTemplate.query(serviceEventSql("WHERE assigned_user_id = ? ORDER BY scheduled_start ASC, id ASC"),
+        return jdbcTemplate.query(serviceEventSql("WHERE assigned_user_id = ? AND LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"),
                 serviceEventMapper(), assignedUserId);
+    }
+
+    public List<ServiceEventResponse> listCreatedServiceEvents(Long createdById) {
+        return jdbcTemplate.query(serviceEventSql("""
+                WHERE created_by_id = ?
+                  AND (assigned_user_id IS NULL OR assigned_user_id <> ?)
+                  AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                ORDER BY scheduled_start ASC, id ASC
+                """), serviceEventMapper(), createdById, createdById);
+    }
+
+    public List<ServiceEventResponse> listAllServiceEvents() {
+        return jdbcTemplate.query(serviceEventSql("WHERE LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"), serviceEventMapper());
     }
 
     /** 分配给该用户、探访已过且尚未提交报告的事件数(PENDING/DUE_SOON/OVERDUE),用于看板提醒。 */
@@ -421,24 +434,13 @@ public class CaseService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
-        int deleted = jdbcTemplate.update(
-                "DELETE FROM service_appointment WHERE id = ? AND case_id = ?",
-                eventId,
-                caseId
-        );
-        if (deleted == 0) {
+        if (rows.isEmpty()) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
-        // best-effort 从对应 Google 日历删除镜像事件
-        if (!rows.isEmpty()) {
-            Object googleEventId = rows.get(0).get("google_event_id");
-            Object googleCalendarId = rows.get(0).get("google_calendar_id");
-            if (googleEventId != null) {
-                googleCalendarService.deleteCaseEvent(
-                        googleCalendarId != null ? googleCalendarId.toString() : null,
-                        googleEventId.toString());
-            }
-        }
+        cleanupReportsForEvent(eventId);
+        int deleted = jdbcTemplate.update("DELETE FROM service_appointment WHERE id = ? AND case_id = ?", eventId, caseId);
+        if (deleted == 0) throw new EntityNotFoundException("Service event not found: " + eventId);
+        deleteMirroredEvents(rows);
     }
 
     /** 读取共享日历在区间内的事件(排除本 case 自己的事件,避免与本地渲染重复)。 */
@@ -450,6 +452,7 @@ public class CaseService {
     public void executeApprovedDeleteCase(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        clearCaseOperationalData(caseId);
         clientCase.setStatus(DELETED_STATUS);
         clientCase.setClosedAt(LocalDateTime.now());
         caseRepository.save(clientCase);
@@ -571,16 +574,82 @@ public class CaseService {
         Set<String> removedKeys = new java.util.LinkedHashSet<>(selectedServiceKeySet(caseId));
         removedKeys.removeAll(nextKeys);
         for (String removedKey : removedKeys) {
-            jdbcTemplate.update(
-                    "DELETE FROM service_appointment WHERE case_id = ? AND service_type_id IN (SELECT id FROM service_type WHERE description = ?)",
-                    caseId,
-                    removedKey
-            );
+            deleteEventsForRemovedService(caseId, removedKey);
         }
         jdbcTemplate.update("DELETE FROM case_service_selection WHERE case_id = ?", caseId);
         nextKeys.forEach(key -> jdbcTemplate.update(
                 "INSERT INTO case_service_selection (case_id, service_key) VALUES (?, ?) ON CONFLICT DO NOTHING",
                 caseId, key));
+    }
+
+    private void deleteEventsForRemovedService(Long caseId, String serviceKey) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT id, google_event_id, google_calendar_id
+                FROM service_appointment
+                WHERE case_id = ?
+                  AND service_type_id IN (SELECT id FROM service_type WHERE description = ?)
+                """, caseId, serviceKey);
+        for (Map<String, Object> row : rows) {
+            cleanupReportsForEvent(asLong(row.get("id")));
+        }
+        jdbcTemplate.update("""
+                DELETE FROM service_appointment
+                WHERE case_id = ?
+                  AND service_type_id IN (SELECT id FROM service_type WHERE description = ?)
+                """, caseId, serviceKey);
+        deleteMirroredEvents(rows);
+    }
+
+    private void clearCaseOperationalData(Long caseId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT id, google_event_id, google_calendar_id
+                FROM service_appointment
+                WHERE case_id = ?
+                """, caseId);
+        jdbcTemplate.update("""
+                DELETE FROM visit_report
+                WHERE case_id = ?
+                   OR service_appointment_id IN (
+                       SELECT id FROM service_appointment WHERE case_id = ?
+                   )
+                """, caseId, caseId);
+        jdbcTemplate.update("DELETE FROM service_appointment WHERE case_id = ?", caseId);
+        jdbcTemplate.update("DELETE FROM case_service_selection WHERE case_id = ?", caseId);
+        deleteMirroredEvents(rows);
+    }
+
+    private void cleanupReportsForEvent(Long eventId) {
+        jdbcTemplate.update("""
+                DELETE FROM visit_report
+                WHERE service_appointment_id = ?
+                  AND UPPER(status) = 'DRAFT'
+                """, eventId);
+        jdbcTemplate.update("""
+                UPDATE visit_report
+                SET service_appointment_id = NULL,
+                    updated_at = NOW()
+                WHERE service_appointment_id = ?
+                  AND UPPER(status) <> 'DRAFT'
+                """, eventId);
+    }
+
+    private void deleteMirroredEvents(List<Map<String, Object>> rows) {
+        for (Map<String, Object> row : rows) {
+            Object googleEventId = row.get("google_event_id");
+            Object googleCalendarId = row.get("google_calendar_id");
+            if (googleEventId != null) {
+                googleCalendarService.deleteCaseEvent(
+                        googleCalendarId != null ? googleCalendarId.toString() : null,
+                        googleEventId.toString());
+            }
+        }
+    }
+
+    private Long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return value != null ? Long.valueOf(value.toString()) : null;
     }
 
     private Map<String, Boolean> selectedServices(Long caseId) {
@@ -625,6 +694,7 @@ public class CaseService {
                     c.name_en AS client_name_en,
                     c.name_chn AS client_name_chn,
                     cc.case_code,
+                    cc.status AS case_status,
                     st.description AS service_key,
                     st.name AS service_name,
                     sa.location,
@@ -648,6 +718,8 @@ public class CaseService {
                     ) AS report_submitted,
                     au.id AS assigned_user_id,
                     au.full_name AS assigned_user_name,
+                    cu.id AS created_by_id,
+                    cu.full_name AS created_by_name,
                     (
                         ROW_NUMBER() OVER (PARTITION BY sa.case_id ORDER BY sa.scheduled_start ASC, sa.id ASC)
                         || ' ' || st.name || ': ' || c.abbr || '@' || COALESCE(NULLIF(sa.location, ''), COALESCE(NULLIF(c.vihara_type, ''), c.area_district, 'Unknown'))
@@ -657,6 +729,7 @@ public class CaseService {
                 JOIN client c ON c.id = cc.client_id
                 JOIN service_type st ON st.id = sa.service_type_id
                 LEFT JOIN users au ON au.id = sa.assigned_user_id
+                LEFT JOIN users cu ON cu.id = sa.created_by
                 )
                 SELECT * FROM ranked_events
                 %s
@@ -689,6 +762,8 @@ public class CaseService {
                     .notes(rs.getString("notes"))
                     .assignedUserId(rs.getObject("assigned_user_id", Long.class))
                     .assignedUserName(rs.getString("assigned_user_name"))
+                    .createdById(rs.getObject("created_by_id", Long.class))
+                    .createdByName(rs.getString("created_by_name"))
                     .eventSeq(rs.getObject("event_seq", Long.class))
                     .address(rs.getString("address"))
                     .agenda(rs.getString("agenda"))

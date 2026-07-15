@@ -52,11 +52,11 @@ export function AppLayout({ children }: AppLayoutProps) {
     },
   })
 
-  const isVolunteerOnly = resolve('route:tasks')
+  const isVolunteerOnly = (resolve('route:reports') || resolve('route:tasks'))
     && !resolve('route:clients')
     && !resolve('route:cases')
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
-    if (isVolunteerOnly && item.id !== 'tasks') return false
+    if (isVolunteerOnly && item.id !== 'reports') return false
     return resolve(item.routeId) || canRoute(item.routeId)
   })
   const canEnterAdmin = ADMIN_ENTRY_ROUTE_IDS.some((routeId) => resolve(routeId) || canRoute(routeId))

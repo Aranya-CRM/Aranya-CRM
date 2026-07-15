@@ -45,10 +45,12 @@ public class ReportController {
             @CurrentUser User currentUser,
             Authentication authentication,
             @RequestParam(defaultValue = "false") boolean mine,
-            @RequestParam(required = false) Long caseId
+            @RequestParam(required = false) Long caseId,
+            @RequestParam(required = false) Long appointmentId
     ) {
+        denyAdminEventModule(authentication);
         if (mine) {
-            return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId));
+            return ResponseEntity.ok(reportService.listOwnReports(currentUser, caseId, appointmentId));
         }
         // MOCK: Social Workers only see reports submitted by volunteers (eventually scoped
         // to the tasks they are responsible for). Other reviewers (e.g. Manager) see all.
@@ -66,15 +68,18 @@ public class ReportController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReportDetailResponse> getReportDetail(@PathVariable Long id) {
+    public ResponseEntity<ReportDetailResponse> getReportDetail(Authentication authentication, @PathVariable Long id) {
+        denyAdminEventModule(authentication);
         return ResponseEntity.ok(reportService.getReportDetail(id));
     }
 
     @PostMapping
     public ResponseEntity<ReportDetailResponse> createReport(
             @CurrentUser User currentUser,
+            Authentication authentication,
             @Valid @RequestBody CreateReportRequest request
     ) {
+        denyAdminEventModule(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(reportService.createReport(request, currentUser));
     }
@@ -82,17 +87,21 @@ public class ReportController {
     @PutMapping("/{id}")
     public ResponseEntity<ReportDetailResponse> updateReport(
             @CurrentUser User currentUser,
+            Authentication authentication,
             @PathVariable Long id,
             @Valid @RequestBody CreateReportRequest request
     ) {
+        denyAdminEventModule(authentication);
         return ResponseEntity.ok(reportService.updateReport(id, request, currentUser));
     }
 
     @PostMapping("/{id}/submit")
     public ResponseEntity<ReportDetailResponse> submitReport(
             @CurrentUser User currentUser,
+            Authentication authentication,
             @PathVariable Long id
     ) {
+        denyAdminEventModule(authentication);
         return ResponseEntity.ok(reportService.submitReport(id, currentUser));
     }
 
@@ -104,6 +113,7 @@ public class ReportController {
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        denyAdminEventModule(authentication);
         boolean canDeleteAny = capEval.hasCap(authentication, "reports:delete");
         if (canDeleteAny) {
             ApprovalRequestResponse approval = approvalService.createRequest(
@@ -122,5 +132,11 @@ public class ReportController {
         }
         reportService.deleteOwnDraftReport(id, currentUser);
         return ResponseEntity.noContent().build();
+    }
+
+    private void denyAdminEventModule(Authentication authentication) {
+        if (hasRole(authentication, "ADMIN")) {
+            throw new org.springframework.security.access.AccessDeniedException("Admin does not use event module");
+        }
     }
 }

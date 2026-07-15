@@ -1159,6 +1159,38 @@
   gap: 24px 28px;
 }
 
+.report-fixed-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 24px;
+}
+
+.report-fixed-field {
+  min-width: 0;
+}
+
+.report-fixed-field.wide {
+  grid-column: 1 / -1;
+}
+
+.report-fixed-field span {
+  display: block;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.report-fixed-field strong {
+  display: block;
+  margin-top: 7px;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
 .report-form-field {
   display: block;
   min-width: 0;
@@ -1327,7 +1359,8 @@
     margin-top: 10px;
   }
 
-  .report-form-grid {
+  .report-form-grid,
+  .report-fixed-grid {
     grid-template-columns: 1fr;
   }
 

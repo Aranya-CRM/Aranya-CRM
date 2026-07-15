@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createCaseNote, createServiceEvent, deleteCase, deleteCaseDocument, deleteCaseNote, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCaseNotes, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
-import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCaseNotePayload, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
+import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
+import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
 
 type CaseDocumentUrlRequest = number | { documentId: number; disposition?: CaseDocumentUrlDisposition }
@@ -26,47 +26,6 @@ export function useCase(id: string | undefined) {
     queryKey: id ? caseQueryKeys.detail(id) : caseQueryKeys.details(),
     queryFn: () => fetchCaseById(id!),
     enabled: Boolean(id),
-  })
-}
-
-export function useCaseNotes(caseId: string | undefined) {
-  return useQuery({
-    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'notes'] : ['cases', 'notes'],
-    queryFn: () => fetchCaseNotes(caseId!),
-    enabled: Boolean(caseId),
-  })
-}
-
-export function useOwnCaseNotes(caseId: string | undefined) {
-  return useQuery({
-    queryKey: caseId ? [...caseQueryKeys.detail(caseId), 'notes', 'mine'] : ['cases', 'notes', 'mine'],
-    queryFn: () => fetchCaseNotes(caseId!, true),
-    enabled: Boolean(caseId),
-  })
-}
-
-export function useCreateCaseNote() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: CreateCaseNotePayload) => createCaseNote(data),
-    onSuccess: (_item, variables) => {
-      queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(variables.caseId), 'notes'] })
-      queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(variables.caseId), 'notes', 'mine'] })
-    },
-  })
-}
-
-export function useDeleteCaseNote(caseId: string | undefined) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (noteId: string) => deleteCaseNote(caseId!, noteId),
-    onSuccess: () => {
-      if (!caseId) return
-      queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(caseId), 'notes'] })
-      queryClient.invalidateQueries({ queryKey: [...caseQueryKeys.detail(caseId), 'notes', 'mine'] })
-    },
   })
 }
 

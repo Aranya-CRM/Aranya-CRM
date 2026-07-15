@@ -5,6 +5,8 @@ import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import zhCnLocale from '@fullcalendar/core/locales/zh-cn'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useAccess } from '../../../shared/auth'
 import type { Case, ServiceCalendarEvent, ServiceEvent } from '../types'
 import { fetchCalendarOptions, fetchSharedCalendarEvents } from '../api/case.api'
 import { googleEventColor } from '../googleEventColors'
@@ -38,8 +40,14 @@ function toLocalIso(date: Date): string {
 
 export function CaseServiceCalendar({ caseData }: Props) {
   const caseId = caseData.id
-  const localEvents = caseData.serviceEvents ?? []
+  const localEvents = useMemo(() => caseData.serviceEvents ?? [], [caseData.serviceEvents])
   const { i18n, t } = useTranslation()
+  const { user } = useAuth()
+  const { getCap } = useAccess()
+  const canViewAllEvents = getCap('reports:view') === 'ALL'
+  const canViewCreatedEvents = getCap('cases:services.create') !== 'NO'
+  const showSharedContext = canViewAllEvents
+  const currentUserId = user?.id != null ? String(user.id) : null
   const [range, setRange] = useState<{ from: string; to: string; googleFrom: string; googleTo: string } | null>(null)
   const [selected, setSelected] = useState<EventDetail | null>(null)
   const [editing, setEditing] = useState<ServiceEvent | null>(null)
@@ -49,13 +57,23 @@ export function CaseServiceCalendar({ caseData }: Props) {
   const syncEvent = useSyncServiceEvent(caseId)
   const gcal = useGoogleCalendar()
 
+  const visibleLocalEvents = useMemo(() => {
+    if (canViewAllEvents) return localEvents
+    if (!currentUserId) return []
+    return localEvents.filter((event) => {
+      const assignedToMe = event.assignedUserId != null && String(event.assignedUserId) === currentUserId
+      const createdByMe = canViewCreatedEvents && event.createdById != null && String(event.createdById) === currentUserId
+      return assignedToMe || createdByMe
+    })
+  }, [canViewAllEvents, canViewCreatedEvents, currentUserId, localEvents])
+
   useEffect(() => { localStorage.setItem(HIDDEN_SHARED_KEY, JSON.stringify(hiddenShared)) }, [hiddenShared])
   useEffect(() => { localStorage.setItem(PERSONAL_HIDDEN_KEY, personalHidden ? '1' : '0') }, [personalHidden])
 
   const { data: sharedEvents = [] } = useQuery({
     queryKey: ['caseSharedCalendar', caseId, range?.from, range?.to],
     queryFn: () => fetchSharedCalendarEvents(caseId, range!.from, range!.to),
-    enabled: range !== null,
+    enabled: showSharedContext && range !== null,
     staleTime: 60_000,
   })
 
@@ -86,7 +104,7 @@ export function CaseServiceCalendar({ caseData }: Props) {
   // id → 详情 的查找表(供 eventClick 用)
   const detailById = useMemo(() => {
     const map = new Map<string, EventDetail>()
-    localEvents.forEach((ev) => {
+    visibleLocalEvents.forEach((ev) => {
       map.set(String(ev.id), {
         id: String(ev.id),
         kind: 'OWN',
@@ -134,9 +152,9 @@ export function CaseServiceCalendar({ caseData }: Props) {
       })
     })
     return map
-  }, [localEvents, sharedEvents, personalEvents, t])
+  }, [visibleLocalEvents, sharedEvents, personalEvents, t])
 
-  const ownColored: ServiceCalendarEvent[] = localEvents.map((ev) => ({
+  const ownColored: ServiceCalendarEvent[] = visibleLocalEvents.map((ev) => ({
     id: String(ev.id),
     title: ev.title,
     start: ev.scheduledStart,
@@ -203,7 +221,7 @@ export function CaseServiceCalendar({ caseData }: Props) {
   }
 
   function handleEdit(localId: number) {
-    const ev = localEvents.find((e) => e.id === localId)
+    const ev = visibleLocalEvents.find((e) => e.id === localId)
     if (ev) {
       setSelected(null)
       setEditing(ev)
@@ -221,14 +239,16 @@ export function CaseServiceCalendar({ caseData }: Props) {
       <div className="calendar-filter-bar">
         <span className="calendar-filter-label">{t('cases.services.filterLabel')}</span>
         {calendarOptions.map((opt) => (
-          <label key={opt.id} className="calendar-filter-item">
-            <input
-              type="checkbox"
-              checked={!hiddenShared.includes(opt.id)}
-              onChange={(e) => toggleShared(opt.id, e.target.checked)}
-            />
-            <span>{opt.name}</span>
-          </label>
+          showSharedContext ? (
+            <label key={opt.id} className="calendar-filter-item">
+              <input
+                type="checkbox"
+                checked={!hiddenShared.includes(opt.id)}
+                onChange={(e) => toggleShared(opt.id, e.target.checked)}
+              />
+              <span>{opt.name}</span>
+            </label>
+          ) : null
         ))}
         {showPersonalControls ? (
           gcal.connected ? (
@@ -273,8 +293,12 @@ export function CaseServiceCalendar({ caseData }: Props) {
       />
       <div className="calendar-legend">
         <span className="calendar-legend-item"><i className="lg-own" />{t('cases.services.legendOwn')}</span>
-        <span className="calendar-legend-item"><i className="lg-other" />{t('cases.services.legendOther')}</span>
-        <span className="calendar-legend-item"><i className="lg-external" />{t('cases.services.legendExternal')}</span>
+        {showSharedContext ? (
+          <>
+            <span className="calendar-legend-item"><i className="lg-other" />{t('cases.services.legendOther')}</span>
+            <span className="calendar-legend-item"><i className="lg-external" />{t('cases.services.legendExternal')}</span>
+          </>
+        ) : null}
         {gcal.available && gcal.connected ? (
           <span className="calendar-legend-item"><i className="lg-personal" />{t('cases.services.legendPersonal')}</span>
         ) : null}

@@ -32,6 +32,7 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final RelatedContactRepository relatedContactRepository;
     private final CaseRepository caseRepository;
+    private final CaseService caseService;
 
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
         String normalizedQuery = normalizeFilter(q);
@@ -154,11 +155,7 @@ public class ClientService {
 
     private void closeClientActiveCases(Long clientId) {
         List<ClientCase> activeCases = caseRepository.findActiveCasesByClientId(clientId);
-        activeCases.forEach(clientCase -> {
-            clientCase.setStatus(DELETED_STATUS);
-            clientCase.setClosedAt(java.time.LocalDateTime.now());
-        });
-        caseRepository.saveAll(activeCases);
+        activeCases.forEach(clientCase -> caseService.executeApprovedDeleteCase(clientCase.getId()));
     }
 
     private static <T> void set(T value, Consumer<T> setter) {

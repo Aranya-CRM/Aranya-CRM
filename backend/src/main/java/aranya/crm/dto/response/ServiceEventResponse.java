@@ -30,6 +30,8 @@ public class ServiceEventResponse {
     private String notes;
     private Long assignedUserId;
     private String assignedUserName;
+    private Long createdById;
+    private String createdByName;
     // 组织日历模板字段
     private Long eventSeq;
     private String address;
