@@ -33,6 +33,7 @@ import java.util.Set;
 public class CaseDocumentService {
 
     private static final String ACTIVE = "ACTIVE";
+    private static final String CLOSED = "CLOSED";
     private static final String DELETED = "DELETED";
 
     private final CaseRepository caseRepository;
@@ -46,7 +47,7 @@ public class CaseDocumentService {
      * 类别可见性由 controller 依据 role_cap ∪ user_cap 计算后传入。
      */
     public List<CaseDocumentResponse> listCaseDocuments(Long caseId, Set<DocumentCategory> viewableCategories) {
-        requireActiveCase(caseId);
+        requireVisibleCase(caseId);
         return caseDocumentRepository.findByClientCase_IdAndStatusOrderByCategoryAscLinkedAtDescIdDesc(caseId, ACTIVE)
                 .stream()
                 .filter(caseDocument -> viewableCategories.contains(caseDocument.getCategory()))
@@ -72,7 +73,7 @@ public class CaseDocumentService {
             String displayName,
             User currentUser
     ) {
-        ClientCase clientCase = requireActiveCase(caseId);
+        ClientCase clientCase = requireMutableCase(caseId);
         if (category == null) {
             throw new IllegalArgumentException("Document category is required");
         }
@@ -125,7 +126,7 @@ public class CaseDocumentService {
     }
 
     public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload, Set<DocumentCategory> viewableCategories) {
-        requireActiveCase(caseId);
+        requireVisibleCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         // 无该类别查看权限时按"不存在"处理,不泄露文件存在性
         if (!viewableCategories.contains(caseDocument.getCategory())) {
@@ -152,17 +153,25 @@ public class CaseDocumentService {
      */
     @Transactional
     public void deleteCaseDocument(Long caseId, Long documentId) {
-        requireActiveCase(caseId);
+        requireMutableCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         caseDocument.setStatus(DELETED);
         caseDocumentRepository.save(caseDocument);
     }
 
-    private ClientCase requireActiveCase(Long caseId) {
+    private ClientCase requireVisibleCase(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         if (DELETED.equalsIgnoreCase(clientCase.getStatus())) {
             throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        return clientCase;
+    }
+
+    private ClientCase requireMutableCase(Long caseId) {
+        ClientCase clientCase = requireVisibleCase(caseId);
+        if (CLOSED.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new IllegalStateException("Closed cases are read-only");
         }
         return clientCase;
     }

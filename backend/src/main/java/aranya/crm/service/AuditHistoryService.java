@@ -95,7 +95,9 @@ public class AuditHistoryService {
         return switch (normalizeType(request.getType())) {
             case "CASE_SERVICE_UPDATE" -> "服务模块变更审批" + decisionText(decisionStatus);
             case "DELETE_CASE" -> "个案归档审批" + decisionText(decisionStatus);
+            case "RESTORE_CASE" -> "个案恢复审批" + decisionText(decisionStatus);
             case "DELETE_CLIENT" -> "会员档案归档审批" + decisionText(decisionStatus);
+            case "RESTORE_CLIENT" -> "会员档案恢复审批" + decisionText(decisionStatus);
             case "DELETE_REPORT" -> "报告作废审批" + decisionText(decisionStatus);
             case "CASE_CREATE" -> "创建个案审批" + decisionText(decisionStatus);
             case "CLIENT_CREATE" -> "创建会员档案审批" + decisionText(decisionStatus);

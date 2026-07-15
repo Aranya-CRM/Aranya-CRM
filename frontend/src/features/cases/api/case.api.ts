@@ -151,6 +151,11 @@ export async function deleteCase(id: string, options?: ApprovalOptions): Promise
   return res.data
 }
 
+export async function restoreCase(id: string, options?: ApprovalOptions): Promise<ApprovalRequest> {
+  const res = await http.post<ApprovalRequest>(`/v1/cases/${id}/restore`, null, approvalRequestConfig(options))
+  return res.data
+}
+
 export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ServiceEvent> {
   const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events`, data)
   return res.data

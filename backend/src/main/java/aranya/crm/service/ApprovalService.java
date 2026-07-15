@@ -280,13 +280,13 @@ public class ApprovalService {
 
     private boolean canViewPendingTarget(ApprovalRequest request, User currentUser) {
         String type = request.getType();
-        if ("CLIENT_CREATE".equals(type) || "CLIENT_UPDATE".equals(type) || "DELETE_CLIENT".equals(type)) {
+        if ("CLIENT_CREATE".equals(type) || "CLIENT_UPDATE".equals(type) || "DELETE_CLIENT".equals(type) || "RESTORE_CLIENT".equals(type)) {
             return canViewClients(currentUser);
         }
         if ("CASE_CREATE".equals(type)) {
             return canViewCases(currentUser) || canViewClients(currentUser);
         }
-        if ("DELETE_CASE".equals(type) || "CASE_SERVICE_UPDATE".equals(type)) {
+        if ("DELETE_CASE".equals(type) || "RESTORE_CASE".equals(type) || "CASE_SERVICE_UPDATE".equals(type)) {
             return canViewCases(currentUser);
         }
         return false;
@@ -334,10 +334,13 @@ public class ApprovalService {
     }
 
     private boolean canManagerSelfApprove(String approvalType, JsonNode payloadJson, User user) {
-        if (!hasRole(user, "MANAGER")) {
+        if (!isApprovalManager(user)) {
             return false;
         }
-        if ("CASE_CREATE".equals(approvalType) || "CLIENT_CREATE".equals(approvalType)) {
+        if ("CASE_CREATE".equals(approvalType)
+                || "CLIENT_CREATE".equals(approvalType)
+                || "RESTORE_CASE".equals(approvalType)
+                || "RESTORE_CLIENT".equals(approvalType)) {
             return true;
         }
         if (!"CASE_SERVICE_UPDATE".equals(approvalType)) {

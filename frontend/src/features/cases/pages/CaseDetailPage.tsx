@@ -7,7 +7,7 @@ import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprova
 import { ApprovalConfirmModal, BackButton } from '../../../shared/ui'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
 import { CaseDetailHeader, CaseDetailTabs } from '../components'
-import { useCase, useDeleteCase } from '../hooks'
+import { useCase, useDeleteCase, useRestoreCase } from '../hooks'
 import './cases.css'
 
 interface CaseApprovalView {
@@ -33,9 +33,12 @@ export function CaseDetailPage() {
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
-  const approvalAssignees = useApprovalAssigneeOptions()
+  const closeApprovalAssignees = useApprovalAssigneeOptions()
+  const restoreApprovalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: true })
   const deleteCase = useDeleteCase()
+  const restoreCase = useRestoreCase()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
 
   const isManager = resolve('cases:audit')
   const canDeleteCase = resolve('cases:delete')
@@ -47,6 +50,15 @@ export function CaseDetailPage() {
   const serverCloseApproval = serverCloseApprovals[0]
   const closeApproval = serverCloseApproval
   const closeApprovalPending = Boolean(closeApproval)
+  const serverRestoreApprovals = useMemo(() => (
+    pendingApprovals.filter((approval) => (
+      approval.type === 'RESTORE_CASE' && String(approval.targetId) === String(id)
+    ))
+  ), [id, pendingApprovals])
+  const serverRestoreApproval = serverRestoreApprovals[0]
+  const restoreApproval = serverRestoreApproval
+  const restoreApprovalPending = Boolean(restoreApproval)
+  const caseClosed = String(caseData?.status ?? '').toUpperCase() === 'CLOSED'
 
   if (isLoading) {
     return (
@@ -83,7 +95,37 @@ export function CaseDetailPage() {
       <div className="case-detail-card">
         <CaseDetailHeader
           caseData={caseData}
-          actions={closeApproval && resolve('approvals:decide') && canDecideApproval(serverCloseApproval, user?.id) ? (
+          actions={caseClosed && canDeleteCase ? (
+            restoreApproval && resolve('approvals:decide') && canDecideApproval(serverRestoreApproval, user?.id) ? (
+              <>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={rejectRequest.isPending || approveRequest.isPending}
+                  onClick={() => void rejectRequest.mutateAsync({ id: restoreApproval.id, data: {} })}
+                >
+                  {t('approvals.reject')}
+                </button>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  disabled={rejectRequest.isPending || approveRequest.isPending}
+                  onClick={() => void approveRequest.mutateAsync({ id: restoreApproval.id, data: {} })}
+                >
+                  {t('approvals.approve')}
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={restoreCase.isPending || restoreApprovalPending}
+                onClick={() => setShowRestoreConfirm(true)}
+              >
+                {restoreCase.isPending ? t('common.saving') : restoreApprovalPending ? t('cases.detail.restorePending') : t('cases.detail.restore')}
+              </button>
+            )
+          ) : closeApproval && resolve('approvals:decide') && canDecideApproval(serverCloseApproval, user?.id) ? (
             <>
               <button
                 className="btn-secondary"
@@ -127,7 +169,10 @@ export function CaseDetailPage() {
         {closeApproval ? (
           <CaseCloseApprovalBanner approval={closeApproval} />
         ) : null}
-        <CaseDetailTabs caseData={caseData} isManager={isManager} />
+        {restoreApproval ? (
+          <CaseRestoreApprovalBanner approval={restoreApproval} />
+        ) : null}
+        <CaseDetailTabs caseData={caseData} isManager={isManager} readOnly={caseClosed} />
       </div>
 
       <ApprovalConfirmModal
@@ -137,14 +182,31 @@ export function CaseDetailPage() {
         confirmLabel={deleteCase.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
         cancelLabel={t('approvalConfirm.cancel')}
         pending={deleteCase.isPending}
-        approverOptions={approvalAssignees.options}
+        approverOptions={closeApprovalAssignees.options}
         approverRequired
-        approverLoading={approvalAssignees.isLoading}
+        approverLoading={closeApprovalAssignees.isLoading}
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={async (approverId, reason) => {
           if (!caseData) return
           await deleteCase.mutateAsync({ id: caseData.id, approverId, reason })
           setShowDeleteConfirm(false)
+        }}
+      />
+      <ApprovalConfirmModal
+        open={showRestoreConfirm}
+        title={t('approvalConfirm.title')}
+        message={t('approvalConfirm.caseRestore')}
+        confirmLabel={restoreCase.isPending ? t('common.saving') : t('approvalConfirm.confirm')}
+        cancelLabel={t('approvalConfirm.cancel')}
+        pending={restoreCase.isPending}
+        approverOptions={restoreApprovalAssignees.options}
+        approverRequired
+        approverLoading={restoreApprovalAssignees.isLoading}
+        onCancel={() => setShowRestoreConfirm(false)}
+        onConfirm={async (approverId, reason) => {
+          if (!caseData) return
+          await restoreCase.mutateAsync({ id: caseData.id, approverId, reason })
+          setShowRestoreConfirm(false)
         }}
       />
     </div>
@@ -169,9 +231,29 @@ function CaseCloseApprovalBanner({ approval }: { approval: CaseApprovalView }) {
   )
 }
 
+function CaseRestoreApprovalBanner({ approval }: { approval: CaseApprovalView }) {
+  const { t } = useTranslation()
+  const payload = parseApprovalPayload(approval.payloadJson)
+  return (
+    <div className="case-detail-approval-banner">
+      <div>
+        <strong>{t('cases.approvals.restoreCase')}</strong>
+        <span>{approval.requestedByName ?? '-'} · {formatDateTime(approval.createdAt)}</span>
+      </div>
+      <span className="case-approval-badge restore">{t('cases.approvals.badge.restore')}</span>
+      <details className="case-approval-reason">
+        <summary>{t('cases.approvals.reason')}</summary>
+        <p>{approvalReason(payload) || t('cases.approvals.noReason')}</p>
+      </details>
+    </div>
+  )
+}
+
 function canDecideApproval(approval: CaseApprovalView | undefined, currentUserId: number | undefined) {
   if (!approval || currentUserId === undefined) return false
-  if (approval.requestedById === currentUserId) return false
+  if (approval.requestedById === currentUserId) {
+    return approval.type === 'RESTORE_CASE' && approval.assignedApproverId === currentUserId
+  }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 

@@ -34,6 +34,7 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class CaseService {
 
+    private static final String CLOSED_STATUS = "CLOSED";
     private static final String DELETED_STATUS = "DELETED";
     private static final List<String> URGENT_COLOR_CODES = List.of("RED", "ORANGE");
     private static final List<String> SERVICE_KEYS = List.of(
@@ -147,8 +148,17 @@ public class CaseService {
     public CaseDetailResponse updateCase(Long caseId, UpdateCaseRequest request) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
 
-        setText(request.getStatus(), clientCase::setStatus);
+        String nextStatus = trimToNull(request.getStatus());
+        if (nextStatus != null) {
+            nextStatus = nextStatus.toUpperCase();
+            clientCase.setStatus(nextStatus);
+            if (CLOSED_STATUS.equals(nextStatus)) {
+                clearCaseOperationalData(caseId);
+                clientCase.setClosedAt(LocalDateTime.now());
+            }
+        }
         setText(request.getColorCode(), clientCase::setColorCode);
         if (request.getComments() != null) {
             clientCase.setComments(request.getComments().trim());
@@ -169,6 +179,7 @@ public class CaseService {
     public CaseDetailResponse executeApprovedUpdateCaseServices(Long caseId, List<String> serviceKeys) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
         replaceSelectedServices(caseId, serviceKeys);
         return toCaseDetailResponse(clientCase);
     }
@@ -177,6 +188,7 @@ public class CaseService {
     public ServiceEventResponse createServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {
@@ -255,6 +267,7 @@ public class CaseService {
         }
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {
@@ -313,6 +326,9 @@ public class CaseService {
 
     /** 手动重试将事件同步到 Google(用于上次镜像失败的事件);保持其原目标日历。 */
     public ServiceEventResponse syncServiceEvent(Long caseId, Long eventId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
@@ -431,6 +447,9 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
@@ -453,9 +472,24 @@ public class CaseService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         clearCaseOperationalData(caseId);
-        clientCase.setStatus(DELETED_STATUS);
+        clientCase.setStatus(CLOSED_STATUS);
         clientCase.setClosedAt(LocalDateTime.now());
         caseRepository.save(clientCase);
+    }
+
+    @Transactional
+    public CaseDetailResponse restoreCase(Long caseId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        if (CLOSED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            clientCase.setStatus("OPEN");
+            clientCase.setClosedAt(null);
+            caseRepository.save(clientCase);
+        }
+        return toCaseDetailResponse(clientCase);
     }
 
     public List<ClientCase> getActiveCases(int limit) {
@@ -606,13 +640,20 @@ public class CaseService {
                 FROM service_appointment
                 WHERE case_id = ?
                 """, caseId);
+        for (Map<String, Object> row : rows) {
+            cleanupReportsForEvent(asLong(row.get("id")));
+        }
         jdbcTemplate.update("""
                 DELETE FROM visit_report
                 WHERE case_id = ?
-                   OR service_appointment_id IN (
-                       SELECT id FROM service_appointment WHERE case_id = ?
-                   )
-                """, caseId, caseId);
+                  AND UPPER(status) <> 'SUBMITTED'
+                """, caseId);
+        jdbcTemplate.update("""
+                UPDATE visit_report
+                SET service_appointment_id = NULL,
+                    updated_at = NOW()
+                WHERE case_id = ?
+                """, caseId);
         jdbcTemplate.update("DELETE FROM service_appointment WHERE case_id = ?", caseId);
         jdbcTemplate.update("DELETE FROM case_service_selection WHERE case_id = ?", caseId);
         deleteMirroredEvents(rows);
@@ -650,6 +691,15 @@ public class CaseService {
             return number.longValue();
         }
         return value != null ? Long.valueOf(value.toString()) : null;
+    }
+
+    private void requireMutableCase(ClientCase clientCase) {
+        if (clientCase == null || DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found");
+        }
+        if (CLOSED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new IllegalStateException("Closed cases are read-only");
+        }
     }
 
     private Map<String, Boolean> selectedServices(Long caseId) {

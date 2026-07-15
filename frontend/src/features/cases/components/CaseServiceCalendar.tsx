@@ -30,6 +30,7 @@ function loadHiddenShared(): string[] {
 
 interface Props {
   caseData: Case
+  readOnly?: boolean
 }
 
 /** 把 Date 格式化成不带时区偏移的本地 ISO(后端按 Asia/Singapore 解析为 LocalDateTime) */
@@ -38,7 +39,7 @@ function toLocalIso(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-export function CaseServiceCalendar({ caseData }: Props) {
+export function CaseServiceCalendar({ caseData, readOnly = false }: Props) {
   const caseId = caseData.id
   const localEvents = useMemo(() => caseData.serviceEvents ?? [], [caseData.serviceEvents])
   const { i18n, t } = useTranslation()
@@ -216,11 +217,13 @@ export function CaseServiceCalendar({ caseData }: Props) {
   }
 
   async function handleDelete(localId: number) {
+    if (readOnly) return
     await deleteEvent.mutateAsync(localId)
     setSelected(null)
   }
 
   function handleEdit(localId: number) {
+    if (readOnly) return
     const ev = visibleLocalEvents.find((e) => e.id === localId)
     if (ev) {
       setSelected(null)
@@ -229,6 +232,7 @@ export function CaseServiceCalendar({ caseData }: Props) {
   }
 
   function handleSync(localId: number) {
+    if (readOnly) return
     void syncEvent.mutateAsync(localId).then(() => setSelected(null))
   }
 
@@ -314,9 +318,9 @@ export function CaseServiceCalendar({ caseData }: Props) {
         <EventDetailModal
           detail={selected}
           onClose={() => setSelected(null)}
-          onEdit={handleEdit}
-          onDelete={(id) => void handleDelete(id)}
-          onSync={handleSync}
+          onEdit={readOnly ? undefined : handleEdit}
+          onDelete={readOnly ? undefined : (id) => void handleDelete(id)}
+          onSync={readOnly ? undefined : handleSync}
           deleting={deleteEvent.isPending}
           syncing={syncEvent.isPending}
           syncEnabled={syncEnabled}

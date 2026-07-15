@@ -31,13 +31,14 @@ interface TabDef {
 interface CaseDetailTabsProps {
   caseData: Case
   isManager: boolean
+  readOnly?: boolean
 }
 
 function activeServiceCount(services: CaseServices): number {
   return Object.values(services).filter(Boolean).length
 }
 
-export function CaseDetailTabs({ caseData, isManager }: CaseDetailTabsProps) {
+export function CaseDetailTabs({ caseData, isManager, readOnly = false }: CaseDetailTabsProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
@@ -73,11 +74,11 @@ export function CaseDetailTabs({ caseData, isManager }: CaseDetailTabsProps) {
       </div>
 
       <div className="case-detail-tab-content">
-        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} /> : null}
-        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} /> : null}
-        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} /> : null}
-        {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} /> : null}
-        {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} /> : null}
+        {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} readOnly={readOnly} /> : null}
+        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} readOnly={readOnly} /> : null}
+        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} readOnly={readOnly} /> : null}
+        {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} readOnly={readOnly} /> : null}
+        {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
         {activeTab === 'audit'     ? <AuditHistoryPanel caseId={caseData.id} caseCode={caseData.caseNo} /> : null}
       </div>
     </>
@@ -86,7 +87,7 @@ export function CaseDetailTabs({ caseData, isManager }: CaseDetailTabsProps) {
 
 const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'GREY']
 
-function OverviewTab({ caseData }: { caseData: Case }) {
+function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const serviceCount = activeServiceCount(caseData.services)
@@ -94,7 +95,7 @@ function OverviewTab({ caseData }: { caseData: Case }) {
   const canChangeStatus   = resolve('cases:status.close')
   const canAssign         = resolve('cases:assign') || resolve('cases:reassign')
   const canEditIntensity  = resolve('cases:assign')
-  const canEdit           = canChangeStatus || canAssign || canEditIntensity
+  const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity)
 
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
   const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
@@ -410,7 +411,7 @@ function parsePendingServicePayload(payloadJson?: string | null): PendingService
   }
 }
 
-function ServicesTab({ caseData }: { caseData: Case }) {
+function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const { user } = useAuth()
@@ -420,7 +421,7 @@ function ServicesTab({ caseData }: { caseData: Case }) {
   const [showServiceApprovalConfirm, setShowServiceApprovalConfirm] = useState(false)
   const [serviceApprovalError, setServiceApprovalError] = useState('')
   const updateServices = useUpdateCaseServices(caseData.id)
-  const canRequestServices = resolve('cases:services.create')
+  const canRequestServices = !readOnly && resolve('cases:services.create')
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
@@ -800,7 +801,7 @@ function formatDateTime(value?: string | null): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function CalendarTab({ caseData }: { caseData: Case }) {
+function CalendarTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
   const { t } = useTranslation()
   const [showAddEvent, setShowAddEvent] = useState(false)
 
@@ -809,19 +810,21 @@ function CalendarTab({ caseData }: { caseData: Case }) {
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar caseData={caseData} />
+      <CaseServiceCalendar caseData={caseData} readOnly={readOnly} />
 
-      <div className="calendar-add-event-bar">
-        <button
-          className="btn-primary"
-          type="button"
-          onClick={() => setShowAddEvent((open) => !open)}
-        >
-          + {t('cases.services.addCalendarEvent')}
-        </button>
-      </div>
+      {!readOnly ? (
+        <div className="calendar-add-event-bar">
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={() => setShowAddEvent((open) => !open)}
+          >
+            + {t('cases.services.addCalendarEvent')}
+          </button>
+        </div>
+      ) : null}
 
-      {showAddEvent ? (
+      {showAddEvent && !readOnly ? (
         <AddCaseEventForm caseData={caseData} onDone={() => setShowAddEvent(false)} />
       ) : null}
     </div>

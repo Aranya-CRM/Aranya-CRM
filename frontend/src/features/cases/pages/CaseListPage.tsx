@@ -70,6 +70,17 @@ export function CaseListPage() {
     return map
   }, [caseApprovalItems])
 
+  const pendingRestoreApprovalByCaseId = useMemo(() => {
+    const map = new Map<string, CaseApprovalView>()
+    caseApprovalItems
+      .filter((approval) => approval.type === 'RESTORE_CASE' && approval.targetId != null)
+      .forEach((approval) => {
+        const caseId = String(approval.targetId)
+        if (!map.has(caseId)) map.set(caseId, approval)
+      })
+    return map
+  }, [caseApprovalItems])
+
   const createApprovalRows = useMemo(() => {
     return caseApprovalItems
       .filter((approval) => approval.type === 'CASE_CREATE')
@@ -79,13 +90,17 @@ export function CaseListPage() {
   const rows = useMemo(() => {
     return [
       ...createApprovalRows,
-      ...cases.map((item) => toCaseListRow(item, pendingCloseApprovalByCaseId.get(item.id))),
+      ...cases.map((item) => toCaseListRow(
+        item,
+        pendingCloseApprovalByCaseId.get(item.id),
+        pendingRestoreApprovalByCaseId.get(item.id),
+      )),
     ].sort((a, b) => {
       const colorDiff = COLOR_ORDER[a.colorCode] - COLOR_ORDER[b.colorCode]
       if (colorDiff !== 0) return colorDiff
       return b.dateOpened.localeCompare(a.dateOpened)
     })
-  }, [cases, createApprovalRows, pendingCloseApprovalByCaseId])
+  }, [cases, createApprovalRows, pendingCloseApprovalByCaseId, pendingRestoreApprovalByCaseId])
 
   const statuses = useMemo(() => unique(rows.map((item) => item.status)), [rows])
 
@@ -161,7 +176,7 @@ export function CaseListPage() {
   )
 }
 
-function toCaseListRow(item: Case, pendingApproval?: CaseApprovalView): CaseListRow {
+function toCaseListRow(item: Case, pendingCloseApproval?: CaseApprovalView, pendingRestoreApproval?: CaseApprovalView): CaseListRow {
   return {
     id: item.id,
     caseNo: item.caseNo.replaceAll('_', '/'),
@@ -174,7 +189,7 @@ function toCaseListRow(item: Case, pendingApproval?: CaseApprovalView): CaseList
     socialWorker: item.socialWorker,
     status: item.status,
     colorCode: item.colorCode,
-    approvalOperation: pendingApproval ? 'close' : undefined,
+    approvalOperation: pendingRestoreApproval ? 'restore' : pendingCloseApproval ? 'close' : undefined,
   }
 }
 
@@ -298,7 +313,7 @@ function canDecideApproval(approval: CaseApprovalView | undefined, currentUserId
 }
 
 function isCaseApprovalType(type: string): boolean {
-  return type === 'CASE_CREATE' || type === 'DELETE_CASE'
+  return type === 'CASE_CREATE' || type === 'DELETE_CASE' || type === 'RESTORE_CASE'
 }
 
 function parseApprovalPayload(payloadJson?: string | null): Record<string, unknown> {
