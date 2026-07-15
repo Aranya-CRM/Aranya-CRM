@@ -287,10 +287,6 @@ export function ClientListPage() {
   }, [selectedClient?.id])
 
   useEffect(() => {
-    setProfileCollapsed(false)
-  }, [selectedClient?.id, selectedCreateApproval?.id])
-
-  useEffect(() => {
     if (!routeWantsEdit || !profileClient || profileClosed || !canUpdateClient || editingClientId === profileClient.id) return
     setEditingClientId(profileClient.id)
     setEditForm(clientToFormData(profileClient))
@@ -317,12 +313,10 @@ export function ClientListPage() {
   }, [filterMenuOpen])
 
   function selectClient(clientId: string) {
-    setProfileCollapsed(false)
     setSearchParams({ client: clientId })
   }
 
   function selectApproval(approvalId: number) {
-    setProfileCollapsed(false)
     setSearchParams({ approval: String(approvalId) })
   }
 
@@ -339,7 +333,6 @@ export function ClientListPage() {
   }
 
   function printProfile() {
-    setProfileCollapsed(false)
     window.setTimeout(() => window.print(), 0)
   }
 
@@ -1355,7 +1348,7 @@ function ClientProfilePanel({
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
       {restoreError ? <div className="client-profile-loading client-profile-warning">{restoreError}</div> : null}
 
-      <ProfileSection title={t('clients.profile.section.basicInfo')}>
+      <ProfileSection key={`${client.id}-basicInfo`} collapsible title={t('clients.profile.section.basicInfo')}>
         <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} changed={changedFields.has('nameChn')} />
         <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} changed={changedFields.has('nameEn')} />
         <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} changed={changedFields.has('abbr')} />
@@ -1372,7 +1365,7 @@ function ClientProfilePanel({
 
       {canViewDetailedProfile ? (
         <>
-          <ProfileSection title={t('clients.profile.section.identity')}>
+          <ProfileSection key={`${client.id}-identity`} collapsible title={t('clients.profile.section.identity')}>
             <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
             <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
             <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
@@ -1380,7 +1373,7 @@ function ClientProfilePanel({
             <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
           </ProfileSection>
 
-          <ProfileSection title={t('clients.profile.section.personal')}>
+          <ProfileSection key={`${client.id}-personal`} collapsible title={t('clients.profile.section.personal')}>
             <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
             <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
             <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
@@ -1391,7 +1384,7 @@ function ClientProfilePanel({
             <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
           </ProfileSection>
 
-          <ProfileSection title={t('clients.profile.section.ordination')}>
+          <ProfileSection key={`${client.id}-ordination`} collapsible title={t('clients.profile.section.ordination')}>
             <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
             <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
             <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
@@ -1401,7 +1394,7 @@ function ClientProfilePanel({
             <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
           </ProfileSection>
 
-          <ProfileSection title={t('clients.profile.section.membership')}>
+          <ProfileSection key={`${client.id}-membership`} collapsible title={t('clients.profile.section.membership')}>
             <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
             <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
             <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
@@ -1700,7 +1693,18 @@ function ClientProfileEditPanel({
   )
 }
 
-function ProfileSection({ title, children }: { title: string; children: ReactNode }) {
+function ProfileSection({ title, children, collapsible = false }: { title: string; children: ReactNode; collapsible?: boolean }) {
+  if (collapsible) {
+    // 查看态:每个部分独立折叠,默认折叠(不加 open)。编辑态仍走下方展开的 <section>。
+    return (
+      <details className="client-profile-section client-profile-section-collapsible">
+        <summary>
+          <h3>{title}</h3>
+        </summary>
+        <div className="client-profile-grid">{children}</div>
+      </details>
+    )
+  }
   return (
     <section className="client-profile-section">
       <h3>{title}</h3>

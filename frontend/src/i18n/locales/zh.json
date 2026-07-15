@@ -7,7 +7,8 @@
     "tasks": "事件",
     "profile": "查看个人主页",
     "driveImport": "Drive 导入",
-    "admin": "管理控制台"
+    "admin": "管理控制台",
+    "settings": "Settings"
   },
   "admin": {
     "title": "后台管理",
@@ -19,6 +20,25 @@
     "accounts": {
       "title": "账号管理",
       "subtitle": "管理系统用户、邀请与角色权限。"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "searchUser": "搜索用户…",
+    "selectUser": "选择一个用户以管理其敏感文件访问权限。",
+    "saved": "已保存",
+    "saveError": "保存失败,请重试。",
+    "loadUsersError": "加载用户失败。",
+    "loadAccessError": "加载权限设置失败。",
+    "documentAccess": {
+      "title": "敏感文件访问授权",
+      "subtitle": "为每个用户授予可查看的案例文件类别。",
+      "category": {
+        "ordination": "身份 / 剃度",
+        "medical": "医疗",
+        "financial": "财务",
+        "legal": "法律"
+      }
     }
   },
   "driveImport": {
@@ -525,8 +545,6 @@
       "cancel": "取消",
       "printReport": "生成报告 / 打印",
       "printTitle": "会员档案报告",
-      "collapseDetails": "隐藏档案详情",
-      "expandDetails": "显示档案详情",
       "volunteerNotice": "当前账户只能查看基础档案。如需完整资料，请联系 Manager。",
       "section": {
         "basicInfo": "基本信息",

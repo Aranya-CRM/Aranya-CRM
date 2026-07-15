@@ -1,5 +1,6 @@
 package aranya.crm.service;
 
+import aranya.crm.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -55,7 +56,39 @@ public class UiManifestService {
         }, roleNames.toArray());
 
         applyRoleCorrections(roleNames, caps);
+        mergeUserCaps(authentication, caps);
         return caps;
+    }
+
+    /** Overlay per-user additional grants (user_cap) on top of the role baseline, keeping the higher scope. */
+    private void mergeUserCaps(Authentication authentication, Map<String, String> caps) {
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof User user) || user.getId() == null) {
+            return;
+        }
+        String sql = """
+                SELECT cd.cap_key, uc.scope_value
+                FROM user_cap uc
+                JOIN cap_definition cd ON cd.id = uc.cap_def_id
+                WHERE uc.user_id = ? AND uc.scope_value <> 'NO'
+                  AND (uc.expires_at IS NULL OR uc.expires_at > now())
+                """;
+        jdbcTemplate.query(sql, rs -> {
+            String key = rs.getString("cap_key");
+            String scope = rs.getString("scope_value");
+            caps.merge(key, scope, (a, b) -> scopeRank(a) >= scopeRank(b) ? a : b);
+        }, user.getId());
+    }
+
+    private int scopeRank(String scope) {
+        return switch (scope) {
+            case "ALL" -> 5;
+            case "YES" -> 4;
+            case "OWN" -> 3;
+            case "TEAM" -> 2;
+            case "WORKFLOW" -> 1;
+            default -> 0;
+        };
     }
 
     private void applyRoleCorrections(List<String> roleNames, Map<String, String> caps) {

@@ -599,6 +599,43 @@
   padding-top: 28px;
 }
 
+/* 查看态:每部分独立折叠(<details>),默认折叠。编辑态的 <section> 不受影响。 */
+details.client-profile-section-collapsible > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dfe4ec;
+}
+
+details.client-profile-section-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.client-profile-section-collapsible > summary h3 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+details.client-profile-section-collapsible > summary::after {
+  content: '▾';
+  color: #98a2b3;
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+details.client-profile-section-collapsible[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+details.client-profile-section-collapsible > .client-profile-grid {
+  margin-top: 18px;
+}
+
 .client-profile-action-footer {
   padding-top: 22px;
   border-top: 1px solid #dfe4ec;

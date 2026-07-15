@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,7 +60,7 @@ class CaseDocumentServiceTest {
                 .thenReturn(List.of(caseDocument));
 
         CaseDocumentService service = service();
-        List<CaseDocumentResponse> response = service.listCaseDocuments(7L);
+        List<CaseDocumentResponse> response = service.listCaseDocuments(7L, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getId()).isEqualTo(55L);
@@ -179,7 +180,7 @@ class CaseDocumentServiceTest {
         when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", true))
                 .thenReturn(URI.create("https://signed.example.test/medical.pdf"));
 
-        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L);
+        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical.pdf");
         assertThat(response.getFileName()).isEqualTo("Medical_Report.pdf");
@@ -195,7 +196,7 @@ class CaseDocumentServiceTest {
         when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", false))
                 .thenReturn(URI.create("https://signed.example.test/medical-preview.pdf"));
 
-        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, false);
+        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, false, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical-preview.pdf");
     }
@@ -205,7 +206,7 @@ class CaseDocumentServiceTest {
     void listCaseDocuments_rejectsDeletedCases() {
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "DELETED")));
 
-        assertThatThrownBy(() -> service().listCaseDocuments(7L))
+        assertThatThrownBy(() -> service().listCaseDocuments(7L, EnumSet.allOf(DocumentCategory.class)))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Case not found: 7");
     }

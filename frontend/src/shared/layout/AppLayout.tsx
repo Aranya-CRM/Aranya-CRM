@@ -6,6 +6,7 @@ import {
   AdminIcon,
   NAVIGATION_ITEMS,
   LogoutIcon,
+  SettingsIcon,
   type NavigationItem,
 } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
@@ -62,6 +63,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const canEnterAdmin = ADMIN_ENTRY_ROUTE_IDS.some((routeId) => resolve(routeId) || canRoute(routeId))
     || resolve('admin:console.access')
     || canRoute('admin:console.access')
+  const canManageSettings = resolve('route:settings') || canRoute('route:settings')
 
 
   function handleNavClick(item: NavigationItem) {
@@ -125,6 +127,22 @@ export function AppLayout({ children }: AppLayoutProps) {
               <AdminIcon />
             </span>
             <span className="nav-label">{t('nav.admin')}</span>
+          </a>
+        ) : null}
+
+        {canManageSettings ? (
+          <a
+            className="sidebar-admin-entry"
+            href="/settings"
+            onClick={(event) => {
+              event.preventDefault()
+              navigate('/settings')
+            }}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              <SettingsIcon />
+            </span>
+            <span className="nav-label">{t('nav.settings')}</span>
           </a>
         ) : null}
 

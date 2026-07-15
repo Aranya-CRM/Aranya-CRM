@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 067-1-seed-settings-route-cap
+      author: ShiDu
+      comment: "Route cap for the Settings entry (additional permission grants)"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO cap_definition (cap_key, domain, description) VALUES
+                ('route:settings', 'route', 'Route access: settings (grant additional permissions)')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+  - changeSet:
+      id: 067-2-grant-settings-route-to-managers
+      author: ShiDu
+      comment: "ADMIN, MANAGER and FULL_MANAGER can open Settings and grant additional permissions"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r
+              CROSS JOIN cap_definition cd
+              WHERE r.name IN ('ADMIN','MANAGER','FULL_MANAGER')
+                AND cd.cap_key = 'route:settings'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;

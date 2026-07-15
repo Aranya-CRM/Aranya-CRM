@@ -75,7 +75,7 @@ class CaseDocumentControllerTest {
     void listCaseDocuments_returnsActiveFilesForCase() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.listCaseDocuments(7L)).thenReturn(List.of(response()));
+        when(caseDocumentService.listCaseDocuments(eq(7L), any())).thenReturn(List.of(response()));
 
         mockMvc.perform(get("/api/v1/cases/7/documents")
                         .with(authentication(auth(requester, "SOCIAL_WORKER"))))
@@ -138,7 +138,7 @@ class CaseDocumentControllerTest {
     void createDownloadUrl_returnsSignedUrl() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.createDownloadUrl(7L, 99L, true))
+        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(true), any()))
                 .thenReturn(DocumentDownloadResponse.builder()
                         .url("https://signed.example.test/medical.pdf")
                         .fileName("Medical_Report.pdf")
@@ -157,7 +157,7 @@ class CaseDocumentControllerTest {
     void createDownloadUrl_supportsInlinePreviewDisposition() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.createDownloadUrl(7L, 99L, false))
+        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(false), any()))
                 .thenReturn(DocumentDownloadResponse.builder()
                         .url("https://signed.example.test/medical-preview.pdf")
                         .fileName("Medical_Report.pdf")

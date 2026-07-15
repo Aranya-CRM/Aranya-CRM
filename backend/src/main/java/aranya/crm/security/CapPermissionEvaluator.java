@@ -1,5 +1,6 @@
 package aranya.crm.security;
 
+import aranya.crm.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -15,12 +16,15 @@ import java.util.List;
  * Usage in @PreAuthorize:
  *   @PreAuthorize("@capEval.hasCap(authentication, 'clients:create')")
  *
- * Returns true when the authenticated user holds at least one role
- * whose effective scope for the given cap key is not NO/absent.
+ * Effective permission = role baseline (role_cap) ∪ per-user additional grants (user_cap),
+ * with a small hard-coded correction layer ({@link #correctedScope}) taking precedence for
+ * legacy special cases. Returns true when the resulting scope for the cap key is not NO/absent.
  */
 @Component("capEval")
 @RequiredArgsConstructor
 public class CapPermissionEvaluator {
+
+    private static final long NO_USER = -1L;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -28,9 +32,18 @@ public class CapPermissionEvaluator {
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;
         }
+        return hasCap(roleNames(authentication), userId(authentication), capKey);
+    }
 
-        List<String> roleNames = roleNames(authentication);
+    /** Service-layer entry point: evaluate a cap for a resolved {@link User} (e.g. @CurrentUser). */
+    public boolean hasCap(User user, String capKey) {
+        if (user == null) {
+            return false;
+        }
+        return hasCap(roleNames(user), user.getId() != null ? user.getId() : NO_USER, capKey);
+    }
 
+    private boolean hasCap(List<String> roleNames, Long userId, String capKey) {
         if (roleNames.isEmpty()) {
             return false;
         }
@@ -42,21 +55,27 @@ public class CapPermissionEvaluator {
 
         String placeholders = String.join(",", roleNames.stream().map(_i -> "?").toList());
         String sql = """
-                SELECT COUNT(*) FROM role_cap rc
-                JOIN cap_definition cd ON cd.id = rc.cap_def_id
-                JOIN role r ON r.id = rc.role_id
-                WHERE r.name IN (%s)
-                  AND cd.cap_key = ?
-                  AND rc.scope_value != 'NO'
+                SELECT COUNT(*) FROM (
+                  SELECT rc.scope_value AS sv
+                  FROM role_cap rc
+                  JOIN cap_definition cd ON cd.id = rc.cap_def_id
+                  JOIN role r ON r.id = rc.role_id
+                  WHERE r.name IN (%s) AND cd.cap_key = ? AND rc.scope_value <> 'NO'
+                  UNION ALL
+                  SELECT uc.scope_value AS sv
+                  FROM user_cap uc
+                  JOIN cap_definition cd2 ON cd2.id = uc.cap_def_id
+                  WHERE uc.user_id = ? AND cd2.cap_key = ? AND uc.scope_value <> 'NO'
+                    AND (uc.expires_at IS NULL OR uc.expires_at > now())
+                ) x
                 """.formatted(placeholders);
 
-        Object[] params = new Object[roleNames.size() + 1];
-        for (int i = 0; i < roleNames.size(); i++) {
-            params[i] = roleNames.get(i);
-        }
-        params[roleNames.size()] = capKey;
+        List<Object> params = new ArrayList<>(roleNames);
+        params.add(capKey);
+        params.add(userId);
+        params.add(capKey);
 
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, params);
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, params.toArray());
         return count != null && count > 0;
     }
 
@@ -71,7 +90,6 @@ public class CapPermissionEvaluator {
         }
 
         List<String> roleNames = roleNames(authentication);
-
         if (roleNames.isEmpty()) {
             return "NO";
         }
@@ -85,21 +103,31 @@ public class CapPermissionEvaluator {
         String sql = """
                 SELECT
                   CASE
-                    WHEN BOOL_OR(rc.scope_value = 'ALL')      THEN 'ALL'
-                    WHEN BOOL_OR(rc.scope_value = 'YES')      THEN 'YES'
-                    WHEN BOOL_OR(rc.scope_value = 'OWN')      THEN 'OWN'
-                    WHEN BOOL_OR(rc.scope_value = 'TEAM')     THEN 'TEAM'
-                    WHEN BOOL_OR(rc.scope_value = 'WORKFLOW') THEN 'WORKFLOW'
+                    WHEN BOOL_OR(sv = 'ALL')      THEN 'ALL'
+                    WHEN BOOL_OR(sv = 'YES')      THEN 'YES'
+                    WHEN BOOL_OR(sv = 'OWN')      THEN 'OWN'
+                    WHEN BOOL_OR(sv = 'TEAM')     THEN 'TEAM'
+                    WHEN BOOL_OR(sv = 'WORKFLOW') THEN 'WORKFLOW'
                     ELSE 'NO'
                   END
-                FROM role_cap rc
-                JOIN cap_definition cd ON cd.id = rc.cap_def_id
-                JOIN role r ON r.id = rc.role_id
-                WHERE r.name IN (%s)
-                  AND cd.cap_key = ?
+                FROM (
+                  SELECT rc.scope_value AS sv
+                  FROM role_cap rc
+                  JOIN cap_definition cd ON cd.id = rc.cap_def_id
+                  JOIN role r ON r.id = rc.role_id
+                  WHERE r.name IN (%s) AND cd.cap_key = ?
+                  UNION ALL
+                  SELECT uc.scope_value AS sv
+                  FROM user_cap uc
+                  JOIN cap_definition cd2 ON cd2.id = uc.cap_def_id
+                  WHERE uc.user_id = ? AND cd2.cap_key = ?
+                    AND (uc.expires_at IS NULL OR uc.expires_at > now())
+                ) x
                 """.formatted(placeholders);
 
         List<Object> params = new ArrayList<>(roleNames);
+        params.add(capKey);
+        params.add(userId(authentication));
         params.add(capKey);
 
         String scope = jdbcTemplate.queryForObject(sql, String.class, params.toArray());
@@ -114,25 +142,31 @@ public class CapPermissionEvaluator {
                 .toList();
     }
 
+    private List<String> roleNames(User user) {
+        if (user.getUserRoles() == null) {
+            return List.of();
+        }
+        return user.getUserRoles().stream()
+                .map(userRole -> userRole.getRole().getName())
+                .toList();
+    }
+
+    private Long userId(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof User user && user.getId() != null) {
+            return user.getId();
+        }
+        return NO_USER;
+    }
+
     private String correctedScope(List<String> roleNames, String capKey) {
         if (capKey.equals("route:approvals")) {
             return "NO";
         }
 
-        if (roleNames.contains("ADMIN")
-                && (capKey.equals("route:reports")
-                || capKey.equals("route:tasks")
-                || capKey.startsWith("reports:")
-                || capKey.equals("tasks.list"))) {
-            return "NO";
-        }
-
         if (roleNames.size() == 1 && roleNames.contains("VOLUNTEER")) {
-            if (capKey.equals("route:reports") || capKey.equals("tasks.list")) {
+            if (capKey.equals("route:tasks") || capKey.equals("tasks.list")) {
                 return "YES";
-            }
-            if (capKey.equals("reports:view")) {
-                return "OWN";
             }
             if (capKey.equals("cases:view") || capKey.startsWith("cases:documents.")) {
                 return "NO";
