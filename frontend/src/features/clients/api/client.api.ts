@@ -141,6 +141,29 @@ export async function deleteClient(id: string, options?: ApprovalOptions): Promi
   }
 }
 
+export async function restoreClient(id: string, options?: ApprovalOptions): Promise<ApprovalRequest | void> {
+  const mode = getDataMode()
+  if (mode === 'mock') {
+    const idx = clientMockData.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error('Client not found')
+    clientMockData[idx] = { ...clientMockData[idx], membershipStatus: 'ACTIVE' }
+    return
+  }
+
+  try {
+    const res = await http.post<ApprovalRequest>(`/v1/clients/${id}/restore`, null, approvalRequestConfig(options))
+    return res.data
+  } catch {
+    if (mode === 'auto') {
+      const idx = clientMockData.findIndex((c) => c.id === id)
+      if (idx === -1) throw new Error('Client not found')
+      clientMockData[idx] = { ...clientMockData[idx], membershipStatus: 'ACTIVE' }
+      return
+    }
+    throw new Error('Failed to restore client')
+  }
+}
+
 function toBackendClientPayload(data: Partial<Client>) {
   return {
     nameEn: data.nameEn,

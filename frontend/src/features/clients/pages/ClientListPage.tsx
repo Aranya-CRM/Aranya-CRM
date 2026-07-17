@@ -11,7 +11,7 @@ import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../
 import { useCases, useDeleteCase } from '../../cases/hooks'
 import type { Case } from '../../cases/types'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
-import { isClientResult, useClient, useClients, useClientsAvailableForCase, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
+import { isClientResult, useClient, useClients, useClientsAvailableForCase, useCreateClient, useDeleteClient, useRestoreClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
 import {
   applyClientCaseFilter,
@@ -76,8 +76,8 @@ const initialNewClientForm: NewClientForm = {
   areaDistrict: '',
 }
 
-type ClientApprovalIntent = 'create' | 'delete' | 'closeCase'
-type ClientApprovalOperation = 'create' | 'update' | 'delete'
+type ClientApprovalIntent = 'create' | 'delete' | 'restore' | 'closeCase'
+type ClientApprovalOperation = 'create' | 'update' | 'delete' | 'restore'
 
 interface ClientApprovalView {
   id: number
@@ -113,6 +113,7 @@ export function ClientListPage() {
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
+  const restoreClient = useRestoreClient()
   const closeCase = useDeleteCase()
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
@@ -133,7 +134,8 @@ export function ClientListPage() {
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
-  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: approvalIntent === 'create' })
+  const [profileCollapsed, setProfileCollapsed] = useState(false)
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: approvalIntent === 'create' || approvalIntent === 'restore' })
 
   const selectedApprovalId = searchParams.get('approval')
   const selectedClientId = searchParams.get('client') ?? routeClientId
@@ -200,7 +202,7 @@ export function ClientListPage() {
   const pendingApprovalByClientId = useMemo(() => {
     const map = new Map<string, ClientApprovalView>()
     clientApprovalItems
-      .filter((approval) => approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT')
+      .filter((approval) => approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT' || approval.type === 'RESTORE_CLIENT')
       .forEach((approval) => {
         if (approval.targetId == null) return
         const clientId = String(approval.targetId)
@@ -449,6 +451,17 @@ export function ClientListPage() {
     setApprovalIntent(null)
   }
 
+  function confirmRestoreClient() {
+    if (!profileClient) return
+    setApprovalIntent('restore')
+  }
+
+  async function restoreSelectedClient(approverId?: number, reason?: string) {
+    if (!profileClient) return
+    await restoreClient.mutateAsync({ id: profileClient.id, approverId, reason })
+    setApprovalIntent(null)
+  }
+
   function confirmCloseCase() {
     if (!activeProfileCase || closeCasePending) return
     setApprovalIntent('closeCase')
@@ -461,13 +474,15 @@ export function ClientListPage() {
   }
 
   const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
-  const approvalPending = createClient.isPending || deleteClient.isPending || closeCase.isPending
+  const approvalPending = createClient.isPending || deleteClient.isPending || restoreClient.isPending || closeCase.isPending
   const approvalMessageKey =
     approvalIntent === 'create'
       ? 'approvalConfirm.clientCreate'
       : approvalIntent === 'closeCase'
         ? 'approvalConfirm.caseDelete'
-        : 'approvalConfirm.clientDelete'
+        : approvalIntent === 'restore'
+          ? 'approvalConfirm.clientRestore'
+          : 'approvalConfirm.clientDelete'
 
   return (
     <div className="client-workspace">
@@ -712,20 +727,26 @@ export function ClientListPage() {
                 closed={profileClosed}
                 canUpdateClient={!profileApproval && !profileClosed && canUpdateClient}
                 canDeleteClient={!isAdminView && !profileApproval && !profileClosed && canDeleteClient}
+                canRestoreClient={!profileApproval && profileClosed && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
                 canConvertToCase={!isAdminView && !profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
                 activeCase={activeProfileCase}
                 canCloseCase={!isAdminView && !profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
+                collapsed={profileCollapsed}
                 closeCasePending={closeCasePending}
                 closingCase={closeCase.isPending}
                 deleting={deleteClient.isPending}
+                restoring={restoreClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
+                restoreError={restoreClient.error instanceof Error ? restoreClient.error.message : undefined}
                 onConfirmDelete={() => void confirmDeleteClient()}
+                onRestore={() => confirmRestoreClient()}
                 onConfirmCloseCase={() => void confirmCloseCase()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
                 onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
                 onPrint={printProfile}
+                onToggleCollapsed={() => setProfileCollapsed((collapsed) => !collapsed)}
               />
             )}
           </>
@@ -759,6 +780,7 @@ export function ClientListPage() {
         onConfirm={(approverId, reason) => {
           if (approvalIntent === 'create') void confirmCreateClient(approverId, reason)
           if (approvalIntent === 'delete') void submitDeleteClient(approverId, reason)
+          if (approvalIntent === 'restore') void restoreSelectedClient(approverId, reason)
           if (approvalIntent === 'closeCase') void submitCloseCase(approverId, reason)
         }}
       />
@@ -769,7 +791,7 @@ export function ClientListPage() {
 function canDecideApproval(approval: ClientApprovalView | undefined, currentUserId: number | undefined) {
   if (!approval || currentUserId === undefined) return false
   if (approval.requestedById === currentUserId) {
-    return approval.type === 'CLIENT_CREATE' && approval.assignedApproverId === currentUserId
+    return (approval.type === 'CLIENT_CREATE' || approval.type === 'RESTORE_CLIENT') && approval.assignedApproverId === currentUserId
   }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
@@ -777,6 +799,7 @@ function canDecideApproval(approval: ClientApprovalView | undefined, currentUser
 function approvalOperation(approval: ClientApprovalView): ClientApprovalOperation {
   if (approval.type === 'CLIENT_CREATE') return 'create'
   if (approval.type === 'DELETE_CLIENT') return 'delete'
+  if (approval.type === 'RESTORE_CLIENT') return 'restore'
   return 'update'
 }
 
@@ -941,7 +964,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 function isClientApprovalType(type: string): boolean {
-  return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT'
+  return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT' || type === 'RESTORE_CLIENT'
 }
 
 function formatDateTime(value?: string | null): string {
@@ -1223,20 +1246,26 @@ interface ClientProfilePanelProps {
   closed: boolean
   canUpdateClient: boolean
   canDeleteClient: boolean
+  canRestoreClient: boolean
   canViewDetailedProfile: boolean
   canConvertToCase: boolean
   activeCase?: Case
   canCloseCase: boolean
+  collapsed: boolean
   closeCasePending: boolean
   closingCase: boolean
   deleting: boolean
+  restoring: boolean
   deleteError?: string
+  restoreError?: string
   onConfirmDelete: () => void
+  onRestore: () => void
   onConfirmCloseCase: () => void
   onEdit: () => void
   onCreateCase: () => void
   onViewCase: () => void
   onPrint: () => void
+  onToggleCollapsed: () => void
 }
 
 function ClientProfilePanel({
@@ -1251,20 +1280,26 @@ function ClientProfilePanel({
   closed,
   canUpdateClient,
   canDeleteClient,
+  canRestoreClient,
   canViewDetailedProfile,
   canConvertToCase,
   activeCase,
   canCloseCase,
+  collapsed,
   closeCasePending,
   closingCase,
   deleting,
+  restoring,
   deleteError,
+  restoreError,
   onConfirmDelete,
+  onRestore,
   onConfirmCloseCase,
   onEdit,
   onCreateCase,
   onViewCase,
   onPrint,
+  onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
   const actionGroups = profileActionGroups({
@@ -1295,10 +1330,23 @@ function ClientProfilePanel({
           >
             <span aria-hidden="true">⎙</span>
           </button>
+          <button
+            className="client-profile-icon-btn"
+            type="button"
+            aria-label={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            aria-expanded={!collapsed}
+            title={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            onClick={onToggleCollapsed}
+          >
+            <span aria-hidden="true">{collapsed ? '▾' : '▴'}</span>
+          </button>
         </div>
       </header>
 
+      {collapsed ? null : (
+        <>
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
+      {restoreError ? <div className="client-profile-loading client-profile-warning">{restoreError}</div> : null}
 
       <ProfileSection key={`${client.id}-basicInfo`} collapsible title={t('clients.profile.section.basicInfo')}>
         <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} changed={changedFields.has('nameChn')} />
@@ -1363,6 +1411,15 @@ function ClientProfilePanel({
           onApproveApproval={onApproveApproval}
           onRejectApproval={onRejectApproval}
         />
+      ) : closed && canViewDetailedProfile && canRestoreClient ? (
+        <footer className="client-profile-action-footer split">
+          <div className="client-profile-secondary-actions" />
+          <div className="client-profile-primary-actions">
+            <button className="btn-primary" type="button" disabled={restoring} onClick={onRestore}>
+              {restoring ? t('common.saving') : t('clients.profile.restoreProfile')}
+            </button>
+          </div>
+        </footer>
       ) : actionGroups.primary.length || actionGroups.secondary.length || activeCase ? (
         <footer className="client-profile-action-footer split">
           <div className="client-profile-secondary-actions">
@@ -1398,6 +1455,8 @@ function ClientProfilePanel({
           </div>
         </footer>
       ) : null}
+        </>
+      )}
     </article>
   )
 }

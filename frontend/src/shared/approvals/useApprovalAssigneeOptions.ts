@@ -34,7 +34,7 @@ export function useApprovalAssigneeOptions(config: ApprovalAssigneeOptionsConfig
         if (item.status !== 'ACTIVE') return false
         if (!item.roles.some(isApprovalManagerRole)) return false
         const isCurrentUser = item.id === current?.id || item.id === currentUser?.id || item.email === currentUser?.email
-        if (isCurrentUser && !(allowSelfAssignment && currentRoles.has('MANAGER'))) return false
+        if (isCurrentUser && !(allowSelfAssignment && requesterIsManager)) return false
         return true
       })
       .map((item) => ({

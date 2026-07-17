@@ -5,8 +5,8 @@ export interface ApprovalNavBadgeCounts {
   cases: number
 }
 
-const CLIENT_APPROVAL_TYPES = new Set(['CLIENT_CREATE', 'CLIENT_UPDATE', 'DELETE_CLIENT'])
-const CASE_APPROVAL_TYPES = new Set(['CASE_CREATE', 'CASE_SERVICE_UPDATE', 'DELETE_CASE'])
+const CLIENT_APPROVAL_TYPES = new Set(['CLIENT_CREATE', 'CLIENT_UPDATE', 'DELETE_CLIENT', 'RESTORE_CLIENT'])
+const CASE_APPROVAL_TYPES = new Set(['CASE_CREATE', 'CASE_SERVICE_UPDATE', 'DELETE_CASE', 'RESTORE_CASE'])
 
 export function countApprovalNavBadges(
   approvals: Array<Pick<ApprovalRequest, 'type' | 'status' | 'requestedById' | 'assignedApproverId' | 'payloadJson'>>,

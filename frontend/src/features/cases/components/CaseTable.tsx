@@ -16,7 +16,7 @@ export interface CaseListRow {
   socialWorker: string
   status: CaseDisplayStatus
   colorCode: CaseColorCode
-  approvalOperation?: 'create' | 'close'
+  approvalOperation?: 'create' | 'close' | 'restore'
 }
 
 interface CaseTableProps {

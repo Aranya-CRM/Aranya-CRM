@@ -158,6 +158,15 @@ public class ClientService {
         activeCases.forEach(clientCase -> caseService.executeApprovedDeleteCase(clientCase.getId()));
     }
 
+    @Transactional
+    public ClientDetailResponse restoreClient(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+        client.setMembershipStatus(ACTIVE_STATUS);
+        clientRepository.save(client);
+        return getClientDetail(clientId);
+    }
+
     private static <T> void set(T value, Consumer<T> setter) {
         if (value != null) setter.accept(value);
     }

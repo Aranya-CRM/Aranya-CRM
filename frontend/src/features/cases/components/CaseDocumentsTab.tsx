@@ -183,7 +183,7 @@ function UploadModal({
   )
 }
 
-export function CaseDocumentsTab({ caseId }: { caseId: string }) {
+export function CaseDocumentsTab({ caseId, readOnly = false }: { caseId: string, readOnly?: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const canUpload = resolve('cases:documents.upload')

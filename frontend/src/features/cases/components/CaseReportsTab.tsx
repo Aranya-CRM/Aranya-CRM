@@ -8,6 +8,7 @@ import type { Case } from '../types'
 interface Props {
   caseData: Case
   isManager: boolean
+  readOnly?: boolean
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -30,7 +31,7 @@ function isVisibleCaseReport(report: ReportSummary): boolean {
   return isSubmittedReport(report.status)
 }
 
-export function CaseReportsTab({ caseData, isManager }: Props) {
+export function CaseReportsTab({ caseData, isManager, readOnly = false }: Props) {
   const { t } = useTranslation()
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportDetail | null>(null)
@@ -142,6 +143,7 @@ export function CaseReportsTab({ caseData, isManager }: Props) {
         <CaseReportDetail
           report={selectedReport}
           deleting={deletingReport}
+          readOnly={readOnly}
           onClose={() => setSelectedReport(null)}
           onDelete={() => void handleDeleteReport()}
         />
@@ -157,11 +159,13 @@ function displayText(value: string | null | undefined): string {
 function CaseReportDetail({
   report,
   deleting,
+  readOnly,
   onClose,
   onDelete,
 }: {
   report: ReportDetail
   deleting: boolean
+  readOnly: boolean
   onClose: () => void
   onDelete: () => void
 }) {
@@ -178,9 +182,11 @@ function CaseReportDetail({
           <button className="btn-secondary btn-compact" type="button" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onDelete}>
-            {deleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
-          </button>
+          {!readOnly ? (
+            <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onDelete}>
+              {deleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
+            </button>
+          ) : null}
         </div>
       </header>
 

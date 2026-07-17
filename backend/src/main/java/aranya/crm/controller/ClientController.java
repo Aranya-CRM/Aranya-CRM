@@ -103,4 +103,24 @@ public class ClientController {
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("@capEval.hasCap(authentication, 'clients:delete')")
+    public ResponseEntity<ApprovalRequestResponse> restoreClient(
+            @PathVariable Long id,
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
+    ) {
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "RESTORE_CLIENT",
+                "CLIENT",
+                id,
+                null,
+                currentUser,
+                approverId,
+                approvalReason
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
+    }
 }

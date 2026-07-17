@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
+import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, restoreCase, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
 import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
 
@@ -91,6 +91,19 @@ export function useDeleteCase() {
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteCase(id, { approverId, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
+    },
+  })
+}
+
+export function useRestoreCase() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => restoreCase(id, { approverId, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.details() })
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
     },
   })
