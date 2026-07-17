@@ -24,6 +24,8 @@ const COLOR_ORDER: Record<CaseColorCode, number> = {
   BLACK: 6,
 }
 
+const DEFAULT_STATUS_FILTER: CaseStatus = 'OPEN'
+
 interface CaseApprovalView {
   id: number
   type: string
@@ -40,7 +42,7 @@ export function CaseListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { resolve } = useAccess()
+  const { getCap, resolve } = useAccess()
   const { user } = useAuth()
   const { data: cases = [], isLoading } = useCases()
   const { data: users = [] } = useUsers()
@@ -48,8 +50,11 @@ export function CaseListPage() {
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>(DEFAULT_STATUS_FILTER)
+  const [ownerFilter, setOwnerFilter] = useState('all')
   const selectedApprovalId = searchParams.get('approval')
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const canSeeAllCases = getCap('cases:view') === 'ALL' || getCap('cases:view') === 'YES'
 
   const caseApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isCaseApprovalType(approval.type))
@@ -102,7 +107,7 @@ export function CaseListPage() {
     })
   }, [cases, createApprovalRows, pendingCloseApprovalByCaseId, pendingRestoreApprovalByCaseId])
 
-  const statuses = useMemo(() => unique(rows.map((item) => item.status)), [rows])
+  const statuses = useMemo(() => unique([DEFAULT_STATUS_FILTER, ...rows.map((item) => item.status)]), [rows])
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -113,11 +118,16 @@ export function CaseListPage() {
         item.caseNo.toLowerCase().includes(q) ||
         (item.clientAbbr ?? '').toLowerCase().includes(q) ||
         item.clientNameChn.includes(q) ||
-        item.clientNameEn.toLowerCase().includes(q)
+        item.clientNameEn.toLowerCase().includes(q) ||
+        item.socialWorker.toLowerCase().includes(q)
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter
-      return matchesSearch && matchesStatus
+      const matchesOwner =
+        ownerFilter === 'all' ||
+        (ownerFilter === 'mine' && currentUserId !== '' && item.socialWorkerId === currentUserId) ||
+        (ownerFilter === 'others' && (!currentUserId || item.socialWorkerId !== currentUserId))
+      return matchesSearch && matchesStatus && matchesOwner
     })
-  }, [rows, search, statusFilter])
+  }, [rows, search, statusFilter, ownerFilter, currentUserId])
 
   const selectedCreateApproval = useMemo(() => {
     if (!selectedApprovalId) return undefined
@@ -146,13 +156,17 @@ export function CaseListPage() {
         search={search}
         status={statusFilter}
         statuses={statuses}
+        owner={ownerFilter}
+        showOwnerFilter={canSeeAllCases}
         onSearchChange={setSearch}
         onStatusChange={setStatusFilter}
+        onOwnerChange={setOwnerFilter}
       />
 
       <CaseTable
         cases={filteredRows}
         loading={isLoading}
+        currentUserId={currentUserId}
         onView={(caseId) => {
           if (caseId.startsWith('approval:')) {
             setSearchParams({ approval: caseId.slice('approval:'.length) })
@@ -186,6 +200,7 @@ function toCaseListRow(item: Case, pendingCloseApproval?: CaseApprovalView, pend
     clientNameChn: item.clientNameChn,
     clientNameEn: item.clientNameEn,
     tradition: item.tradition,
+    socialWorkerId: item.socialWorkerId,
     socialWorker: item.socialWorker,
     status: item.status,
     colorCode: item.colorCode,
@@ -208,6 +223,7 @@ function toPendingCreateCaseRow(approval: CaseApprovalView, userNameById: Map<st
     clientNameChn: '',
     clientNameEn: '',
     tradition: '',
+    socialWorkerId,
     socialWorker: resolveUserName(socialWorkerId, userNameById),
     status: (stringValue(payload.status) as CaseStatus | undefined) ?? 'OPEN',
     colorCode: normalizeColorCode(stringValue(payload.colorCode)),

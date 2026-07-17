@@ -176,7 +176,9 @@ public class CapPermissionEvaluator {
             }
         }
 
-        if (roleNames.contains("SOCIAL_WORKER")) {
+        boolean managerLike = roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"));
+
+        if (roleNames.contains("SOCIAL_WORKER") && !managerLike) {
             if (capKey.equals("clients:create")) {
                 return "WORKFLOW";
             }
@@ -187,7 +189,7 @@ public class CapPermissionEvaluator {
                 return "WORKFLOW";
             }
             if (capKey.equals("cases:view")) {
-                return "ALL";
+                return "OWN";
             }
             if (capKey.equals("cases:services.create")) {
                 return "WORKFLOW";
@@ -200,7 +202,7 @@ public class CapPermissionEvaluator {
             }
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (managerLike) {
             if (capKey.equals("approvals:view")
                     || capKey.equals("approvals:decide")
                     || capKey.equals("approvals:create")) {

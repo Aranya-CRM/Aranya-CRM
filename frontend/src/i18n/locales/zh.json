@@ -162,6 +162,8 @@
       "intensity": "强度",
       "caseNo": "个案编号",
       "monastic": "会员",
+      "caseworker": "主责社工",
+      "mine": "我负责",
       "status": "状态",
       "lastUpdated": "最近更新",
       "loading": "加载中...",
@@ -197,6 +199,11 @@
     },
     "filter": {
       "allStatus": "全部状态",
+      "allOwners": "全部个案",
+      "myCases": "我负责",
+      "otherCases": "其他",
+      "ownerLabel": "按主责筛选",
+      "statusLabel": "按状态筛选",
       "search": "搜索个案或会员"
     },
     "service": {

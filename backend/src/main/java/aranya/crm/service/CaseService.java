@@ -7,9 +7,11 @@ import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
+import aranya.crm.entity.CaseAssignment;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.User;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.UserRepository;
@@ -56,6 +58,7 @@ public class CaseService {
     );
 
     private final CaseRepository caseRepository;
+    private final CaseAssignmentRepository caseAssignmentRepository;
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -68,13 +71,13 @@ public class CaseService {
         List<ClientCase> cases;
         if (scopedToUserId != null) {
             if (normalizedQuery == null && normalizedStatus == null) {
-                cases = caseRepository.findByCreatedByIdOrderByOpenedAtDescIdDesc(scopedToUserId);
+                cases = caseRepository.findAssignedCasesByUserIdOrderByOpenedAtDescIdDesc(scopedToUserId);
             } else if (normalizedQuery == null) {
-                cases = caseRepository.findByCreatedByIdAndStatusIgnoreCaseOrderByOpenedAtDescIdDesc(scopedToUserId, normalizedStatus);
+                cases = caseRepository.findAssignedCasesByUserIdAndStatusIgnoreCaseOrderByOpenedAtDescIdDesc(scopedToUserId, normalizedStatus);
             } else if (normalizedStatus == null) {
-                cases = caseRepository.searchCasesByCreatedBy(scopedToUserId, normalizedQuery);
+                cases = caseRepository.searchAssignedCasesByUserId(scopedToUserId, normalizedQuery);
             } else {
-                cases = caseRepository.searchCasesByCreatedBy(scopedToUserId, normalizedQuery, normalizedStatus);
+                cases = caseRepository.searchAssignedCasesByUserId(scopedToUserId, normalizedQuery, normalizedStatus);
             }
         } else {
             if (normalizedQuery == null && normalizedStatus == null) {
@@ -95,13 +98,27 @@ public class CaseService {
     }
 
     public CaseDetailResponse getCaseDetail(Long caseId) {
+        return getCaseDetail(caseId, null);
+    }
+
+    public CaseDetailResponse getCaseDetail(Long caseId, Long scopedToUserId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
             throw new EntityNotFoundException("Case not found: " + caseId);
         }
+        requireCaseVisible(caseId, scopedToUserId);
 
         return toCaseDetailResponse(clientCase);
+    }
+
+    public void requireCaseVisible(Long caseId, Long scopedToUserId) {
+        if (scopedToUserId == null) {
+            return;
+        }
+        if (!caseRepository.existsVisibleCaseForAssignedUser(caseId, scopedToUserId)) {
+            throw new AccessDeniedException("User cannot access this case");
+        }
     }
 
     public List<String> listSelectedServiceKeys(Long caseId) {
@@ -122,14 +139,11 @@ public class CaseService {
             throw new IllegalStateException("Client already has an active case");
         }
 
-        User socialWorker = request.getSocialWorkerId() == null
-                ? createdBy
-                : userRepository.findById(request.getSocialWorkerId())
-                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getSocialWorkerId()));
+        User primaryAssignee = resolvePrimaryAssignee(request.getSocialWorkerId(), createdBy);
 
         ClientCase clientCase = new ClientCase();
         clientCase.setClient(client);
-        clientCase.setCreatedBy(socialWorker);
+        clientCase.setCreatedBy(createdBy);
         clientCase.setCaseCode(generateCaseCode(request.getOpenedAt()));
         clientCase.setTitle(client.getNameEn() + " - Case");
         clientCase.setStatus(normalizeStatus(request.getStatus()));
@@ -140,14 +154,21 @@ public class CaseService {
         clientCase.setRemarks(trimToNull(request.getRemarks()));
 
         ClientCase saved = caseRepository.save(clientCase);
+        replacePrimaryAssignee(saved, primaryAssignee, createdBy);
         replaceSelectedServices(saved.getId(), request.getServices());
         return toCaseDetailResponse(saved);
     }
 
     @Transactional
     public CaseDetailResponse updateCase(Long caseId, UpdateCaseRequest request) {
+        return updateCase(caseId, request, null, null);
+    }
+
+    @Transactional
+    public CaseDetailResponse updateCase(Long caseId, UpdateCaseRequest request, User actor, Long scopedToUserId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireCaseVisible(caseId, scopedToUserId);
         requireMutableCase(clientCase);
 
         String nextStatus = trimToNull(request.getStatus());
@@ -167,9 +188,8 @@ public class CaseService {
             clientCase.setRemarks(request.getRemarks().trim());
         }
         if (request.getSocialWorkerId() != null) {
-            User socialWorker = userRepository.findById(request.getSocialWorkerId())
-                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getSocialWorkerId()));
-            clientCase.setCreatedBy(socialWorker);
+            User primaryAssignee = resolvePrimaryAssignee(request.getSocialWorkerId(), actor);
+            replacePrimaryAssignee(clientCase, primaryAssignee, actor);
         }
 
         return toCaseDetailResponse(caseRepository.save(clientCase));
@@ -509,22 +529,23 @@ public class CaseService {
     }
 
     public long countActiveCasesByCreatedBy(Long createdById) {
-        return caseRepository.countActiveCasesByCreatedById(createdById);
+        return caseRepository.countActiveAssignedCasesByUserId(createdById);
     }
 
     public long countUrgentCasesByCreatedBy(Long createdById) {
-        return caseRepository.countUrgentActiveCasesByCreatedById(createdById, URGENT_COLOR_CODES);
+        return caseRepository.countUrgentActiveAssignedCasesByUserId(createdById, URGENT_COLOR_CODES);
     }
 
     public long countDistinctActiveClientsByCreatedBy(Long createdById) {
-        return caseRepository.countDistinctActiveClientsByCreatedById(createdById);
+        return caseRepository.countDistinctActiveClientsByAssignedUserId(createdById);
     }
 
     public List<ClientCase> getActiveCasesByCreatedBy(Long createdById, int limit) {
-        return caseRepository.findActiveCasesByCreatedById(createdById, PageRequest.of(0, limit));
+        return caseRepository.findActiveAssignedCasesByUserId(createdById, PageRequest.of(0, limit));
     }
 
     private CaseSummaryResponse toCaseSummaryResponse(ClientCase clientCase) {
+        User primaryAssignee = primaryAssigneeFor(clientCase);
         return CaseSummaryResponse.builder()
                 .id(clientCase.getId())
                 .caseCode(clientCase.getCaseCode())
@@ -540,14 +561,15 @@ public class CaseService {
                 .clientAbbr(clientCase.getClient().getAbbr())
                 .clientNameEn(clientCase.getClient().getNameEn())
                 .clientNameChn(clientCase.getClient().getNameChn())
-                .createdById(clientCase.getCreatedBy().getId())
-                .createdByName(clientCase.getCreatedBy().getFullName())
+                .createdById(primaryAssignee != null ? primaryAssignee.getId() : null)
+                .createdByName(primaryAssignee != null ? primaryAssignee.getFullName() : null)
                 .comments(clientCase.getComments())
                 .remarks(clientCase.getRemarks())
                 .build();
     }
 
     private CaseDetailResponse toCaseDetailResponse(ClientCase clientCase) {
+        User primaryAssignee = primaryAssigneeFor(clientCase);
         return CaseDetailResponse.builder()
                 .id(clientCase.getId())
                 .caseCode(clientCase.getCaseCode())
@@ -565,13 +587,68 @@ public class CaseService {
                 .clientNameChn(clientCase.getClient().getNameChn())
                 .clientGender(clientCase.getClient().getGender())
                 .clientOrdinationStatus(clientCase.getClient().getOrdinationStatus())
-                .createdById(clientCase.getCreatedBy().getId())
-                .createdByName(clientCase.getCreatedBy().getFullName())
+                .createdById(primaryAssignee != null ? primaryAssignee.getId() : null)
+                .createdByName(primaryAssignee != null ? primaryAssignee.getFullName() : null)
                 .comments(clientCase.getComments())
                 .remarks(clientCase.getRemarks())
                 .services(selectedServices(clientCase.getId()))
                 .serviceEvents(listServiceEvents(clientCase.getId()))
                 .build();
+    }
+
+    private User primaryAssigneeFor(ClientCase clientCase) {
+        return caseAssignmentRepository
+                .findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(clientCase.getId(), "ACTIVE")
+                .map(CaseAssignment::getUser)
+                .orElse(clientCase.getCreatedBy());
+    }
+
+    private User resolvePrimaryAssignee(Long requestedAssigneeId, User fallbackUser) {
+        if (requestedAssigneeId != null) {
+            User assignee = userRepository.findByIdWithRoles(requestedAssigneeId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + requestedAssigneeId));
+            requirePrimaryAssignee(assignee);
+            return assignee;
+        }
+        if (fallbackUser == null || fallbackUser.getId() == null) {
+            return null;
+        }
+        return userRepository.findByIdWithRoles(fallbackUser.getId())
+                .filter(user -> "ACTIVE".equalsIgnoreCase(user.getStatus()) && isPrimaryAssigneeRole(user))
+                .orElse(null);
+    }
+
+    private void replacePrimaryAssignee(ClientCase clientCase, User assignee, User assignedBy) {
+        caseAssignmentRepository.deactivatePrimaryAssignments(clientCase.getId());
+        if (assignee == null) {
+            return;
+        }
+        CaseAssignment assignment = new CaseAssignment();
+        assignment.setClientCase(clientCase);
+        assignment.setUser(assignee);
+        assignment.setPrimary(true);
+        assignment.setAssignmentRole(primaryAssignmentRole(assignee));
+        assignment.setStatus("ACTIVE");
+        assignment.setAssignedBy(assignedBy != null && assignedBy.getId() != null ? assignedBy : null);
+        caseAssignmentRepository.save(assignment);
+    }
+
+    private void requirePrimaryAssignee(User user) {
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus()) || !isPrimaryAssigneeRole(user)) {
+            throw new AccessDeniedException("Primary case assignee must be an active manager or social worker");
+        }
+    }
+
+    private boolean isPrimaryAssigneeRole(User user) {
+        return hasRole(user, "MANAGER") || hasRole(user, "SOCIAL_WORKER")
+                || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
+    }
+
+    private String primaryAssignmentRole(User user) {
+        if (hasRole(user, "SOCIAL_WORKER")) {
+            return "SOCIAL_WORKER";
+        }
+        return "MANAGER";
     }
 
     private String resolveTradition(ClientCase clientCase) {

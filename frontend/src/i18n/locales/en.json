@@ -162,6 +162,8 @@
       "intensity": "Intensity",
       "caseNo": "Case Number",
       "monastic": "Monastic",
+      "caseworker": "Caseworker",
+      "mine": "Mine",
       "status": "Status",
       "lastUpdated": "Last Updated",
       "loading": "Loading...",
@@ -197,6 +199,11 @@
     },
     "filter": {
       "allStatus": "All statuses",
+      "allOwners": "All cases",
+      "myCases": "My cases",
+      "otherCases": "Other cases",
+      "ownerLabel": "Filter by owner",
+      "statusLabel": "Filter by status",
       "search": "Search cases or members"
     },
     "service": {

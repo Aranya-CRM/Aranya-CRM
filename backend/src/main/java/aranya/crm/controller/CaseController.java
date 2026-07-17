@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -49,20 +50,24 @@ public class CaseController {
     private final CapPermissionEvaluator capEval;
 
     @GetMapping
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
     public ResponseEntity<List<CaseSummaryResponse>> listCases(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
             Authentication authentication,
             @CurrentUser User currentUser
     ) {
-        String scope = capEval.capScope(authentication, "cases:view");
-        Long scopedUserId = "OWN".equals(scope) && currentUser != null ? currentUser.getId() : null;
-        return ResponseEntity.ok(caseService.listCases(q, status, scopedUserId));
+        return ResponseEntity.ok(caseService.listCases(q, status, scopedUserId(authentication, currentUser)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CaseDetailResponse> getCaseDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(caseService.getCaseDetail(id));
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<CaseDetailResponse> getCaseDetail(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        return ResponseEntity.ok(caseService.getCaseDetail(id, scopedUserId(authentication, currentUser)));
     }
 
     @PostMapping
@@ -92,9 +97,11 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:status.close')")
     public ResponseEntity<CaseDetailResponse> updateCase(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateCaseRequest request
+            @Valid @RequestBody UpdateCaseRequest request,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.updateCase(id, request));
+        return ResponseEntity.ok(caseService.updateCase(id, request, currentUser, scopedUserId(authentication, currentUser)));
     }
 
     @PatchMapping("/{id}/services")
@@ -102,10 +109,12 @@ public class CaseController {
     public ResponseEntity<ApprovalRequestResponse> updateCaseServices(
             @PathVariable Long id,
             @RequestBody List<String> serviceKeys,
+            Authentication authentication,
             @CurrentUser User currentUser,
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         List<String> requestedServiceKeys = serviceKeys == null ? List.of() : serviceKeys;
         List<String> currentServiceKeys = caseService.listSelectedServiceKeys(id);
         List<String> addServiceKeys = requestedServiceKeys.stream()
@@ -133,7 +142,13 @@ public class CaseController {
     }
 
     @GetMapping("/{id}/service-events")
-    public ResponseEntity<List<ServiceEventResponse>> listServiceEvents(@PathVariable Long id) {
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<List<ServiceEventResponse>> listServiceEvents(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.listServiceEvents(id));
     }
 
@@ -143,8 +158,10 @@ public class CaseController {
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            Authentication authentication
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         if (!"ALL".equals(capEval.capScope(authentication, "reports:view"))) {
             return ResponseEntity.ok(List.of());
         }
@@ -156,8 +173,10 @@ public class CaseController {
     public ResponseEntity<ServiceEventResponse> createServiceEvent(
             @PathVariable Long id,
             @Valid @RequestBody CreateServiceEventRequest request,
+            Authentication authentication,
             @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.createServiceEvent(id, request, currentUser));
     }
 
@@ -167,8 +186,10 @@ public class CaseController {
             @PathVariable Long id,
             @PathVariable Long eventId,
             @Valid @RequestBody CreateServiceEventRequest request,
+            Authentication authentication,
             @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.updateServiceEvent(id, eventId, request, currentUser));
     }
 
@@ -177,8 +198,11 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<ServiceEventResponse> syncServiceEvent(
             @PathVariable Long id,
-            @PathVariable Long eventId
+            @PathVariable Long eventId,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId));
     }
 
@@ -186,8 +210,11 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<Void> deleteServiceEvent(
             @PathVariable Long id,
-            @PathVariable Long eventId
+            @PathVariable Long eventId,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         caseService.deleteServiceEvent(id, eventId);
         return ResponseEntity.noContent().build();
     }
@@ -196,10 +223,12 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
     public ResponseEntity<ApprovalRequestResponse> deleteCase(
             @PathVariable Long id,
+            Authentication authentication,
             @CurrentUser User currentUser,
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CASE",
                 "CASE",
@@ -216,10 +245,12 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
     public ResponseEntity<ApprovalRequestResponse> restoreCase(
             @PathVariable Long id,
+            Authentication authentication,
             @CurrentUser User currentUser,
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "RESTORE_CASE",
                 "CASE",
@@ -230,6 +261,20 @@ public class CaseController {
                 approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
+    }
+
+    private Long scopedUserId(Authentication authentication, User currentUser) {
+        String scope = capEval.capScope(authentication, "cases:view");
+        if ("NO".equals(scope)) {
+            throw new AccessDeniedException("User cannot view cases");
+        }
+        if ("OWN".equals(scope)) {
+            if (currentUser == null || currentUser.getId() == null) {
+                throw new AccessDeniedException("User cannot view cases");
+            }
+            return currentUser.getId();
+        }
+        return null;
     }
 
 }

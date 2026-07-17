@@ -7,6 +7,7 @@ import { fetchClientsAvailableForCase } from '../../clients/api/client.api'
 import type { Client } from '../../clients/types'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
+import { canBePrimaryCaseAssignee } from '../caseAssigneeUtils'
 import { useCreateCase } from '../hooks'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices, type CaseColorCode, type CaseServices, type CaseStatus } from '../types'
 import { CaseIntensityDot } from '../components/CaseIntensityDot'
@@ -59,7 +60,7 @@ export function CaseFormPage() {
     void fetchUsers()
       .then((userData) => {
         if (!active) return
-        setSocialWorkers(userData.filter((user) => user.status === 'ACTIVE' && user.roles.includes('SOCIAL_WORKER')))
+        setSocialWorkers(userData.filter(canBePrimaryCaseAssignee))
       })
       .catch(() => {
         if (active) setSocialWorkers([])
@@ -151,7 +152,7 @@ export function CaseFormPage() {
               <select value={socialWorkerId} onChange={(event) => setSocialWorkerId(event.target.value)}>
                 <option value="">{t('cases.form.unassigned')}</option>
                 {socialWorkers.map((worker) => (
-                  <option key={worker.id} value={worker.id}>{worker.fullName}</option>
+                  <option key={worker.id} value={worker.id}>{worker.fullName} ({primaryAssigneeRoleLabel(worker)})</option>
                 ))}
               </select>
             </label>
@@ -272,4 +273,8 @@ export function CaseFormPage() {
       />
     </div>
   )
+}
+
+function primaryAssigneeRoleLabel(user: UserSummary): string {
+  return user.roles.includes('SOCIAL_WORKER') ? 'SW' : 'Manager'
 }
