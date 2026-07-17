@@ -7,7 +7,7 @@ export const userQueryKeys = {
   list: () => [...userQueryKeys.lists()] as const,
 }
 
-/** 只读用户列表(派工/审批指派下拉)。账号管理的增删改见 features/admin。 */
+/** 只读用户列表(派工/审批指派下拉)。账号管理增删改由后端 /api/admin/v1/users 提供。 */
 export function useUsers() {
   return useQuery({
     queryKey: userQueryKeys.list(),

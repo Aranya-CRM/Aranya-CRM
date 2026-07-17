@@ -75,7 +75,7 @@ public class CaseDocumentController {
     ) {
         caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
         boolean forceDownload = !"inline".equalsIgnoreCase(disposition);
-        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload, viewableCategories(currentUser)));
+        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload, viewableCategories(currentUser), currentUser));
     }
 
     @DeleteMapping("/{documentId}")
@@ -87,7 +87,7 @@ public class CaseDocumentController {
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
-        caseDocumentService.deleteCaseDocument(caseId, documentId);
+        caseDocumentService.deleteCaseDocument(caseId, documentId, currentUser);
         return ResponseEntity.noContent().build();
     }
 

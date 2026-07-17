@@ -56,10 +56,10 @@ const entries: AuditTrailEntry[] = [
 ]
 
 describe('audit history utilities', () => {
-  it('keeps only operations that require approval and sorts newest first', () => {
+  it('keeps approval and ordinary business operations and sorts newest first', () => {
     const result = buildAuditTrail(entries, { targetType: 'CASE', targetId: 'case-1' })
 
-    assert.deepEqual(result.map((entry) => entry.id), ['file-archived', 'service-requested'])
+    assert.deepEqual(result.map((entry) => entry.id), ['file-archived', 'service-requested', 'ordinary-note'])
   })
 
   it('treats sensitive file replacement as versioned history, not physical deletion', () => {

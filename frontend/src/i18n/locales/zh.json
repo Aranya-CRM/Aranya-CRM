@@ -6,43 +6,31 @@
     "reports": "事件",
     "tasks": "事件",
     "profile": "查看个人主页",
-    "driveImport": "Drive 导入",
-    "admin": "管理控制台",
     "settings": "Settings"
-  },
-  "admin": {
-    "title": "后台管理",
-    "subtitle": "系统与账号管理",
-    "badge": "后台",
-    "nav": {
-      "accounts": "账号管理"
-    },
-    "accounts": {
-      "title": "账号管理",
-      "subtitle": "管理系统用户、邀请与角色权限。"
-    }
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "为个别用户授予超出其角色基础的敏感个案文件访问权限。授权为全局生效,覆盖该用户负责的所有个案。",
+    "nav": {
+      "access": "访问权限"
+    },
     "searchUser": "按姓名或邮箱搜索…",
-    "usersHeading": "用户",
-    "selectUser": "从列表中选择一个用户,查看并管理其敏感文件访问权限。",
-    "saved": "已保存更改",
+    "selectUser": "选择一个用户以管理其敏感文件访问权限。",
+    "saved": "已保存",
     "saveError": "保存失败,请重试。",
     "loadUsersError": "加载用户失败。",
     "loadAccessError": "加载权限设置失败。",
     "reset": "重置",
-    "unsavedHint": "有未保存的更改。",
-    "effectiveNote": "更改将在该用户下次登录后生效。",
+    "unsavedHint": "有未保存的更改 · 下次登录后生效",
+    "leaveConfirm": "有未保存的更改,确定要离开吗?",
+    "selectedCount": "已选 {{count}} 项",
+    "grants": {
+      "title": "权限授予",
+      "subtitle": "为该用户单独授予额外权限。授权全局生效,并在其下次登录后生效。",
+      "inherited": "已具备"
+    },
     "documentAccess": {
-      "title": "敏感文件访问授权",
-      "subtitle": "选择该用户可以查看的个案文件类别。",
-      "baselineFull": "该用户的角色已拥有全部文件类别的访问权限,无需额外授权。",
-      "grantedNone": "无额外权限",
-      "allViaRole": "全部 · 来自角色",
-      "grantedCount_one": "{{count}} 个类别",
-      "grantedCount_other": "{{count}} 个类别",
+      "title": "敏感文件访问权限",
+      "subtitle": "为该用户单独授予敏感个案文件的访问权限。授权全局生效,覆盖其负责的所有个案。",
       "category": {
         "ordination": "身份 / 剃度",
         "medical": "医疗",
@@ -55,33 +43,26 @@
         "financial": "银行信息、发票与财务报表。",
         "legal": "合同、法律文书与官方往来函件。"
       }
-    }
-  },
-  "driveImport": {
-    "title": "Google Drive 导入",
-    "subtitle": "一次性迁移:浏览组织 Drive,把文件指派到 case 与分类,再导入到文件存储。",
-    "root": "Drive",
-    "searchCase": "搜索个案…",
-    "selectCase": "选择目标个案",
-    "assignSelected": "指派选中({{count}})",
-    "name": "名称",
-    "type": "类型",
-    "size": "大小",
-    "modified": "修改时间",
-    "folder": "文件夹",
-    "emptyFolder": "该文件夹为空。",
-    "staged": "待导入({{count}})",
-    "stagingEmpty": "尚未加入文件。勾选文件并指派到个案。",
-    "import": "导入 {{count}} 个文件",
-    "importing": "导入中…",
-    "results": "结果",
-    "pickCaseFirst": "请先选择目标个案。",
-    "loadError": "加载 Drive 文件失败。",
-    "importError": "导入失败。",
-    "status": {
-      "IMPORTED": "已导入",
-      "SKIPPED": "已跳过",
-      "FAILED": "失败"
+    },
+    "profileAccess": {
+      "title": "档案敏感区块",
+      "subtitle": "选择该用户可以查看的会员详细档案区块。",
+      "section": {
+        "identity": "身份",
+        "personal": "个人",
+        "ordination": "剃度",
+        "membership": "会员",
+        "wellbeing": "身心状况",
+        "needs": "特殊需求"
+      },
+      "sectionDesc": {
+        "identity": "NRIC 姓名/证号与剃度证明。",
+        "personal": "性别、出生日期、国籍与紧急联系人。",
+        "ordination": "传承、剃度与受戒详情。",
+        "membership": "入会日期、会员备注与备注。",
+        "wellbeing": "身心健康状况指标。",
+        "needs": "特殊需求、银行转账与 PayNow 信息。"
+      }
     }
   },
   "profile": {
@@ -399,13 +380,13 @@
     }
   },
   "auditHistory": {
-    "title": "审计",
-    "subtitle": "{{caseCode}} · 只记录需要审批的操作。普通无审批操作不进入此模块。",
+    "title": "操作日志",
+    "subtitle": "{{caseCode}} · 记录谁在什么时间对什么对象执行了什么操作。",
     "readonly": "不可编辑 / 不可删除",
-    "listLabel": "审批审计记录",
-    "loading": "正在加载真实审批审计记录...",
-    "loadError": "审批审计记录加载失败。请确认后端 audit-history API 可用。",
-    "empty": "暂无需要审批的历史记录。",
+    "listLabel": "个案操作日志",
+    "loading": "正在加载操作日志...",
+    "loadError": "操作日志加载失败。",
+    "empty": "暂无操作记录。",
     "filter": {
       "label": "类型",
       "all": "全部",
@@ -416,7 +397,7 @@
       "report": "报告"
     },
     "stats": {
-      "total": "审批记录",
+      "total": "操作记录",
       "pending": "待审批",
       "approved": "已批准",
       "rejected": "已拒绝"
@@ -426,7 +407,9 @@
       "approved": "已批准",
       "rejected": "已拒绝",
       "expired": "已过期",
-      "not_required": "无需审批"
+      "not_required": "无需审批",
+      "success": "成功",
+      "failed": "失败"
     },
     "action": {
       "CASE_CREATE": "创建个案",
@@ -443,7 +426,23 @@
       "SENSITIVE_FILE_SUPERSEDE": "敏感文件版本替代",
       "SENSITIVE_FILE_VERSION_CREATE": "敏感文件新版本",
       "CASE_NOTE_CREATE": "案例笔记创建",
-      "SERVICE_EVENT_CREATE": "服务事件创建"
+      "SERVICE_EVENT_CREATE": "服务事件创建",
+      "CASE_CREATED": "创建个案",
+      "CASE_UPDATED": "修改个案资料",
+      "CASE_ARCHIVED": "归档个案",
+      "CASE_RESTORED": "恢复个案",
+      "CASE_SERVICES_CHANGED": "变更服务模块",
+      "SERVICE_EVENT_CREATED": "创建服务事件",
+      "SERVICE_EVENT_UPDATED": "修改服务事件",
+      "SERVICE_EVENT_DELETED": "删除服务事件",
+      "CASE_DOCUMENT_UPLOADED": "上传个案文件",
+      "CASE_DOCUMENT_VIEWED": "查看个案文件",
+      "CASE_DOCUMENT_DOWNLOADED": "下载个案文件",
+      "CASE_DOCUMENT_ARCHIVED": "归档个案文件",
+      "REPORT_CREATED": "创建报告",
+      "REPORT_UPDATED": "修改报告",
+      "REPORT_SUBMITTED": "提交报告",
+      "REPORT_DELETED": "删除报告"
     },
     "content": {
       "serviceAdd": "添加服务：{{add}}",
@@ -474,6 +473,9 @@
       "requestedAt": "申请时间",
       "decidedAt": "审批时间",
       "approvalId": "审批编号",
+      "actor": "操作人",
+      "before": "修改前",
+      "after": "修改后",
       "reason": "原因"
     }
   },

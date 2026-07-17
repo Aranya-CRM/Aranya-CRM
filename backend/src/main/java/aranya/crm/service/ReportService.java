@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +32,7 @@ public class ReportService {
     private final VisitReportRepository visitReportRepository;
     private final CaseRepository caseRepository;
     private final ServiceAppointmentRepository serviceAppointmentRepository;
+    private final OperationAuditLogService operationAuditLogService;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
 
@@ -124,7 +127,9 @@ public class ReportService {
         applyReportFields(report, request);
         report.setStatus(normalizeStatus(request.getStatus()));
 
-        return toReportDetailResponse(visitReportRepository.save(report));
+        VisitReport saved = visitReportRepository.save(report);
+        recordReportLog(saved, createdBy, "REPORT_CREATED", "创建报告", null, reportAuditValues(saved));
+        return toReportDetailResponse(saved);
     }
 
     @Transactional
@@ -133,6 +138,7 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         requireOwner(report, currentUser);
         requireEditable(report);
+        Map<String, Object> before = reportAuditValues(report);
         ServiceAppointment appointment = report.getServiceAppointment();
         if (appointment == null) {
             appointment = requireAssignedAppointment(request.getAppointmentId(), currentUser);
@@ -145,6 +151,8 @@ public class ReportService {
         applyEventContext(report, appointment, clientCase, client);
         applyReportFields(report, request);
 
+        recordReportLog(report, currentUser, "REPORT_UPDATED", "修改报告", before, reportAuditValues(report));
+
         return toReportDetailResponse(report);
     }
 
@@ -154,8 +162,11 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         requireOwner(report, currentUser);
         requireEditable(report);
+        String beforeStatus = report.getStatus();
         report.setStatus(STATUS_SUBMITTED);
         report.setUpdatedAt(LocalDateTime.now());
+        recordReportLog(report, currentUser, "REPORT_SUBMITTED", "提交报告",
+                Map.of("status", beforeStatus), Map.of("status", STATUS_SUBMITTED));
         return toReportDetailResponse(report);
     }
 
@@ -177,7 +188,30 @@ public class ReportService {
             requireDraft(report);
         }
 
+        recordReportLog(report, currentUser, "REPORT_DELETED", "删除报告",
+                reportAuditValues(report), null);
         visitReportRepository.delete(report);
+    }
+
+    private void recordReportLog(VisitReport report, User actor, String action, String summary,
+                                 Map<String, ?> before, Map<String, ?> after) {
+        ClientCase clientCase = report.getClientCase();
+        if (clientCase == null) return;
+        operationAuditLogService.record(
+                clientCase, actor, action, "REPORT", report.getId(), "RPT-" + report.getId(),
+                summary, before, after
+        );
+    }
+
+    private Map<String, Object> reportAuditValues(VisitReport report) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("status", report.getStatus());
+        values.put("dateOfVisit", report.getDateOfVisit());
+        values.put("timeOfVisit", report.getTimeOfVisit());
+        values.put("location", report.getLocation());
+        values.put("programmeName", report.getProgrammeName());
+        values.put("typeOfVisit", report.getTypeOfVisit());
+        return values;
     }
 
     private ReportSummaryResponse toReportSummaryResponse(VisitReport report) {

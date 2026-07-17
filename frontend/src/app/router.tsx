@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { adminRoutes } from '../features/admin/routes'
 import { authRoutes } from '../features/auth/routes'
 import { caseRoutes } from '../features/cases/routes'
 import { clientRoutes } from '../features/clients/routes'
@@ -25,5 +24,4 @@ export const PROTECTED_ROUTES: AppRouteConfig[] = [
   ...reportRoutes,
   ...profileRoutes,
   ...settingsRoutes,
-  ...adminRoutes,
 ]

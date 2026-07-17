@@ -186,8 +186,8 @@ function UploadModal({
 export function CaseDocumentsTab({ caseId, readOnly = false }: { caseId: string, readOnly?: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
-  const canUpload = resolve('cases:documents.upload')
-  const canDelete = resolve('cases:documents.delete')
+  const canUpload = !readOnly && resolve('cases:documents.upload')
+  const canDelete = !readOnly && resolve('cases:documents.delete')
   const viewableCategoryDefs = useMemo(
     () => CATEGORY_DEFS.filter((def) => resolve(`cases:documents.view.${def.key}`)),
     [resolve],

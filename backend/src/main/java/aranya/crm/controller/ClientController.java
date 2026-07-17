@@ -5,7 +5,9 @@ import aranya.crm.dto.request.UpdateClientRequest;
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.ClientDetailResponse;
 import aranya.crm.dto.response.ClientSummaryResponse;
+import aranya.crm.entity.ClientProfileSection;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.ApprovalService;
 import aranya.crm.service.ClientService;
@@ -36,6 +38,7 @@ public class ClientController {
 
     private final ClientService clientService;
     private final ApprovalService approvalService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
     public ResponseEntity<List<ClientSummaryResponse>> listClients(
@@ -51,8 +54,14 @@ public class ClientController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ClientDetailResponse> getClientDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(clientService.getClientDetail(id));
+    public ResponseEntity<ClientDetailResponse> getClientDetail(
+            @PathVariable Long id,
+            @CurrentUser User currentUser
+    ) {
+        ClientDetailResponse response = clientService.getClientDetail(id);
+        // 按 clients:profile.* 授权对敏感区块字段做真过滤(无权限的区块字段置空)
+        ClientProfileSection.applyVisibility(response, cap -> capEval.hasCap(currentUser, cap));
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping

@@ -50,6 +50,9 @@ class CaseDocumentServiceTest {
     @Mock
     private GcsFileStorageService fileStorageService;
 
+    @Mock
+    private OperationAuditLogService operationAuditLogService;
+
     @Test
     @DisplayName("listCaseDocuments maps active case documents")
     void listCaseDocuments_mapsActiveCaseDocuments() {
@@ -217,7 +220,8 @@ class CaseDocumentServiceTest {
                 documentRepository,
                 caseDocumentRepository,
                 fileStorageService,
-                new FileStorageProperties()
+                new FileStorageProperties(),
+                operationAuditLogService
         );
     }
 

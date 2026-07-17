@@ -216,7 +216,7 @@ public class CaseController {
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
-        caseService.deleteServiceEvent(id, eventId);
+        caseService.deleteServiceEvent(id, eventId, currentUser);
         return ResponseEntity.noContent().build();
     }
 

@@ -6,43 +6,31 @@
     "reports": "Event",
     "tasks": "Event",
     "profile": "View profile",
-    "driveImport": "Drive Import",
-    "admin": "Admin Console",
     "settings": "Settings"
-  },
-  "admin": {
-    "title": "Admin Console",
-    "subtitle": "System & account administration",
-    "badge": "Backend",
-    "nav": {
-      "accounts": "Accounts"
-    },
-    "accounts": {
-      "title": "Account Management",
-      "subtitle": "Manage system users, invitations and role permissions."
-    }
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Grant individual users access to sensitive case documents beyond what their role already allows. Grants apply globally across every case the user is assigned to.",
+    "nav": {
+      "access": "Access"
+    },
     "searchUser": "Search by name or email…",
-    "usersHeading": "Users",
-    "selectUser": "Select a user from the list to review and manage their sensitive-file access.",
-    "saved": "Changes saved",
+    "selectUser": "Select a user to manage their sensitive-file access.",
+    "saved": "Saved",
     "saveError": "Failed to save. Please try again.",
     "loadUsersError": "Failed to load users.",
     "loadAccessError": "Failed to load access settings.",
     "reset": "Reset",
-    "unsavedHint": "You have unsaved changes.",
-    "effectiveNote": "Changes take effect the next time the user signs in.",
+    "unsavedHint": "Unsaved changes · takes effect at next sign-in",
+    "leaveConfirm": "You have unsaved changes. Leave without saving?",
+    "selectedCount": "{{count}} selected",
+    "grants": {
+      "title": "Permission grants",
+      "subtitle": "Grant additional permissions to this user individually. Grants apply globally and take effect at their next sign-in.",
+      "inherited": "Already granted"
+    },
     "documentAccess": {
       "title": "Sensitive file access",
-      "subtitle": "Choose which categories of case documents this user may view.",
-      "baselineFull": "This user's role already grants access to all document categories, so no additional grants are needed.",
-      "grantedNone": "No extra access",
-      "allViaRole": "Full · via role",
-      "grantedCount_one": "{{count}} category",
-      "grantedCount_other": "{{count}} categories",
+      "subtitle": "Grant this user access to sensitive case documents individually. Grants apply globally across every case they are assigned to.",
       "category": {
         "ordination": "Identity / Ordination",
         "medical": "Medical",
@@ -55,33 +43,26 @@
         "financial": "Bank details, invoices and financial statements.",
         "legal": "Contracts, legal filings and official correspondence."
       }
-    }
-  },
-  "driveImport": {
-    "title": "Google Drive Import",
-    "subtitle": "One-time migration: browse the organization Drive, assign files to a case and category, then import into storage.",
-    "root": "Drive",
-    "searchCase": "Search case…",
-    "selectCase": "Select target case",
-    "assignSelected": "Assign selected ({{count}})",
-    "name": "Name",
-    "type": "Type",
-    "size": "Size",
-    "modified": "Modified",
-    "folder": "Folder",
-    "emptyFolder": "This folder is empty.",
-    "staged": "To import ({{count}})",
-    "stagingEmpty": "No files staged. Select files and assign them to a case.",
-    "import": "Import {{count}} file(s)",
-    "importing": "Importing…",
-    "results": "Results",
-    "pickCaseFirst": "Select a target case first.",
-    "loadError": "Failed to load Drive files.",
-    "importError": "Import failed.",
-    "status": {
-      "IMPORTED": "Imported",
-      "SKIPPED": "Skipped",
-      "FAILED": "Failed"
+    },
+    "profileAccess": {
+      "title": "Sensitive profile sections",
+      "subtitle": "Choose which sections of a member's detailed profile this user may view.",
+      "section": {
+        "identity": "Identity",
+        "personal": "Personal",
+        "ordination": "Ordination",
+        "membership": "Membership",
+        "wellbeing": "Wellbeing",
+        "needs": "Special needs"
+      },
+      "sectionDesc": {
+        "identity": "NRIC name/number and ordination certificate.",
+        "personal": "Gender, date of birth, nationality and next of kin.",
+        "ordination": "Tradition, tonsure and ordination details.",
+        "membership": "Join date, membership remarks and comments.",
+        "wellbeing": "Health and wellbeing indicators.",
+        "needs": "Special needs, bank transfer and PayNow details."
+      }
     }
   },
   "profile": {
@@ -399,13 +380,13 @@
     }
   },
   "auditHistory": {
-    "title": "Audit",
-    "subtitle": "{{caseCode}} · Only approval-required operations are recorded here. Routine non-approval changes are excluded.",
+    "title": "Operation Log",
+    "subtitle": "{{caseCode}} · Records who performed which operation, on what, and when.",
     "readonly": "Read-only / immutable",
-    "listLabel": "Approval audit records",
-    "loading": "Loading live approval audit records...",
-    "loadError": "Failed to load audit records. Check that the audit-history API is available.",
-    "empty": "No approval-required history for this case.",
+    "listLabel": "Case operation log",
+    "loading": "Loading operation log...",
+    "loadError": "Failed to load the operation log.",
+    "empty": "No operations recorded yet.",
     "filter": {
       "label": "Type",
       "all": "All",
@@ -416,7 +397,7 @@
       "report": "Report"
     },
     "stats": {
-      "total": "Approval records",
+      "total": "Operations",
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected"
@@ -426,7 +407,9 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "expired": "Expired",
-      "not_required": "Not required"
+      "not_required": "Not required",
+      "success": "Success",
+      "failed": "Failed"
     },
     "action": {
       "CASE_CREATE": "Create case",
@@ -443,7 +426,23 @@
       "SENSITIVE_FILE_SUPERSEDE": "Replace sensitive file version",
       "SENSITIVE_FILE_VERSION_CREATE": "Create sensitive file version",
       "CASE_NOTE_CREATE": "Create case note",
-      "SERVICE_EVENT_CREATE": "Create service event"
+      "SERVICE_EVENT_CREATE": "Create service event",
+      "CASE_CREATED": "Create case",
+      "CASE_UPDATED": "Update case details",
+      "CASE_ARCHIVED": "Archive case",
+      "CASE_RESTORED": "Restore case",
+      "CASE_SERVICES_CHANGED": "Change services",
+      "SERVICE_EVENT_CREATED": "Create service event",
+      "SERVICE_EVENT_UPDATED": "Update service event",
+      "SERVICE_EVENT_DELETED": "Delete service event",
+      "CASE_DOCUMENT_UPLOADED": "Upload case document",
+      "CASE_DOCUMENT_VIEWED": "View case document",
+      "CASE_DOCUMENT_DOWNLOADED": "Download case document",
+      "CASE_DOCUMENT_ARCHIVED": "Archive case document",
+      "REPORT_CREATED": "Create report",
+      "REPORT_UPDATED": "Update report",
+      "REPORT_SUBMITTED": "Submit report",
+      "REPORT_DELETED": "Delete report"
     },
     "content": {
       "serviceAdd": "Add service: {{add}}",
@@ -474,6 +473,9 @@
       "requestedAt": "Requested at",
       "decidedAt": "Decision time",
       "approvalId": "Approval ID",
+      "actor": "Actor",
+      "before": "Before",
+      "after": "After",
       "reason": "Reason"
     }
   },

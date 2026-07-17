@@ -48,6 +48,9 @@ class ReportServiceTest {
     @Mock
     private CaseNoteRepository caseNoteRepository;
 
+    @Mock
+    private OperationAuditLogService operationAuditLogService;
+
     @InjectMocks
     private ReportService reportService;
 

@@ -4,9 +4,11 @@ import aranya.crm.dto.response.AuditHistoryEntryResponse;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.OperationAuditLog;
 import aranya.crm.entity.User;
 import aranya.crm.repository.ApprovalRequestRepository;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.OperationAuditLogRepository;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,9 @@ class AuditHistoryServiceTest {
 
     @Mock
     private CaseRepository caseRepository;
+
+    @Mock
+    private OperationAuditLogRepository operationAuditLogRepository;
 
     @InjectMocks
     private AuditHistoryService auditHistoryService;
@@ -105,6 +110,37 @@ class AuditHistoryServiceTest {
         assertThat(result.get(0).getAction()).isEqualTo("CLIENT_UPDATE");
         assertThat(result.get(0).getTargetType()).isEqualTo("CLIENT");
         assertThat(result.get(0).getCaseId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("listCaseAuditHistory combines business operations with approval history")
+    void listCaseAuditHistory_combinesBusinessOperationsAndApprovals() {
+        ClientCase clientCase = clientCase(7L, 3L);
+        OperationAuditLog operation = new OperationAuditLog();
+        operation.setId(12L);
+        operation.setClientCase(clientCase);
+        operation.setActorName("Case Worker");
+        operation.setAction("CASE_UPDATED");
+        operation.setTargetType("CASE");
+        operation.setTargetId("7");
+        operation.setTargetLabel("CASE-007");
+        operation.setSummary("修改个案资料");
+        operation.setBeforeJson("{\"status\":\"OPEN\"}");
+        operation.setAfterJson("{\"status\":\"CLOSED\"}");
+        operation.setOccurredAt(LocalDateTime.of(2026, 7, 10, 14, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L)).thenReturn(List.of());
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L)).thenReturn(List.of());
+        when(operationAuditLogRepository.findByClientCaseIdOrderByOccurredAtDescIdDesc(7L)).thenReturn(List.of(operation));
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAction()).isEqualTo("CASE_UPDATED");
+        assertThat(result.get(0).isApprovalRequired()).isFalse();
+        assertThat(result.get(0).getActorName()).isEqualTo("Case Worker");
+        assertThat(result.get(0).getBeforeValue()).contains("OPEN");
     }
 
     private ApprovalRequest request(Long id, String type, String status, String targetType, Long targetId) {

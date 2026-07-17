@@ -70,6 +70,7 @@ function AuditEntryRow({ entry }: { entry: AuditTrailEntry }) {
   const content = approvalContent(entry, t)
   const requester = entry.requestedByName || '-'
   const approver = entry.decidedByName || '-'
+  const status = entry.approvalRequired ? entry.decisionStatus : (entry.result || 'SUCCESS').toLowerCase()
 
   return (
     <details className="audit-history-row" role="listitem">
@@ -81,23 +82,35 @@ function AuditEntryRow({ entry }: { entry: AuditTrailEntry }) {
         <div className="audit-history-main">
           <div className="audit-history-badges">
             <span className={`audit-history-category category-${category}`}>{t(`auditHistory.filter.${category}`)}</span>
-            <span className={`audit-history-status status-${entry.decisionStatus}`}>{t(`auditHistory.status.${entry.decisionStatus}`)}</span>
+            <span className={`audit-history-status status-${status}`}>{t(`auditHistory.status.${status}`)}</span>
           </div>
-          <strong>{t(`auditHistory.action.${entry.action}`, { defaultValue: entry.action })}</strong>
+          <strong>{t(`auditHistory.action.${entry.action}`, { defaultValue: entry.summary || entry.action })}</strong>
           <p>{content}</p>
         </div>
         <div className="audit-history-people">
-          <span>{t('auditHistory.fields.requestedBy')}: {requester}</span>
-          <span>{t(deleteApprovalAction(entry.action) ? 'auditHistory.fields.deleteApprovedBy' : 'auditHistory.fields.approvedBy')}: {approver}</span>
+          {entry.approvalRequired ? (
+            <>
+              <span>{t('auditHistory.fields.requestedBy')}: {requester}</span>
+              <span>{t(deleteApprovalAction(entry.action) ? 'auditHistory.fields.deleteApprovedBy' : 'auditHistory.fields.approvedBy')}: {approver}</span>
+            </>
+          ) : (
+            <span>{t('auditHistory.fields.actor')}: {entry.actorName || '-'}</span>
+          )}
         </div>
       </summary>
 
       <dl className="audit-history-detail">
         <Field label={t('auditHistory.fields.target')} value={entry.targetLabel} />
         <Field label={t(actorLabelKey(entry.action))} value={entry.actorName || '-'} />
-        <Field label={t('auditHistory.fields.requestedAt')} value={formatDateTime(entry.requestedAt)} />
-        <Field label={t('auditHistory.fields.decidedAt')} value={formatDateTime(entry.decidedAt)} />
-        <Field label={t('auditHistory.fields.approvalId')} value={entry.approvalRequestId || '-'} />
+        {entry.approvalRequired ? (
+          <>
+            <Field label={t('auditHistory.fields.requestedAt')} value={formatDateTime(entry.requestedAt)} />
+            <Field label={t('auditHistory.fields.decidedAt')} value={formatDateTime(entry.decidedAt)} />
+            <Field label={t('auditHistory.fields.approvalId')} value={entry.approvalRequestId || '-'} />
+          </>
+        ) : null}
+        {entry.beforeValue ? <Field label={t('auditHistory.fields.before')} value={formatJson(entry.beforeValue)} wide /> : null}
+        {entry.afterValue ? <Field label={t('auditHistory.fields.after')} value={formatJson(entry.afterValue)} wide /> : null}
         <Field label={t('auditHistory.fields.reason')} value={entry.reason || '-'} wide />
       </dl>
     </details>
@@ -123,6 +136,7 @@ function Field({ label, value, wide = false }: { label: string; value: string; w
 }
 
 function approvalContent(entry: AuditTrailEntry, t: (key: string, options?: Record<string, unknown>) => string): string {
+  if (!entry.approvalRequired) return entry.summary
   if (entry.action === 'CASE_SERVICE_UPDATE') {
     const add = serviceNames(entry.metadata?.addServiceKeys, t)
     const remove = serviceNames(entry.metadata?.removeServiceKeys, t)
@@ -145,6 +159,17 @@ function approvalContent(entry: AuditTrailEntry, t: (key: string, options?: Reco
   return t(`auditHistory.content.${entry.action}`, { target: entry.targetLabel, defaultValue: entry.summary })
 }
 
+function formatJson(value: string): string {
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>
+    return Object.entries(parsed)
+      .map(([key, item]) => `${key}: ${item == null ? '-' : Array.isArray(item) ? item.join(', ') : String(item)}`)
+      .join('；')
+  } catch {
+    return value
+  }
+}
+
 function serviceNames(value: string | undefined, t: (key: string, options?: Record<string, unknown>) => string): string {
   if (!value) return ''
   return value
@@ -160,6 +185,9 @@ function fileTarget(entry: AuditTrailEntry): string {
 }
 
 function actorLabelKey(action: AuditAction): string {
+  if (action.endsWith('_UPDATED') || action.endsWith('_CHANGED')) return 'auditHistory.fields.modifiedBy'
+  if (action.endsWith('_ARCHIVED') || action.endsWith('_DELETED')) return 'auditHistory.fields.archivedBy'
+  if (action.endsWith('_RESTORED')) return 'auditHistory.fields.restoredBy'
   if (action === 'DELETE_CASE' || action === 'DELETE_CLIENT' || action === 'DELETE_REPORT' || action === 'SENSITIVE_FILE_ARCHIVE') {
     return 'auditHistory.fields.archivedBy'
   }
