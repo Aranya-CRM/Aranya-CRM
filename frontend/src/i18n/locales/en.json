@@ -24,20 +24,36 @@
   },
   "settings": {
     "title": "Settings",
-    "searchUser": "Search user…",
-    "selectUser": "Select a user to manage their sensitive-file access.",
-    "saved": "Saved",
+    "subtitle": "Grant individual users access to sensitive case documents beyond what their role already allows. Grants apply globally across every case the user is assigned to.",
+    "searchUser": "Search by name or email…",
+    "usersHeading": "Users",
+    "selectUser": "Select a user from the list to review and manage their sensitive-file access.",
+    "saved": "Changes saved",
     "saveError": "Failed to save. Please try again.",
     "loadUsersError": "Failed to load users.",
     "loadAccessError": "Failed to load access settings.",
+    "reset": "Reset",
+    "unsavedHint": "You have unsaved changes.",
+    "effectiveNote": "Changes take effect the next time the user signs in.",
     "documentAccess": {
       "title": "Sensitive file access",
-      "subtitle": "Grant which categories of case documents each user can view.",
+      "subtitle": "Choose which categories of case documents this user may view.",
+      "baselineFull": "This user's role already grants access to all document categories, so no additional grants are needed.",
+      "grantedNone": "No extra access",
+      "allViaRole": "Full · via role",
+      "grantedCount_one": "{{count}} category",
+      "grantedCount_other": "{{count}} categories",
       "category": {
         "ordination": "Identity / Ordination",
         "medical": "Medical",
         "financial": "Financial",
         "legal": "Legal"
+      },
+      "categoryDesc": {
+        "ordination": "Ordination certificates and identity documents.",
+        "medical": "Medical records, prescriptions and health reports.",
+        "financial": "Bank details, invoices and financial statements.",
+        "legal": "Contracts, legal filings and official correspondence."
       }
     }
   },
@@ -327,6 +343,7 @@
       "downloadError": "Failed to create download link. Please try again later.",
       "deleteError": "Failed to delete document. Please try again later.",
       "empty": "No documents in this category yet.",
+      "noAccess": "You do not have permission to view any document categories for this case.",
       "count_one": "{{count}} file",
       "count_other": "{{count}} files"
     },

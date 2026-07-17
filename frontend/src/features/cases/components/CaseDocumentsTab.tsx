@@ -105,14 +105,16 @@ function UploadModal({
   onClose,
   onUpload,
   isUploading,
+  categoryDefs,
 }: {
   onClose: () => void
   onUpload: (category: CaseDocumentCategory, files: File[], displayName?: string) => Promise<void>
   isUploading: boolean
+  categoryDefs: typeof CATEGORY_DEFS
 }) {
   const { t } = useTranslation()
   const [customName, setCustomName] = useState('')
-  const [category, setCategory] = useState<CaseDocumentCategory>('ORDINATION')
+  const [category, setCategory] = useState<CaseDocumentCategory>(categoryDefs[0]?.apiCategory ?? 'ORDINATION')
   const [fileList, setFileList] = useState<UploadFile[]>([])
 
   const uploadProps: UploadProps = {
@@ -151,7 +153,7 @@ function UploadModal({
           <label className="case-document-name-field">
             <span>{t('cases.documents.categoryLabel')}</span>
             <select value={category} onChange={(e) => setCategory(e.target.value as CaseDocumentCategory)}>
-              {CATEGORY_DEFS.map((item) => (
+              {categoryDefs.map((item) => (
                 <option key={item.apiCategory} value={item.apiCategory}>
                   {t(`cases.documents.category.${item.key}`)}
                 </option>
@@ -186,6 +188,10 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
   const { resolve } = useAccess()
   const canUpload = resolve('cases:documents.upload')
   const canDelete = resolve('cases:documents.delete')
+  const viewableCategoryDefs = useMemo(
+    () => CATEGORY_DEFS.filter((def) => resolve(`cases:documents.view.${def.key}`)),
+    [resolve],
+  )
   const { data = [], isLoading, isError } = useCaseDocuments(caseId)
   const uploadMutation = useUploadCaseDocument(caseId)
   const deleteMutation = useDeleteCaseDocument(caseId)
@@ -251,7 +257,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
     <div className="case-document-tab">
       <div className="case-document-toolbar">
         <span className="case-document-list-head">{t('cases.documents.title')}</span>
-        {canUpload ? (
+        {canUpload && viewableCategoryDefs.length > 0 ? (
           <button type="button" className="btn-primary case-document-upload-btn" onClick={() => setShowUpload(true)}>
             ⬆ {t('cases.documents.upload')}
           </button>
@@ -260,8 +266,11 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
 
       {actionError ? <p className="case-placeholder-text">{actionError}</p> : null}
       {isError ? <p className="case-placeholder-text">{t('cases.documents.loadError')}</p> : null}
+      {viewableCategoryDefs.length === 0 ? (
+        <p className="case-placeholder-text">{t('cases.documents.noAccess')}</p>
+      ) : null}
 
-      {CATEGORY_DEFS.map(({ key, apiCategory, icon }) => {
+      {viewableCategoryDefs.map(({ key, apiCategory, icon }) => {
         const docs = documentsByCategory[apiCategory]
         return (
           <section className={`case-document-section case-document-section--${key}`} key={key}>
@@ -312,6 +321,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
           onClose={() => setShowUpload(false)}
           onUpload={handleUpload}
           isUploading={uploadMutation.isPending}
+          categoryDefs={viewableCategoryDefs}
         />
       ) : null}
       {previewDoc ? <PreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} onDownload={handleDownload} /> : null}
