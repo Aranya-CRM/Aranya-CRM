@@ -47,7 +47,9 @@ export function CaseServiceCalendar({ caseData, readOnly = false }: Props) {
   const { getCap } = useAccess()
   const canViewAllEvents = getCap('reports:view') === 'ALL'
   const canViewCreatedEvents = getCap('cases:services.create') !== 'NO'
-  const showSharedContext = canViewAllEvents
+  // 共享日历(机构 Google 共享日历的组织级背景)对任何能进入本个案详情页的用户可见;
+  // canViewAllEvents 仅继续控制「本地个案事件」的可见范围(见 visibleLocalEvents)。
+  const showSharedContext = true
   const currentUserId = user?.id != null ? String(user.id) : null
   const [range, setRange] = useState<{ from: string; to: string; googleFrom: string; googleTo: string } | null>(null)
   const [selected, setSelected] = useState<EventDetail | null>(null)

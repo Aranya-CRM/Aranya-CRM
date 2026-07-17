@@ -138,7 +138,7 @@ class CaseDocumentControllerTest {
     void createDownloadUrl_returnsSignedUrl() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(true), any()))
+        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(true), any(), eq(requester)))
                 .thenReturn(DocumentDownloadResponse.builder()
                         .url("https://signed.example.test/medical.pdf")
                         .fileName("Medical_Report.pdf")
@@ -157,7 +157,7 @@ class CaseDocumentControllerTest {
     void createDownloadUrl_supportsInlinePreviewDisposition() throws Exception {
         User requester = user(10L, "Social Worker");
         when(capEval.hasCap(any(), eq("cases:view"))).thenReturn(true);
-        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(false), any()))
+        when(caseDocumentService.createDownloadUrl(eq(7L), eq(99L), eq(false), any(), eq(requester)))
                 .thenReturn(DocumentDownloadResponse.builder()
                         .url("https://signed.example.test/medical-preview.pdf")
                         .fileName("Medical_Report.pdf")

@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -41,6 +42,7 @@ public class CaseDocumentService {
     private final CaseDocumentRepository caseDocumentRepository;
     private final GcsFileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
+    private final OperationAuditLogService operationAuditLogService;
 
     /**
      * 列出个案文档,仅返回调用者有权查看的类别(cases:documents.view.&lt;category&gt;)。
@@ -118,6 +120,11 @@ public class CaseDocumentService {
         caseDocument.setCategory(category);
         caseDocument.setStatus(ACTIVE);
         caseDocument = caseDocumentRepository.save(caseDocument);
+        operationAuditLogService.record(
+                clientCase, currentUser, "CASE_DOCUMENT_UPLOADED", "DOCUMENT", document.getId(), document.getFileName(),
+                "上传个案文件", null,
+                Map.of("fileName", document.getFileName(), "category", category.name(), "fileSize", document.getFileSize())
+        );
         return toResponse(caseDocument);
     }
 
@@ -125,8 +132,10 @@ public class CaseDocumentService {
         return createDownloadUrl(caseId, documentId, true, viewableCategories);
     }
 
-    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload, Set<DocumentCategory> viewableCategories) {
-        requireVisibleCase(caseId);
+    @Transactional
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload,
+                                                      Set<DocumentCategory> viewableCategories, User actor) {
+        ClientCase clientCase = requireVisibleCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
         // 无该类别查看权限时按"不存在"处理,不泄露文件存在性
         if (!viewableCategories.contains(caseDocument.getCategory())) {
@@ -139,11 +148,22 @@ public class CaseDocumentService {
                 document.getFileName(),
                 forceDownload
         );
+        operationAuditLogService.record(
+                clientCase, actor, forceDownload ? "CASE_DOCUMENT_DOWNLOADED" : "CASE_DOCUMENT_VIEWED",
+                "DOCUMENT", documentId, document.getFileName(),
+                forceDownload ? "下载个案文件" : "查看个案文件", null,
+                Map.of("fileName", document.getFileName(), "category", caseDocument.getCategory().name())
+        );
         return DocumentDownloadResponse.builder()
                 .url(uri.toString())
                 .fileName(document.getFileName())
                 .expiresInSeconds(fileStorageProperties.getGcs().getSignedUrlTtl().toSeconds())
                 .build();
+    }
+
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload,
+                                                      Set<DocumentCategory> viewableCategories) {
+        return createDownloadUrl(caseId, documentId, forceDownload, viewableCategories, null);
     }
 
     /**
@@ -152,11 +172,20 @@ public class CaseDocumentService {
      *   绝不做物理删除(既不删 GCS blob,也不删表行)。
      */
     @Transactional
-    public void deleteCaseDocument(Long caseId, Long documentId) {
-        requireMutableCase(caseId);
+    public void deleteCaseDocument(Long caseId, Long documentId, User actor) {
+        ClientCase clientCase = requireMutableCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
+        Document document = caseDocument.getDocument();
         caseDocument.setStatus(DELETED);
         caseDocumentRepository.save(caseDocument);
+        operationAuditLogService.record(
+                clientCase, actor, "CASE_DOCUMENT_ARCHIVED", "DOCUMENT", documentId, document.getFileName(),
+                "归档个案文件", Map.of("status", ACTIVE), Map.of("status", DELETED)
+        );
+    }
+
+    public void deleteCaseDocument(Long caseId, Long documentId) {
+        deleteCaseDocument(caseId, documentId, null);
     }
 
     private ClientCase requireVisibleCase(Long caseId) {

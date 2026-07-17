@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, restoreCase, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
 import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
 import type { CaseServices } from '../types'
+import { auditHistoryQueryKeys } from '../../audit-history/api'
 
 type CaseDocumentUrlRequest = number | { documentId: number; disposition?: CaseDocumentUrlDisposition }
 
@@ -45,16 +46,23 @@ export function useUploadCaseDocument(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.documents(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
 
 export function useCaseDocumentDownloadUrl(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: (request: CaseDocumentUrlRequest) => {
       const documentId = typeof request === 'number' ? request : request.documentId
       const disposition = typeof request === 'number' ? 'attachment' : request.disposition
       return fetchCaseDocumentDownloadUrl(caseId!, documentId, disposition)
+    },
+    onSuccess: () => {
+      if (!caseId) return
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -67,6 +75,7 @@ export function useDeleteCaseDocument(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.documents(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -89,9 +98,10 @@ export function useDeleteCase() {
 
   return useMutation({
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => deleteCase(id, { approverId, reason }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(variables.id) })
     },
   })
 }
@@ -101,10 +111,11 @@ export function useRestoreCase() {
 
   return useMutation({
     mutationFn: ({ id, approverId, reason }: { id: string } & ApprovalOptions) => restoreCase(id, { approverId, reason }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.details() })
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(variables.id) })
     },
   })
 }
@@ -120,6 +131,7 @@ export function useUpdateCaseServices(caseId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -132,6 +144,7 @@ export function useCreateServiceEvent(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -145,6 +158,7 @@ export function useUpdateServiceEvent(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -157,6 +171,7 @@ export function useSyncServiceEvent(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -169,6 +184,7 @@ export function useDeleteServiceEvent(caseId: string | undefined) {
     onSuccess: () => {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
     },
   })
 }
@@ -181,6 +197,7 @@ export function useUpdateCase() {
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
       queryClient.setQueryData(caseQueryKeys.detail(item.id), item)
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(item.id) })
     },
   })
 }

@@ -56,6 +56,9 @@ class CaseServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private OperationAuditLogService operationAuditLogService;
+
     @InjectMocks
     private CaseService caseService;
 

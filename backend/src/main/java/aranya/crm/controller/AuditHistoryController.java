@@ -29,7 +29,7 @@ public class AuditHistoryController {
     private final CapPermissionEvaluator capEval;
 
     @GetMapping("/cases/{caseId}")
-    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view') and @capEval.hasCap(authentication, 'cases:audit')")
     public ResponseEntity<List<AuditHistoryEntryResponse>> listCaseAuditHistory(
             @PathVariable Long caseId,
             Authentication authentication,

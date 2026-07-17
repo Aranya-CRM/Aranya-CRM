@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: 068-1-seed-client-profile-section-caps
+      author: ShiDu
+      comment: "Per-section client-profile view capabilities (grantable additional permissions)"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO cap_definition (cap_key, domain, description) VALUES
+                ('clients:profile.identity',   'clients', 'View client identity section (NRIC, ordination certificate)'),
+                ('clients:profile.personal',   'clients', 'View client personal section (gender, DOB, kin, nationality)'),
+                ('clients:profile.ordination', 'clients', 'View client ordination section (tradition, tonsure, ordination)'),
+                ('clients:profile.membership', 'clients', 'View client membership section (join date, remarks, comments)'),
+                ('clients:profile.wellbeing',  'clients', 'View client wellbeing section (health & wellbeing flags)'),
+                ('clients:profile.needs',      'clients', 'View client special-needs section (needs, bank transfer, PayNow)')
+              ON CONFLICT (cap_key) DO NOTHING;
+
+  - changeSet:
+      id: 068-2-seed-management-role-client-profile-caps
+      author: ShiDu
+      comment: "Management/governance roles keep full client-profile visibility across all sections"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO role_cap (role_id, cap_def_id, scope_value)
+              SELECT r.id, cd.id, 'YES'
+              FROM role r
+              CROSS JOIN cap_definition cd
+              WHERE r.name IN ('ADMIN','MANAGER','FULL_MANAGER','TEAM_LEAD','VIEW_MANAGER')
+                AND cd.cap_key LIKE 'clients:profile.%'
+              ON CONFLICT (role_id, cap_def_id) DO NOTHING;
+
+  - changeSet:
+      id: 068-3-seed-existing-social-worker-client-profile-caps
+      author: ShiDu
+      comment: "Transition: grant existing ACTIVE social workers all sections so current visibility is not cut off; managers narrow per person afterwards"
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO user_cap (user_id, cap_def_id, scope_value, granted_at)
+              SELECT DISTINCT u.id, cd.id, 'YES', now()
+              FROM users u
+              JOIN user_role ur ON ur.user_id = u.id
+              JOIN role r ON r.id = ur.role_id AND r.name = 'SOCIAL_WORKER'
+              CROSS JOIN cap_definition cd
+              WHERE u.status = 'ACTIVE'
+                AND cd.cap_key LIKE 'clients:profile.%'
+              ON CONFLICT (user_id, cap_def_id) DO NOTHING;

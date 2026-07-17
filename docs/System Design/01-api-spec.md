@@ -35,6 +35,8 @@ Implemented HTTP API groups:
 | Dashboard | `GET /api/v1/dashboard` |
 | Users (read-only list) | `GET /api/v1/users` |
 | Admin — user management | `GET /api/admin/v1/users`, `POST /api/admin/v1/users/invite`, `PATCH /api/admin/v1/users/{id}/roles`, `PATCH /api/admin/v1/users/{id}/status`, `DELETE /api/admin/v1/users/{id}` |
+| Admin — sensitive file access | `GET /api/admin/v1/users/{userId}/file-access`, `PUT /api/admin/v1/users/{userId}/file-access` |
+| Admin — sensitive profile access | `GET /api/admin/v1/users/{userId}/profile-access`, `PUT /api/admin/v1/users/{userId}/profile-access` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
 | Case documents | `GET/POST /api/v1/cases/{id}/documents`, `GET /api/v1/cases/{id}/documents/{documentId}/download-url`, `DELETE /api/v1/cases/{id}/documents/{documentId}` |
@@ -386,6 +388,37 @@ Soft-deletes a user by setting local status to `DELETED`. Managers cannot remove
 ```http
 204 No Content
 ```
+
+### GET `/api/admin/v1/users/{userId}/file-access`
+
+Settings — per-user sensitive case-file access grants (pure additive model; each user holds an independent category set). Requires the `route:settings` capability. The response contains **only** category sets — never user identity or role information.
+
+```json
+{ "categories": ["MEDICAL"], "inherited": ["ORDINATION", "MEDICAL", "FINANCIAL", "LEGAL"] }
+```
+
+- `categories` — editable per-user grants (`user_cap`).
+- `inherited` — always-on categories the user already views via role baseline (`role_cap`); shown checked + locked in the UI, never sent back on save.
+
+Categories: `ORDINATION` (identity), `MEDICAL`, `FINANCIAL`, `LEGAL` (backend `DocumentCategory` enum).
+
+### PUT `/api/admin/v1/users/{userId}/file-access`
+
+Full-set replacement of the user's editable grants. Request `{ "categories": ["ORDINATION", "LEGAL"] }`; response mirrors GET. Writes are whitelisted server-side to the `cases:documents.view.*` cap family (`user_cap` table); role baseline is never modified.
+
+### GET `/api/admin/v1/users/{userId}/profile-access`
+
+Settings — per-user sensitive **client-profile section** grants. Same additive model, `route:settings`-gated, role-free response.
+
+```json
+{ "sections": ["IDENTITY"], "inherited": ["PERSONAL", "MEMBERSHIP"] }
+```
+
+Sections: `IDENTITY`, `PERSONAL`, `ORDINATION`, `MEMBERSHIP`, `WELLBEING`, `NEEDS` (backend `ClientProfileSection` enum). Semantics of `sections`/`inherited` mirror file-access. `GET /api/v1/clients/{id}` masks (nulls) the fields of any section the requester lacks.
+
+### PUT `/api/admin/v1/users/{userId}/profile-access`
+
+Full-set replacement. Request `{ "sections": ["IDENTITY", "WELLBEING"] }`; response mirrors GET. Whitelisted server-side to the `clients:profile.*` cap family.
 
 ## 9. Client API
 

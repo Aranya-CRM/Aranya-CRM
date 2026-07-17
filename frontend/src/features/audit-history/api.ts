@@ -17,5 +17,7 @@ export function useCaseAuditHistory(caseId: string | undefined) {
     queryKey: caseId ? auditHistoryQueryKeys.case(caseId) : auditHistoryQueryKeys.all,
     queryFn: () => fetchCaseAuditHistory(caseId!),
     enabled: Boolean(caseId),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 }

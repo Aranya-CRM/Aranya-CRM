@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { http } from '../../../shared/api'
 import { caseQueryKeys } from '../../cases/hooks'
 import { clientQueryKeys } from '../../clients/hooks'
+import { auditHistoryQueryKeys } from '../../audit-history/api'
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
 
@@ -70,6 +71,7 @@ export function useApproveRequest() {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
     },
   })
 }
@@ -83,6 +85,7 @@ export function useRejectRequest() {
       queryClient.invalidateQueries({ queryKey: approvalQueryKeys.pending() })
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.all })
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
     },
   })
 }

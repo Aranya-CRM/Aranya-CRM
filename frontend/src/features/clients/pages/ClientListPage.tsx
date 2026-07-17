@@ -1302,6 +1302,9 @@ function ClientProfilePanel({
   onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
+  const { resolve } = useAccess()
+  // 每个敏感区块按 clients:profile.<section> 授权单独显示(后端亦对字段真过滤)
+  const canSee = (section: string) => resolve(`clients:profile.${section}`)
   const actionGroups = profileActionGroups({
     canEdit: canViewDetailedProfile && canUpdateClient,
     canConvertToCase,
@@ -1363,43 +1366,67 @@ function ClientProfilePanel({
         <InfoCell label={t('clients.profile.field.viharaType')} value={client.viharaType} changed={changedFields.has('viharaType')} />
       </ProfileSection>
 
-      {canViewDetailedProfile ? (
-        <>
-          <ProfileSection key={`${client.id}-identity`} collapsible title={t('clients.profile.section.identity')}>
-            <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
-            <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
-            <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
-            <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} changed={changedFields.has('ordinationCertificate')} />
-            <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
-          </ProfileSection>
+      {canSee('identity') ? (
+        <ProfileSection key={`${client.id}-identity`} collapsible title={t('clients.profile.section.identity')}>
+          <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
+          <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
+          <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
+          <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} changed={changedFields.has('ordinationCertificate')} />
+          <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection key={`${client.id}-personal`} collapsible title={t('clients.profile.section.personal')}>
-            <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
-            <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
-            <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
-            <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} changed={changedFields.has('maritalStatus')} />
-            <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} changed={changedFields.has('nationality')} />
-            <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} changed={changedFields.has('ethnicity')} />
-            <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} changed={changedFields.has('dialectGroup')} />
-            <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
-          </ProfileSection>
+      {canSee('personal') ? (
+        <ProfileSection key={`${client.id}-personal`} collapsible title={t('clients.profile.section.personal')}>
+          <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
+          <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
+          <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
+          <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} changed={changedFields.has('maritalStatus')} />
+          <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} changed={changedFields.has('nationality')} />
+          <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} changed={changedFields.has('ethnicity')} />
+          <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} changed={changedFields.has('dialectGroup')} />
+          <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection key={`${client.id}-ordination`} collapsible title={t('clients.profile.section.ordination')}>
-            <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
-            <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
-            <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
-            <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} changed={changedFields.has('placeOfTonsure') || changedFields.has('countryOfTonsure')} />
-            <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} changed={changedFields.has('dateOfOrdination')} />
-            <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} changed={changedFields.has('placeOfOrdination') || changedFields.has('countryOfOrdination')} />
-            <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
-          </ProfileSection>
+      {canSee('ordination') ? (
+        <ProfileSection key={`${client.id}-ordination`} collapsible title={t('clients.profile.section.ordination')}>
+          <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
+          <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
+          <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
+          <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} changed={changedFields.has('placeOfTonsure') || changedFields.has('countryOfTonsure')} />
+          <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} changed={changedFields.has('dateOfOrdination')} />
+          <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} changed={changedFields.has('placeOfOrdination') || changedFields.has('countryOfOrdination')} />
+          <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection key={`${client.id}-membership`} collapsible title={t('clients.profile.section.membership')}>
-            <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
-            <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
-            <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
-          </ProfileSection>
-        </>
+      {canSee('membership') ? (
+        <ProfileSection key={`${client.id}-membership`} collapsible title={t('clients.profile.section.membership')}>
+          <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
+          <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
+          <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
+        </ProfileSection>
+      ) : null}
+
+      {canSee('wellbeing') ? (
+        <ProfileSection key={`${client.id}-wellbeing`} collapsible title={t('clients.profile.section.wellbeing')}>
+          {(Object.keys(WELLBEING_KEYS) as WellbeingDomain[]).map((key) => (
+            <InfoCell key={key} label={t(WELLBEING_KEYS[key])} value={client.wellbeingIssues[key] ? '✓' : '—'} />
+          ))}
+          <InfoCell label={t('clients.profile.field.wellbeingRemarks')} value={client.wellbeingRemarks || '-'} wide />
+        </ProfileSection>
+      ) : null}
+
+      {canSee('needs') ? (
+        <ProfileSection key={`${client.id}-needs`} collapsible title={t('clients.profile.section.needs')}>
+          {(Object.keys(client.specialNeeds) as Array<keyof Client['specialNeeds']>).map((key) => (
+            <InfoCell key={key} label={capitalize(key)} value={client.specialNeeds[key] ? '✓' : '—'} />
+          ))}
+          <InfoCell label={t('clients.profile.field.bankTransfer')} value={client.bankTransferInfo || '-'} />
+          <InfoCell label={t('clients.profile.field.payNow')} value={client.payNowInfo || '-'} />
+          <InfoCell label={t('clients.profile.field.specialNeedsRemarks')} value={client.specialNeedsRemarks || '-'} wide />
+        </ProfileSection>
       ) : null}
 
       {pendingApproval ? (

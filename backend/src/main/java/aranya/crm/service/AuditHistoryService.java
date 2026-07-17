@@ -3,9 +3,11 @@ package aranya.crm.service;
 import aranya.crm.dto.response.AuditHistoryEntryResponse;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.OperationAuditLog;
 import aranya.crm.entity.User;
 import aranya.crm.repository.ApprovalRequestRepository;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.OperationAuditLogRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class AuditHistoryService {
 
     private final ApprovalRequestRepository approvalRequestRepository;
     private final CaseRepository caseRepository;
+    private final OperationAuditLogRepository operationAuditLogRepository;
 
     public List<AuditHistoryEntryResponse> listCaseAuditHistory(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
@@ -39,13 +42,50 @@ public class AuditHistoryService {
                 ? List.of()
                 : approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc(CLIENT_TARGET, clientId);
 
-        return java.util.stream.Stream.concat(caseApprovals.stream(), clientApprovals.stream())
+        List<AuditHistoryEntryResponse> approvalEntries = java.util.stream.Stream.concat(caseApprovals.stream(), clientApprovals.stream())
                 .sorted(Comparator
                         .comparing((ApprovalRequest request) -> request.getCreatedAt() == null ? LocalDateTime.MIN : request.getCreatedAt())
                         .reversed()
                         .thenComparing(ApprovalRequest::getId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(request -> toResponse(request, caseId))
                 .toList();
+        List<AuditHistoryEntryResponse> operationEntries = operationAuditLogRepository
+                .findByClientCaseIdOrderByOccurredAtDescIdDesc(caseId).stream()
+                .map(this::toResponse)
+                .toList();
+
+        return java.util.stream.Stream.concat(operationEntries.stream(), approvalEntries.stream())
+                .sorted(Comparator
+                        .comparing((AuditHistoryEntryResponse entry) -> entry.getOccurredAt() == null ? LocalDateTime.MIN : entry.getOccurredAt())
+                        .reversed()
+                        .thenComparing(AuditHistoryEntryResponse::getId))
+                .toList();
+    }
+
+    private AuditHistoryEntryResponse toResponse(OperationAuditLog log) {
+        return AuditHistoryEntryResponse.builder()
+                .id("operation-" + log.getId())
+                .action(log.getAction())
+                .targetType(log.getTargetType())
+                .targetId(parseLong(log.getTargetId()))
+                .caseId(log.getClientCase().getId())
+                .targetLabel(log.getTargetLabel())
+                .actorName(log.getActorName())
+                .occurredAt(log.getOccurredAt())
+                .approvalRequired(false)
+                .lifecycleStatus("active")
+                .decisionStatus("not_required")
+                .summary(log.getSummary())
+                .reason(log.getReason())
+                .approvalRequestId(log.getApprovalRequestId() == null ? null : String.valueOf(log.getApprovalRequestId()))
+                .beforeValue(log.getBeforeJson())
+                .afterValue(log.getAfterJson())
+                .result(log.getResult())
+                .source(log.getSource())
+                .metadata(Map.of())
+                .canEdit(false)
+                .canDelete(false)
+                .build();
     }
 
     private AuditHistoryEntryResponse toResponse(ApprovalRequest request, Long caseId) {
@@ -78,9 +118,20 @@ public class AuditHistoryService {
                 .version(readInteger(request.getPayloadJson(), "version"))
                 .previousVersionId(readText(request.getPayloadJson(), "previousVersionId"))
                 .metadata(metadata(request))
+                .result("SUCCESS")
+                .source("WEB")
                 .canEdit(false)
                 .canDelete(false)
                 .build();
+    }
+
+    private Long parseLong(String value) {
+        if (value == null) return null;
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String lifecycleStatus(ApprovalRequest request) {

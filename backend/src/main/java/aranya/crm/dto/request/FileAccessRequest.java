@@ -6,12 +6,9 @@ import lombok.Setter;
 
 import java.util.List;
 
-/**
- * Set the case-document view categories a user is granted.
- * A null or empty list revokes all per-category document grants for that user.
- */
+/** Full-set replacement of a user's sensitive-file category grants. */
 @Getter
 @Setter
-public class DocumentAccessRequest {
+public class FileAccessRequest {
     private List<DocumentCategory> categories;
 }

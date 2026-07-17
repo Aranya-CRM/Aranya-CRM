@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -63,6 +64,7 @@ public class CaseService {
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final GoogleCalendarService googleCalendarService;
+    private final OperationAuditLogService operationAuditLogService;
 
     public List<CaseSummaryResponse> listCases(String q, String status, Long scopedToUserId) {
         String normalizedQuery = normalizeFilter(q);
@@ -156,6 +158,11 @@ public class CaseService {
         ClientCase saved = caseRepository.save(clientCase);
         replacePrimaryAssignee(saved, primaryAssignee, createdBy);
         replaceSelectedServices(saved.getId(), request.getServices());
+        operationAuditLogService.record(
+                saved, createdBy, "CASE_CREATED", "CASE", saved.getId(), saved.getCaseCode(),
+                "创建个案 " + saved.getCaseCode(), null,
+                Map.of("status", saved.getStatus(), "colorCode", saved.getColorCode() == null ? "" : saved.getColorCode())
+        );
         return toCaseDetailResponse(saved);
     }
 
@@ -171,37 +178,69 @@ public class CaseService {
         requireCaseVisible(caseId, scopedToUserId);
         requireMutableCase(clientCase);
 
+        Map<String, Object> before = new LinkedHashMap<>();
+        Map<String, Object> after = new LinkedHashMap<>();
+        User currentAssignee = primaryAssigneeFor(clientCase);
+
         String nextStatus = trimToNull(request.getStatus());
         if (nextStatus != null) {
             nextStatus = nextStatus.toUpperCase();
+            addChange(before, after, "status", clientCase.getStatus(), nextStatus);
             clientCase.setStatus(nextStatus);
             if (CLOSED_STATUS.equals(nextStatus)) {
                 clearCaseOperationalData(caseId);
                 clientCase.setClosedAt(LocalDateTime.now());
             }
         }
-        setText(request.getColorCode(), clientCase::setColorCode);
+        if (request.getColorCode() != null) {
+            String nextColorCode = trimToNull(request.getColorCode());
+            addChange(before, after, "colorCode", clientCase.getColorCode(), nextColorCode);
+            clientCase.setColorCode(nextColorCode);
+        }
         if (request.getComments() != null) {
-            clientCase.setComments(request.getComments().trim());
+            String nextComments = request.getComments().trim();
+            addChange(before, after, "comments", clientCase.getComments(), nextComments);
+            clientCase.setComments(nextComments);
         }
         if (request.getRemarks() != null) {
-            clientCase.setRemarks(request.getRemarks().trim());
+            String nextRemarks = request.getRemarks().trim();
+            addChange(before, after, "remarks", clientCase.getRemarks(), nextRemarks);
+            clientCase.setRemarks(nextRemarks);
         }
         if (request.getSocialWorkerId() != null) {
             User primaryAssignee = resolvePrimaryAssignee(request.getSocialWorkerId(), actor);
+            addChange(before, after, "assignee",
+                    currentAssignee == null ? null : currentAssignee.getFullName(),
+                    primaryAssignee == null ? null : primaryAssignee.getFullName());
             replacePrimaryAssignee(clientCase, primaryAssignee, actor);
         }
 
-        return toCaseDetailResponse(caseRepository.save(clientCase));
+        ClientCase saved = caseRepository.save(clientCase);
+        if (!after.isEmpty()) {
+            operationAuditLogService.record(
+                    saved, actor, "CASE_UPDATED", "CASE", saved.getId(), saved.getCaseCode(),
+                    "修改个案资料", before, after
+            );
+        }
+        return toCaseDetailResponse(saved);
     }
 
     @Transactional
-    public CaseDetailResponse executeApprovedUpdateCaseServices(Long caseId, List<String> serviceKeys) {
+    public CaseDetailResponse executeApprovedUpdateCaseServices(Long caseId, List<String> serviceKeys, User actor) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
+        List<String> before = listSelectedServiceKeys(caseId);
         replaceSelectedServices(caseId, serviceKeys);
+        operationAuditLogService.record(
+                clientCase, actor, "CASE_SERVICES_CHANGED", "CASE", caseId, clientCase.getCaseCode(),
+                "变更服务模块", Map.of("serviceKeys", before), Map.of("serviceKeys", serviceKeys == null ? List.of() : serviceKeys)
+        );
         return toCaseDetailResponse(clientCase);
+    }
+
+    public CaseDetailResponse executeApprovedUpdateCaseServices(Long caseId, List<String> serviceKeys) {
+        return executeApprovedUpdateCaseServices(caseId, serviceKeys, null);
     }
 
     @Transactional
@@ -273,12 +312,19 @@ public class CaseService {
         // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
         mirrorToGoogle(eventId, caseId, response, trimToNull(request.getCalendarId()), null, null);
         // 重新读取使 synced 反映镜像结果
-        return findServiceEventById(eventId);
+        ServiceEventResponse created = findServiceEventById(eventId);
+        operationAuditLogService.record(
+                clientCase, createdBy, "SERVICE_EVENT_CREATED", "SERVICE_EVENT", eventId,
+                serviceEventLabel(created), "创建服务事件", null, serviceEventValues(created)
+        );
+        return created;
     }
 
     /** 编辑已存在的服务事件:更新本地真相源,并同步更新/补建 Google 镜像。 */
+    @Transactional
     public ServiceEventResponse updateServiceEvent(Long caseId, Long eventId,
                                                    CreateServiceEventRequest request, User currentUser) {
+        ServiceEventResponse before = findServiceEventById(eventId);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
@@ -341,7 +387,12 @@ public class CaseService {
         mirrorToGoogle(eventId, caseId, updated, trimToNull(request.getCalendarId()),
                 asString(rows.get(0).get("google_event_id")),
                 asString(rows.get(0).get("google_calendar_id")));
-        return findServiceEventById(eventId);
+        ServiceEventResponse result = findServiceEventById(eventId);
+        operationAuditLogService.record(
+                clientCase, currentUser, "SERVICE_EVENT_UPDATED", "SERVICE_EVENT", eventId,
+                serviceEventLabel(result), "修改服务事件", serviceEventValues(before), serviceEventValues(result)
+        );
+        return result;
     }
 
     /** 手动重试将事件同步到 Google(用于上次镜像失败的事件);保持其原目标日历。 */
@@ -466,7 +517,7 @@ public class CaseService {
     }
 
     @Transactional
-    public void deleteServiceEvent(Long caseId, Long eventId) {
+    public void deleteServiceEvent(Long caseId, Long eventId, User actor) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
@@ -476,10 +527,19 @@ public class CaseService {
         if (rows.isEmpty()) {
             throw new EntityNotFoundException("Service event not found: " + eventId);
         }
+        ServiceEventResponse before = findServiceEventById(eventId);
         cleanupReportsForEvent(eventId);
         int deleted = jdbcTemplate.update("DELETE FROM service_appointment WHERE id = ? AND case_id = ?", eventId, caseId);
         if (deleted == 0) throw new EntityNotFoundException("Service event not found: " + eventId);
         deleteMirroredEvents(rows);
+        operationAuditLogService.record(
+                clientCase, actor, "SERVICE_EVENT_DELETED", "SERVICE_EVENT", eventId,
+                serviceEventLabel(before), "删除服务事件", serviceEventValues(before), null
+        );
+    }
+
+    public void deleteServiceEvent(Long caseId, Long eventId) {
+        deleteServiceEvent(caseId, eventId, null);
     }
 
     /** 读取共享日历在区间内的事件(排除本 case 自己的事件,避免与本地渲染重复)。 */
@@ -488,28 +548,46 @@ public class CaseService {
     }
 
     @Transactional
-    public void executeApprovedDeleteCase(Long caseId) {
+    public void executeApprovedDeleteCase(Long caseId, User actor) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        String beforeStatus = clientCase.getStatus();
         clearCaseOperationalData(caseId);
         clientCase.setStatus(CLOSED_STATUS);
         clientCase.setClosedAt(LocalDateTime.now());
         caseRepository.save(clientCase);
+        operationAuditLogService.record(
+                clientCase, actor, "CASE_ARCHIVED", "CASE", caseId, clientCase.getCaseCode(),
+                "归档个案", Map.of("status", beforeStatus), Map.of("status", CLOSED_STATUS)
+        );
+    }
+
+    public void executeApprovedDeleteCase(Long caseId) {
+        executeApprovedDeleteCase(caseId, null);
     }
 
     @Transactional
-    public CaseDetailResponse restoreCase(Long caseId) {
+    public CaseDetailResponse restoreCase(Long caseId, User actor) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
             throw new EntityNotFoundException("Case not found: " + caseId);
         }
         if (CLOSED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            String beforeStatus = clientCase.getStatus();
             clientCase.setStatus("OPEN");
             clientCase.setClosedAt(null);
             caseRepository.save(clientCase);
+            operationAuditLogService.record(
+                    clientCase, actor, "CASE_RESTORED", "CASE", caseId, clientCase.getCaseCode(),
+                    "恢复个案", Map.of("status", beforeStatus), Map.of("status", "OPEN")
+            );
         }
         return toCaseDetailResponse(clientCase);
+    }
+
+    public CaseDetailResponse restoreCase(Long caseId) {
+        return restoreCase(caseId, null);
     }
 
     public List<ClientCase> getActiveCases(int limit) {
@@ -978,6 +1056,32 @@ public class CaseService {
             return null;
         }
         return value.trim();
+    }
+
+    private void addChange(Map<String, Object> before, Map<String, Object> after,
+                           String field, Object oldValue, Object newValue) {
+        if (Objects.equals(oldValue, newValue)) return;
+        before.put(field, oldValue);
+        after.put(field, newValue);
+    }
+
+    private String serviceEventLabel(ServiceEventResponse event) {
+        if (event.getTitle() != null && !event.getTitle().isBlank()) return event.getTitle();
+        return "Service event #" + event.getId();
+    }
+
+    private Map<String, Object> serviceEventValues(ServiceEventResponse event) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("serviceKey", event.getServiceKey());
+        values.put("scheduledStart", event.getScheduledStart());
+        values.put("scheduledEnd", event.getScheduledEnd());
+        values.put("reportDueAt", event.getReportDueAt());
+        values.put("location", event.getLocation());
+        values.put("assignedUserId", event.getAssignedUserId());
+        values.put("assignedUserName", event.getAssignedUserName());
+        values.put("workDescription", event.getWorkDescription());
+        values.put("notes", event.getNotes());
+        return values;
     }
 
     private void setText(String value, java.util.function.Consumer<String> setter) {

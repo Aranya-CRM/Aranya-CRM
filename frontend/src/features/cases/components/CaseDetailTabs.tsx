@@ -51,7 +51,7 @@ export function CaseDetailTabs({ caseData, isManager, readOnly = false }: CaseDe
     { id: 'calendar',   labelKey: 'cases.tab.calendar' },
     { id: 'documents',  labelKey: 'cases.tab.documents' },
     { id: 'reports',    labelKey: 'cases.tab.reports' },
-    { id: 'audit',      labelKey: 'cases.tab.audit' },
+    { id: 'audit',      labelKey: 'cases.tab.audit', managerOnly: true },
   ]
 
   const visibleTabs = isManager ? tabs : tabs.filter((t) => !t.managerOnly)

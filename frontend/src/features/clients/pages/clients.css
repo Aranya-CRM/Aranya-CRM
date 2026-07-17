@@ -623,9 +623,24 @@ details.client-profile-section-collapsible > summary h3 {
 
 details.client-profile-section-collapsible > summary::after {
   content: '▾';
-  color: #98a2b3;
-  font-size: 12px;
-  transition: transform 0.15s ease;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #dfe4ec;
+  border-radius: 8px;
+  background: #f6f8fc;
+  color: #667085;
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+details.client-profile-section-collapsible > summary:hover::after {
+  background: #eef2f9;
+  border-color: #cbd3e0;
+  color: #475467;
 }
 
 details.client-profile-section-collapsible[open] > summary::after {

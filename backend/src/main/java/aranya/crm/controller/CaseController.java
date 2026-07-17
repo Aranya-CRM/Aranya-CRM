@@ -152,8 +152,12 @@ public class CaseController {
         return ResponseEntity.ok(caseService.listServiceEvents(id));
     }
 
-    /** 读取 Google 共享日历在 [from, to] 区间内的事件(排除本 case 自己的,作为日历背景上下文)。 */
+    /**
+     * 读取 Google 共享日历在 [from, to] 区间内的事件(排除本 case 自己的,作为日历背景上下文)。
+     * 任何能进入本个案详情页的用户均可见(与 service-events 同级,靠 cases:view 进入把关)。
+     */
     @GetMapping("/{id}/calendar-events")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
     public ResponseEntity<List<CalendarEventResponse>> listSharedCalendarEvents(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -162,9 +166,6 @@ public class CaseController {
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
-        if (!"ALL".equals(capEval.capScope(authentication, "reports:view"))) {
-            return ResponseEntity.ok(List.of());
-        }
         return ResponseEntity.ok(caseService.listSharedCalendarEvents(id, from, to));
     }
 
@@ -215,7 +216,7 @@ public class CaseController {
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
-        caseService.deleteServiceEvent(id, eventId);
+        caseService.deleteServiceEvent(id, eventId, currentUser);
         return ResponseEntity.noContent().build();
     }
 

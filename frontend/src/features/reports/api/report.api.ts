@@ -1,5 +1,7 @@
 import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { requireFirebaseIdToken } from '../../auth/api/auth'
+import { queryClient } from '../../../app/queryClient'
+import { auditHistoryQueryKeys } from '../../audit-history/api'
 import type { CreateReportPayload, ReportDetail, ReportSummary, UpdateReportPayload } from '../types'
 
 async function authHeaders() {
@@ -40,6 +42,7 @@ export async function createReport(data: CreateReportPayload): Promise<ReportDet
   const res = await http.post<ReportDetail>('/v1/reports', data, {
     headers: await authHeaders(),
   })
+  await queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
   return res.data
 }
 
@@ -47,6 +50,7 @@ export async function updateReport(id: string | number, data: UpdateReportPayloa
   const res = await http.put<ReportDetail>(`/v1/reports/${id}`, data, {
     headers: await authHeaders(),
   })
+  await queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
   return res.data
 }
 
@@ -54,6 +58,7 @@ export async function submitReport(id: string | number): Promise<ReportDetail> {
   const res = await http.post<ReportDetail>(`/v1/reports/${id}/submit`, undefined, {
     headers: await authHeaders(),
   })
+  await queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
   return res.data
 }
 
@@ -61,4 +66,5 @@ export async function deleteReport(id: string | number, options?: ApprovalOption
   await http.delete(`/v1/reports/${id}`, {
     headers: await approvalHeaders(options),
   })
+  await queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
 }
