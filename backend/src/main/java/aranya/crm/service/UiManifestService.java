@@ -111,11 +111,13 @@ public class UiManifestService {
             return;
         }
 
-        if (roleNames.contains("SOCIAL_WORKER")) {
+        boolean managerLike = roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"));
+
+        if (roleNames.contains("SOCIAL_WORKER") && !managerLike) {
             caps.put("clients:create", "WORKFLOW");
             caps.remove("clients:update");
             caps.remove("clients:delete");
-            caps.put("cases:view", "ALL");
+            caps.put("cases:view", "OWN");
             caps.put("cases:create", "WORKFLOW");
             caps.put("cases:services.create", "WORKFLOW");
             caps.put("cases:documents.upload", "ALL");
@@ -123,7 +125,7 @@ public class UiManifestService {
             caps.put("approvals:create", "YES");
         }
 
-        if (roleNames.stream().anyMatch(role -> role.equals("MANAGER") || role.equals("ADMIN") || role.equals("FULL_MANAGER") || role.equals("TEAM_LEAD"))) {
+        if (managerLike) {
             caps.put("approvals:view", "YES");
             caps.put("approvals:decide", "YES");
             caps.put("approvals:create", "YES");

@@ -10,6 +10,7 @@ import { useApproveRequest, usePendingApprovals, useRejectRequest, type Approval
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
 import { useUpdateCase, useUpdateCaseServices } from '../hooks'
+import { canBePrimaryCaseAssignee } from '../caseAssigneeUtils'
 import type { Case, CaseColorCode, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
 import { CaseDocumentsTab } from './CaseDocumentsTab'
@@ -123,7 +124,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
     if (!canAssign) return
     fetchUsers()
       .then((users) => {
-        setSocialWorkers(users.filter((u) => u.roles.includes('SOCIAL_WORKER') && u.status === 'ACTIVE'))
+        setSocialWorkers(users.filter(canBePrimaryCaseAssignee))
       })
       .catch(() => {})
   }, [canAssign])
@@ -196,7 +197,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
             >
               <option value="">—</option>
               {socialWorkers.map((worker) => (
-                <option key={worker.id} value={worker.id}>{worker.fullName}</option>
+                <option key={worker.id} value={worker.id}>{worker.fullName} ({primaryAssigneeRoleLabel(worker)})</option>
               ))}
             </select>
           ) : (
@@ -346,6 +347,10 @@ function formatCompletedAt(iso: string): string {
   const date = d.toISOString().slice(0, 10)
   const hhmm = d.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Singapore' })
   return `${date} ${hhmm}`
+}
+
+function primaryAssigneeRoleLabel(user: UserSummary): string {
+  return user.roles.includes('SOCIAL_WORKER') ? 'SW' : 'Manager'
 }
 
 const SERVICE_GROUP_KEYS = ['housing', 'financial', 'food', 'other'] as const
