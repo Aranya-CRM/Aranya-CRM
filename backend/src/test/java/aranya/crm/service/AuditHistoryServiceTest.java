@@ -143,6 +143,41 @@ class AuditHistoryServiceTest {
         assertThat(result.get(0).getBeforeValue()).contains("OPEN");
     }
 
+    @Test
+    @DisplayName("social worker audit history contains only operations involving that user")
+    void listCaseAuditHistory_filtersToCurrentUser() {
+        ClientCase clientCase = clientCase(7L, 3L);
+        ApprovalRequest ownApproval = request(20L, "CASE_SERVICE_UPDATE", "PENDING", "CASE", 7L);
+        ownApproval.setRequestedBy(user(10L, "Current Social Worker"));
+        ApprovalRequest otherApproval = request(21L, "DELETE_CASE", "PENDING", "CASE", 7L);
+        otherApproval.setRequestedBy(user(11L, "Other Social Worker"));
+
+        OperationAuditLog ownOperation = new OperationAuditLog();
+        ownOperation.setId(30L);
+        ownOperation.setClientCase(clientCase);
+        ownOperation.setActor(user(10L, "Current Social Worker"));
+        ownOperation.setActorName("Current Social Worker");
+        ownOperation.setAction("CASE_UPDATED");
+        ownOperation.setTargetType("CASE");
+        ownOperation.setTargetId("7");
+        ownOperation.setTargetLabel("CASE-007");
+        ownOperation.setSummary("Updated case");
+        ownOperation.setOccurredAt(LocalDateTime.of(2026, 7, 10, 15, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L))
+                .thenReturn(List.of(otherApproval, ownApproval));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L))
+                .thenReturn(List.of());
+        when(operationAuditLogRepository.findByClientCaseIdAndActorIdOrderByOccurredAtDescIdDesc(7L, 10L))
+                .thenReturn(List.of(ownOperation));
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L, 10L, false);
+
+        assertThat(result).extracting(AuditHistoryEntryResponse::getId)
+                .containsExactly("operation-30", "approval-20");
+    }
+
     private ApprovalRequest request(Long id, String type, String status, String targetType, Long targetId) {
         ObjectNode payload = JsonNodeFactory.instance.objectNode();
         payload.put("caseId", targetId);

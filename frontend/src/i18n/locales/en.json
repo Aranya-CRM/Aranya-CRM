@@ -11,10 +11,13 @@
   "settings": {
     "title": "Settings",
     "nav": {
-      "access": "Access"
+      "access": "Permissions"
     },
     "searchUser": "Search by name or email…",
     "selectUser": "Select a user to manage their sensitive-file access.",
+    "backToUsers": "Back to users",
+    "noUsersFound": "No matching users",
+    "userNotFound": "User not found",
     "saved": "Saved",
     "saveError": "Failed to save. Please try again.",
     "loadUsersError": "Failed to load users.",
@@ -42,26 +45,6 @@
         "medical": "Medical records, prescriptions and health reports.",
         "financial": "Bank details, invoices and financial statements.",
         "legal": "Contracts, legal filings and official correspondence."
-      }
-    },
-    "profileAccess": {
-      "title": "Sensitive profile sections",
-      "subtitle": "Choose which sections of a member's detailed profile this user may view.",
-      "section": {
-        "identity": "Identity",
-        "personal": "Personal",
-        "ordination": "Ordination",
-        "membership": "Membership",
-        "wellbeing": "Wellbeing",
-        "needs": "Special needs"
-      },
-      "sectionDesc": {
-        "identity": "NRIC name/number and ordination certificate.",
-        "personal": "Gender, date of birth, nationality and next of kin.",
-        "ordination": "Tradition, tonsure and ordination details.",
-        "membership": "Join date, membership remarks and comments.",
-        "wellbeing": "Health and wellbeing indicators.",
-        "needs": "Special needs, bank transfer and PayNow details."
       }
     }
   },
@@ -338,6 +321,7 @@
       "deleteError": "Failed to delete document. Please try again later.",
       "empty": "No documents in this category yet.",
       "noAccess": "You do not have permission to view any document categories for this case.",
+      "locked": "You don't have access to this category.",
       "count_one": "{{count}} file",
       "count_other": "{{count}} files"
     },

@@ -543,10 +543,6 @@
   letter-spacing: 0;
 }
 
-.client-profile-report-title {
-  display: none;
-}
-
 .client-profile-header p {
   margin: 5px 0 0;
   color: #697386;
@@ -597,58 +593,6 @@
 
 .client-profile-section {
   padding-top: 28px;
-}
-
-/* 查看态:每部分独立折叠(<details>),默认折叠。编辑态的 <section> 不受影响。 */
-details.client-profile-section-collapsible > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #dfe4ec;
-}
-
-details.client-profile-section-collapsible > summary::-webkit-details-marker {
-  display: none;
-}
-
-details.client-profile-section-collapsible > summary h3 {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-details.client-profile-section-collapsible > summary::after {
-  content: '▾';
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #dfe4ec;
-  border-radius: 8px;
-  background: #f6f8fc;
-  color: #667085;
-  font-size: 18px;
-  line-height: 1;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-
-details.client-profile-section-collapsible > summary:hover::after {
-  background: #eef2f9;
-  border-color: #cbd3e0;
-  color: #475467;
-}
-
-details.client-profile-section-collapsible[open] > summary::after {
-  transform: rotate(180deg);
-}
-
-details.client-profile-section-collapsible > .client-profile-grid {
-  margin-top: 18px;
 }
 
 .client-profile-action-footer {
@@ -1376,102 +1320,4 @@ details.client-profile-section-collapsible > .client-profile-grid {
     flex-direction: column-reverse;
   }
 
-}
-
-@media print {
-  @page {
-    margin: 14mm;
-  }
-
-  html,
-  body,
-  #root,
-  .app,
-  .main,
-  .content,
-  .client-workspace,
-  .client-profile-surface {
-    width: auto !important;
-    height: auto !important;
-    min-width: 0 !important;
-    overflow: visible !important;
-    background: #ffffff !important;
-  }
-
-  .app,
-  .main,
-  .content,
-  .client-workspace {
-    display: block !important;
-  }
-
-  .sidebar,
-  .topbar,
-  .client-directory,
-  .client-profile-header-actions,
-  .client-profile-action-footer,
-  .client-approval-review,
-  .client-profile-loading {
-    display: none !important;
-  }
-
-  .content,
-  .client-workspace {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .client-profile {
-    min-height: 0;
-    padding: 0;
-    color: #111827;
-    background: #ffffff;
-  }
-
-  .client-profile-header {
-    display: block;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #111827;
-  }
-
-  .client-profile-report-title {
-    display: block;
-    margin: 0 0 4px;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-  }
-
-  .client-profile-title-row h1 {
-    font-size: 22px;
-  }
-
-  .client-profile-section {
-    break-inside: avoid;
-    padding-top: 18px;
-  }
-
-  .client-profile-section h3 {
-    margin-bottom: 10px;
-    padding-bottom: 6px;
-    border-bottom-color: #9ca3af;
-    font-size: 13px;
-  }
-
-  .client-profile-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 28px;
-  }
-
-  .client-info-cell span {
-    color: #4b5563;
-    font-size: 10px;
-  }
-
-  .client-info-cell strong {
-    color: #111827;
-    font-size: 11px;
-    line-height: 1.35;
-  }
 }

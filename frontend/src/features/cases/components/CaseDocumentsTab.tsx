@@ -192,6 +192,10 @@ export function CaseDocumentsTab({ caseId, readOnly = false }: { caseId: string,
     () => CATEGORY_DEFS.filter((def) => resolve(`cases:documents.view.${def.key}`)),
     [resolve],
   )
+  const viewableKeys = useMemo(
+    () => new Set(viewableCategoryDefs.map((def) => def.key)),
+    [viewableCategoryDefs],
+  )
   const { data = [], isLoading, isError } = useCaseDocuments(caseId)
   const uploadMutation = useUploadCaseDocument(caseId)
   const deleteMutation = useDeleteCaseDocument(caseId)
@@ -266,11 +270,21 @@ export function CaseDocumentsTab({ caseId, readOnly = false }: { caseId: string,
 
       {actionError ? <p className="case-placeholder-text">{actionError}</p> : null}
       {isError ? <p className="case-placeholder-text">{t('cases.documents.loadError')}</p> : null}
-      {viewableCategoryDefs.length === 0 ? (
-        <p className="case-placeholder-text">{t('cases.documents.noAccess')}</p>
-      ) : null}
 
-      {viewableCategoryDefs.map(({ key, apiCategory, icon }) => {
+      {CATEGORY_DEFS.map(({ key, apiCategory, icon }) => {
+        // 无权限的类别仍展示,但加锁:不显示文件与数量,仅显示锁定占位。
+        if (!viewableKeys.has(key)) {
+          return (
+            <section className={`case-document-section case-document-section--${key} locked`} key={key}>
+              <div className="case-document-section-head">
+                <span className="case-document-section-icon">{icon}</span>
+                <span className="case-document-section-title">{t(`cases.documents.category.${key}`)}</span>
+                <span className="case-document-section-lock" aria-hidden="true">🔒</span>
+              </div>
+              <p className="case-placeholder-text case-document-section-empty">{t('cases.documents.locked')}</p>
+            </section>
+          )
+        }
         const docs = documentsByCategory[apiCategory]
         return (
           <section className={`case-document-section case-document-section--${key}`} key={key}>

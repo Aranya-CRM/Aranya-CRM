@@ -11,6 +11,7 @@ import aranya.crm.repository.OperationAuditLogRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -33,6 +34,13 @@ public class AuditHistoryService {
     private final OperationAuditLogRepository operationAuditLogRepository;
 
     public List<AuditHistoryEntryResponse> listCaseAuditHistory(Long caseId) {
+        return listCaseAuditHistory(caseId, null, true);
+    }
+
+    public List<AuditHistoryEntryResponse> listCaseAuditHistory(Long caseId, Long viewerId, boolean canViewAll) {
+        if (!canViewAll && viewerId == null) {
+            throw new AccessDeniedException("Authenticated user is required to view own audit history");
+        }
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Case not found: " + caseId));
         Long clientId = clientCase.getClient() != null ? clientCase.getClient().getId() : null;
@@ -43,14 +51,17 @@ public class AuditHistoryService {
                 : approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc(CLIENT_TARGET, clientId);
 
         List<AuditHistoryEntryResponse> approvalEntries = java.util.stream.Stream.concat(caseApprovals.stream(), clientApprovals.stream())
+                .filter(request -> canViewAll || isOwnApproval(request, viewerId))
                 .sorted(Comparator
                         .comparing((ApprovalRequest request) -> request.getCreatedAt() == null ? LocalDateTime.MIN : request.getCreatedAt())
                         .reversed()
                         .thenComparing(ApprovalRequest::getId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(request -> toResponse(request, caseId))
                 .toList();
-        List<AuditHistoryEntryResponse> operationEntries = operationAuditLogRepository
-                .findByClientCaseIdOrderByOccurredAtDescIdDesc(caseId).stream()
+        List<OperationAuditLog> operationLogs = canViewAll
+                ? operationAuditLogRepository.findByClientCaseIdOrderByOccurredAtDescIdDesc(caseId)
+                : operationAuditLogRepository.findByClientCaseIdAndActorIdOrderByOccurredAtDescIdDesc(caseId, viewerId);
+        List<AuditHistoryEntryResponse> operationEntries = operationLogs.stream()
                 .map(this::toResponse)
                 .toList();
 
@@ -60,6 +71,14 @@ public class AuditHistoryService {
                         .reversed()
                         .thenComparing(AuditHistoryEntryResponse::getId))
                 .toList();
+    }
+
+    private boolean isOwnApproval(ApprovalRequest request, Long viewerId) {
+        if (viewerId == null) return false;
+        User requestedBy = request.getRequestedBy();
+        User decidedBy = request.getDecidedBy();
+        return requestedBy != null && viewerId.equals(requestedBy.getId())
+                || decidedBy != null && viewerId.equals(decidedBy.getId());
     }
 
     private AuditHistoryEntryResponse toResponse(OperationAuditLog log) {

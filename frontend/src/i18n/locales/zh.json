@@ -11,10 +11,13 @@
   "settings": {
     "title": "Settings",
     "nav": {
-      "access": "访问权限"
+      "access": "权限"
     },
     "searchUser": "按姓名或邮箱搜索…",
     "selectUser": "选择一个用户以管理其敏感文件访问权限。",
+    "backToUsers": "返回用户列表",
+    "noUsersFound": "未找到匹配的用户",
+    "userNotFound": "用户不存在",
     "saved": "已保存",
     "saveError": "保存失败,请重试。",
     "loadUsersError": "加载用户失败。",
@@ -42,26 +45,6 @@
         "medical": "病历、处方与健康报告。",
         "financial": "银行信息、发票与财务报表。",
         "legal": "合同、法律文书与官方往来函件。"
-      }
-    },
-    "profileAccess": {
-      "title": "档案敏感区块",
-      "subtitle": "选择该用户可以查看的会员详细档案区块。",
-      "section": {
-        "identity": "身份",
-        "personal": "个人",
-        "ordination": "剃度",
-        "membership": "会员",
-        "wellbeing": "身心状况",
-        "needs": "特殊需求"
-      },
-      "sectionDesc": {
-        "identity": "NRIC 姓名/证号与剃度证明。",
-        "personal": "性别、出生日期、国籍与紧急联系人。",
-        "ordination": "传承、剃度与受戒详情。",
-        "membership": "入会日期、会员备注与备注。",
-        "wellbeing": "身心健康状况指标。",
-        "needs": "特殊需求、银行转账与 PayNow 信息。"
       }
     }
   },
@@ -338,6 +321,7 @@
       "deleteError": "文件删除失败，请稍后重试。",
       "empty": "该分类下暂无文件",
       "noAccess": "你没有权限查看该个案的任何文件类别。",
+      "locked": "无权限查看此类别",
       "count_one": "{{count}} 个文件",
       "count_other": "{{count}} 个文件"
     },

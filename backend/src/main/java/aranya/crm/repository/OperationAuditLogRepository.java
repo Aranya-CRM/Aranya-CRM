@@ -10,5 +10,7 @@ public interface OperationAuditLogRepository extends JpaRepository<OperationAudi
 
     @EntityGraph(attributePaths = {"actor"})
     List<OperationAuditLog> findByClientCaseIdOrderByOccurredAtDescIdDesc(Long caseId);
-}
 
+    @EntityGraph(attributePaths = {"actor"})
+    List<OperationAuditLog> findByClientCaseIdAndActorIdOrderByOccurredAtDescIdDesc(Long caseId, Long actorId);
+}

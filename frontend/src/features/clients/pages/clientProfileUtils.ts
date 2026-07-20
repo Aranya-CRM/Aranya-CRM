@@ -136,10 +136,10 @@ export function applyClientGenderFilter<T extends { gender?: string | null }>(
 
 export function applyClientOrdinationStatusFilter<T extends { ordinationStatus?: string | null }>(
   clients: T[],
-  filter: ClientOrdinationStatusFilter,
+  filter: readonly string[],
 ): T[] {
-  if (filter === 'all') return clients
-  return clients.filter((client) => client.ordinationStatus === filter)
+  if (filter.length === 0) return clients
+  return clients.filter((client) => filter.includes(client.ordinationStatus ?? ''))
 }
 
 export function sortClientDirectory<T extends {
@@ -172,18 +172,18 @@ export function sortClientDirectory<T extends {
 }
 
 export function countActiveClientFilters(
-  traditionFilter: string,
+  traditionFilter: readonly string[],
   caseFilter: ClientCaseFilter,
   archiveFilter: ClientArchiveFilter,
   genderFilter: ClientGenderFilter = 'all',
-  ordinationStatusFilter: ClientOrdinationStatusFilter = 'all',
+  ordinationStatusFilter: readonly string[] = [],
   sort: ClientDirectorySort = 'default',
 ): number {
-  return Number(traditionFilter !== 'all') +
+  return Number(traditionFilter.length > 0) +
     Number(caseFilter !== 'all') +
     Number(archiveFilter !== 'current') +
     Number(genderFilter !== 'all') +
-    Number(ordinationStatusFilter !== 'all') +
+    Number(ordinationStatusFilter.length > 0) +
     Number(sort !== 'default')
 }
 
