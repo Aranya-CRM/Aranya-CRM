@@ -27,7 +27,6 @@ import {
   type ClientCaseFilter,
   type ClientDirectorySort,
   type ClientGenderFilter,
-  type ClientOrdinationStatusFilter,
 } from './clientProfileUtils'
 import './clients.css'
 
@@ -119,11 +118,11 @@ export function ClientListPage() {
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
-  const [filterTradition, setFilterTradition] = useState<string>('all')
+  const [filterTraditions, setFilterTraditions] = useState<string[]>([])
   const [filterCase, setFilterCase] = useState<ClientCaseFilter>('all')
   const [filterArchive, setFilterArchive] = useState<ClientArchiveFilter>('current')
   const [filterGender, setFilterGender] = useState<ClientGenderFilter>('all')
-  const [filterOrdinationStatus, setFilterOrdinationStatus] = useState<ClientOrdinationStatusFilter>('all')
+  const [filterOrdinationStatuses, setFilterOrdinationStatuses] = useState<string[]>([])
   const [directorySort, setDirectorySort] = useState<ClientDirectorySort>('default')
   const [filterPanelTab, setFilterPanelTab] = useState<'filters' | 'sort'>('filters')
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
@@ -147,11 +146,11 @@ export function ClientListPage() {
   const canCloseCase = resolve('cases:delete')
   const isAdminView = resolve('admin:console.access')
   const activeFilterCount = countActiveClientFilters(
-    filterTradition,
+    filterTraditions,
     filterCase,
     filterArchive,
     filterGender,
-    filterOrdinationStatus,
+    filterOrdinationStatuses,
     directorySort,
   )
 
@@ -181,7 +180,7 @@ export function ClientListPage() {
         ),
         filterGender,
       ),
-      filterOrdinationStatus,
+      filterOrdinationStatuses,
     ).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
@@ -189,11 +188,11 @@ export function ClientListPage() {
         client.nameChn.includes(q) ||
         client.nameEn.toLowerCase().includes(q) ||
         client.abbr.toLowerCase().includes(q)
-      const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
+      const matchTradition = filterTraditions.length === 0 || filterTraditions.includes(client.buddhistTradition)
       return matchSearch && matchTradition
     })
     return sortClientDirectory(matched, directorySort)
-  }, [clients, directorySort, filterArchive, filterCase, filterGender, filterOrdinationStatus, filterTradition, search, withCaseIds])
+  }, [clients, directorySort, filterArchive, filterCase, filterGender, filterOrdinationStatuses, filterTraditions, search, withCaseIds])
 
   const clientApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
@@ -221,8 +220,8 @@ export function ClientListPage() {
         approval,
         operation: 'create',
       }))
-      .filter((item) => clientDirectoryItemMatches(item, search, filterTradition, filterGender, filterOrdinationStatus))
-  }, [clientApprovalItems, filterArchive, filterCase, filterGender, filterOrdinationStatus, filterTradition, search])
+      .filter((item) => clientDirectoryItemMatches(item, search, filterTraditions, filterGender, filterOrdinationStatuses))
+  }, [clientApprovalItems, filterArchive, filterCase, filterGender, filterOrdinationStatuses, filterTraditions, search])
 
   const directoryItems = useMemo(() => {
     return [
@@ -332,9 +331,6 @@ export function ClientListPage() {
     setFilterMenuOpen((open) => !open)
   }
 
-  function printProfile() {
-    window.setTimeout(() => window.print(), 0)
-  }
 
   function submitNewClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -563,14 +559,14 @@ export function ClientListPage() {
                         ))}
                       </FilterGroup>
                       <FilterGroup label={t('clients.filterTraditionLabel')}>
-                        <FilterChip active={filterTradition === 'all'} onClick={() => setFilterTradition('all')}>
+                        <FilterChip active={filterTraditions.length === 0} onClick={() => setFilterTraditions([])}>
                           {t('clients.filterAllShort')}
                         </FilterChip>
                         {TRADITIONS.map((tradition) => (
                           <FilterChip
                             key={tradition}
-                            active={filterTradition === tradition}
-                            onClick={() => setFilterTradition(tradition)}
+                            active={filterTraditions.includes(tradition)}
+                            onClick={() => setFilterTraditions((prev) => toggleFilterValue(prev, tradition))}
                           >
                             {tradition}
                           </FilterChip>
@@ -588,14 +584,14 @@ export function ClientListPage() {
                         </FilterChip>
                       </FilterGroup>
                       <FilterGroup label={t('clients.filterOrdinationStatusLabel')} wide>
-                        <FilterChip active={filterOrdinationStatus === 'all'} onClick={() => setFilterOrdinationStatus('all')}>
+                        <FilterChip active={filterOrdinationStatuses.length === 0} onClick={() => setFilterOrdinationStatuses([])}>
                           {t('clients.filterAllShort')}
                         </FilterChip>
                         {ORDINATION_STATUSES.map((status) => (
                           <FilterChip
                             key={status}
-                            active={filterOrdinationStatus === status}
-                            onClick={() => setFilterOrdinationStatus(status)}
+                            active={filterOrdinationStatuses.includes(status)}
+                            onClick={() => setFilterOrdinationStatuses((prev) => toggleFilterValue(prev, status))}
                           >
                             {status}
                           </FilterChip>
@@ -635,11 +631,11 @@ export function ClientListPage() {
                       className="client-filter-clear"
                       type="button"
                       onClick={() => {
-                        setFilterTradition('all')
+                        setFilterTraditions([])
                         setFilterCase('all')
                         setFilterArchive('current')
                         setFilterGender('all')
-                        setFilterOrdinationStatus('all')
+                        setFilterOrdinationStatuses([])
                         setDirectorySort('default')
                       }}
                     >
@@ -745,7 +741,6 @@ export function ClientListPage() {
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
                 onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
-                onPrint={printProfile}
                 onToggleCollapsed={() => setProfileCollapsed((collapsed) => !collapsed)}
               />
             )}
@@ -810,12 +805,16 @@ function directoryItemActive(item: ClientDirectoryItem, selectedClientId?: strin
   return Boolean(item.client && item.client.id === selectedClientId)
 }
 
+function toggleFilterValue<T>(values: readonly T[], value: T): T[] {
+  return values.includes(value) ? values.filter((current) => current !== value) : [...values, value]
+}
+
 function clientDirectoryItemMatches(
   item: ClientDirectoryItem,
   search: string,
-  tradition: string,
+  traditions: readonly string[],
   gender: ClientGenderFilter,
-  ordinationStatus: ClientOrdinationStatusFilter,
+  ordinationStatuses: readonly string[],
 ) {
   const q = search.trim().toLowerCase()
   const matchesSearch =
@@ -823,9 +822,9 @@ function clientDirectoryItemMatches(
     item.display.nameChn.includes(q) ||
     item.display.nameEn.toLowerCase().includes(q) ||
     item.display.abbr.toLowerCase().includes(q)
-  const matchesTradition = tradition === 'all' || item.display.buddhistTradition === tradition
+  const matchesTradition = traditions.length === 0 || traditions.includes(item.display.buddhistTradition)
   const matchesGender = gender === 'all' || item.display.gender === gender
-  const matchesOrdinationStatus = ordinationStatus === 'all' || item.display.ordinationStatus === ordinationStatus
+  const matchesOrdinationStatus = ordinationStatuses.length === 0 || ordinationStatuses.includes(item.display.ordinationStatus)
   return matchesSearch && matchesTradition && matchesGender && matchesOrdinationStatus
 }
 
@@ -1264,7 +1263,6 @@ interface ClientProfilePanelProps {
   onEdit: () => void
   onCreateCase: () => void
   onViewCase: () => void
-  onPrint: () => void
   onToggleCollapsed: () => void
 }
 
@@ -1298,7 +1296,6 @@ function ClientProfilePanel({
   onEdit,
   onCreateCase,
   onViewCase,
-  onPrint,
   onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
@@ -1317,22 +1314,12 @@ function ClientProfilePanel({
     <article className={'client-profile' + (closed ? ' closed' : '')}>
       <header className="client-profile-header">
         <div>
-          <p className="client-profile-report-title">{t('clients.profile.printTitle')}</p>
           <div className="client-profile-title-row">
             <h1>{client.abbr || '-'}</h1>
             {closed ? <span className="client-profile-status closed">{t('clients.profile.closedStatus')}</span> : null}
           </div>
         </div>
         <div className="client-profile-header-actions">
-          <button
-            className="client-profile-icon-btn"
-            type="button"
-            aria-label={t('clients.profile.printReport')}
-            title={t('clients.profile.printReport')}
-            onClick={onPrint}
-          >
-            <span aria-hidden="true">⎙</span>
-          </button>
           <button
             className="client-profile-icon-btn"
             type="button"
@@ -1351,7 +1338,7 @@ function ClientProfilePanel({
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
       {restoreError ? <div className="client-profile-loading client-profile-warning">{restoreError}</div> : null}
 
-      <ProfileSection key={`${client.id}-basicInfo`} collapsible title={t('clients.profile.section.basicInfo')}>
+      <ProfileSection key={`${client.id}-basicInfo`} title={t('clients.profile.section.basicInfo')}>
         <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} changed={changedFields.has('nameChn')} />
         <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} changed={changedFields.has('nameEn')} />
         <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} changed={changedFields.has('abbr')} />
@@ -1367,7 +1354,7 @@ function ClientProfilePanel({
       </ProfileSection>
 
       {canSee('identity') ? (
-        <ProfileSection key={`${client.id}-identity`} collapsible title={t('clients.profile.section.identity')}>
+        <ProfileSection key={`${client.id}-identity`} title={t('clients.profile.section.identity')}>
           <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
           <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
           <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
@@ -1377,7 +1364,7 @@ function ClientProfilePanel({
       ) : null}
 
       {canSee('personal') ? (
-        <ProfileSection key={`${client.id}-personal`} collapsible title={t('clients.profile.section.personal')}>
+        <ProfileSection key={`${client.id}-personal`} title={t('clients.profile.section.personal')}>
           <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
           <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
           <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
@@ -1390,7 +1377,7 @@ function ClientProfilePanel({
       ) : null}
 
       {canSee('ordination') ? (
-        <ProfileSection key={`${client.id}-ordination`} collapsible title={t('clients.profile.section.ordination')}>
+        <ProfileSection key={`${client.id}-ordination`} title={t('clients.profile.section.ordination')}>
           <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
           <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
           <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
@@ -1402,7 +1389,7 @@ function ClientProfilePanel({
       ) : null}
 
       {canSee('membership') ? (
-        <ProfileSection key={`${client.id}-membership`} collapsible title={t('clients.profile.section.membership')}>
+        <ProfileSection key={`${client.id}-membership`} title={t('clients.profile.section.membership')}>
           <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
           <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
           <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
@@ -1410,7 +1397,7 @@ function ClientProfilePanel({
       ) : null}
 
       {canSee('wellbeing') ? (
-        <ProfileSection key={`${client.id}-wellbeing`} collapsible title={t('clients.profile.section.wellbeing')}>
+        <ProfileSection key={`${client.id}-wellbeing`} title={t('clients.profile.section.wellbeing')}>
           {(Object.keys(WELLBEING_KEYS) as WellbeingDomain[]).map((key) => (
             <InfoCell key={key} label={t(WELLBEING_KEYS[key])} value={client.wellbeingIssues[key] ? '✓' : '—'} />
           ))}
@@ -1419,7 +1406,7 @@ function ClientProfilePanel({
       ) : null}
 
       {canSee('needs') ? (
-        <ProfileSection key={`${client.id}-needs`} collapsible title={t('clients.profile.section.needs')}>
+        <ProfileSection key={`${client.id}-needs`} title={t('clients.profile.section.needs')}>
           {(Object.keys(client.specialNeeds) as Array<keyof Client['specialNeeds']>).map((key) => (
             <InfoCell key={key} label={capitalize(key)} value={client.specialNeeds[key] ? '✓' : '—'} />
           ))}
@@ -1720,18 +1707,7 @@ function ClientProfileEditPanel({
   )
 }
 
-function ProfileSection({ title, children, collapsible = false }: { title: string; children: ReactNode; collapsible?: boolean }) {
-  if (collapsible) {
-    // 查看态:每个部分独立折叠,默认折叠(不加 open)。编辑态仍走下方展开的 <section>。
-    return (
-      <details className="client-profile-section client-profile-section-collapsible">
-        <summary>
-          <h3>{title}</h3>
-        </summary>
-        <div className="client-profile-grid">{children}</div>
-      </details>
-    )
-  }
+function ProfileSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="client-profile-section">
       <h3>{title}</h3>

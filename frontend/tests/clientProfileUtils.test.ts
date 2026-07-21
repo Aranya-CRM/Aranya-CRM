@@ -16,7 +16,6 @@ import {
   type ClientCaseFilter,
   type ClientDirectorySort,
   type ClientGenderFilter,
-  type ClientOrdinationStatusFilter,
   type ClientDateFields,
 } from '../src/features/clients/pages/clientProfileUtils.ts'
 
@@ -76,11 +75,13 @@ describe('client case filters', () => {
   })
 
   it('counts active directory filters for the collapsed filter button', () => {
-    assert.equal(countActiveClientFilters('all', 'all', 'current'), 0)
-    assert.equal(countActiveClientFilters('Mahayana', 'all', 'current'), 1)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'current'), 2)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'closed'), 3)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'closed', 'Female', 'Bhikkhuni', 'age_desc'), 6)
+    assert.equal(countActiveClientFilters([], 'all', 'current'), 0)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'all', 'current'), 1)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'current'), 2)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'closed'), 3)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'closed', 'Female', ['Bhikkhuni'], 'age_desc'), 6)
+    // 同一组多选仍按“该组是否激活”计一次
+    assert.equal(countActiveClientFilters(['Mahayana', 'Theravada'], 'all', 'current', 'all', ['Bhikkhu', 'Bhikkhuni']), 2)
   })
 
   it('filters clients by gender and ordination status', () => {
@@ -95,8 +96,18 @@ describe('client case filters', () => {
       ['VXA', 'VKC'],
     )
     assert.deepEqual(
-      applyClientOrdinationStatusFilter(fullClients, 'Bhikkhu' satisfies ClientOrdinationStatusFilter).map((client) => client.abbr),
+      applyClientOrdinationStatusFilter(fullClients, ['Bhikkhu']).map((client) => client.abbr),
       ['VKB'],
+    )
+    // 多选取并集(OR)
+    assert.deepEqual(
+      applyClientOrdinationStatusFilter(fullClients, ['Bhikkhu', 'Samaneri']).map((client) => client.abbr),
+      ['VKB', 'VKC'],
+    )
+    // 空数组表示不筛选
+    assert.deepEqual(
+      applyClientOrdinationStatusFilter(fullClients, []).map((client) => client.abbr),
+      ['VXA', 'VKB', 'VKC'],
     )
   })
 

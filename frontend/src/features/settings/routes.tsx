@@ -17,4 +17,10 @@ export const settingsRoutes: AppRouteConfig[] = [
     routeId: SETTINGS_ROUTE_ID,
     element: <SettingsLayout />,
   },
+  {
+    // 二级页面:为某个用户配置权限(如 /settings/access/:userId)
+    path: `${SETTINGS_PATH}/:section/:userId`,
+    routeId: SETTINGS_ROUTE_ID,
+    element: <SettingsLayout />,
+  },
 ]

@@ -4,12 +4,6 @@ import {
   saveFileAccess,
   type DocumentCategory,
 } from './api/fileAccess.api'
-import {
-  PROFILE_SECTIONS,
-  fetchProfileAccess,
-  saveProfileAccess,
-  type ProfileSection,
-} from './api/profileAccess.api'
 
 /** 一个可授予选项(某个具体权限项,如"医疗文件")。value 为传给后端的线值。 */
 export interface GrantOption {
@@ -52,15 +46,6 @@ const DOC_CATEGORY_ICONS: Record<DocumentCategory, string> = {
   LEGAL: '⚖',
 }
 
-const PROFILE_SECTION_ICONS: Record<ProfileSection, string> = {
-  IDENTITY: '🪪',
-  PERSONAL: '👤',
-  ORDINATION: '📿',
-  MEMBERSHIP: '🗂',
-  WELLBEING: '🩺',
-  NEEDS: '🤝',
-}
-
 /** 授权族注册表。目前仅"敏感文件类别";新增族在此追加即可。 */
 export const GRANT_GROUPS: GrantGroup[] = [
   {
@@ -80,25 +65,6 @@ export const GRANT_GROUPS: GrantGroup[] = [
     save: async (userId, values) => {
       const access = await saveFileAccess(userId, values as DocumentCategory[])
       return { granted: access.categories, locked: access.inherited }
-    },
-  },
-  {
-    id: 'profile-access',
-    titleKey: 'settings.profileAccess.title',
-    subtitleKey: 'settings.profileAccess.subtitle',
-    options: PROFILE_SECTIONS.map((section) => ({
-      value: section,
-      labelKey: `settings.profileAccess.section.${section.toLowerCase()}`,
-      descKey: `settings.profileAccess.sectionDesc.${section.toLowerCase()}`,
-      icon: PROFILE_SECTION_ICONS[section],
-    })),
-    fetch: async (userId) => {
-      const access = await fetchProfileAccess(userId)
-      return { granted: access.sections, locked: access.inherited }
-    },
-    save: async (userId, values) => {
-      const access = await saveProfileAccess(userId, values as ProfileSection[])
-      return { granted: access.sections, locked: access.inherited }
     },
   },
 ]

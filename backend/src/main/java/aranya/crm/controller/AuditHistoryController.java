@@ -29,14 +29,19 @@ public class AuditHistoryController {
     private final CapPermissionEvaluator capEval;
 
     @GetMapping("/cases/{caseId}")
-    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view') and @capEval.hasCap(authentication, 'cases:audit')")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
     public ResponseEntity<List<AuditHistoryEntryResponse>> listCaseAuditHistory(
             @PathVariable Long caseId,
             Authentication authentication,
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
-        return ResponseEntity.ok(auditHistoryService.listCaseAuditHistory(caseId));
+        boolean canViewAll = capEval.hasCap(authentication, "cases:audit");
+        return ResponseEntity.ok(auditHistoryService.listCaseAuditHistory(
+                caseId,
+                currentUser == null ? null : currentUser.getId(),
+                canViewAll
+        ));
     }
 
     private Long scopedUserId(Authentication authentication, User currentUser) {

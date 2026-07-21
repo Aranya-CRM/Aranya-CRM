@@ -2173,6 +2173,23 @@
   --doc-cat-border: #d2def9;
 }
 
+/* 无权限类别:统一灰化并加锁,覆盖分类配色 */
+.case-document-section.locked {
+  --doc-cat-accent: #9aa2b1;
+  --doc-cat-border: #e7eaf0;
+  background: #fafbfc;
+}
+
+.case-document-section.locked .case-document-section-title {
+  color: #98a2b3;
+}
+
+.case-document-section-lock {
+  font-size: 14px;
+  line-height: 1;
+  color: #98a2b3;
+}
+
 /* 上传弹窗内:拖拽框 + 文件名输入 */
 
 .case-document-upload-modal {
