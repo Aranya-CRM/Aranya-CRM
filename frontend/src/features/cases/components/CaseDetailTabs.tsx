@@ -102,7 +102,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const canEditPrimaryAssignee = canAssign && (getCap('cases:view') === 'ALL' || getCap('cases:view') === 'YES')
   const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
   const canManageParticipants = !readOnly && isPrimaryOwner && (canAssign || canCreateService)
-  const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity)
+  const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity || canManageParticipants)
 
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
   const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
@@ -117,17 +117,22 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const [remarks, setRemarks] = useState(caseData.remarks ?? '')
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
   const [participantIds, setParticipantIds] = useState<string[]>(() => (caseData.participantUsers ?? []).map((item) => String(item.id)))
-  const [showParticipants, setShowParticipants] = useState(false)
+  const [savedParticipantIds, setSavedParticipantIds] = useState<string[]>(() => (caseData.participantUsers ?? []).map((item) => String(item.id)))
+  const [participantSearch, setParticipantSearch] = useState('')
+  const [isParticipantSearchOpen, setIsParticipantSearchOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const updateCase = useUpdateCase()
   const updateParticipants = useUpdateCaseParticipants(caseData.id)
 
-  const isDirty =
+  const isCaseDirty =
     status !== savedStatus ||
     colorCode !== savedColorCode ||
     socialWorkerId !== savedSocialWorkerId ||
     comments !== savedComments ||
     remarks !== savedRemarks
+  const areParticipantsDirty = canManageParticipants && !sameIds(participantIds, savedParticipantIds)
+  const isDirty = isCaseDirty || areParticipantsDirty
+  const isSaving = updateCase.isPending || updateParticipants.isPending
 
   useEffect(() => {
     if (!canEditPrimaryAssignee && !canManageParticipants) return
@@ -139,27 +144,41 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   }, [canEditPrimaryAssignee, canManageParticipants])
 
   useEffect(() => {
-    setParticipantIds((caseData.participantUsers ?? []).map((item) => String(item.id)))
+    const ids = (caseData.participantUsers ?? []).map((item) => String(item.id))
+    setParticipantIds(ids)
+    setSavedParticipantIds(ids)
   }, [caseData.participantUsers])
 
   async function handleSave() {
-    const updated = await updateCase.mutateAsync({
-      id: caseData.id,
-      data: {
-        status,
-        colorCode,
-        socialWorkerId: canEditPrimaryAssignee ? socialWorkerId || undefined : undefined,
-        comments,
-        remarks,
-      },
-    })
-    const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
-    setSavedStatus(updated.status)
-    setSavedColorCode(updated.colorCode)
-    setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
-    setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
-    setSavedComments(updated.comments ?? comments)
-    setSavedRemarks(updated.remarks ?? remarks)
+    if (areParticipantsDirty) {
+      const updatedParticipants = await updateParticipants.mutateAsync(participantIds)
+      const updatedIds = updatedParticipants.map((item) => String(item.id))
+      setParticipantIds(updatedIds)
+      setSavedParticipantIds(updatedIds)
+    }
+
+    if (isCaseDirty) {
+      const updated = await updateCase.mutateAsync({
+        id: caseData.id,
+        data: {
+          status,
+          colorCode,
+          socialWorkerId: canEditPrimaryAssignee ? socialWorkerId || undefined : undefined,
+          comments,
+          remarks,
+        },
+      })
+      const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
+      setSavedStatus(updated.status)
+      setSavedColorCode(updated.colorCode)
+      setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
+      setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
+      setSavedComments(updated.comments ?? comments)
+      setSavedRemarks(updated.remarks ?? remarks)
+    }
+
+    setParticipantSearch('')
+    setIsParticipantSearchOpen(false)
     setIsEditing(false)
   }
 
@@ -169,11 +188,15 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
     setSocialWorkerId(savedSocialWorkerId)
     setComments(savedComments)
     setRemarks(savedRemarks)
+    setParticipantIds(savedParticipantIds)
+    setParticipantSearch('')
+    setIsParticipantSearchOpen(false)
     setIsEditing(false)
   }
 
   function updateSocialWorker(value: string) {
     setSocialWorkerId(value)
+    setParticipantIds((current) => current.filter((id) => id !== value))
   }
 
   function handleEditClick() {
@@ -181,20 +204,26 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   }
 
   const participantOptions = socialWorkers.filter((worker) => (
-    worker.roles.includes('SOCIAL_WORKER') && String(worker.id) !== String(savedSocialWorkerId)
+    worker.status === 'ACTIVE' &&
+    worker.roles.includes('SOCIAL_WORKER') &&
+    String(worker.id) !== String(socialWorkerId)
   ))
+  const normalizedParticipantSearch = participantSearch.trim().toLocaleLowerCase()
+  const filteredParticipantOptions = participantOptions.filter((worker) => {
+    if (participantIds.includes(String(worker.id))) return false
+    if (!normalizedParticipantSearch) return true
+    return [worker.fullName, worker.username, worker.email]
+      .some((value) => value?.toLocaleLowerCase().includes(normalizedParticipantSearch))
+  })
 
-  function toggleParticipant(id: number) {
+  function addParticipant(id: number) {
     const value = String(id)
-    setParticipantIds((current) => (
-      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
-    ))
+    setParticipantIds((current) => current.includes(value) ? current : [...current, value])
+    setParticipantSearch('')
   }
 
-  async function saveParticipants() {
-    const updated = await updateParticipants.mutateAsync(participantIds)
-    setParticipantIds(updated.map((item) => String(item.id)))
-    setShowParticipants(false)
+  function removeParticipant(id: string) {
+    setParticipantIds((current) => current.filter((item) => item !== id))
   }
 
   return (
@@ -236,18 +265,90 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         />
         <InfoCell
           label={t('cases.overview.participants')}
-          value={(
+          value={canManageParticipants && isEditing ? (
+            <div
+              className="case-participant-editor"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setIsParticipantSearchOpen(false)
+              }}
+            >
+              {participantIds.length > 0 ? (
+                <div className="case-participant-selected">
+                  {participantIds.map((id) => {
+                    const worker = socialWorkers.find((item) => String(item.id) === id)
+                      ?? caseData.participantUsers?.find((item) => String(item.id) === id)
+                    const name = worker?.fullName || worker?.email || id
+                    return (
+                      <span className="case-participant-chip" key={id}>
+                        <span>
+                          <strong>{name}</strong>
+                          {worker?.email && worker.email !== name ? <small>{worker.email}</small> : null}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t('cases.overview.removeParticipant', { name })}
+                          onClick={() => removeParticipant(id)}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : null}
+              <div className="case-participant-search-shell">
+                <input
+                  className="case-participant-search"
+                  type="search"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={isParticipantSearchOpen}
+                  aria-controls="case-participant-search-results"
+                  autoComplete="off"
+                  placeholder={t('cases.overview.searchParticipants')}
+                  value={participantSearch}
+                  onChange={(event) => {
+                    setParticipantSearch(event.target.value)
+                    setIsParticipantSearchOpen(true)
+                  }}
+                  onFocus={() => setIsParticipantSearchOpen(true)}
+                />
+                {isParticipantSearchOpen ? (
+                  <div className="case-participant-search-results" id="case-participant-search-results" role="listbox">
+                    {filteredParticipantOptions.map((worker) => {
+                      const name = worker.fullName || worker.username || worker.email
+                      return (
+                        <button
+                          className="case-participant-search-option"
+                          type="button"
+                          role="option"
+                          aria-selected="false"
+                          key={worker.id}
+                          onClick={() => addParticipant(worker.id)}
+                        >
+                          <span className="case-participant-avatar" aria-hidden="true">{participantInitials(name)}</span>
+                          <span>
+                            <strong>{name}</strong>
+                            <small>{worker.email}{worker.username ? ` · ${worker.username}` : ''}</small>
+                          </span>
+                          <span className="case-participant-add-mark" aria-hidden="true">+</span>
+                        </button>
+                      )
+                    })}
+                    {filteredParticipantOptions.length === 0 ? (
+                      <p className="case-participant-search-empty">{t('cases.overview.noParticipantOptions')}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
             <div className="case-participant-summary">
               {(caseData.participantUsers ?? []).length > 0 ? (
                 <span>{(caseData.participantUsers ?? []).map((item) => item.fullName || item.email || item.id).join(', ')}</span>
               ) : (
                 <span>—</span>
               )}
-              {canManageParticipants ? (
-                <button className="btn-link-action" type="button" onClick={() => setShowParticipants(true)}>
-                  {t('cases.overview.manageParticipants')}
-                </button>
-              ) : null}
             </div>
           )}
           wide
@@ -316,12 +417,12 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
             <button
               className="btn-primary"
               type="button"
-              disabled={!isDirty || updateCase.isPending}
+              disabled={!isDirty || isSaving}
               onClick={() => void handleSave()}
             >
-              {updateCase.isPending ? t('common.saving') : t('common.save')}
+              {isSaving ? t('common.saving') : t('common.save')}
             </button>
-            <button className="btn-secondary" type="button" disabled={updateCase.isPending} onClick={handleCancelEdit}>
+            <button className="btn-secondary" type="button" disabled={isSaving} onClick={handleCancelEdit}>
               {t('common.cancel')}
             </button>
             </>
@@ -333,43 +434,20 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         <TaskList tasks={caseData.tasks} />
       ) : null}
 
-      {showParticipants ? (
-        <div className="event-modal-backdrop" role="presentation" onMouseDown={() => setShowParticipants(false)}>
-          <div className="event-modal case-participant-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <header className="event-modal-header">
-              <h2>{t('cases.overview.manageParticipants')}</h2>
-              <button type="button" className="event-modal-close" aria-label="Close" onClick={() => setShowParticipants(false)}>×</button>
-            </header>
-            <div className="event-modal-body">
-              <div className="case-participant-list">
-                {participantOptions.map((worker) => (
-                  <label key={worker.id} className="case-participant-option">
-                    <input
-                      type="checkbox"
-                      checked={participantIds.includes(String(worker.id))}
-                      onChange={() => toggleParticipant(worker.id)}
-                    />
-                    <span>{worker.fullName || worker.email}</span>
-                  </label>
-                ))}
-                {participantOptions.length === 0 ? (
-                  <p className="case-placeholder-text">{t('cases.overview.noParticipantOptions')}</p>
-                ) : null}
-              </div>
-            </div>
-            <footer className="event-modal-footer">
-              <button className="btn-secondary" type="button" disabled={updateParticipants.isPending} onClick={() => setShowParticipants(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn-primary" type="button" disabled={updateParticipants.isPending} onClick={() => void saveParticipants()}>
-                {updateParticipants.isPending ? t('common.saving') : t('common.save')}
-              </button>
-            </footer>
-          </div>
-        </div>
-      ) : null}
     </>
   )
+}
+
+function sameIds(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false
+  const rightIds = new Set(right)
+  return left.every((id) => rightIds.has(id))
+}
+
+function participantInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  return words.slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase()
 }
 
 function InfoCell({

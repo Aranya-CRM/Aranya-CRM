@@ -37,7 +37,8 @@ function combineContent(event?: ServiceEvent): string {
 function isEventParticipantOption(user: UserSummary): boolean {
   const roles = new Set(user.roles)
   const managerLike = roles.has('MANAGER') || roles.has('ADMIN') || roles.has('FULL_MANAGER') || roles.has('TEAM_LEAD')
-  return user.status === 'ACTIVE' && roles.has('SOCIAL_WORKER') && !managerLike
+  const eventParticipant = roles.has('SOCIAL_WORKER') || roles.has('VOLUNTEER')
+  return user.status === 'ACTIVE' && eventParticipant && !managerLike
 }
 
 /** 「增添/编辑事件」卡片弹窗 —— 按组织日历模板采集字段,创建/更新后镜像到 Google 共享日历。 */
@@ -72,7 +73,8 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const [address, setAddress] = useState(event?.address ?? '')
   const [content, setContent] = useState(() => combineContent(event))
   const [users, setUsers] = useState<UserSummary[]>([])
-  const [participantToAdd, setParticipantToAdd] = useState('')
+  const [participantSearch, setParticipantSearch] = useState('')
+  const [isParticipantSearchOpen, setIsParticipantSearchOpen] = useState(false)
   const [formError, setFormError] = useState<string>()
 
   useEffect(() => {
@@ -118,16 +120,15 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     () => users.filter((user) => !participantUserIds.includes(String(user.id))),
     [participantUserIds, users],
   )
-
-  useEffect(() => {
-    if (participantOptions.length === 0) {
-      if (participantToAdd) setParticipantToAdd('')
-      return
-    }
-    if (!participantToAdd || !participantOptions.some((user) => String(user.id) === participantToAdd)) {
-      setParticipantToAdd(String(participantOptions[0].id))
-    }
-  }, [participantOptions, participantToAdd])
+  const normalizedParticipantSearch = participantSearch.trim().toLocaleLowerCase()
+  const filteredParticipantOptions = useMemo(
+    () => participantOptions.filter((user) => {
+      if (!normalizedParticipantSearch) return true
+      return [user.fullName, user.username, user.email]
+        .some((value) => value?.toLocaleLowerCase().includes(normalizedParticipantSearch))
+    }),
+    [normalizedParticipantSearch, participantOptions],
+  )
 
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
@@ -165,13 +166,12 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     }
   }
 
-  function addParticipant() {
-    const nextParticipantId = participantToAdd
-    if (!nextParticipantId) return
+  function addParticipant(id: number) {
+    const nextParticipantId = String(id)
     setParticipantUserIds((current) => (
       current.includes(nextParticipantId) ? current : [...current, nextParticipantId]
     ))
-    setParticipantToAdd('')
+    setParticipantSearch('')
   }
 
   function removeParticipant(id: number | string) {
@@ -179,12 +179,8 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     setParticipantUserIds((current) => current.filter((item) => item !== value))
   }
 
-  function roleLabel(): string {
-    return 'SW'
-  }
-
   function participantName(user: UserSummary): string {
-    return user.fullName || user.email || String(user.id)
+    return user.fullName || user.username || user.email || String(user.id)
   }
 
   return (
@@ -214,55 +210,83 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
             <div className="event-participant-field wide">
               <span>{t('cases.services.participants')}</span>
 
-              <div className="event-participant-panel">
-                <div className="event-selected-participants">
-                  {selectedParticipants.length > 0 ? (
-                    selectedParticipants.map((user) => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        className="event-participant-chip"
-                        onClick={() => removeParticipant(user.id)}
-                        title={t('cases.services.removeParticipant')}
-                      >
-                        <span>{participantName(user)}</span>
-                        <small>{roleLabel()}</small>
-                        <strong aria-hidden="true">×</strong>
-                      </button>
-                    ))
-                  ) : (
-                    <span className="event-participant-empty">{t('cases.services.noParticipants')}</span>
-                  )}
-                </div>
+              <div
+                className="case-participant-editor event-participant-editor"
+                onBlur={(blurEvent) => {
+                  if (!blurEvent.currentTarget.contains(blurEvent.relatedTarget)) setIsParticipantSearchOpen(false)
+                }}
+              >
+                {selectedParticipants.length > 0 ? (
+                  <div className="case-participant-selected">
+                    {selectedParticipants.map((user) => {
+                      const name = participantName(user)
+                      return (
+                        <span className="case-participant-chip" key={user.id}>
+                          <span>
+                            <strong>{name}</strong>
+                            {user.email && user.email !== name ? <small>{user.email}</small> : null}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={t('cases.services.removeParticipant', { name })}
+                            onClick={() => removeParticipant(user.id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                ) : null}
 
-                <div className="event-participant-add-row">
-                  <select
-                    value={participantToAdd}
-                    onChange={(e) => setParticipantToAdd(e.target.value)}
-                    disabled={participantOptions.length === 0}
-                  >
-                    <option value="">
-                      {participantOptions.length > 0
-                        ? t('cases.services.selectParticipant')
-                        : t('cases.services.noParticipantOptions')}
-                    </option>
-                    {participantOptions.map((user) => (
-                      <option key={user.id} value={String(user.id)}>
-                        {participantName(user)} ({roleLabel()})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="btn-secondary event-participant-add-btn"
-                    disabled={!participantToAdd}
-                    onClick={(event) => {
-                      event.preventDefault()
-                      addParticipant()
+                <div className="case-participant-search-shell">
+                  <input
+                    className="case-participant-search"
+                    type="search"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={isParticipantSearchOpen}
+                    aria-controls="event-participant-search-results"
+                    autoComplete="off"
+                    placeholder={t('cases.services.searchParticipants')}
+                    value={participantSearch}
+                    onChange={(changeEvent) => {
+                      setParticipantSearch(changeEvent.target.value)
+                      setIsParticipantSearchOpen(true)
                     }}
-                  >
-                    {t('cases.services.addParticipant')}
-                  </button>
+                    onFocus={() => setIsParticipantSearchOpen(true)}
+                  />
+                  {isParticipantSearchOpen ? (
+                    <div className="case-participant-search-results" id="event-participant-search-results" role="listbox">
+                      {filteredParticipantOptions.map((user) => {
+                        const name = participantName(user)
+                        return (
+                          <button
+                            className="case-participant-search-option"
+                            type="button"
+                            role="option"
+                            aria-selected="false"
+                            key={user.id}
+                            onClick={() => addParticipant(user.id)}
+                          >
+                            <span className="case-participant-avatar" aria-hidden="true">{participantInitials(name)}</span>
+                            <span>
+                              <strong>{name}</strong>
+                              <small>
+                                {user.email}
+                                {user.username ? ` · ${user.username}` : ''}
+                                {` · ${eventParticipantRoleLabel(user, t)}`}
+                              </small>
+                            </span>
+                            <span className="case-participant-add-mark" aria-hidden="true">+</span>
+                          </button>
+                        )
+                      })}
+                      {filteredParticipantOptions.length === 0 ? (
+                        <p className="case-participant-search-empty">{t('cases.services.noParticipantOptions')}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -331,4 +355,16 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
       </form>
     </div>
   )
+}
+
+function participantInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  return words.slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase()
+}
+
+function eventParticipantRoleLabel(user: UserSummary, t: (key: string) => string): string {
+  return user.roles.includes('SOCIAL_WORKER')
+    ? t('users.role.SOCIAL_WORKER')
+    : t('users.role.VOLUNTEER')
 }

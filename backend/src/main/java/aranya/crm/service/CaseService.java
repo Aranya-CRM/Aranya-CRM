@@ -879,8 +879,9 @@ public class CaseService {
     }
 
     private void requireEventParticipant(User user) {
-        if (!"ACTIVE".equalsIgnoreCase(user.getStatus()) || !hasRole(user, "SOCIAL_WORKER") || isManagerLike(user)) {
-            throw new AccessDeniedException("Event participants must be active social workers");
+        boolean eventParticipantRole = hasRole(user, "SOCIAL_WORKER") || hasRole(user, "VOLUNTEER");
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus()) || !eventParticipantRole || isManagerLike(user)) {
+            throw new AccessDeniedException("Event participants must be active social workers or volunteers");
         }
     }
 
@@ -968,7 +969,7 @@ public class CaseService {
             ServiceEventAssignment assignment = new ServiceEventAssignment();
             assignment.setServiceAppointment(appointment);
             assignment.setUser(participant);
-            assignment.setAssignmentRole("SOCIAL_WORKER");
+            assignment.setAssignmentRole(hasRole(participant, "SOCIAL_WORKER") ? "SOCIAL_WORKER" : "VOLUNTEER");
             assignment.setStatus("ACTIVE");
             assignment.setAssignedBy(actor);
             serviceEventAssignmentRepository.save(assignment);

@@ -20,7 +20,7 @@ public class CreateServiceEventRequest {
     // 负责人(可空;模板事件的人力以 manpower 自由文本记录)
     private Long assignedUserId;
 
-    // 事件参与者(可多选;仅 active social worker, 不包含 manager/admin/volunteer)
+    // 事件参与者(可多选;仅 active social worker/volunteer, 不包含管理类角色)
     private List<Long> participantUserIds;
 
     @NotNull
