@@ -9,6 +9,7 @@ export {
   useRestoreCase,
   useSyncServiceEvent,
   useUpdateCase,
+  useUpdateCaseParticipants,
   useUpdateCaseServices,
   useUpdateServiceEvent,
 } from './useCases'

@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 071-cancel-pending-report-delete-approvals
+      author: Codex
+      changes:
+        - sql:
+            sql: >
+              UPDATE approval_request
+              SET status = 'CANCELLED',
+                  decided_at = CURRENT_TIMESTAMP,
+                  decision_comment = 'Cancelled: report deletion is direct and does not require approval'
+              WHERE type = 'DELETE_REPORT'
+                AND status = 'PENDING';
+      rollback: []

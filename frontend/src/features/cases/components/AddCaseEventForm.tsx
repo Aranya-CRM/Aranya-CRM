@@ -34,6 +34,12 @@ function combineContent(event?: ServiceEvent): string {
     .join('\n\n')
 }
 
+function isEventParticipantOption(user: UserSummary): boolean {
+  const roles = new Set(user.roles)
+  const managerLike = roles.has('MANAGER') || roles.has('ADMIN') || roles.has('FULL_MANAGER') || roles.has('TEAM_LEAD')
+  return user.status === 'ACTIVE' && roles.has('SOCIAL_WORKER') && !managerLike
+}
+
 /** 「增添/编辑事件」卡片弹窗 —— 按组织日历模板采集字段,创建/更新后镜像到 Google 共享日历。 */
 export function AddCaseEventForm({ caseData, event, onDone }: Props) {
   const { t } = useTranslation()
@@ -55,20 +61,33 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
 
   const [serviceKey, setServiceKey] = useState<keyof CaseServices | ''>(event?.serviceKey ?? selectedServiceKeys[0] ?? '')
   const [calendarId, setCalendarId] = useState('')
-  const [assignedUserId, setAssignedUserId] = useState(event?.assignedUserId != null ? String(event.assignedUserId) : '')
+  const [participantUserIds, setParticipantUserIds] = useState<string[]>(() => {
+    const ids = event?.participantUserIds?.map(String) ?? []
+    if (ids.length > 0) return ids
+    return event?.assignedUserId != null ? [String(event.assignedUserId)] : []
+  })
   const [scheduledStart, setScheduledStart] = useState(toLocalInput(event?.scheduledStart))
   const [scheduledEnd, setScheduledEnd] = useState(toLocalInput(event?.scheduledEnd))
   const [location, setLocation] = useState(event?.location ?? '')
   const [address, setAddress] = useState(event?.address ?? '')
   const [content, setContent] = useState(() => combineContent(event))
   const [users, setUsers] = useState<UserSummary[]>([])
+  const [participantToAdd, setParticipantToAdd] = useState('')
   const [formError, setFormError] = useState<string>()
 
   useEffect(() => {
     fetchUsers()
-      .then((list) => setUsers(list.filter((u) => u.status === 'ACTIVE')))
+      .then((list) => {
+        const allowedUsers = list.filter((user) => (
+          isEventParticipantOption(user)
+          && String(user.id) !== String(caseData.socialWorkerId ?? '')
+        ))
+        const allowedIds = new Set(allowedUsers.map((user) => String(user.id)))
+        setUsers(allowedUsers)
+        setParticipantUserIds((current) => current.filter((id) => allowedIds.has(id)))
+      })
       .catch(() => {})
-  }, [])
+  }, [caseData.socialWorkerId])
 
   // 日历选项加载后:编辑模式预选事件原日历,否则选默认日历
   useEffect(() => {
@@ -88,6 +107,28 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     ? `${seqPrefix}${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`
     : ''
 
+  const selectedParticipants = useMemo(
+    () => participantUserIds
+      .map((id) => users.find((user) => String(user.id) === id))
+      .filter((user): user is UserSummary => user != null),
+    [participantUserIds, users],
+  )
+
+  const participantOptions = useMemo(
+    () => users.filter((user) => !participantUserIds.includes(String(user.id))),
+    [participantUserIds, users],
+  )
+
+  useEffect(() => {
+    if (participantOptions.length === 0) {
+      if (participantToAdd) setParticipantToAdd('')
+      return
+    }
+    if (!participantToAdd || !participantOptions.some((user) => String(user.id) === participantToAdd)) {
+      setParticipantToAdd(String(participantOptions[0].id))
+    }
+  }, [participantOptions, participantToAdd])
+
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
     setFormError(undefined)
@@ -103,7 +144,8 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     const payload = {
       serviceKey,
       calendarId: calendarId || undefined,
-      assignedUserId: assignedUserId || undefined,
+      assignedUserId: participantUserIds[0] || undefined,
+      participantUserIds,
       scheduledStart,
       scheduledEnd: scheduledEnd || undefined,
       location: location.trim() || undefined,
@@ -121,6 +163,28 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     } catch {
       setFormError(t('cases.services.createError'))
     }
+  }
+
+  function addParticipant() {
+    const nextParticipantId = participantToAdd
+    if (!nextParticipantId) return
+    setParticipantUserIds((current) => (
+      current.includes(nextParticipantId) ? current : [...current, nextParticipantId]
+    ))
+    setParticipantToAdd('')
+  }
+
+  function removeParticipant(id: number | string) {
+    const value = String(id)
+    setParticipantUserIds((current) => current.filter((item) => item !== value))
+  }
+
+  function roleLabel(): string {
+    return 'SW'
+  }
+
+  function participantName(user: UserSummary): string {
+    return user.fullName || user.email || String(user.id)
   }
 
   return (
@@ -147,15 +211,61 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
               </select>
             </label>
 
-            <label>
-              <span>{t('cases.services.assignee')}</span>
-              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)}>
-                <option value="">{t('cases.services.selectAssignee')}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
-                ))}
-              </select>
-            </label>
+            <div className="event-participant-field wide">
+              <span>{t('cases.services.participants')}</span>
+
+              <div className="event-participant-panel">
+                <div className="event-selected-participants">
+                  {selectedParticipants.length > 0 ? (
+                    selectedParticipants.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className="event-participant-chip"
+                        onClick={() => removeParticipant(user.id)}
+                        title={t('cases.services.removeParticipant')}
+                      >
+                        <span>{participantName(user)}</span>
+                        <small>{roleLabel()}</small>
+                        <strong aria-hidden="true">×</strong>
+                      </button>
+                    ))
+                  ) : (
+                    <span className="event-participant-empty">{t('cases.services.noParticipants')}</span>
+                  )}
+                </div>
+
+                <div className="event-participant-add-row">
+                  <select
+                    value={participantToAdd}
+                    onChange={(e) => setParticipantToAdd(e.target.value)}
+                    disabled={participantOptions.length === 0}
+                  >
+                    <option value="">
+                      {participantOptions.length > 0
+                        ? t('cases.services.selectParticipant')
+                        : t('cases.services.noParticipantOptions')}
+                    </option>
+                    {participantOptions.map((user) => (
+                      <option key={user.id} value={String(user.id)}>
+                        {participantName(user)} ({roleLabel()})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-secondary event-participant-add-btn"
+                    disabled={!participantToAdd}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      addParticipant()
+                    }}
+                  >
+                    {t('cases.services.addParticipant')}
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <label>
               <span>{t('cases.services.time')} {t('cases.services.timezoneHint')}</span>

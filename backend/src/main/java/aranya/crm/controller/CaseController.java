@@ -2,12 +2,14 @@ package aranya.crm.controller;
 
 import aranya.crm.dto.request.CreateCaseRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
+import aranya.crm.dto.request.UpdateAssigneesRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
+import aranya.crm.dto.response.UserAssignmentResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
@@ -115,6 +117,7 @@ public class CaseController {
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        caseService.requireCaseEditor(id, currentUser);
         List<String> requestedServiceKeys = serviceKeys == null ? List.of() : serviceKeys;
         List<String> currentServiceKeys = caseService.listSelectedServiceKeys(id);
         List<String> addServiceKeys = requestedServiceKeys.stream()
@@ -135,7 +138,7 @@ public class CaseController {
                         "removeServiceKeys", removeServiceKeys
                 ),
                 currentUser,
-                approverId,
+                caseService.resolveCaseServiceApprovalApproverId(id, currentUser, approverId),
                 approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
@@ -150,6 +153,29 @@ public class CaseController {
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.listServiceEvents(id));
+    }
+
+    @GetMapping("/{id}/participants")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<List<UserAssignmentResponse>> listCaseParticipants(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseService.listCaseParticipants(id));
+    }
+
+    @PatchMapping("/{id}/participants")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<List<UserAssignmentResponse>> updateCaseParticipants(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAssigneesRequest request,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseService.updateCaseParticipants(id, request.getUserIds(), currentUser));
     }
 
     /**
@@ -204,7 +230,7 @@ public class CaseController {
             @CurrentUser User currentUser
     ) {
         caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
-        return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId));
+        return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId, currentUser));
     }
 
     @DeleteMapping("/{id}/service-events/{eventId}")

@@ -164,8 +164,12 @@ export function TaskDetailPage() {
   }, [errorMessage, isTaskLoading, navigate, taskEvent])
 
   const myReports = reports.filter((report) => reportMatchesTask(report, taskEvent ? String(taskEvent.id) : id) && isCurrentReportStatus(report.status))
+  const hasSubmittedReport = myReports.some((report) => String(report.status ?? '').toUpperCase() === 'SUBMITTED')
   const returnTo = `/reports/${taskEvent?.id ?? id ?? ''}`
-  const isAssignedToMe = Boolean(user?.id != null && taskEvent?.assignedUserId != null && String(taskEvent.assignedUserId) === String(user.id))
+  const isAssignedToMe = Boolean(user?.id != null && taskEvent && (
+    isEventParticipant(taskEvent, String(user.id))
+    || String(caseData?.socialWorkerId ?? '') === String(user.id)
+  ))
 
   if (isTaskLoading || isLoading) {
     return <div className="task-page"><PageHeader title={t('common.loading')} /></div>
@@ -202,13 +206,13 @@ export function TaskDetailPage() {
       </SectionCard>
 
       <SectionCard className="task-detail-card" title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
-        {isAssignedToMe ? (
+        {isAssignedToMe && !hasSubmittedReport ? (
           <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?appointmentId=${taskEvent.id}&returnTo=${encodeURIComponent(returnTo)}`)}>
             {t('tasks.submitReport')}
           </button>
-        ) : (
+        ) : !isAssignedToMe ? (
           <div className="task-empty compact">{t('tasks.reportOnlyAssigned')}</div>
-        )}
+        ) : null}
         {myReports.length === 0 ? (
           <div className="task-empty compact">{t('tasks.noReports')}</div>
         ) : (
@@ -224,6 +228,11 @@ export function TaskDetailPage() {
       </SectionCard>
     </div>
   )
+}
+
+function isEventParticipant(event: ServiceEvent, userId: string): boolean {
+  return (event.participantUserIds ?? []).map(String).includes(userId)
+    || (event.assignedUserId != null && String(event.assignedUserId) === userId)
 }
 
 function Info({ label, value, wide, multiline }: { label: string, value: string, wide?: boolean, multiline?: boolean }) {

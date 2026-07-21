@@ -46,6 +46,12 @@ export function ApprovalConfirmModal({
     }
   }, [open])
 
+  useEffect(() => {
+    if (open && approverRequired && (approverOptions ?? []).length === 1) {
+      setSelectedApproverId(String((approverOptions ?? [])[0].id))
+    }
+  }, [approverOptions, approverRequired, open])
+
   if (!open) return null
 
   const showApproverSelect = approverRequired || approverOptions !== undefined

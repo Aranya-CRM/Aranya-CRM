@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, restoreCase, syncServiceEvent, updateCase, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
+import { createCase, createServiceEvent, deleteCase, deleteCaseDocument, deleteServiceEvent, fetchCaseById, fetchCaseDocumentDownloadUrl, fetchCaseDocuments, fetchCases, restoreCase, syncServiceEvent, updateCase, updateCaseParticipants, updateCaseServices, updateServiceEvent, uploadCaseDocument } from '../api/case.api'
 import type { ApprovalOptions, CaseDocumentUrlDisposition, CreateCasePayload, CreateServiceEventPayload, UpdateCasePayload, UploadCaseDocumentPayload } from '../api/case.api'
-import type { CaseServices } from '../types'
+import type { AssignmentUser, Case, CaseServices } from '../types'
 import { auditHistoryQueryKeys } from '../../audit-history/api'
 
 type CaseDocumentUrlRequest = number | { documentId: number; disposition?: CaseDocumentUrlDisposition }
@@ -132,6 +132,22 @@ export function useUpdateCaseServices(caseId: string | undefined) {
       if (!caseId) return
       queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
       queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.case(caseId) })
+    },
+  })
+}
+
+export function useUpdateCaseParticipants(caseId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (userIds: Array<string | number>) => updateCaseParticipants(caseId!, userIds),
+    onSuccess: (participants: AssignmentUser[]) => {
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.lists() })
+      if (!caseId) return
+      queryClient.setQueryData<Case | undefined>(caseQueryKeys.detail(caseId), (current) => (
+        current ? { ...current, participantUsers: participants } : current
+      ))
+      queryClient.invalidateQueries({ queryKey: caseQueryKeys.detail(caseId) })
     },
   })
 }

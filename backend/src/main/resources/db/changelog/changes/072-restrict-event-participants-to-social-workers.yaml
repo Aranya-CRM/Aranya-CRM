@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 072-restrict-event-participants-to-social-workers
+      author: Codex
+      changes:
+        - sql:
+            sql: >
+              DELETE FROM service_event_assignment sea
+              USING users u
+              WHERE sea.user_id = u.id
+                AND (
+                  UPPER(COALESCE(u.status, '')) <> 'ACTIVE'
+                  OR NOT EXISTS (
+                    SELECT 1
+                    FROM user_role ur
+                    JOIN role r ON r.id = ur.role_id
+                    WHERE ur.user_id = u.id
+                      AND r.name = 'SOCIAL_WORKER'
+                  )
+                  OR EXISTS (
+                    SELECT 1
+                    FROM user_role ur
+                    JOIN role r ON r.id = ur.role_id
+                    WHERE ur.user_id = u.id
+                      AND r.name IN ('MANAGER', 'ADMIN', 'FULL_MANAGER', 'TEAM_LEAD')
+                  )
+                );
+        - sql:
+            sql: >
+              UPDATE service_event_assignment
+              SET assignment_role = 'SOCIAL_WORKER'
+              WHERE UPPER(COALESCE(assignment_role, '')) <> 'SOCIAL_WORKER';
+        - sql:
+            sql: >
+              UPDATE service_appointment sa
+              SET assigned_user_id = NULL
+              FROM users u
+              WHERE sa.assigned_user_id = u.id
+                AND (
+                  UPPER(COALESCE(u.status, '')) <> 'ACTIVE'
+                  OR NOT EXISTS (
+                    SELECT 1
+                    FROM user_role ur
+                    JOIN role r ON r.id = ur.role_id
+                    WHERE ur.user_id = u.id
+                      AND r.name = 'SOCIAL_WORKER'
+                  )
+                  OR EXISTS (
+                    SELECT 1
+                    FROM user_role ur
+                    JOIN role r ON r.id = ur.role_id
+                    WHERE ur.user_id = u.id
+                      AND r.name IN ('MANAGER', 'ADMIN', 'FULL_MANAGER', 'TEAM_LEAD')
+                  )
+                );
+      rollback: []

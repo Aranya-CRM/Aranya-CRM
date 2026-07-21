@@ -71,12 +71,10 @@ export function CaseReportsTab({ caseData, isManager, readOnly = false }: Props)
   async function handleDeleteReport() {
     if (!selectedReport) return
     if (!window.confirm(t('reports.detail.confirmDelete', { id: `RPT-${String(selectedReport.id).padStart(4, '0')}` }))) return
-    const reason = window.prompt(t('approvalConfirm.reasonPlaceholder'))
-    if (reason === null) return
     setDeletingReport(true)
     setErrorMessage(undefined)
     try {
-      await deleteReport(selectedReport.id, { reason })
+      await deleteReport(selectedReport.id)
       setReports((current) => current.filter((report) => report.id !== selectedReport.id))
       setSelectedReport(null)
     } catch {

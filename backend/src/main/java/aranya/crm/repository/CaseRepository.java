@@ -139,7 +139,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT DISTINCT cc FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -154,7 +153,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT DISTINCT cc FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -173,7 +171,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             JOIN cc.client c
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -195,7 +192,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             JOIN cc.client c
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -220,7 +216,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE cc.id = :caseId
             AND LOWER(cc.status) <> 'deleted'
@@ -236,7 +231,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT DISTINCT cc FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -251,7 +245,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT COUNT(DISTINCT cc) FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -265,7 +258,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT COUNT(DISTINCT cc) FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId
@@ -282,7 +274,6 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
             SELECT COUNT(DISTINCT cc.client.id) FROM ClientCase cc
             LEFT JOIN CaseAssignment ca
               ON ca.clientCase = cc
-             AND ca.primary = true
              AND UPPER(ca.status) = 'ACTIVE'
             WHERE (
                 ca.user.id = :assignedUserId

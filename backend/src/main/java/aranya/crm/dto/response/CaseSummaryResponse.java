@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -26,6 +27,7 @@ public class CaseSummaryResponse {
     private String clientNameChn;
     private Long createdById;
     private String createdByName;
+    private List<UserAssignmentResponse> participantUsers;
     private String comments;
     private String remarks;
 }

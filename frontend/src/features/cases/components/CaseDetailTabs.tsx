@@ -9,7 +9,7 @@ import { AuditHistoryPanel } from '../../audit-history'
 import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
-import { useUpdateCase, useUpdateCaseServices } from '../hooks'
+import { useUpdateCase, useUpdateCaseParticipants, useUpdateCaseServices } from '../hooks'
 import { canBePrimaryCaseAssignee } from '../caseAssigneeUtils'
 import type { Case, CaseColorCode, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
@@ -76,8 +76,8 @@ export function CaseDetailTabs({ caseData, isManager, readOnly = false }: CaseDe
 
       <div className="case-detail-tab-content">
         {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} readOnly={readOnly} /> : null}
-        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} readOnly={readOnly} /> : null}
-        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} readOnly={readOnly} /> : null}
+        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
+        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
         {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} readOnly={readOnly} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
         {activeTab === 'audit'     ? <AuditHistoryPanel caseId={caseData.id} caseCode={caseData.caseNo} /> : null}
@@ -90,12 +90,18 @@ const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 
 
 function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
   const { t } = useTranslation()
-  const { resolve } = useAccess()
+  const { getCap, resolve } = useAccess()
+  const { user } = useAuth()
   const serviceCount = activeServiceCount(caseData.services)
 
   const canChangeStatus   = resolve('cases:status.close')
   const canAssign         = resolve('cases:assign') || resolve('cases:reassign')
+  const canCreateService  = resolve('cases:services.create')
   const canEditIntensity  = resolve('cases:assign')
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const canEditPrimaryAssignee = canAssign && (getCap('cases:view') === 'ALL' || getCap('cases:view') === 'YES')
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const canManageParticipants = !readOnly && isPrimaryOwner && (canAssign || canCreateService)
   const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity)
 
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
@@ -110,8 +116,11 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const [comments, setComments] = useState(caseData.comments ?? '')
   const [remarks, setRemarks] = useState(caseData.remarks ?? '')
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
+  const [participantIds, setParticipantIds] = useState<string[]>(() => (caseData.participantUsers ?? []).map((item) => String(item.id)))
+  const [showParticipants, setShowParticipants] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const updateCase = useUpdateCase()
+  const updateParticipants = useUpdateCaseParticipants(caseData.id)
 
   const isDirty =
     status !== savedStatus ||
@@ -121,13 +130,17 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
     remarks !== savedRemarks
 
   useEffect(() => {
-    if (!canAssign) return
+    if (!canEditPrimaryAssignee && !canManageParticipants) return
     fetchUsers()
       .then((users) => {
         setSocialWorkers(users.filter(canBePrimaryCaseAssignee))
       })
       .catch(() => {})
-  }, [canAssign])
+  }, [canEditPrimaryAssignee, canManageParticipants])
+
+  useEffect(() => {
+    setParticipantIds((caseData.participantUsers ?? []).map((item) => String(item.id)))
+  }, [caseData.participantUsers])
 
   async function handleSave() {
     const updated = await updateCase.mutateAsync({
@@ -135,7 +148,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
       data: {
         status,
         colorCode,
-        socialWorkerId: socialWorkerId || undefined,
+        socialWorkerId: canEditPrimaryAssignee ? socialWorkerId || undefined : undefined,
         comments,
         remarks,
       },
@@ -167,6 +180,23 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
     setIsEditing(true)
   }
 
+  const participantOptions = socialWorkers.filter((worker) => (
+    worker.roles.includes('SOCIAL_WORKER') && String(worker.id) !== String(savedSocialWorkerId)
+  ))
+
+  function toggleParticipant(id: number) {
+    const value = String(id)
+    setParticipantIds((current) => (
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+    ))
+  }
+
+  async function saveParticipants() {
+    const updated = await updateParticipants.mutateAsync(participantIds)
+    setParticipantIds(updated.map((item) => String(item.id)))
+    setShowParticipants(false)
+  }
+
   return (
     <>
       <div className="case-detail-info-grid">
@@ -189,7 +219,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         />
         <InfoCell
           label={t('cases.overview.caseworker')}
-          value={canAssign && isEditing ? (
+          value={canEditPrimaryAssignee && isEditing ? (
             <select
               className="overview-select"
               value={socialWorkerId}
@@ -203,6 +233,24 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
           ) : (
             savedSocialWorkerName || '—'
           )}
+        />
+        <InfoCell
+          label={t('cases.overview.participants')}
+          value={(
+            <div className="case-participant-summary">
+              {(caseData.participantUsers ?? []).length > 0 ? (
+                <span>{(caseData.participantUsers ?? []).map((item) => item.fullName || item.email || item.id).join(', ')}</span>
+              ) : (
+                <span>—</span>
+              )}
+              {canManageParticipants ? (
+                <button className="btn-link-action" type="button" onClick={() => setShowParticipants(true)}>
+                  {t('cases.overview.manageParticipants')}
+                </button>
+              ) : null}
+            </div>
+          )}
+          wide
         />
         <InfoCell
           label={t('cases.overview.intensity')}
@@ -283,6 +331,42 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
 
       {caseData.tasks && caseData.tasks.length > 0 ? (
         <TaskList tasks={caseData.tasks} />
+      ) : null}
+
+      {showParticipants ? (
+        <div className="event-modal-backdrop" role="presentation" onMouseDown={() => setShowParticipants(false)}>
+          <div className="event-modal case-participant-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <header className="event-modal-header">
+              <h2>{t('cases.overview.manageParticipants')}</h2>
+              <button type="button" className="event-modal-close" aria-label="Close" onClick={() => setShowParticipants(false)}>×</button>
+            </header>
+            <div className="event-modal-body">
+              <div className="case-participant-list">
+                {participantOptions.map((worker) => (
+                  <label key={worker.id} className="case-participant-option">
+                    <input
+                      type="checkbox"
+                      checked={participantIds.includes(String(worker.id))}
+                      onChange={() => toggleParticipant(worker.id)}
+                    />
+                    <span>{worker.fullName || worker.email}</span>
+                  </label>
+                ))}
+                {participantOptions.length === 0 ? (
+                  <p className="case-placeholder-text">{t('cases.overview.noParticipantOptions')}</p>
+                ) : null}
+              </div>
+            </div>
+            <footer className="event-modal-footer">
+              <button className="btn-secondary" type="button" disabled={updateParticipants.isPending} onClick={() => setShowParticipants(false)}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn-primary" type="button" disabled={updateParticipants.isPending} onClick={() => void saveParticipants()}>
+                {updateParticipants.isPending ? t('common.saving') : t('common.save')}
+              </button>
+            </footer>
+          </div>
+        </div>
       ) : null}
     </>
   )
@@ -416,7 +500,7 @@ function parsePendingServicePayload(payloadJson?: string | null): PendingService
   }
 }
 
-function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
+function ServicesTab({ caseData, isManager, readOnly }: { caseData: Case, isManager: boolean, readOnly: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const { user } = useAuth()
@@ -431,6 +515,16 @@ function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: serviceRequestMode === 'add' })
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const isCaseParticipant = currentUserId !== '' && Boolean(caseData.participantUsers?.some((item) => String(item.id) === currentUserId))
+  const forcePrimaryApprover = isCaseParticipant && !isPrimaryOwner && !isManager
+  const primaryApproverId = caseData.socialWorkerId != null ? Number(caseData.socialWorkerId) : undefined
+  const primaryApproverOptions = primaryApproverId != null && Number.isFinite(primaryApproverId)
+    ? [{ id: primaryApproverId, label: caseData.socialWorker || String(caseData.socialWorkerId) }]
+    : []
+  const serviceApproverOptions = forcePrimaryApprover ? primaryApproverOptions : approvalAssignees.options
+  const serviceApproverLoading = forcePrimaryApprover ? false : approvalAssignees.isLoading
 
   const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
   const serverServiceApprovals = useMemo(() => pendingApprovals.filter((approval) => (
@@ -688,9 +782,9 @@ function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         cancelLabel={t('approvalConfirm.cancel')}
         pending={updateServices.isPending}
         error={serviceApprovalError}
-        approverOptions={approvalAssignees.options}
+        approverOptions={serviceApproverOptions}
         approverRequired
-        approverLoading={approvalAssignees.isLoading}
+        approverLoading={serviceApproverLoading}
         onCancel={() => {
           setServiceApprovalError('')
           setShowServiceApprovalConfirm(false)
@@ -806,18 +900,22 @@ function formatDateTime(value?: string | null): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function CalendarTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
+function CalendarTab({ caseData, isManager, readOnly }: { caseData: Case, isManager: boolean, readOnly: boolean }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [showAddEvent, setShowAddEvent] = useState(false)
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const eventReadOnly = readOnly || (!isManager && !isPrimaryOwner)
 
   return (
     <div className="service-calendar-section">
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar caseData={caseData} readOnly={readOnly} />
+      <CaseServiceCalendar caseData={caseData} readOnly={eventReadOnly} />
 
-      {!readOnly ? (
+      {!eventReadOnly ? (
         <div className="calendar-add-event-bar">
           <button
             className="btn-primary"
@@ -829,7 +927,7 @@ function CalendarTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         </div>
       ) : null}
 
-      {showAddEvent && !readOnly ? (
+      {showAddEvent && !eventReadOnly ? (
         <AddCaseEventForm caseData={caseData} onDone={() => setShowAddEvent(false)} />
       ) : null}
     </div>

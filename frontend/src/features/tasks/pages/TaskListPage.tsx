@@ -111,10 +111,10 @@ export function TaskListPage() {
                   <span className="task-title">{task.title}</span>
                   <span className="task-meta">{formatDate(task.scheduledStart)} · {task.location ?? '-'}</span>
                   {scope !== 'mine' ? (
-                    <span className="task-meta">{t('tasks.assignedTo')}: {task.assignedUserName ?? '-'}</span>
+                    <span className="task-meta">{t('tasks.assignedTo')}: {eventParticipantNames(task)}</span>
                   ) : null}
                 </span>
-                {user?.id != null && task.assignedUserId != null && String(task.assignedUserId) === String(user.id) && task.reminderState && REMINDER_BADGE[task.reminderState] ? (
+                {user?.id != null && (scope === 'mine' || isEventParticipant(task, String(user.id))) && task.reminderState && REMINDER_BADGE[task.reminderState] ? (
                   <span className={`task-reminder task-reminder-${REMINDER_BADGE[task.reminderState]}`}>
                     {t(`tasks.reminder.${task.reminderState}`)}
                   </span>
@@ -127,4 +127,15 @@ export function TaskListPage() {
       </SectionCard>
     </div>
   )
+}
+
+function isEventParticipant(task: ServiceEvent, userId: string): boolean {
+  return (task.participantUserIds ?? []).map(String).includes(userId)
+    || (task.assignedUserId != null && String(task.assignedUserId) === userId)
+}
+
+function eventParticipantNames(task: ServiceEvent): string {
+  const names = task.participantUsers?.map((item) => item.fullName || item.email || String(item.id)).filter(Boolean) ?? []
+  if (names.length > 0) return names.join(', ')
+  return task.assignedUserName ?? '-'
 }

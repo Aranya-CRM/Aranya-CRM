@@ -1,4 +1,4 @@
-import { encodeHttpHeaderValue, http } from '../../../shared/api'
+import { http } from '../../../shared/api'
 import { requireFirebaseIdToken } from '../../auth/api/auth'
 import { queryClient } from '../../../app/queryClient'
 import { auditHistoryQueryKeys } from '../../audit-history/api'
@@ -8,18 +8,6 @@ async function authHeaders() {
   return {
     Authorization: `Bearer ${await requireFirebaseIdToken()}`,
   }
-}
-
-interface ApprovalOptions {
-  approverId?: number
-  reason?: string
-}
-
-async function approvalHeaders(options?: ApprovalOptions) {
-  const headers: Record<string, string> = await authHeaders()
-  if (options?.approverId) headers['X-Approver-Id'] = String(options.approverId)
-  if (options?.reason?.trim()) headers['X-Approval-Reason'] = encodeHttpHeaderValue(options.reason.trim())
-  return headers
 }
 
 export async function fetchReports(options?: { mine?: boolean, caseId?: string | number, appointmentId?: string | number }): Promise<ReportSummary[]> {
@@ -62,9 +50,9 @@ export async function submitReport(id: string | number): Promise<ReportDetail> {
   return res.data
 }
 
-export async function deleteReport(id: string | number, options?: ApprovalOptions): Promise<void> {
+export async function deleteReport(id: string | number): Promise<void> {
   await http.delete(`/v1/reports/${id}`, {
-    headers: await approvalHeaders(options),
+    headers: await authHeaders(),
   })
   await queryClient.invalidateQueries({ queryKey: auditHistoryQueryKeys.all })
 }

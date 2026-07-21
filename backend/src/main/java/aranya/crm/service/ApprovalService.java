@@ -234,6 +234,12 @@ public class ApprovalService {
         boolean requesterIsSocialWorker = hasRole(requestedBy, "SOCIAL_WORKER");
         boolean approverIsManager = isApprovalManager(assignedApprover);
 
+        if ("CASE_SERVICE_UPDATE".equals(approvalType)
+                && requesterIsSocialWorker
+                && hasRole(assignedApprover, "SOCIAL_WORKER")
+                && isCasePrimaryApprover(payloadJson, assignedApprover)) {
+            return;
+        }
         if (requesterIsManager && !approverIsManager) {
             throw new AccessDeniedException("Managers can only assign approvals to another manager");
         }
@@ -298,6 +304,42 @@ public class ApprovalService {
 
     private boolean canViewCases(User user) {
         return hasAnyRole(user, "MANAGER", "ADMIN", "FULL_MANAGER", "TEAM_LEAD", "VIEW_MANAGER", "SOCIAL_WORKER");
+    }
+
+    private boolean isCasePrimaryApprover(JsonNode payloadJson, User assignedApprover) {
+        if (payloadJson == null || assignedApprover == null || assignedApprover.getId() == null) {
+            return false;
+        }
+        JsonNode caseIdNode = payloadJson.path("caseId");
+        if (!caseIdNode.canConvertToLong()) {
+            return false;
+        }
+        Long caseId = caseIdNode.asLong();
+        Integer activePrimaryCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM case_assignment
+                WHERE case_id = ?
+                  AND user_id = ?
+                  AND is_primary = true
+                  AND UPPER(status) = 'ACTIVE'
+                """, Integer.class, caseId, assignedApprover.getId());
+        if (activePrimaryCount != null && activePrimaryCount > 0) {
+            return true;
+        }
+        Integer fallbackCreatedByCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM "case" c
+                WHERE c.id = ?
+                  AND c.created_by = ?
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM case_assignment ca
+                      WHERE ca.case_id = c.id
+                        AND ca.is_primary = true
+                        AND UPPER(ca.status) = 'ACTIVE'
+                  )
+                """, Integer.class, caseId, assignedApprover.getId());
+        return fallbackCreatedByCount != null && fallbackCreatedByCount > 0;
     }
 
     private boolean hasAnyRole(User user, String... roleNames) {

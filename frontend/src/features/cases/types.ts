@@ -42,6 +42,8 @@ export interface ServiceEvent {
   notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
+  participantUserIds?: number[]
+  participantUsers?: AssignmentUser[]
   createdById?: number | null
   createdByName?: string | null
   // 组织日历模板字段
@@ -55,6 +57,13 @@ export interface ServiceEvent {
   synced?: boolean
   // 当前镜像所在日历 id(编辑时预选)
   googleCalendarId?: string | null
+}
+
+export interface AssignmentUser {
+  id: number
+  fullName?: string | null
+  email?: string | null
+  role?: string | null
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
@@ -113,6 +122,7 @@ export interface Case {
   tradition: string
   socialWorkerId?: string
   socialWorker: string
+  participantUsers?: AssignmentUser[]
   assignedVolunteer?: string
   lastModifiedAt?: string
   lastModifiedBy?: string

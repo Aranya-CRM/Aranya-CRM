@@ -65,8 +65,9 @@ export function CaseServiceCalendar({ caseData, readOnly = false }: Props) {
     if (!currentUserId) return []
     return localEvents.filter((event) => {
       const assignedToMe = event.assignedUserId != null && String(event.assignedUserId) === currentUserId
+      const participant = event.participantUsers?.some((item) => String(item.id) === currentUserId) ?? false
       const createdByMe = canViewCreatedEvents && event.createdById != null && String(event.createdById) === currentUserId
-      return assignedToMe || createdByMe
+      return assignedToMe || participant || createdByMe
     })
   }, [canViewAllEvents, canViewCreatedEvents, currentUserId, localEvents])
 
@@ -116,7 +117,7 @@ export function CaseServiceCalendar({ caseData, readOnly = false }: Props) {
         end: ev.scheduledEnd,
         source: 'OWN_CASE',
         serviceName: ev.serviceName,
-        assignedUserName: ev.assignedUserName,
+        assignedUserName: eventParticipantNames(ev),
         location: ev.location,
         agenda: ev.agenda,
         schedule: ev.schedule,
@@ -334,4 +335,10 @@ export function CaseServiceCalendar({ caseData, readOnly = false }: Props) {
       ) : null}
     </div>
   )
+}
+
+function eventParticipantNames(event: ServiceEvent): string {
+  const names = event.participantUsers?.map((item) => item.fullName || item.email || String(item.id)).filter(Boolean) ?? []
+  if (names.length > 0) return names.join(', ')
+  return event.assignedUserName ?? ''
 }
