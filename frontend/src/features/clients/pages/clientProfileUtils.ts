@@ -9,7 +9,16 @@ export type ClientCaseFilter = 'all' | 'with_case' | 'without_case'
 export type ClientArchiveFilter = 'current' | 'closed'
 export type ClientGenderFilter = 'all' | Client['gender']
 export type ClientOrdinationStatusFilter = 'all' | Client['ordinationStatus']
-export type ClientDirectorySort = 'default' | 'ordination_years_asc' | 'ordination_years_desc' | 'age_asc' | 'age_desc'
+export type ClientDirectorySort =
+  | 'default'
+  | 'created_at_asc'
+  | 'created_at_desc'
+  | 'alpha_asc'
+  | 'alpha_desc'
+  | 'ordination_years_asc'
+  | 'ordination_years_desc'
+  | 'age_asc'
+  | 'age_desc'
 export type ClientProfileAction = 'convertToCase' | 'closeCase' | 'editProfile' | 'closeProfile'
 
 export type BackendClientResponse = {
@@ -63,6 +72,7 @@ export type BackendClientResponse = {
   nextOfKinContact?: string | null
   comments?: string | null
   membershipStatus?: string | null
+  createdAt?: string | null
 }
 
 const emptyWellbeing = {
@@ -147,11 +157,48 @@ export function sortClientDirectory<T extends {
   ordinationYears?: number | null
   dateOfBirth?: string | null
   dateOfOrdination?: string | null
+  createdAt?: string | null
+  abbr?: string | null
+  nameEn?: string | null
+  nameChn?: string | null
 }>(
   clients: T[],
   sort: ClientDirectorySort,
 ): T[] {
   if (sort === 'default') return clients
+
+  if (sort.startsWith('created_at')) {
+    const direction = sort.endsWith('desc') ? -1 : 1
+    return clients
+      .map((client, index) => ({ client, index }))
+      .sort((a, b) => {
+        const left = sortableTimestamp(a.client.createdAt)
+        const right = sortableTimestamp(b.client.createdAt)
+        if (left === undefined && right === undefined) return a.index - b.index
+        if (left === undefined) return 1
+        if (right === undefined) return -1
+        if (left === right) return a.index - b.index
+        return (left - right) * direction
+      })
+      .map((entry) => entry.client)
+  }
+
+  if (sort.startsWith('alpha')) {
+    const direction = sort.endsWith('desc') ? -1 : 1
+    return clients
+      .map((client, index) => ({ client, index }))
+      .sort((a, b) => {
+        const left = sortableClientName(a.client)
+        const right = sortableClientName(b.client)
+        if (!left && !right) return a.index - b.index
+        if (!left) return 1
+        if (!right) return -1
+        const compared = left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true })
+        if (compared === 0) return a.index - b.index
+        return compared * direction
+      })
+      .map((entry) => entry.client)
+  }
 
   const key = sort.startsWith('age') ? 'age' : 'ordinationYears'
   const dateKey = sort.startsWith('age') ? 'dateOfBirth' : 'dateOfOrdination'
@@ -192,6 +239,20 @@ function sortableNumber(value: number | null | undefined, sourceDate?: string | 
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+function sortableTimestamp(value: string | null | undefined): number | undefined {
+  if (!value) return undefined
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : undefined
+}
+
+function sortableClientName(client: {
+  abbr?: string | null
+  nameEn?: string | null
+  nameChn?: string | null
+}): string {
+  return String(client.abbr || client.nameEn || client.nameChn || '').trim()
+}
+
 export function profileActionGroups({
   canEdit,
   canConvertToCase,
@@ -222,6 +283,7 @@ export function mapBackendClientResponse(source: BackendClientResponse, referenc
 
   return {
     id: String(source.id),
+    createdAt: text(source.createdAt),
     membershipStatus: text(source.membershipStatus || 'ACTIVE').toUpperCase() as Client['membershipStatus'],
     abbr: text(source.abbr),
     nameEn: text(source.nameEn),
