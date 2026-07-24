@@ -11,11 +11,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -48,6 +50,24 @@ public class EventController {
             return ResponseEntity.ok(caseService.listCreatedServiceEvents(currentUser.getId()));
         }
         return ResponseEntity.ok(caseService.listAssignedServiceEvents(currentUser.getId()));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ServiceEventResponse> getEvent(
+            @CurrentUser User currentUser,
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        if (hasRole(authentication, "ADMIN")) {
+            throw new org.springframework.security.access.AccessDeniedException("Admin does not use event module");
+        }
+        Optional<ServiceEventResponse> event = caseService.findVisibleServiceEvent(
+                id,
+                currentUser.getId(),
+                canViewAllEvents(authentication),
+                canCreateEvents(authentication)
+        );
+        return ResponseEntity.of(event);
     }
 
     private boolean canViewAllEvents(Authentication authentication) {

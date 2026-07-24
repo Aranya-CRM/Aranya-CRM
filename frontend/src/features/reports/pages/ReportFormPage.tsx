@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
-import { fetchEvents } from '../../tasks/api/task.api'
+import { fetchEvent } from '../../tasks/api/task.api'
 import type { ServiceEvent } from '../../cases/types'
 import { createReport, fetchReportById, submitReport, updateReport } from '../api/report.api'
 import type { CreateReportPayload, ReportDetail, ReportStatus } from '../types'
@@ -133,11 +133,9 @@ export function ReportFormPage() {
         if (!appointmentId) {
           throw new Error(t('reports.form.eventRequired'))
         }
-        const events = await fetchEvents('mine')
-        const matchedEvent = events.find((item) => Number(item.id) === Number(appointmentId))
-        if (!matchedEvent) {
+        const matchedEvent = await fetchEvent(appointmentId).catch(() => {
           throw new Error(t('reports.form.eventNotAssigned'))
-        }
+        })
         if (!active) return
         setEventContext(matchedEvent)
         if (report) {

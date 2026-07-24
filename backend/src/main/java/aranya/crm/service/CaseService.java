@@ -620,6 +620,70 @@ public class CaseService {
         return jdbcTemplate.query(serviceEventSql("WHERE LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"), serviceEventMapper());
     }
 
+    public Optional<ServiceEventResponse> findVisibleServiceEvent(
+            Long eventId,
+            Long userId,
+            boolean canViewAllEvents,
+            boolean canViewCreatedEvents
+    ) {
+        if (canViewAllEvents) {
+            return queryOptionalServiceEvent("""
+                    WHERE re.id = ?
+                      AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                    """, eventId);
+        }
+
+        if (canViewCreatedEvents) {
+            return queryOptionalServiceEvent("""
+                    WHERE re.id = ?
+                      AND (
+                          assigned_user_id = ?
+                          OR created_by_id = ?
+                          OR EXISTS (
+                              SELECT 1 FROM service_event_assignment sea
+                              WHERE sea.service_appointment_id = re.id
+                                AND sea.user_id = ?
+                                AND UPPER(sea.status) = 'ACTIVE'
+                          )
+                          OR EXISTS (
+                              SELECT 1 FROM case_assignment ca
+                              WHERE ca.case_id = re.case_id
+                                AND ca.user_id = ?
+                                AND ca.is_primary = true
+                                AND UPPER(ca.status) = 'ACTIVE'
+                          )
+                      )
+                      AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                    """, eventId, userId, userId, userId, userId);
+        }
+
+        return queryOptionalServiceEvent("""
+                WHERE re.id = ?
+                  AND (
+                      assigned_user_id = ?
+                      OR EXISTS (
+                          SELECT 1 FROM service_event_assignment sea
+                          WHERE sea.service_appointment_id = re.id
+                            AND sea.user_id = ?
+                            AND UPPER(sea.status) = 'ACTIVE'
+                      )
+                      OR EXISTS (
+                          SELECT 1 FROM case_assignment ca
+                          WHERE ca.case_id = re.case_id
+                            AND ca.user_id = ?
+                            AND ca.is_primary = true
+                            AND UPPER(ca.status) = 'ACTIVE'
+                      )
+                  )
+                  AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                """, eventId, userId, userId, userId);
+    }
+
+    private Optional<ServiceEventResponse> queryOptionalServiceEvent(String whereClause, Object... args) {
+        List<ServiceEventResponse> events = jdbcTemplate.query(serviceEventSql(whereClause), serviceEventMapper(), args);
+        return events.stream().findFirst();
+    }
+
     /** 分配给该用户、探访已过且尚未提交报告的事件数(PENDING/DUE_SOON/OVERDUE),用于看板提醒。 */
     public long countPendingReportEvents(Long assignedUserId) {
         return listAssignedServiceEvents(assignedUserId).stream()

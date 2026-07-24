@@ -197,6 +197,11 @@ export async function fetchAssignedServiceEvents(scope: 'mine' | 'all' | 'create
   return res.data
 }
 
+export async function fetchAssignedServiceEvent(eventId: string | number): Promise<ServiceEvent> {
+  const res = await http.get<ServiceEvent>(`/v1/events/${eventId}`)
+  return res.data
+}
+
 /**
  * 拉取 Google 共享日历在 [from, to] 区间内的事件(后端已排除本 case 自己的事件)。
  * mock 模式或集成未启用时安全返回空数组。
