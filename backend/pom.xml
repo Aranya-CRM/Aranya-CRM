@@ -42,6 +42,16 @@
             <artifactId>google-api-services-calendar</artifactId>
             <version>v3-rev20240906-2.0.0</version>
         </dependency>
+        <!-- Gmail API: event overdue reminder delivery -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-gmail</artifactId>
+            <version>v1-rev20260525-2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>jakarta.mail</artifactId>
+        </dependency>
         <!-- Google Drive API (一次性历史文件迁移导入,复用 infotech OAuth) -->
         <dependency>
             <groupId>com.google.apis</groupId>

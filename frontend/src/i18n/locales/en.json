@@ -66,6 +66,13 @@
     "brandSubtitle": "Aranya CRM",
     "logout": "Logout"
   },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "overdueTitle": "Event #{{eventId}} report is overdue",
+    "overdueBody": "Deadline: {{deadline}}. Open the event to submit a report."
+  },
   "common": {
     "loading": "Loading...",
     "cancel": "Cancel",

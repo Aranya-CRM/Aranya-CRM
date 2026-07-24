@@ -37,6 +37,7 @@ public class ReportService {
     private final ServiceAppointmentRepository serviceAppointmentRepository;
     private final OperationAuditLogService operationAuditLogService;
     private final ServiceEventAssignmentRepository serviceEventAssignmentRepository;
+    private final EventOverdueNotificationService eventOverdueNotificationService;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
 
@@ -141,6 +142,9 @@ public class ReportService {
 
         VisitReport saved = visitReportRepository.save(report);
         recordReportLog(saved, createdBy, "REPORT_CREATED", "创建报告", null, reportAuditValues(saved));
+        if (STATUS_SUBMITTED.equals(nextStatus)) {
+            eventOverdueNotificationService.resolveForEvent(appointment.getId());
+        }
         return toReportDetailResponse(saved);
     }
 
@@ -180,6 +184,9 @@ public class ReportService {
         report.setUpdatedAt(LocalDateTime.now());
         recordReportLog(report, currentUser, "REPORT_SUBMITTED", "提交报告",
                 Map.of("status", beforeStatus), Map.of("status", STATUS_SUBMITTED));
+        if (report.getServiceAppointment() != null) {
+            eventOverdueNotificationService.resolveForEvent(report.getServiceAppointment().getId());
+        }
         return toReportDetailResponse(report);
     }
 
