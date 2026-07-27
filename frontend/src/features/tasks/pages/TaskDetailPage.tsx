@@ -9,7 +9,7 @@ import { isCurrentReportStatus, reportStatusKey } from '../../reports/reportStat
 import type { ReportDetail, ReportSummary } from '../../reports/types'
 import { useCase } from '../../cases/hooks'
 import type { ServiceEvent } from '../../cases/types'
-import { fetchEvents } from '../api/task.api'
+import { fetchEvent } from '../api/task.api'
 import './tasks.css'
 
 function formatDate(value: string | null | undefined): string {
@@ -65,15 +65,14 @@ export function TaskDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
-  const { getCap, resolve } = useAccess()
+  const { getCap } = useAccess()
   const { user } = useAuth()
-  const canViewAllEvents = getCap('reports:view') === 'ALL'
-  const canViewCreatedEvents = !canViewAllEvents && getCap('cases:services.create') !== 'NO'
-  const canViewMember = resolve('clients:view') || resolve('clients:view.full')
+  const canViewMember = getCap('clients:view') === 'ALL' || getCap('clients:view') === 'YES'
+    || getCap('clients:view.full') === 'ALL' || getCap('clients:view.full') === 'YES'
   const [taskEvent, setTaskEvent] = useState<ServiceEvent>()
   const [isTaskLoading, setIsTaskLoading] = useState(true)
   const caseId = taskEvent ? String(taskEvent.caseId) : undefined
-  const { data: caseData, isLoading } = useCase(caseId)
+  const { data: caseData, isLoading } = useCase(canViewMember ? caseId : undefined)
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [errorMessage, setErrorMessage] = useState<string>()
   const returnedReport = isReportDetail(location.state && typeof location.state === 'object' ? (location.state as { report?: unknown }).report : undefined)
@@ -85,15 +84,11 @@ export function TaskDetailPage() {
     setIsTaskLoading(true)
     async function loadEvent() {
       try {
-        const primary = await fetchEvents(canViewAllEvents ? 'all' : 'mine')
-        let match = primary.find((item) => String(item.id) === id)
-        if (!match && canViewCreatedEvents) {
-          const created = await fetchEvents('created')
-          match = created.find((item) => String(item.id) === id)
-        }
+        if (!id) throw new Error('Missing event id')
+        const match = await fetchEvent(id)
         if (active) setTaskEvent(match)
       } catch {
-        if (active) setErrorMessage(t('tasks.loadError'))
+        if (active) setTaskEvent(undefined)
       } finally {
         if (active) setIsTaskLoading(false)
       }
@@ -102,7 +97,7 @@ export function TaskDetailPage() {
     return () => {
       active = false
     }
-  }, [canViewAllEvents, canViewCreatedEvents, id, t])
+  }, [id])
 
   const loadReports = useCallback(async (active = true) => {
     if (!taskEvent?.id) return
@@ -164,14 +159,18 @@ export function TaskDetailPage() {
   }, [errorMessage, isTaskLoading, navigate, taskEvent])
 
   const myReports = reports.filter((report) => reportMatchesTask(report, taskEvent ? String(taskEvent.id) : id) && isCurrentReportStatus(report.status))
+  const hasSubmittedReport = myReports.some((report) => String(report.status ?? '').toUpperCase() === 'SUBMITTED')
   const returnTo = `/reports/${taskEvent?.id ?? id ?? ''}`
-  const isAssignedToMe = Boolean(user?.id != null && taskEvent?.assignedUserId != null && String(taskEvent.assignedUserId) === String(user.id))
+  const isAssignedToMe = Boolean(user?.id != null && taskEvent && (
+    isEventParticipant(taskEvent, String(user.id))
+    || String(caseData?.socialWorkerId ?? '') === String(user.id)
+  ))
 
-  if (isTaskLoading || isLoading) {
+  if (isTaskLoading || (canViewMember && isLoading)) {
     return <div className="task-page"><PageHeader title={t('common.loading')} /></div>
   }
 
-  if (!taskEvent || !caseData) {
+  if (!taskEvent) {
     return (
       <div className="task-page">
         <BackButton onClick={() => navigate('/reports')} />
@@ -183,16 +182,16 @@ export function TaskDetailPage() {
   return (
     <div className="task-page">
       <BackButton onClick={() => navigate('/reports')} />
-      <PageHeader title={taskEvent.title} subtitle={caseData.caseNo} />
+      <PageHeader title={taskEvent.title} subtitle={taskEvent.caseCode ?? caseData?.caseNo} />
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
       <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Request" bodyPadding>
         <div className="task-overview-grid">
           <Info label={t('tasks.request.subject')} value={taskEvent.title} />
-          {canViewMember ? (
-            <ActionInfo label={t('reports.form.member')} value={t('tasks.viewMember')} onClick={() => navigate(`/clients/${caseData.clientId}`)} />
+          {canViewMember && (taskEvent.clientId != null || caseData?.clientId != null) ? (
+            <ActionInfo label={t('reports.form.member')} value={t('tasks.viewMember')} onClick={() => navigate(`/clients/${taskEvent.clientId ?? caseData?.clientId}`)} />
           ) : null}
-          <Info label={t('reports.form.case')} value={caseData.caseNo || '-'} />
+          <Info label={t('reports.form.case')} value={taskEvent.caseCode ?? caseData?.caseNo ?? '-'} />
           <Info label={t('reports.form.dateOfVisit')} value={formatDate(taskEvent.scheduledStart)} />
           <Info label={t('reports.form.timeOfVisit')} value={formatTimeRange(taskEvent.scheduledStart, taskEvent.scheduledEnd)} />
           <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
@@ -202,13 +201,13 @@ export function TaskDetailPage() {
       </SectionCard>
 
       <SectionCard className="task-detail-card" title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
-        {isAssignedToMe ? (
+        {isAssignedToMe && !hasSubmittedReport ? (
           <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?appointmentId=${taskEvent.id}&returnTo=${encodeURIComponent(returnTo)}`)}>
             {t('tasks.submitReport')}
           </button>
-        ) : (
+        ) : !isAssignedToMe ? (
           <div className="task-empty compact">{t('tasks.reportOnlyAssigned')}</div>
-        )}
+        ) : null}
         {myReports.length === 0 ? (
           <div className="task-empty compact">{t('tasks.noReports')}</div>
         ) : (
@@ -224,6 +223,11 @@ export function TaskDetailPage() {
       </SectionCard>
     </div>
   )
+}
+
+function isEventParticipant(event: ServiceEvent, userId: string): boolean {
+  return (event.participantUserIds ?? []).map(String).includes(userId)
+    || (event.assignedUserId != null && String(event.assignedUserId) === userId)
 }
 
 function Info({ label, value, wide, multiline }: { label: string, value: string, wide?: boolean, multiline?: boolean }) {

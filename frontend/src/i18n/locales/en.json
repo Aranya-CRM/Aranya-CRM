@@ -66,6 +66,13 @@
     "brandSubtitle": "Aranya CRM",
     "logout": "Logout"
   },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "overdueTitle": "Event #{{eventId}} report is overdue",
+    "overdueBody": "Deadline: {{deadline}}. Open the event to submit a report."
+  },
   "common": {
     "loading": "Loading...",
     "cancel": "Cancel",
@@ -241,6 +248,10 @@
       "service": "Service",
       "selectService": "Select service",
       "assignee": "Assignee",
+      "participants": "Participants",
+      "searchParticipants": "Search social workers or volunteers by name, username, or email",
+      "removeParticipant": "Remove participant {{name}}",
+      "noParticipantOptions": "No matching participants available to add.",
       "selectAssignee": "Select assignee",
       "time": "Specific Time",
       "location": "Location",
@@ -273,6 +284,10 @@
       "dateOpened": "Date Opened",
       "status": "Status",
       "caseworker": "Caseworker",
+      "participants": "Participants",
+      "searchParticipants": "Search social workers by name, username, or email",
+      "removeParticipant": "Remove participant {{name}}",
+      "noParticipantOptions": "No matching social workers available to add.",
       "intensity": "Intensity",
       "activeModules": "Active Modules",
       "activeModulesValue": "{{count}} module(s)",
@@ -354,19 +369,19 @@
     "reports": {
       "count": "{{count}} report(s)",
       "empty": "No visit reports yet",
+      "print": "Print",
       "col": {
         "date": "Visit Date",
         "type": "Type",
         "duration": "Duration",
         "submitter": "Submitted By",
-        "status": "Status"
+        "status": "Status",
+        "actions": "Actions"
       }
     }
   },
   "auditHistory": {
     "title": "Operation Log",
-    "subtitle": "{{caseCode}} · Records who performed which operation, on what, and when.",
-    "readonly": "Read-only / immutable",
     "listLabel": "Case operation log",
     "loading": "Loading operation log...",
     "loadError": "Failed to load the operation log.",
@@ -483,6 +498,12 @@
     "filterWithCase": "With Case",
     "filterWithoutCase": "Without Case",
     "filterClear": "Clear filters",
+    "sortCreatedAtLabel": "Date Added",
+    "sortCreatedAtDesc": "Newest First",
+    "sortCreatedAtAsc": "Oldest First",
+    "sortAlphaLabel": "Alphabetical",
+    "sortAlphaAsc": "A → Z",
+    "sortAlphaDesc": "Z → A",
     "sortAgeLabel": "Age",
     "sortAgeAsc": "Age ↑",
     "sortAgeDesc": "Age ↓",
@@ -765,19 +786,19 @@
   "tasks": {
     "title": "Events",
     "count": "{{count}} events",
-    "scopeLabel": "Event scope",
-    "myEvents": "My Events",
-    "allEvents": "All Events",
-    "otherEvents": "Other Events",
+    "statusLabel": "Event completion status",
+    "incompleteEvents": "Incomplete Events",
+    "completedEvents": "Completed Events",
     "assignedTo": "Assigned to",
     "loadError": "Failed to load events.",
-    "empty": "No events assigned to you",
+    "emptyIncomplete": "No incomplete events",
+    "emptyCompleted": "No completed events",
     "open": "Open",
     "notFound": "Event Not Found",
     "caseOverview": "Event",
     "submitReport": "Submit report",
-    "myReports": "My Uploaded Reports",
-    "reportOnlyAssigned": "Only the assigned person can submit this event report.",
+    "myReports": "Event Reports",
+    "reportOnlyAssigned": "Only event participants or the primary case assignee can submit this event report.",
     "viewMember": "View member profile",
     "request": {
       "subject": "Subject",
@@ -788,8 +809,8 @@
       "content": "Content",
       "contact": "Contact"
     },
-    "noReports": "No reports uploaded by you",
-    "reportsLoadError": "Failed to load my reports.",
+    "noReports": "No event reports",
+    "reportsLoadError": "Failed to load event reports.",
     "reminder": {
       "PENDING": "Report needed",
       "DUE_SOON": "Report due soon",

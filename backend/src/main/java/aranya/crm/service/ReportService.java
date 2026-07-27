@@ -10,7 +10,9 @@ import aranya.crm.entity.ServiceType;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.ServiceAppointmentRepository;
+import aranya.crm.repository.ServiceEventAssignmentRepository;
 import aranya.crm.repository.VisitReportRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +33,11 @@ public class ReportService {
 
     private final VisitReportRepository visitReportRepository;
     private final CaseRepository caseRepository;
+    private final CaseAssignmentRepository caseAssignmentRepository;
     private final ServiceAppointmentRepository serviceAppointmentRepository;
     private final OperationAuditLogService operationAuditLogService;
+    private final ServiceEventAssignmentRepository serviceEventAssignmentRepository;
+    private final EventOverdueNotificationService eventOverdueNotificationService;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
 
@@ -74,12 +79,19 @@ public class ReportService {
     }
 
     public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId, Long appointmentId) {
+        return listOwnReports(currentUser, caseId, appointmentId, false);
+    }
+
+    public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId, Long appointmentId, boolean canViewAllEventReports) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null) {
             return List.of();
         }
         if (appointmentId != null) {
-            return visitReportRepository.findByCreatedByIdAndServiceAppointmentIdOrderByCreatedAtDescIdDesc(currentUserId, appointmentId).stream()
+            ServiceAppointment appointment = canViewAllEventReports
+                    ? requireExistingAppointment(appointmentId)
+                    : requireAssignedAppointment(appointmentId, currentUser);
+            return visitReportRepository.findVisibleReportsForAssignedAppointment(currentUserId, appointment.getId()).stream()
                     .map(this::toReportSummaryResponse)
                     .toList();
         }
@@ -96,7 +108,6 @@ public class ReportService {
     public ReportDetailResponse getReportDetail(Long reportId) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
-
         return toReportDetailResponse(report);
     }
 
@@ -125,10 +136,15 @@ public class ReportService {
         report.setReportTimestamp(LocalDateTime.now());
         applyEventContext(report, appointment, clientCase, client);
         applyReportFields(report, request);
-        report.setStatus(normalizeStatus(request.getStatus()));
+        String nextStatus = normalizeStatus(request.getStatus());
+        requireNoSubmittedReportWhenSubmitting(appointment, nextStatus);
+        report.setStatus(nextStatus);
 
         VisitReport saved = visitReportRepository.save(report);
         recordReportLog(saved, createdBy, "REPORT_CREATED", "创建报告", null, reportAuditValues(saved));
+        if (STATUS_SUBMITTED.equals(nextStatus)) {
+            eventOverdueNotificationService.resolveForEvent(appointment.getId());
+        }
         return toReportDetailResponse(saved);
     }
 
@@ -163,24 +179,19 @@ public class ReportService {
         requireOwner(report, currentUser);
         requireEditable(report);
         String beforeStatus = report.getStatus();
+        requireNoSubmittedReportWhenSubmitting(report.getServiceAppointment(), STATUS_SUBMITTED);
         report.setStatus(STATUS_SUBMITTED);
         report.setUpdatedAt(LocalDateTime.now());
         recordReportLog(report, currentUser, "REPORT_SUBMITTED", "提交报告",
                 Map.of("status", beforeStatus), Map.of("status", STATUS_SUBMITTED));
+        if (report.getServiceAppointment() != null) {
+            eventOverdueNotificationService.resolveForEvent(report.getServiceAppointment().getId());
+        }
         return toReportDetailResponse(report);
     }
 
     @Transactional
-    public void deleteOwnDraftReport(Long reportId, User currentUser) {
-        deleteReport(reportId, currentUser, false);
-    }
-
-    @Transactional
-    public void executeApprovedDeleteReport(Long reportId, User approvedBy) {
-        deleteReport(reportId, approvedBy, true);
-    }
-
-    private void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
+    public void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         if (!canDeleteAny) {
@@ -390,17 +401,41 @@ public class ReportService {
         if (appointmentId == null) {
             throw new IllegalArgumentException("Service event is required");
         }
-        ServiceAppointment appointment = serviceAppointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + appointmentId));
+        ServiceAppointment appointment = requireExistingAppointment(appointmentId);
         requireAssignedAppointment(appointment, currentUser);
         return appointment;
+    }
+
+    private ServiceAppointment requireExistingAppointment(Long appointmentId) {
+        if (appointmentId == null) {
+            throw new IllegalArgumentException("Service event is required");
+        }
+        return serviceAppointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + appointmentId));
     }
 
     private void requireAssignedAppointment(ServiceAppointment appointment, User currentUser) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         Long assignedUserId = appointment.getAssignedUser() != null ? appointment.getAssignedUser().getId() : null;
-        if (currentUserId == null || assignedUserId == null || !currentUserId.equals(assignedUserId)) {
-            throw new AccessDeniedException("Report can only be submitted by the assigned event owner");
+        Long caseId = appointment.getClientCase() != null ? appointment.getClientCase().getId() : null;
+        boolean directlyAssigned = currentUserId != null && assignedUserId != null && currentUserId.equals(assignedUserId);
+        boolean eventParticipant = currentUserId != null && serviceEventAssignmentRepository.existsActiveAssignment(appointment.getId(), currentUserId);
+        boolean casePrimary = currentUserId != null && caseId != null
+                && caseAssignmentRepository.findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(caseId, "ACTIVE")
+                    .map(assignment -> assignment.getUser().getId())
+                    .filter(currentUserId::equals)
+                    .isPresent();
+        if (!directlyAssigned && !eventParticipant && !casePrimary) {
+            throw new AccessDeniedException("Report can only be submitted by an assigned event participant");
+        }
+    }
+
+    private void requireNoSubmittedReportWhenSubmitting(ServiceAppointment appointment, String nextStatus) {
+        if (appointment == null || !STATUS_SUBMITTED.equalsIgnoreCase(nextStatus)) {
+            return;
+        }
+        if (visitReportRepository.existsByServiceAppointmentIdAndStatusIgnoreCase(appointment.getId(), STATUS_SUBMITTED)) {
+            throw new IllegalStateException("A submitted report already exists for this event");
         }
     }
 

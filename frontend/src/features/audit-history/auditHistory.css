@@ -49,16 +49,6 @@
   font-size: 13px;
 }
 
-.audit-history-lock {
-  padding: 6px 10px;
-  border: 1px solid #d7dee8;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .audit-history-stat-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

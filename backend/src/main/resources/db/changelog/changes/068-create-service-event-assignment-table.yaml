@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: 068-create-service-event-assignment-table
+      author: Codex
+      changes:
+        - createTable:
+            tableName: service_event_assignment
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: service_appointment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_service_event_assignment_appointment
+                    references: service_appointment(id)
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_service_event_assignment_user
+                    references: users(id)
+              - column:
+                  name: assignment_role
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assigned_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assigned_by
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_service_event_assignment_assigned_by
+                    references: users(id)
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_service_event_assignment_active_user
+              ON service_event_assignment (service_appointment_id, user_id)
+              WHERE status = 'ACTIVE';
+        - sql:
+            sql: >
+              INSERT INTO service_event_assignment (service_appointment_id, user_id, assignment_role, status, assigned_by)
+              SELECT id, assigned_user_id, 'LEGACY', 'ACTIVE', created_by
+              FROM service_appointment
+              WHERE assigned_user_id IS NOT NULL
+              ON CONFLICT DO NOTHING;
+      rollback:
+        - dropTable:
+            tableName: service_event_assignment

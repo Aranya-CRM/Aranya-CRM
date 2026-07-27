@@ -1,0 +1,111 @@
+databaseChangeLog:
+  - changeSet:
+      id: 073-create-event-overdue-notification
+      author: Codex
+      comment: "Persist one idempotent overdue reminder per event participant, including email queue state"
+      changes:
+        - createTable:
+            tableName: event_overdue_notification
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: event_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_event_overdue_notification_event
+                    references: service_appointment(id)
+              - column:
+                  name: recipient_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_event_overdue_notification_user
+                    references: users(id)
+              - column:
+                  name: deadline
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: read_at
+                  type: TIMESTAMP
+              - column:
+                  name: resolved_at
+                  type: TIMESTAMP
+              - column:
+                  name: email_status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email_document_id
+                  type: VARCHAR(160)
+              - column:
+                  name: email_attempts
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email_error
+                  type: TEXT
+              - column:
+                  name: last_email_attempt_at
+                  type: TIMESTAMP
+
+        - addUniqueConstraint:
+            tableName: event_overdue_notification
+            columnNames: event_id, recipient_user_id
+            constraintName: uq_event_overdue_notification_recipient
+
+        - createIndex:
+            tableName: event_overdue_notification
+            indexName: idx_event_overdue_notification_user
+            columns:
+              - column:
+                  name: recipient_user_id
+              - column:
+                  name: resolved_at
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: event_overdue_notification
+            indexName: idx_event_overdue_notification_email
+            columns:
+              - column:
+                  name: email_status
+              - column:
+                  name: email_attempts
+
+        - sql:
+            sql: >
+              ALTER TABLE event_overdue_notification
+              DROP CONSTRAINT fk_event_overdue_notification_event,
+              ADD CONSTRAINT fk_event_overdue_notification_event
+              FOREIGN KEY (event_id) REFERENCES service_appointment(id) ON DELETE CASCADE;
+
+        - sql:
+            sql: >
+              ALTER TABLE event_overdue_notification
+              DROP CONSTRAINT fk_event_overdue_notification_user,
+              ADD CONSTRAINT fk_event_overdue_notification_user
+              FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+      rollback:
+        - dropTable:
+            tableName: event_overdue_notification

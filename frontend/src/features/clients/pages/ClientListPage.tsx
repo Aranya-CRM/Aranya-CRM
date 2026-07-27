@@ -600,6 +600,22 @@ export function ClientListPage() {
                     </div>
                   ) : (
                     <div className="client-filter-sort-panel">
+                      <FilterGroup label={t('clients.sortCreatedAtLabel')}>
+                        <FilterChip active={directorySort === 'created_at_desc'} onClick={() => setDirectorySort('created_at_desc')}>
+                          {t('clients.sortCreatedAtDesc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'created_at_asc'} onClick={() => setDirectorySort('created_at_asc')}>
+                          {t('clients.sortCreatedAtAsc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.sortAlphaLabel')}>
+                        <FilterChip active={directorySort === 'alpha_asc'} onClick={() => setDirectorySort('alpha_asc')}>
+                          {t('clients.sortAlphaAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'alpha_desc'} onClick={() => setDirectorySort('alpha_desc')}>
+                          {t('clients.sortAlphaDesc')}
+                        </FilterChip>
+                      </FilterGroup>
                       <FilterGroup label={t('clients.sortAgeLabel')}>
                         <FilterChip active={directorySort === 'age_asc'} onClick={() => setDirectorySort('age_asc')}>
                           {t('clients.sortAgeAsc')}

@@ -9,7 +9,7 @@ import { AuditHistoryPanel } from '../../audit-history'
 import { useApproveRequest, usePendingApprovals, useRejectRequest, type ApprovalRequest as ServerApprovalRequest } from '../../approvals/api/approval.api'
 import { fetchUsers } from '../../users/api/userManagement.api'
 import type { UserSummary } from '../../users/types'
-import { useUpdateCase, useUpdateCaseServices } from '../hooks'
+import { useUpdateCase, useUpdateCaseParticipants, useUpdateCaseServices } from '../hooks'
 import { canBePrimaryCaseAssignee } from '../caseAssigneeUtils'
 import type { Case, CaseColorCode, CaseServices, CaseStatus, CaseTask } from '../types'
 import { CASE_COLOR_KEYS, CASE_SERVICE_GROUPS, emptyCaseServices } from '../types'
@@ -76,8 +76,8 @@ export function CaseDetailTabs({ caseData, isManager, readOnly = false }: CaseDe
 
       <div className="case-detail-tab-content">
         {activeTab === 'overview'  ? <OverviewTab  caseData={caseData} readOnly={readOnly} /> : null}
-        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} readOnly={readOnly} /> : null}
-        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} readOnly={readOnly} /> : null}
+        {activeTab === 'services'  ? <ServicesTab  caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
+        {activeTab === 'calendar'  ? <CalendarTab  caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
         {activeTab === 'documents' ? <CaseDocumentsTab caseId={caseData.id} readOnly={readOnly} /> : null}
         {activeTab === 'reports'   ? <CaseReportsTab caseData={caseData} isManager={isManager} readOnly={readOnly} /> : null}
         {activeTab === 'audit'     ? <AuditHistoryPanel caseId={caseData.id} caseCode={caseData.caseNo} /> : null}
@@ -90,13 +90,19 @@ const INTENSITY_OPTIONS: CaseColorCode[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 
 
 function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
   const { t } = useTranslation()
-  const { resolve } = useAccess()
+  const { getCap, resolve } = useAccess()
+  const { user } = useAuth()
   const serviceCount = activeServiceCount(caseData.services)
 
   const canChangeStatus   = resolve('cases:status.close')
   const canAssign         = resolve('cases:assign') || resolve('cases:reassign')
+  const canCreateService  = resolve('cases:services.create')
   const canEditIntensity  = resolve('cases:assign')
-  const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity)
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const canEditPrimaryAssignee = canAssign && (getCap('cases:view') === 'ALL' || getCap('cases:view') === 'YES')
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const canManageParticipants = !readOnly && isPrimaryOwner && (canAssign || canCreateService)
+  const canEdit           = !readOnly && (canChangeStatus || canAssign || canEditIntensity || canManageParticipants)
 
   const [status, setStatus] = useState<CaseStatus>(caseData.status)
   const [colorCode, setColorCode] = useState<CaseColorCode>(caseData.colorCode)
@@ -110,43 +116,69 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const [comments, setComments] = useState(caseData.comments ?? '')
   const [remarks, setRemarks] = useState(caseData.remarks ?? '')
   const [socialWorkers, setSocialWorkers] = useState<UserSummary[]>([])
+  const [participantIds, setParticipantIds] = useState<string[]>(() => (caseData.participantUsers ?? []).map((item) => String(item.id)))
+  const [savedParticipantIds, setSavedParticipantIds] = useState<string[]>(() => (caseData.participantUsers ?? []).map((item) => String(item.id)))
+  const [participantSearch, setParticipantSearch] = useState('')
+  const [isParticipantSearchOpen, setIsParticipantSearchOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const updateCase = useUpdateCase()
+  const updateParticipants = useUpdateCaseParticipants(caseData.id)
 
-  const isDirty =
+  const isCaseDirty =
     status !== savedStatus ||
     colorCode !== savedColorCode ||
     socialWorkerId !== savedSocialWorkerId ||
     comments !== savedComments ||
     remarks !== savedRemarks
+  const areParticipantsDirty = canManageParticipants && !sameIds(participantIds, savedParticipantIds)
+  const isDirty = isCaseDirty || areParticipantsDirty
+  const isSaving = updateCase.isPending || updateParticipants.isPending
 
   useEffect(() => {
-    if (!canAssign) return
+    if (!canEditPrimaryAssignee && !canManageParticipants) return
     fetchUsers()
       .then((users) => {
         setSocialWorkers(users.filter(canBePrimaryCaseAssignee))
       })
       .catch(() => {})
-  }, [canAssign])
+  }, [canEditPrimaryAssignee, canManageParticipants])
+
+  useEffect(() => {
+    const ids = (caseData.participantUsers ?? []).map((item) => String(item.id))
+    setParticipantIds(ids)
+    setSavedParticipantIds(ids)
+  }, [caseData.participantUsers])
 
   async function handleSave() {
-    const updated = await updateCase.mutateAsync({
-      id: caseData.id,
-      data: {
-        status,
-        colorCode,
-        socialWorkerId: socialWorkerId || undefined,
-        comments,
-        remarks,
-      },
-    })
-    const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
-    setSavedStatus(updated.status)
-    setSavedColorCode(updated.colorCode)
-    setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
-    setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
-    setSavedComments(updated.comments ?? comments)
-    setSavedRemarks(updated.remarks ?? remarks)
+    if (areParticipantsDirty) {
+      const updatedParticipants = await updateParticipants.mutateAsync(participantIds)
+      const updatedIds = updatedParticipants.map((item) => String(item.id))
+      setParticipantIds(updatedIds)
+      setSavedParticipantIds(updatedIds)
+    }
+
+    if (isCaseDirty) {
+      const updated = await updateCase.mutateAsync({
+        id: caseData.id,
+        data: {
+          status,
+          colorCode,
+          socialWorkerId: canEditPrimaryAssignee ? socialWorkerId || undefined : undefined,
+          comments,
+          remarks,
+        },
+      })
+      const selectedWorker = socialWorkers.find((worker) => String(worker.id) === String(socialWorkerId))
+      setSavedStatus(updated.status)
+      setSavedColorCode(updated.colorCode)
+      setSavedSocialWorkerId(updated.socialWorkerId ?? socialWorkerId)
+      setSavedSocialWorkerName(updated.socialWorker || selectedWorker?.fullName || savedSocialWorkerName)
+      setSavedComments(updated.comments ?? comments)
+      setSavedRemarks(updated.remarks ?? remarks)
+    }
+
+    setParticipantSearch('')
+    setIsParticipantSearchOpen(false)
     setIsEditing(false)
   }
 
@@ -156,15 +188,42 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
     setSocialWorkerId(savedSocialWorkerId)
     setComments(savedComments)
     setRemarks(savedRemarks)
+    setParticipantIds(savedParticipantIds)
+    setParticipantSearch('')
+    setIsParticipantSearchOpen(false)
     setIsEditing(false)
   }
 
   function updateSocialWorker(value: string) {
     setSocialWorkerId(value)
+    setParticipantIds((current) => current.filter((id) => id !== value))
   }
 
   function handleEditClick() {
     setIsEditing(true)
+  }
+
+  const participantOptions = socialWorkers.filter((worker) => (
+    worker.status === 'ACTIVE' &&
+    worker.roles.includes('SOCIAL_WORKER') &&
+    String(worker.id) !== String(socialWorkerId)
+  ))
+  const normalizedParticipantSearch = participantSearch.trim().toLocaleLowerCase()
+  const filteredParticipantOptions = participantOptions.filter((worker) => {
+    if (participantIds.includes(String(worker.id))) return false
+    if (!normalizedParticipantSearch) return true
+    return [worker.fullName, worker.username, worker.email]
+      .some((value) => value?.toLocaleLowerCase().includes(normalizedParticipantSearch))
+  })
+
+  function addParticipant(id: number) {
+    const value = String(id)
+    setParticipantIds((current) => current.includes(value) ? current : [...current, value])
+    setParticipantSearch('')
+  }
+
+  function removeParticipant(id: string) {
+    setParticipantIds((current) => current.filter((item) => item !== id))
   }
 
   return (
@@ -189,7 +248,7 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         />
         <InfoCell
           label={t('cases.overview.caseworker')}
-          value={canAssign && isEditing ? (
+          value={canEditPrimaryAssignee && isEditing ? (
             <select
               className="overview-select"
               value={socialWorkerId}
@@ -203,6 +262,96 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
           ) : (
             savedSocialWorkerName || '—'
           )}
+        />
+        <InfoCell
+          label={t('cases.overview.participants')}
+          value={canManageParticipants && isEditing ? (
+            <div
+              className="case-participant-editor"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setIsParticipantSearchOpen(false)
+              }}
+            >
+              {participantIds.length > 0 ? (
+                <div className="case-participant-selected">
+                  {participantIds.map((id) => {
+                    const worker = socialWorkers.find((item) => String(item.id) === id)
+                      ?? caseData.participantUsers?.find((item) => String(item.id) === id)
+                    const name = worker?.fullName || worker?.email || id
+                    return (
+                      <span className="case-participant-chip" key={id}>
+                        <span>
+                          <strong>{name}</strong>
+                          {worker?.email && worker.email !== name ? <small>{worker.email}</small> : null}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t('cases.overview.removeParticipant', { name })}
+                          onClick={() => removeParticipant(id)}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : null}
+              <div className="case-participant-search-shell">
+                <input
+                  className="case-participant-search"
+                  type="search"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={isParticipantSearchOpen}
+                  aria-controls="case-participant-search-results"
+                  autoComplete="off"
+                  placeholder={t('cases.overview.searchParticipants')}
+                  value={participantSearch}
+                  onChange={(event) => {
+                    setParticipantSearch(event.target.value)
+                    setIsParticipantSearchOpen(true)
+                  }}
+                  onFocus={() => setIsParticipantSearchOpen(true)}
+                />
+                {isParticipantSearchOpen ? (
+                  <div className="case-participant-search-results" id="case-participant-search-results" role="listbox">
+                    {filteredParticipantOptions.map((worker) => {
+                      const name = worker.fullName || worker.username || worker.email
+                      return (
+                        <button
+                          className="case-participant-search-option"
+                          type="button"
+                          role="option"
+                          aria-selected="false"
+                          key={worker.id}
+                          onClick={() => addParticipant(worker.id)}
+                        >
+                          <span className="case-participant-avatar" aria-hidden="true">{participantInitials(name)}</span>
+                          <span>
+                            <strong>{name}</strong>
+                            <small>{worker.email}{worker.username ? ` · ${worker.username}` : ''}</small>
+                          </span>
+                          <span className="case-participant-add-mark" aria-hidden="true">+</span>
+                        </button>
+                      )
+                    })}
+                    {filteredParticipantOptions.length === 0 ? (
+                      <p className="case-participant-search-empty">{t('cases.overview.noParticipantOptions')}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="case-participant-summary">
+              {(caseData.participantUsers ?? []).length > 0 ? (
+                <span>{(caseData.participantUsers ?? []).map((item) => item.fullName || item.email || item.id).join(', ')}</span>
+              ) : (
+                <span>—</span>
+              )}
+            </div>
+          )}
+          wide
         />
         <InfoCell
           label={t('cases.overview.intensity')}
@@ -268,12 +417,12 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
             <button
               className="btn-primary"
               type="button"
-              disabled={!isDirty || updateCase.isPending}
+              disabled={!isDirty || isSaving}
               onClick={() => void handleSave()}
             >
-              {updateCase.isPending ? t('common.saving') : t('common.save')}
+              {isSaving ? t('common.saving') : t('common.save')}
             </button>
-            <button className="btn-secondary" type="button" disabled={updateCase.isPending} onClick={handleCancelEdit}>
+            <button className="btn-secondary" type="button" disabled={isSaving} onClick={handleCancelEdit}>
               {t('common.cancel')}
             </button>
             </>
@@ -284,8 +433,21 @@ function OverviewTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
       {caseData.tasks && caseData.tasks.length > 0 ? (
         <TaskList tasks={caseData.tasks} />
       ) : null}
+
     </>
   )
+}
+
+function sameIds(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false
+  const rightIds = new Set(right)
+  return left.every((id) => rightIds.has(id))
+}
+
+function participantInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  return words.slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase()
 }
 
 function InfoCell({
@@ -416,7 +578,7 @@ function parsePendingServicePayload(payloadJson?: string | null): PendingService
   }
 }
 
-function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
+function ServicesTab({ caseData, isManager, readOnly }: { caseData: Case, isManager: boolean, readOnly: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
   const { user } = useAuth()
@@ -431,6 +593,16 @@ function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: serviceRequestMode === 'add' })
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const isCaseParticipant = currentUserId !== '' && Boolean(caseData.participantUsers?.some((item) => String(item.id) === currentUserId))
+  const forcePrimaryApprover = isCaseParticipant && !isPrimaryOwner && !isManager
+  const primaryApproverId = caseData.socialWorkerId != null ? Number(caseData.socialWorkerId) : undefined
+  const primaryApproverOptions = primaryApproverId != null && Number.isFinite(primaryApproverId)
+    ? [{ id: primaryApproverId, label: caseData.socialWorker || String(caseData.socialWorkerId) }]
+    : []
+  const serviceApproverOptions = forcePrimaryApprover ? primaryApproverOptions : approvalAssignees.options
+  const serviceApproverLoading = forcePrimaryApprover ? false : approvalAssignees.isLoading
 
   const approvedServiceKeys = (Object.keys(caseData.services) as Array<keyof CaseServices>).filter((key) => caseData.services[key])
   const serverServiceApprovals = useMemo(() => pendingApprovals.filter((approval) => (
@@ -688,9 +860,9 @@ function ServicesTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         cancelLabel={t('approvalConfirm.cancel')}
         pending={updateServices.isPending}
         error={serviceApprovalError}
-        approverOptions={approvalAssignees.options}
+        approverOptions={serviceApproverOptions}
         approverRequired
-        approverLoading={approvalAssignees.isLoading}
+        approverLoading={serviceApproverLoading}
         onCancel={() => {
           setServiceApprovalError('')
           setShowServiceApprovalConfirm(false)
@@ -806,18 +978,22 @@ function formatDateTime(value?: string | null): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function CalendarTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean }) {
+function CalendarTab({ caseData, isManager, readOnly }: { caseData: Case, isManager: boolean, readOnly: boolean }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [showAddEvent, setShowAddEvent] = useState(false)
+  const currentUserId = user?.id != null ? String(user.id) : ''
+  const isPrimaryOwner = currentUserId !== '' && currentUserId === String(caseData.socialWorkerId ?? '')
+  const eventReadOnly = readOnly || (!isManager && !isPrimaryOwner)
 
   return (
     <div className="service-calendar-section">
       <div className="case-services-section-title">
         {t('cases.services.calendarTitle')}
       </div>
-      <CaseServiceCalendar caseData={caseData} readOnly={readOnly} />
+      <CaseServiceCalendar caseData={caseData} readOnly={eventReadOnly} />
 
-      {!readOnly ? (
+      {!eventReadOnly ? (
         <div className="calendar-add-event-bar">
           <button
             className="btn-primary"
@@ -829,7 +1005,7 @@ function CalendarTab({ caseData, readOnly }: { caseData: Case, readOnly: boolean
         </div>
       ) : null}
 
-      {showAddEvent && !readOnly ? (
+      {showAddEvent && !eventReadOnly ? (
         <AddCaseEventForm caseData={caseData} onDone={() => setShowAddEvent(false)} />
       ) : null}
     </div>

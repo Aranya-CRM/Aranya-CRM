@@ -198,6 +198,7 @@ public class ClientService {
                 .dateOfBirth(client.getDateOfBirth())
                 .dateOfOrdination(client.getDateOfOrdination())
                 .membershipStatus(client.getMembershipStatus())
+                .createdAt(client.getCreatedAt())
                 .build();
     }
 

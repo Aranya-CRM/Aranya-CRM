@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -24,4 +25,5 @@ public class ClientSummaryResponse {
     private LocalDate dateOfBirth;
     private LocalDate dateOfOrdination;
     private String membershipStatus;
+    private LocalDateTime createdAt;
 }

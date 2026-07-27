@@ -55,6 +55,23 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
     );
 
     @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
+    @Query("""
+            SELECT vr FROM VisitReport vr
+            WHERE vr.serviceAppointment.id = :serviceAppointmentId
+              AND (
+                vr.createdBy.id = :userId
+                OR UPPER(vr.status) = 'SUBMITTED'
+              )
+            ORDER BY vr.createdAt DESC, vr.id DESC
+            """)
+    List<VisitReport> findVisibleReportsForAssignedAppointment(
+            @Param("userId") Long userId,
+            @Param("serviceAppointmentId") Long serviceAppointmentId
+    );
+
+    boolean existsByServiceAppointmentIdAndStatusIgnoreCase(Long serviceAppointmentId, String status);
+
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
     @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})

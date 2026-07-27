@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../contexts/AuthContext'
 import { useAccess } from '../../../shared/auth'
 import { ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import type { ServiceEvent } from '../../cases/types'
@@ -23,22 +22,25 @@ const REMINDER_BADGE: Record<string, string> = {
 export function TaskListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user } = useAuth()
   const { getCap } = useAccess()
   const canViewAllEvents = getCap('reports:view') === 'ALL'
   const canViewCreatedEvents = !canViewAllEvents && getCap('cases:services.create') !== 'NO'
-  const secondaryScope: 'all' | 'created' = canViewAllEvents ? 'all' : 'created'
-  const [scope, setScope] = useState<'mine' | 'all' | 'created'>('mine')
-  const [tasks, setTasks] = useState<ServiceEvent[]>([])
+  const [status, setStatus] = useState<'incomplete' | 'completed'>('incomplete')
+  const [events, setEvents] = useState<ServiceEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string>()
+  const tasks = events.filter((event) => status === 'completed' ? event.reportSubmitted : !event.reportSubmitted)
 
   const loadTasks = useCallback(async (shouldApply: () => boolean = () => true) => {
     setIsLoading(true)
     try {
-      const data = await fetchEvents(scope)
+      const data = canViewAllEvents
+        ? await fetchEvents('all')
+        : canViewCreatedEvents
+          ? mergeEvents(await Promise.all([fetchEvents('mine'), fetchEvents('created')]))
+          : await fetchEvents('mine')
       if (shouldApply()) {
-        setTasks(data)
+        setEvents(data)
         setErrorMessage(undefined)
       }
     } catch {
@@ -50,12 +52,7 @@ export function TaskListPage() {
         setIsLoading(false)
       }
     }
-  }, [scope, t])
-
-  useEffect(() => {
-    if (scope === 'all' && !canViewAllEvents) setScope('mine')
-    if (scope === 'created' && !canViewCreatedEvents) setScope('mine')
-  }, [canViewAllEvents, canViewCreatedEvents, scope])
+  }, [canViewAllEvents, canViewCreatedEvents, t])
 
   useEffect(() => {
     let active = true
@@ -78,30 +75,32 @@ export function TaskListPage() {
   return (
     <div className="task-page">
       <PageHeader title={t('tasks.title')} subtitle={t('tasks.count', { count: tasks.length })} />
-      {canViewAllEvents || canViewCreatedEvents ? (
-        <div className="task-scope-tabs" role="tablist" aria-label={t('tasks.scopeLabel')}>
-          <button
-            type="button"
-            className={scope === 'mine' ? 'active' : ''}
-            onClick={() => setScope('mine')}
-          >
-            {t('tasks.myEvents')}
-          </button>
-          <button
-            type="button"
-            className={scope === secondaryScope ? 'active' : ''}
-            onClick={() => setScope(secondaryScope)}
-          >
-            {canViewAllEvents ? t('tasks.allEvents') : t('tasks.otherEvents')}
-          </button>
-        </div>
-      ) : null}
+      <div className="task-scope-tabs" role="tablist" aria-label={t('tasks.statusLabel')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={status === 'incomplete'}
+          className={status === 'incomplete' ? 'active' : ''}
+          onClick={() => setStatus('incomplete')}
+        >
+          {t('tasks.incompleteEvents')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={status === 'completed'}
+          className={status === 'completed' ? 'active' : ''}
+          onClick={() => setStatus('completed')}
+        >
+          {t('tasks.completedEvents')}
+        </button>
+      </div>
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
       <SectionCard className="task-list-card" ariaLabel="Events" bodyPadding>
         {isLoading ? (
           <div className="task-empty">{t('common.loading')}</div>
         ) : tasks.length === 0 ? (
-          <div className="task-empty">{t('tasks.empty')}</div>
+          <div className="task-empty">{t(status === 'completed' ? 'tasks.emptyCompleted' : 'tasks.emptyIncomplete')}</div>
         ) : (
           <div className="task-list">
             {tasks.map((task) => (
@@ -110,11 +109,9 @@ export function TaskListPage() {
                 <span className="task-row-main">
                   <span className="task-title">{task.title}</span>
                   <span className="task-meta">{formatDate(task.scheduledStart)} · {task.location ?? '-'}</span>
-                  {scope !== 'mine' ? (
-                    <span className="task-meta">{t('tasks.assignedTo')}: {task.assignedUserName ?? '-'}</span>
-                  ) : null}
+                  <span className="task-meta">{t('tasks.assignedTo')}: {eventParticipantNames(task)}</span>
                 </span>
-                {user?.id != null && task.assignedUserId != null && String(task.assignedUserId) === String(user.id) && task.reminderState && REMINDER_BADGE[task.reminderState] ? (
+                {!task.reportSubmitted && task.reminderState && REMINDER_BADGE[task.reminderState] ? (
                   <span className={`task-reminder task-reminder-${REMINDER_BADGE[task.reminderState]}`}>
                     {t(`tasks.reminder.${task.reminderState}`)}
                   </span>
@@ -127,4 +124,16 @@ export function TaskListPage() {
       </SectionCard>
     </div>
   )
+}
+
+function mergeEvents(eventGroups: ServiceEvent[][]): ServiceEvent[] {
+  const eventsById = new Map<string, ServiceEvent>()
+  eventGroups.flat().forEach((event) => eventsById.set(String(event.id), event))
+  return [...eventsById.values()]
+}
+
+function eventParticipantNames(task: ServiceEvent): string {
+  const names = task.participantUsers?.map((item) => item.fullName || item.email || String(item.id)).filter(Boolean) ?? []
+  if (names.length > 0) return names.join(', ')
+  return task.assignedUserName ?? '-'
 }

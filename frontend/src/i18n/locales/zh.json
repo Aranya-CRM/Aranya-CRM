@@ -66,6 +66,13 @@
     "brandSubtitle": "Aranya CRM",
     "logout": "登出"
   },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "暂无通知",
+    "overdueTitle": "事件 #{{eventId}} 报告已逾期",
+    "overdueBody": "截止时间：{{deadline}}。点击查看并提交报告。"
+  },
   "common": {
     "loading": "加载中...",
     "cancel": "取消",
@@ -241,6 +248,10 @@
       "service": "服务",
       "selectService": "请选择服务",
       "assignee": "负责人",
+      "participants": "参与者",
+      "searchParticipants": "搜索社工或义工的姓名、用户名或邮箱",
+      "removeParticipant": "移除参与者 {{name}}",
+      "noParticipantOptions": "没有匹配的可添加参与者。",
       "selectAssignee": "请选择负责人",
       "time": "具体时间",
       "location": "地点",
@@ -273,6 +284,10 @@
       "dateOpened": "开案日期",
       "status": "状态",
       "caseworker": "主责社工",
+      "participants": "参与者",
+      "searchParticipants": "搜索社工姓名、用户名或邮箱",
+      "removeParticipant": "移除参与者 {{name}}",
+      "noParticipantOptions": "没有匹配的可添加社工。",
       "intensity": "个案强度",
       "activeModules": "启用服务模块",
       "activeModulesValue": "{{count}} 项",
@@ -354,19 +369,19 @@
     "reports": {
       "count": "共 {{count}} 份报告",
       "empty": "暂无探访报告",
+      "print": "打印",
       "col": {
         "date": "探访日期",
         "type": "类型",
         "duration": "时长",
         "submitter": "提交人",
-        "status": "状态"
+        "status": "状态",
+        "actions": "操作"
       }
     }
   },
   "auditHistory": {
     "title": "操作日志",
-    "subtitle": "{{caseCode}} · 记录谁在什么时间对什么对象执行了什么操作。",
-    "readonly": "不可编辑 / 不可删除",
     "listLabel": "个案操作日志",
     "loading": "正在加载操作日志...",
     "loadError": "操作日志加载失败。",
@@ -483,6 +498,12 @@
     "filterWithCase": "已有个案",
     "filterWithoutCase": "无个案",
     "filterClear": "清除筛选",
+    "sortCreatedAtLabel": "添加时间",
+    "sortCreatedAtDesc": "最新添加",
+    "sortCreatedAtAsc": "最早添加",
+    "sortAlphaLabel": "首字母",
+    "sortAlphaAsc": "A → Z",
+    "sortAlphaDesc": "Z → A",
     "sortAgeLabel": "年龄",
     "sortAgeAsc": "年龄 ↑",
     "sortAgeDesc": "年龄 ↓",
@@ -765,19 +786,19 @@
   "tasks": {
     "title": "事件",
     "count": "{{count}} 个事件",
-    "scopeLabel": "事件范围",
-    "myEvents": "我的事件",
-    "allEvents": "全部事件",
-    "otherEvents": "其他事件",
+    "statusLabel": "事件完成状态",
+    "incompleteEvents": "未完成事件",
+    "completedEvents": "已完成事件",
     "assignedTo": "负责人",
     "loadError": "事件加载失败，请稍后重试。",
-    "empty": "暂无分配给你的事件",
+    "emptyIncomplete": "暂无未完成事件",
+    "emptyCompleted": "暂无已完成事件",
     "open": "查看",
     "notFound": "未找到事件",
     "caseOverview": "事件",
     "submitReport": "提交报告",
-    "myReports": "我上传的报告",
-    "reportOnlyAssigned": "只有该事件的负责人可以提交事件报告。",
+    "myReports": "事件报告",
+    "reportOnlyAssigned": "只有该事件的参与者或主责可以提交事件报告。",
     "viewMember": "查看会员档案",
     "request": {
       "subject": "主题",
@@ -788,8 +809,8 @@
       "content": "内容",
       "contact": "联系方式"
     },
-    "noReports": "暂无我上传的报告",
-    "reportsLoadError": "我的报告加载失败，请稍后重试。",
+    "noReports": "暂无事件报告",
+    "reportsLoadError": "事件报告加载失败，请稍后重试。",
     "reminder": {
       "PENDING": "待提交报告",
       "DUE_SOON": "报告即将到期",

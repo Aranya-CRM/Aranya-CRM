@@ -25,10 +25,9 @@ export function AuditHistoryPanel({ caseId, caseCode }: AuditHistoryPanelProps) 
       <header className="audit-history-toolbar">
         <div>
           <h2>{t('auditHistory.title')}</h2>
-          <p>{t('auditHistory.subtitle', { caseCode })}</p>
+          <p>{caseCode}</p>
         </div>
         <div className="audit-history-controls">
-          <span className="audit-history-lock">{t('auditHistory.readonly')}</span>
           <label>
             <span>{t('auditHistory.filter.label')}</span>
             <select value={filter} onChange={(event) => setFilter(event.target.value as AuditCategory)}>

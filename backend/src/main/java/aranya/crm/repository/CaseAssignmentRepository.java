@@ -30,6 +30,29 @@ public interface CaseAssignmentRepository extends JpaRepository<CaseAssignment, 
             """)
     void deactivatePrimaryAssignments(@Param("caseId") Long caseId);
 
+    @EntityGraph(attributePaths = {"user", "user.userRoles", "user.userRoles.role"})
+    List<CaseAssignment> findByClientCase_IdAndPrimaryFalseAndStatusIgnoreCaseOrderByAssignedAtAscIdAsc(
+            Long caseId,
+            String status
+    );
+
+    @Modifying
+    @Query("""
+            DELETE FROM CaseAssignment ca
+            WHERE ca.clientCase.id = :caseId
+              AND ca.primary = false
+            """)
+    void deleteNonPrimaryAssignments(@Param("caseId") Long caseId);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(ca) > 0 THEN true ELSE false END
+            FROM CaseAssignment ca
+            WHERE ca.clientCase.id = :caseId
+              AND ca.user.id = :userId
+              AND UPPER(ca.status) = 'ACTIVE'
+            """)
+    boolean existsActiveAssignment(@Param("caseId") Long caseId, @Param("userId") Long userId);
+
     @EntityGraph(attributePaths = {"clientCase", "clientCase.client", "user"})
     @Query("""
             SELECT ca FROM CaseAssignment ca

@@ -7,13 +7,18 @@ import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
+import aranya.crm.dto.response.UserAssignmentResponse;
 import aranya.crm.entity.CaseAssignment;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.ServiceAppointment;
+import aranya.crm.entity.ServiceEventAssignment;
 import aranya.crm.entity.User;
 import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
+import aranya.crm.repository.ServiceAppointmentRepository;
+import aranya.crm.repository.ServiceEventAssignmentRepository;
 import aranya.crm.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -62,6 +68,8 @@ public class CaseService {
     private final CaseAssignmentRepository caseAssignmentRepository;
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final ServiceAppointmentRepository serviceAppointmentRepository;
+    private final ServiceEventAssignmentRepository serviceEventAssignmentRepository;
     private final JdbcTemplate jdbcTemplate;
     private final GoogleCalendarService googleCalendarService;
     private final OperationAuditLogService operationAuditLogService;
@@ -123,6 +131,48 @@ public class CaseService {
         }
     }
 
+    public void requireCaseOperator(Long caseId, User user) {
+        if (user == null || user.getId() == null) {
+            throw new AccessDeniedException("User cannot modify this case");
+        }
+        if (isManagerLike(user) || isPrimaryAssignee(caseId, user.getId())) {
+            return;
+        }
+        throw new AccessDeniedException("Only the primary case owner or manager can modify this case");
+    }
+
+    public void requireCaseEditor(Long caseId, User user) {
+        if (user == null || user.getId() == null) {
+            throw new AccessDeniedException("User cannot modify this case");
+        }
+        if (isManagerLike(user) || isPrimaryAssignee(caseId, user.getId()) || isActiveCaseAssignee(caseId, user.getId())) {
+            return;
+        }
+        throw new AccessDeniedException("Only assigned case users or managers can modify this case");
+    }
+
+    public Long resolveCaseServiceApprovalApproverId(Long caseId, User requester, Long requestedApproverId) {
+        if (requester == null || requester.getId() == null) {
+            throw new AccessDeniedException("Requester is required");
+        }
+        if (!isManagerLike(requester)
+                && !isPrimaryAssignee(caseId, requester.getId())
+                && isActiveCaseAssignee(caseId, requester.getId())) {
+            Long primaryAssigneeId = primaryAssigneeIdForCase(caseId);
+            if (primaryAssigneeId == null) {
+                throw new AccessDeniedException("Case primary assignee is required for approval");
+            }
+            return primaryAssigneeId;
+        }
+        return requestedApproverId;
+    }
+
+    public void requirePrimaryCaseOwner(Long caseId, User user) {
+        if (user == null || user.getId() == null || !isPrimaryAssignee(caseId, user.getId())) {
+            throw new AccessDeniedException("Only the primary case owner can operate service events");
+        }
+    }
+
     public List<String> listSelectedServiceKeys(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
@@ -176,6 +226,9 @@ public class CaseService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireCaseVisible(caseId, scopedToUserId);
+        if (actor != null) {
+            requireCaseEditor(caseId, actor);
+        }
         requireMutableCase(clientCase);
 
         Map<String, Object> before = new LinkedHashMap<>();
@@ -208,6 +261,9 @@ public class CaseService {
             clientCase.setRemarks(nextRemarks);
         }
         if (request.getSocialWorkerId() != null) {
+            if (actor != null && !isManagerLike(actor)) {
+                throw new AccessDeniedException("Only managers can change the primary case owner");
+            }
             User primaryAssignee = resolvePrimaryAssignee(request.getSocialWorkerId(), actor);
             addChange(before, after, "assignee",
                     currentAssignee == null ? null : currentAssignee.getFullName(),
@@ -243,11 +299,47 @@ public class CaseService {
         return executeApprovedUpdateCaseServices(caseId, serviceKeys, null);
     }
 
+    public List<UserAssignmentResponse> listCaseParticipants(Long caseId) {
+        ensureCaseExists(caseId);
+        return caseParticipantUsers(caseId);
+    }
+
+    @Transactional
+    public List<UserAssignmentResponse> updateCaseParticipants(Long caseId, List<Long> userIds, User actor) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        requireMutableCase(clientCase);
+        requirePrimaryCaseOwner(caseId, actor);
+
+        User primaryAssignee = primaryAssigneeFor(clientCase);
+        Long primaryAssigneeId = primaryAssignee != null ? primaryAssignee.getId() : null;
+        List<User> participants = normalizedUserIds(userIds).stream()
+                .filter(id -> primaryAssigneeId == null || !primaryAssigneeId.equals(id))
+                .map(id -> userRepository.findByIdWithRoles(id)
+                        .orElseThrow(() -> new EntityNotFoundException("User not found: " + id)))
+                .peek(this::requireCaseParticipant)
+                .toList();
+
+        caseAssignmentRepository.deleteNonPrimaryAssignments(caseId);
+        for (User participant : participants) {
+            CaseAssignment assignment = new CaseAssignment();
+            assignment.setClientCase(clientCase);
+            assignment.setUser(participant);
+            assignment.setPrimary(false);
+            assignment.setAssignmentRole("SOCIAL_WORKER");
+            assignment.setStatus("ACTIVE");
+            assignment.setAssignedBy(actor);
+            caseAssignmentRepository.save(assignment);
+        }
+        return caseParticipantUsers(caseId);
+    }
+
     @Transactional
     public ServiceEventResponse createServiceEvent(Long caseId, CreateServiceEventRequest request, User createdBy) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
+        requirePrimaryCaseOwner(caseId, createdBy);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {
@@ -255,14 +347,12 @@ public class CaseService {
         }
         validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
 
-        // 负责人可空;给定时校验可分配性
-        Long assignedId = null;
-        if (request.getAssignedUserId() != null) {
-            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
-                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
-            requireAssignable(createdBy, assigned);
-            assignedId = assigned.getId();
-        }
+        User primaryAssignee = primaryAssigneeFor(clientCase);
+        Long primaryAssigneeId = primaryAssignee != null ? primaryAssignee.getId() : null;
+        List<Long> participantIds = eventParticipantIds(request).stream()
+                .filter(id -> primaryAssigneeId == null || !primaryAssigneeId.equals(id))
+                .toList();
+        Long assignedId = participantIds.isEmpty() ? null : participantIds.get(0);
 
         Long serviceTypeId = findServiceTypeId(serviceKey);
         String venue = resolveVenue(request.getLocation(), clientCase);
@@ -308,6 +398,7 @@ public class CaseService {
                 assignedId,
                 createdBy.getId());
 
+        replaceEventParticipants(eventId, participantIds, createdBy);
         ServiceEventResponse response = findServiceEventById(eventId);
         // best-effort 镜像到 Google 共享日历;失败不阻断本地创建
         mirrorToGoogle(eventId, caseId, response, trimToNull(request.getCalendarId()), null, null);
@@ -334,6 +425,7 @@ public class CaseService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
+        requirePrimaryCaseOwner(caseId, currentUser);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {
@@ -341,13 +433,12 @@ public class CaseService {
         }
         validateEventTimes(request.getScheduledStart(), request.getScheduledEnd());
 
-        Long assignedId = null;
-        if (request.getAssignedUserId() != null) {
-            User assigned = userRepository.findByIdWithRoles(request.getAssignedUserId())
-                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + request.getAssignedUserId()));
-            requireAssignable(currentUser, assigned);
-            assignedId = assigned.getId();
-        }
+        User primaryAssignee = primaryAssigneeFor(clientCase);
+        Long primaryAssigneeId = primaryAssignee != null ? primaryAssignee.getId() : null;
+        List<Long> participantIds = eventParticipantIds(request).stream()
+                .filter(id -> primaryAssigneeId == null || !primaryAssigneeId.equals(id))
+                .toList();
+        Long assignedId = participantIds.isEmpty() ? null : participantIds.get(0);
         Long serviceTypeId = findServiceTypeId(serviceKey);
         String venue = resolveVenue(request.getLocation(), clientCase);
 
@@ -383,6 +474,7 @@ public class CaseService {
                 assignedId,
                 eventId, caseId);
 
+        replaceEventParticipants(eventId, participantIds, currentUser);
         ServiceEventResponse updated = findServiceEventById(eventId);
         mirrorToGoogle(eventId, caseId, updated, trimToNull(request.getCalendarId()),
                 asString(rows.get(0).get("google_event_id")),
@@ -396,10 +488,11 @@ public class CaseService {
     }
 
     /** 手动重试将事件同步到 Google(用于上次镜像失败的事件);保持其原目标日历。 */
-    public ServiceEventResponse syncServiceEvent(Long caseId, Long eventId) {
+    public ServiceEventResponse syncServiceEvent(Long caseId, Long eventId, User currentUser) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
+        requireCaseOperator(caseId, currentUser);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
@@ -491,8 +584,27 @@ public class CaseService {
     }
 
     public List<ServiceEventResponse> listAssignedServiceEvents(Long assignedUserId) {
-        return jdbcTemplate.query(serviceEventSql("WHERE assigned_user_id = ? AND LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"),
-                serviceEventMapper(), assignedUserId);
+        return jdbcTemplate.query(serviceEventSql("""
+                WHERE (
+                    assigned_user_id = ?
+                    OR EXISTS (
+                        SELECT 1 FROM service_event_assignment sea
+                        WHERE sea.service_appointment_id = re.id
+                          AND sea.user_id = ?
+                          AND UPPER(sea.status) = 'ACTIVE'
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM case_assignment ca
+                        WHERE ca.case_id = re.case_id
+                          AND ca.user_id = ?
+                          AND ca.is_primary = true
+                          AND UPPER(ca.status) = 'ACTIVE'
+                    )
+                )
+                AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                ORDER BY scheduled_start ASC, id ASC
+                """),
+                serviceEventMapper(), assignedUserId, assignedUserId, assignedUserId);
     }
 
     public List<ServiceEventResponse> listCreatedServiceEvents(Long createdById) {
@@ -508,6 +620,70 @@ public class CaseService {
         return jdbcTemplate.query(serviceEventSql("WHERE LOWER(case_status) NOT IN ('closed', 'deleted') ORDER BY scheduled_start ASC, id ASC"), serviceEventMapper());
     }
 
+    public Optional<ServiceEventResponse> findVisibleServiceEvent(
+            Long eventId,
+            Long userId,
+            boolean canViewAllEvents,
+            boolean canViewCreatedEvents
+    ) {
+        if (canViewAllEvents) {
+            return queryOptionalServiceEvent("""
+                    WHERE re.id = ?
+                      AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                    """, eventId);
+        }
+
+        if (canViewCreatedEvents) {
+            return queryOptionalServiceEvent("""
+                    WHERE re.id = ?
+                      AND (
+                          assigned_user_id = ?
+                          OR created_by_id = ?
+                          OR EXISTS (
+                              SELECT 1 FROM service_event_assignment sea
+                              WHERE sea.service_appointment_id = re.id
+                                AND sea.user_id = ?
+                                AND UPPER(sea.status) = 'ACTIVE'
+                          )
+                          OR EXISTS (
+                              SELECT 1 FROM case_assignment ca
+                              WHERE ca.case_id = re.case_id
+                                AND ca.user_id = ?
+                                AND ca.is_primary = true
+                                AND UPPER(ca.status) = 'ACTIVE'
+                          )
+                      )
+                      AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                    """, eventId, userId, userId, userId, userId);
+        }
+
+        return queryOptionalServiceEvent("""
+                WHERE re.id = ?
+                  AND (
+                      assigned_user_id = ?
+                      OR EXISTS (
+                          SELECT 1 FROM service_event_assignment sea
+                          WHERE sea.service_appointment_id = re.id
+                            AND sea.user_id = ?
+                            AND UPPER(sea.status) = 'ACTIVE'
+                      )
+                      OR EXISTS (
+                          SELECT 1 FROM case_assignment ca
+                          WHERE ca.case_id = re.case_id
+                            AND ca.user_id = ?
+                            AND ca.is_primary = true
+                            AND UPPER(ca.status) = 'ACTIVE'
+                      )
+                  )
+                  AND LOWER(case_status) NOT IN ('closed', 'deleted')
+                """, eventId, userId, userId, userId);
+    }
+
+    private Optional<ServiceEventResponse> queryOptionalServiceEvent(String whereClause, Object... args) {
+        List<ServiceEventResponse> events = jdbcTemplate.query(serviceEventSql(whereClause), serviceEventMapper(), args);
+        return events.stream().findFirst();
+    }
+
     /** 分配给该用户、探访已过且尚未提交报告的事件数(PENDING/DUE_SOON/OVERDUE),用于看板提醒。 */
     public long countPendingReportEvents(Long assignedUserId) {
         return listAssignedServiceEvents(assignedUserId).stream()
@@ -518,9 +694,20 @@ public class CaseService {
 
     @Transactional
     public void deleteServiceEvent(Long caseId, Long eventId, User actor) {
+        deleteServiceEventInternal(caseId, eventId, actor, true);
+    }
+
+    public void deleteServiceEvent(Long caseId, Long eventId) {
+        deleteServiceEventInternal(caseId, eventId, null, false);
+    }
+
+    private void deleteServiceEventInternal(Long caseId, Long eventId, User actor, boolean enforceActor) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
+        if (enforceActor) {
+            requireCaseOperator(caseId, actor);
+        }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT google_event_id, google_calendar_id FROM service_appointment WHERE id = ? AND case_id = ?",
                 eventId, caseId);
@@ -536,10 +723,6 @@ public class CaseService {
                 clientCase, actor, "SERVICE_EVENT_DELETED", "SERVICE_EVENT", eventId,
                 serviceEventLabel(before), "删除服务事件", serviceEventValues(before), null
         );
-    }
-
-    public void deleteServiceEvent(Long caseId, Long eventId) {
-        deleteServiceEvent(caseId, eventId, null);
     }
 
     /** 读取共享日历在区间内的事件(排除本 case 自己的事件,避免与本地渲染重复)。 */
@@ -641,6 +824,7 @@ public class CaseService {
                 .clientNameChn(clientCase.getClient().getNameChn())
                 .createdById(primaryAssignee != null ? primaryAssignee.getId() : null)
                 .createdByName(primaryAssignee != null ? primaryAssignee.getFullName() : null)
+                .participantUsers(caseParticipantUsers(clientCase.getId()))
                 .comments(clientCase.getComments())
                 .remarks(clientCase.getRemarks())
                 .build();
@@ -667,6 +851,7 @@ public class CaseService {
                 .clientOrdinationStatus(clientCase.getClient().getOrdinationStatus())
                 .createdById(primaryAssignee != null ? primaryAssignee.getId() : null)
                 .createdByName(primaryAssignee != null ? primaryAssignee.getFullName() : null)
+                .participantUsers(caseParticipantUsers(clientCase.getId()))
                 .comments(clientCase.getComments())
                 .remarks(clientCase.getRemarks())
                 .services(selectedServices(clientCase.getId()))
@@ -679,6 +864,40 @@ public class CaseService {
                 .findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(clientCase.getId(), "ACTIVE")
                 .map(CaseAssignment::getUser)
                 .orElse(clientCase.getCreatedBy());
+    }
+
+    private List<UserAssignmentResponse> caseParticipantUsers(Long caseId) {
+        return caseAssignmentRepository
+                .findByClientCase_IdAndPrimaryFalseAndStatusIgnoreCaseOrderByAssignedAtAscIdAsc(caseId, "ACTIVE")
+                .stream()
+                .map(CaseAssignment::getUser)
+                .map(user -> toUserAssignmentResponse(user, "SOCIAL_WORKER"))
+                .toList();
+    }
+
+    private List<UserAssignmentResponse> eventParticipantUsers(Long eventId) {
+        return serviceEventAssignmentRepository
+                .findByServiceAppointment_IdAndStatusIgnoreCaseOrderByAssignedAtAscIdAsc(eventId, "ACTIVE")
+                .stream()
+                .map(assignment -> toUserAssignmentResponse(assignment.getUser(), assignment.getAssignmentRole()))
+                .toList();
+    }
+
+    private UserAssignmentResponse toUserAssignmentResponse(User user, String role) {
+        return UserAssignmentResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(role)
+                .build();
+    }
+
+    private void ensureCaseExists(Long caseId) {
+        ClientCase clientCase = caseRepository.findById(caseId)
+                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
+        if (DELETED_STATUS.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new EntityNotFoundException("Case not found: " + caseId);
+        }
     }
 
     private User resolvePrimaryAssignee(Long requestedAssigneeId, User fallbackUser) {
@@ -717,6 +936,19 @@ public class CaseService {
         }
     }
 
+    private void requireCaseParticipant(User user) {
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus()) || !hasRole(user, "SOCIAL_WORKER")) {
+            throw new AccessDeniedException("Case participants must be active social workers");
+        }
+    }
+
+    private void requireEventParticipant(User user) {
+        boolean eventParticipantRole = hasRole(user, "SOCIAL_WORKER") || hasRole(user, "VOLUNTEER");
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus()) || !eventParticipantRole || isManagerLike(user)) {
+            throw new AccessDeniedException("Event participants must be active social workers or volunteers");
+        }
+    }
+
     private boolean isPrimaryAssigneeRole(User user) {
         return hasRole(user, "MANAGER") || hasRole(user, "SOCIAL_WORKER")
                 || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
@@ -727,6 +959,85 @@ public class CaseService {
             return "SOCIAL_WORKER";
         }
         return "MANAGER";
+    }
+
+    private boolean isManagerLike(User user) {
+        return hasRole(user, "MANAGER") || hasRole(user, "ADMIN") || hasRole(user, "FULL_MANAGER") || hasRole(user, "TEAM_LEAD");
+    }
+
+    private boolean isPrimaryAssignee(Long caseId, Long userId) {
+        Optional<CaseAssignment> activePrimary = caseAssignmentRepository
+                .findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(caseId, "ACTIVE");
+        if (activePrimary.isPresent()) {
+            return activePrimary
+                    .map(CaseAssignment::getUser)
+                    .map(User::getId)
+                    .filter(userId::equals)
+                    .isPresent();
+        }
+        return caseRepository.findById(caseId)
+                .map(ClientCase::getCreatedBy)
+                .map(User::getId)
+                .filter(userId::equals)
+                .isPresent();
+    }
+
+    private boolean isActiveCaseAssignee(Long caseId, Long userId) {
+        return caseAssignmentRepository.existsActiveAssignment(caseId, userId);
+    }
+
+    private Long primaryAssigneeIdForCase(Long caseId) {
+        Optional<CaseAssignment> activePrimary = caseAssignmentRepository
+                .findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(caseId, "ACTIVE");
+        if (activePrimary.isPresent()) {
+            return activePrimary
+                    .map(CaseAssignment::getUser)
+                    .map(User::getId)
+                    .orElse(null);
+        }
+        return caseRepository.findById(caseId)
+                .map(ClientCase::getCreatedBy)
+                .map(User::getId)
+                .orElse(null);
+    }
+
+    private List<Long> eventParticipantIds(CreateServiceEventRequest request) {
+        List<Long> ids = new java.util.ArrayList<>();
+        if (request.getAssignedUserId() != null) {
+            ids.add(request.getAssignedUserId());
+        }
+        if (request.getParticipantUserIds() != null) {
+            ids.addAll(request.getParticipantUserIds());
+        }
+        return normalizedUserIds(ids);
+    }
+
+    private List<Long> normalizedUserIds(List<Long> userIds) {
+        if (userIds == null) {
+            return List.of();
+        }
+        return userIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+    }
+
+    private void replaceEventParticipants(Long eventId, List<Long> userIds, User actor) {
+        ServiceAppointment appointment = serviceAppointmentRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + eventId));
+        deleteEventAssignments(eventId);
+        for (Long userId : normalizedUserIds(userIds)) {
+            User participant = userRepository.findByIdWithRoles(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+            requireEventParticipant(participant);
+            ServiceEventAssignment assignment = new ServiceEventAssignment();
+            assignment.setServiceAppointment(appointment);
+            assignment.setUser(participant);
+            assignment.setAssignmentRole(hasRole(participant, "SOCIAL_WORKER") ? "SOCIAL_WORKER" : "VOLUNTEER");
+            assignment.setStatus("ACTIVE");
+            assignment.setAssignedBy(actor);
+            serviceEventAssignmentRepository.save(assignment);
+        }
     }
 
     private String resolveTradition(ClientCase clientCase) {
@@ -815,6 +1126,7 @@ public class CaseService {
     }
 
     private void cleanupReportsForEvent(Long eventId) {
+        deleteEventAssignments(eventId);
         jdbcTemplate.update("""
                 DELETE FROM visit_report
                 WHERE service_appointment_id = ?
@@ -825,8 +1137,11 @@ public class CaseService {
                 SET service_appointment_id = NULL,
                     updated_at = NOW()
                 WHERE service_appointment_id = ?
-                  AND UPPER(status) <> 'DRAFT'
                 """, eventId);
+    }
+
+    private void deleteEventAssignments(Long eventId) {
+        jdbcTemplate.update("DELETE FROM service_event_assignment WHERE service_appointment_id = ?", eventId);
     }
 
     private void deleteMirroredEvents(List<Map<String, Object>> rows) {
@@ -936,7 +1251,7 @@ public class CaseService {
                 LEFT JOIN users au ON au.id = sa.assigned_user_id
                 LEFT JOIN users cu ON cu.id = sa.created_by
                 )
-                SELECT * FROM ranked_events
+                SELECT * FROM ranked_events re
                 %s
                 """.formatted(whereClause);
     }
@@ -946,8 +1261,10 @@ public class CaseService {
             LocalDateTime scheduledStart = rs.getObject("scheduled_start", LocalDateTime.class);
             LocalDateTime reportDueAt = rs.getObject("report_due_at", LocalDateTime.class);
             boolean reportSubmitted = rs.getBoolean("report_submitted");
+            Long eventId = rs.getLong("id");
+            List<UserAssignmentResponse> participantUsers = eventParticipantUsers(eventId);
             return ServiceEventResponse.builder()
-                    .id(rs.getLong("id"))
+                    .id(eventId)
                     .caseId(rs.getLong("case_id"))
                     .clientId(rs.getLong("client_id"))
                     .clientAbbr(rs.getString("client_abbr"))
@@ -967,6 +1284,8 @@ public class CaseService {
                     .notes(rs.getString("notes"))
                     .assignedUserId(rs.getObject("assigned_user_id", Long.class))
                     .assignedUserName(rs.getString("assigned_user_name"))
+                    .participantUserIds(participantUsers.stream().map(UserAssignmentResponse::getId).toList())
+                    .participantUsers(participantUsers)
                     .createdById(rs.getObject("created_by_id", Long.class))
                     .createdByName(rs.getString("created_by_name"))
                     .eventSeq(rs.getObject("event_seq", Long.class))
@@ -1002,19 +1321,6 @@ public class CaseService {
             }
         }
         return "PENDING";
-    }
-
-    private void requireAssignable(User actor, User assigned) {
-        boolean actorManager = hasRole(actor, "MANAGER") || hasRole(actor, "ADMIN") || hasRole(actor, "FULL_MANAGER") || hasRole(actor, "TEAM_LEAD");
-        boolean actorSocialWorker = hasRole(actor, "SOCIAL_WORKER");
-        boolean assignedVolunteer = hasRole(assigned, "VOLUNTEER");
-        if (actorManager && "ACTIVE".equals(assigned.getStatus())) {
-            return;
-        }
-        if (actorSocialWorker && assignedVolunteer) {
-            return;
-        }
-        throw new AccessDeniedException("User cannot assign this service event");
     }
 
     private boolean hasRole(User user, String roleName) {

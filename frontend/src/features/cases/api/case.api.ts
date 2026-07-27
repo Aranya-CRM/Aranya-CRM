@@ -1,6 +1,6 @@
 import { encodeHttpHeaderValue, http } from '../../../shared/api'
 import { caseMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { emptyCaseServices, type AssignmentUser, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -22,6 +22,7 @@ type BackendCase = {
   venue?: string | null
   createdById?: number | string | null
   createdByName?: string | null
+  participantUsers?: AssignmentUser[] | null
   comments?: string | null
   remarks?: string | null
   services?: Partial<Record<keyof CaseServices, boolean>> | null
@@ -71,6 +72,7 @@ export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
   calendarId?: string
   assignedUserId?: string | number
+  participantUserIds?: Array<string | number>
   scheduledStart: string
   scheduledEnd?: string
   reportDueAt?: string
@@ -151,6 +153,14 @@ export async function deleteCase(id: string, options?: ApprovalOptions): Promise
   return res.data
 }
 
+export async function updateCaseParticipants(id: string, userIds: Array<string | number>): Promise<AssignmentUser[]> {
+  const normalizedUserIds = userIds
+    .map((userId) => Number(userId))
+    .filter((userId) => Number.isFinite(userId))
+  const res = await http.patch<AssignmentUser[]>(`/v1/cases/${id}/participants`, { userIds: normalizedUserIds })
+  return res.data
+}
+
 export async function restoreCase(id: string, options?: ApprovalOptions): Promise<ApprovalRequest> {
   const res = await http.post<ApprovalRequest>(`/v1/cases/${id}/restore`, null, approvalRequestConfig(options))
   return res.data
@@ -184,6 +194,11 @@ export async function fetchAssignedServiceEvents(scope: 'mine' | 'all' | 'create
   const res = await http.get<ServiceEvent[]>('/v1/events', {
     params: scope === 'mine' ? undefined : { scope },
   })
+  return res.data
+}
+
+export async function fetchAssignedServiceEvent(eventId: string | number): Promise<ServiceEvent> {
+  const res = await http.get<ServiceEvent>(`/v1/events/${eventId}`)
   return res.data
 }
 
@@ -330,6 +345,7 @@ function mapBackendCase(source: BackendCase): Case {
     tradition: text(source.tradition),
     socialWorkerId: text(source.createdById),
     socialWorker: text(source.createdByName),
+    participantUsers: source.participantUsers ?? [],
     status: mapCaseStatus(source.status),
     colorCode: mapCaseColorCode(source.colorCode),
     comments: text(source.comments ?? source.description),

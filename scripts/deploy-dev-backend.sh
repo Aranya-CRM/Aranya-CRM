@@ -25,6 +25,11 @@ DB_NAME="${DB_NAME:-aranya_crm}"
 DB_USER="${DB_USER:-aranya_admin}"
 SERVICE="${SERVICE:-backend-dev}"
 IMAGE_TAG="${IMAGE_TAG:-dev}"
+APP_PUBLIC_BASE_URL="${APP_PUBLIC_BASE_URL:-http://localhost:5173}"
+EVENT_REPORT_GRACE_HOURS="${EVENT_REPORT_GRACE_HOURS:-0}"
+GOOGLE_GMAIL_ENABLED="${GOOGLE_GMAIL_ENABLED:-false}"
+GOOGLE_GMAIL_FROM_ADDRESS="${GOOGLE_GMAIL_FROM_ADDRESS:-}"
+GOOGLE_GMAIL_FROM_NAME="${GOOGLE_GMAIL_FROM_NAME:-Aranya CRM}"
 
 # ── Google Calendar (non-secret; override via env if needed) ─────────────────
 GCAL_ENABLED="${GCAL_ENABLED:-true}"
@@ -53,7 +58,7 @@ gcloud config set project "$PROJECT" >/dev/null
 echo "==> Enabling APIs"
 gcloud services enable run.googleapis.com sqladmin.googleapis.com \
   artifactregistry.googleapis.com secretmanager.googleapis.com cloudbuild.googleapis.com \
-  iamcredentials.googleapis.com
+  iamcredentials.googleapis.com gmail.googleapis.com
 
 # ── 2) Artifact Registry repo ────────────────────────────────────────────────
 if ! gcloud artifacts repositories describe "$REPO" --location="$REGION" >/dev/null 2>&1; then
@@ -90,13 +95,13 @@ upsert_secret firebase-sa-dev < "$FIREBASE_SA_FILE"
 printf '%s' "$JWT_SECRET"       | upsert_secret jwt-secret-dev
 printf '%s' "$DEV_DB_PASSWORD"  | upsert_secret db-pass-dev
 
-# Google Calendar OAuth secrets — only when both are provided
+# Google Calendar/Gmail OAuth secrets — only when both are provided
 GCAL_READY=0
 if [ -n "${GCAL_OAUTH_CLIENT_SECRET:-}" ] && [ -n "${GCAL_OAUTH_REFRESH_TOKEN:-}" ]; then
   printf '%s' "$GCAL_OAUTH_CLIENT_SECRET" | upsert_secret gcal-oauth-client-secret
   printf '%s' "$GCAL_OAUTH_REFRESH_TOKEN" | upsert_secret gcal-oauth-refresh-token
   GCAL_READY=1
-  echo "==> Google Calendar secrets upserted (integration will be enabled)"
+  echo "==> Google Calendar/Gmail OAuth secrets upserted"
 else
   echo "==> (skip) GCAL_OAUTH_CLIENT_SECRET / GCAL_OAUTH_REFRESH_TOKEN not set — calendar disabled"
 fi
@@ -123,7 +128,7 @@ gcloud builds submit backend --tag "$IMAGE"
 DS_URL="jdbc:postgresql:///${DB_NAME}?cloudSqlInstance=${CONN}&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
 
 # Base env vars / secrets; calendar appended when GCAL_READY=1
-ENV_VARS="^##^SPRING_PROFILES_ACTIVE=dev##FIREBASE_PROJECT_ID=${PROJECT}##FIREBASE_SERVICE_ACCOUNT_PATH=file:/secrets/firebase.json##SPRING_DATASOURCE_URL=${DS_URL}##SPRING_DATASOURCE_USERNAME=${DB_USER}"
+ENV_VARS="^##^SPRING_PROFILES_ACTIVE=dev##FIREBASE_PROJECT_ID=${PROJECT}##FIREBASE_SERVICE_ACCOUNT_PATH=file:/secrets/firebase.json##SPRING_DATASOURCE_URL=${DS_URL}##SPRING_DATASOURCE_USERNAME=${DB_USER}##APP_PUBLIC_BASE_URL=${APP_PUBLIC_BASE_URL}##EVENT_REPORT_GRACE_HOURS=${EVENT_REPORT_GRACE_HOURS}##GOOGLE_GMAIL_ENABLED=${GOOGLE_GMAIL_ENABLED}##GOOGLE_GMAIL_FROM_ADDRESS=${GOOGLE_GMAIL_FROM_ADDRESS}##GOOGLE_GMAIL_FROM_NAME=${GOOGLE_GMAIL_FROM_NAME}"
 SECRETS="/secrets/firebase.json=firebase-sa-dev:latest,SPRING_DATASOURCE_PASSWORD=db-pass-dev:latest,JWT_SECRET=jwt-secret-dev:latest"
 if [ "$GCAL_READY" = "1" ]; then
   ENV_VARS="${ENV_VARS}##GOOGLE_CALENDAR_ENABLED=${GCAL_ENABLED}##GOOGLE_CALENDAR_AUTH_MODE=${GCAL_AUTH_MODE}##GOOGLE_CALENDAR_TZ=${GCAL_TZ}##GOOGLE_CALENDAR_LIST=${GCAL_LIST}##GOOGLE_CALENDAR_DEFAULT_ID=${GCAL_DEFAULT_ID}##GOOGLE_CALENDAR_OAUTH_CLIENT_ID=${GCAL_OAUTH_CLIENT_ID}"
@@ -133,6 +138,7 @@ fi
 echo "==> Deploying $SERVICE"
 gcloud run deploy "$SERVICE" \
   --image "$IMAGE" --region "$REGION" --allow-unauthenticated \
+  --min-instances 1 --no-cpu-throttling \
   --add-cloudsql-instances "$CONN" \
   --set-env-vars "$ENV_VARS" \
   --set-secrets "$SECRETS"

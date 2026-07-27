@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -30,6 +31,8 @@ public class ServiceEventResponse {
     private String notes;
     private Long assignedUserId;
     private String assignedUserName;
+    private List<Long> participantUserIds;
+    private List<UserAssignmentResponse> participantUsers;
     private Long createdById;
     private String createdByName;
     // 组织日历模板字段

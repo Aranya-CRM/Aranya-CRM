@@ -9,6 +9,7 @@ export type WellbeingDomain =
 
 export interface Client {
   id: string
+  createdAt?: string
   membershipStatus: 'ACTIVE' | 'CLOSED' | 'DELETED' | (string & {})
   abbr: string
   nameEn: string

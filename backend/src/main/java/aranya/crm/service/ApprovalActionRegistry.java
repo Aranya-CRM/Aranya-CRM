@@ -19,7 +19,6 @@ public class ApprovalActionRegistry {
 
     private final CaseService caseService;
     private final ClientService clientService;
-    private final ReportService reportService;
     private final ObjectMapper objectMapper;
     private static final String APPROVAL_META_FIELD = "_approval";
 
@@ -44,8 +43,7 @@ public class ApprovalActionRegistry {
                 "DELETE_CLIENT", (request, _decidedBy) -> clientService.executeApprovedDeleteClient(request.getTargetId()),
                 "DELETE_CASE", (request, decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId(), decidedBy),
                 "RESTORE_CLIENT", (request, _decidedBy) -> clientService.restoreClient(request.getTargetId()),
-                "RESTORE_CASE", (request, decidedBy) -> caseService.restoreCase(request.getTargetId(), decidedBy),
-                "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy)
+                "RESTORE_CASE", (request, decidedBy) -> caseService.restoreCase(request.getTargetId(), decidedBy)
         );
     }
 

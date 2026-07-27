@@ -16,6 +16,7 @@ import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import './AppLayout.css'
 import { useIdleLogout } from '../hooks/useIdleLogout'
 import { IdleWarningModal } from '../ui/feedback/IdleWarningModal'
+import { NotificationBell } from '../../features/notifications/components/NotificationBell'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -132,6 +133,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <section className="main">
         <header className="topbar">
           <div className="topbar-right">
+            <NotificationBell />
             <LanguageSwitcher />
             <button
               type="button"

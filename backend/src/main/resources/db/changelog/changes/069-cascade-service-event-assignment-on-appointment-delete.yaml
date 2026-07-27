@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 069-cascade-service-event-assignment-on-appointment-delete
+      author: Codex
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE service_event_assignment
+              DROP CONSTRAINT IF EXISTS fk_service_event_assignment_appointment;
+        - sql:
+            sql: >
+              ALTER TABLE service_event_assignment
+              ADD CONSTRAINT fk_service_event_assignment_appointment
+              FOREIGN KEY (service_appointment_id)
+              REFERENCES service_appointment(id)
+              ON DELETE CASCADE;
+      rollback:
+        - sql:
+            sql: >
+              ALTER TABLE service_event_assignment
+              DROP CONSTRAINT IF EXISTS fk_service_event_assignment_appointment;
+        - sql:
+            sql: >
+              ALTER TABLE service_event_assignment
+              ADD CONSTRAINT fk_service_event_assignment_appointment
+              FOREIGN KEY (service_appointment_id)
+              REFERENCES service_appointment(id);
