@@ -4,9 +4,11 @@ import aranya.crm.dto.response.AuditHistoryEntryResponse;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.OperationAuditLog;
 import aranya.crm.entity.User;
 import aranya.crm.repository.ApprovalRequestRepository;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.OperationAuditLogRepository;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,9 @@ class AuditHistoryServiceTest {
 
     @Mock
     private CaseRepository caseRepository;
+
+    @Mock
+    private OperationAuditLogRepository operationAuditLogRepository;
 
     @InjectMocks
     private AuditHistoryService auditHistoryService;
@@ -105,6 +110,72 @@ class AuditHistoryServiceTest {
         assertThat(result.get(0).getAction()).isEqualTo("CLIENT_UPDATE");
         assertThat(result.get(0).getTargetType()).isEqualTo("CLIENT");
         assertThat(result.get(0).getCaseId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("listCaseAuditHistory combines business operations with approval history")
+    void listCaseAuditHistory_combinesBusinessOperationsAndApprovals() {
+        ClientCase clientCase = clientCase(7L, 3L);
+        OperationAuditLog operation = new OperationAuditLog();
+        operation.setId(12L);
+        operation.setClientCase(clientCase);
+        operation.setActorName("Case Worker");
+        operation.setAction("CASE_UPDATED");
+        operation.setTargetType("CASE");
+        operation.setTargetId("7");
+        operation.setTargetLabel("CASE-007");
+        operation.setSummary("修改个案资料");
+        operation.setBeforeJson("{\"status\":\"OPEN\"}");
+        operation.setAfterJson("{\"status\":\"CLOSED\"}");
+        operation.setOccurredAt(LocalDateTime.of(2026, 7, 10, 14, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L)).thenReturn(List.of());
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L)).thenReturn(List.of());
+        when(operationAuditLogRepository.findByClientCaseIdOrderByOccurredAtDescIdDesc(7L)).thenReturn(List.of(operation));
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAction()).isEqualTo("CASE_UPDATED");
+        assertThat(result.get(0).isApprovalRequired()).isFalse();
+        assertThat(result.get(0).getActorName()).isEqualTo("Case Worker");
+        assertThat(result.get(0).getBeforeValue()).contains("OPEN");
+    }
+
+    @Test
+    @DisplayName("social worker audit history contains only operations involving that user")
+    void listCaseAuditHistory_filtersToCurrentUser() {
+        ClientCase clientCase = clientCase(7L, 3L);
+        ApprovalRequest ownApproval = request(20L, "CASE_SERVICE_UPDATE", "PENDING", "CASE", 7L);
+        ownApproval.setRequestedBy(user(10L, "Current Social Worker"));
+        ApprovalRequest otherApproval = request(21L, "DELETE_CASE", "PENDING", "CASE", 7L);
+        otherApproval.setRequestedBy(user(11L, "Other Social Worker"));
+
+        OperationAuditLog ownOperation = new OperationAuditLog();
+        ownOperation.setId(30L);
+        ownOperation.setClientCase(clientCase);
+        ownOperation.setActor(user(10L, "Current Social Worker"));
+        ownOperation.setActorName("Current Social Worker");
+        ownOperation.setAction("CASE_UPDATED");
+        ownOperation.setTargetType("CASE");
+        ownOperation.setTargetId("7");
+        ownOperation.setTargetLabel("CASE-007");
+        ownOperation.setSummary("Updated case");
+        ownOperation.setOccurredAt(LocalDateTime.of(2026, 7, 10, 15, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CASE", 7L))
+                .thenReturn(List.of(otherApproval, ownApproval));
+        when(approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc("CLIENT", 3L))
+                .thenReturn(List.of());
+        when(operationAuditLogRepository.findByClientCaseIdAndActorIdOrderByOccurredAtDescIdDesc(7L, 10L))
+                .thenReturn(List.of(ownOperation));
+
+        List<AuditHistoryEntryResponse> result = auditHistoryService.listCaseAuditHistory(7L, 10L, false);
+
+        assertThat(result).extracting(AuditHistoryEntryResponse::getId)
+                .containsExactly("operation-30", "approval-20");
     }
 
     private ApprovalRequest request(Long id, String type, String status, String targetType, Long targetId) {

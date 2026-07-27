@@ -42,6 +42,10 @@ export interface ServiceEvent {
   notes?: string | null
   assignedUserId?: number | null
   assignedUserName?: string | null
+  participantUserIds?: number[]
+  participantUsers?: AssignmentUser[]
+  createdById?: number | null
+  createdByName?: string | null
   // 组织日历模板字段
   eventSeq?: number | null
   address?: string | null
@@ -53,6 +57,13 @@ export interface ServiceEvent {
   synced?: boolean
   // 当前镜像所在日历 id(编辑时预选)
   googleCalendarId?: string | null
+}
+
+export interface AssignmentUser {
+  id: number
+  fullName?: string | null
+  email?: string | null
+  role?: string | null
 }
 
 export const CASE_SERVICE_GROUPS: Record<keyof CaseServices, string> = {
@@ -105,10 +116,13 @@ export interface Case {
   clientAbbr?: string
   clientNameEn: string
   clientNameChn: string
+  clientGender?: string
+  clientOrdinationStatus?: string
   venue?: string
   tradition: string
   socialWorkerId?: string
   socialWorker: string
+  participantUsers?: AssignmentUser[]
   assignedVolunteer?: string
   lastModifiedAt?: string
   lastModifiedBy?: string
@@ -119,16 +133,6 @@ export interface Case {
   services: CaseServices
   serviceEvents?: ServiceEvent[]
   tasks?: CaseTask[]
-}
-
-export interface CaseNote {
-  id: string
-  caseId: string
-  date: string
-  content: string
-  followUp: string
-  recordedBy: string
-  createdAt: string
 }
 
 export type CaseDocumentCategory = 'ORDINATION' | 'MEDICAL' | 'FINANCIAL' | 'LEGAL'
@@ -204,6 +208,8 @@ export interface SharedCalendarEvent {
   description?: string | null
   calendarId?: string | null
   calendarName?: string | null
+  /** Google 事件调色板 id("1"-"11");为空表示事件未单独设色,继承日历默认色 */
+  colorId?: string | null
 }
 
 /** 可写入的共享日历(供增添事件时选择) */

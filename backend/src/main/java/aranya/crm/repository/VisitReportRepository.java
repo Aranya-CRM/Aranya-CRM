@@ -19,13 +19,13 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
 
     long countByCreatedByIdAndStatusIgnoreCase(Long createdById, String status);
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findByCreatedByIdOrderByCreatedAtDescIdDesc(Long createdById);
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     @Query("""
             SELECT vr
             FROM VisitReport vr
@@ -48,10 +48,33 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
             @Param("caseId") Long caseId
     );
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
+    List<VisitReport> findByCreatedByIdAndServiceAppointmentIdOrderByCreatedAtDescIdDesc(
+            Long createdById,
+            Long serviceAppointmentId
+    );
+
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
+    @Query("""
+            SELECT vr FROM VisitReport vr
+            WHERE vr.serviceAppointment.id = :serviceAppointmentId
+              AND (
+                vr.createdBy.id = :userId
+                OR UPPER(vr.status) = 'SUBMITTED'
+              )
+            ORDER BY vr.createdAt DESC, vr.id DESC
+            """)
+    List<VisitReport> findVisibleReportsForAssignedAppointment(
+            @Param("userId") Long userId,
+            @Param("serviceAppointmentId") Long serviceAppointmentId
+    );
+
+    boolean existsByServiceAppointmentIdAndStatusIgnoreCase(Long serviceAppointmentId, String status);
+
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findAllByOrderByCreatedAtDescIdDesc();
 
     /**
@@ -59,7 +82,7 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
      * that are visible to reviewers. Drafts stay private to their author and are
      * therefore excluded.
      */
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     List<VisitReport> findByCreatedByIdNotAndStatusInOrderByCreatedAtDescIdDesc(
             Long createdById, Collection<String> statuses);
 
@@ -68,7 +91,7 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
      * MOCK: Social Workers should ultimately only see volunteer reports filed under the
      * tasks they are responsible for; for now we simply restrict to all volunteer authors.
      */
-    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType", "serviceAppointment.clientCase", "serviceAppointment.clientCase.client", "serviceAppointment.assignedUser"})
     @Query("""
             SELECT vr FROM VisitReport vr
             WHERE vr.createdBy.id <> :userId
@@ -85,6 +108,6 @@ public interface VisitReportRepository extends JpaRepository<VisitReport, Long> 
             @Param("statuses") Collection<String> statuses,
             @Param("roleName") String roleName);
 
-    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy"})
+    @EntityGraph(attributePaths = {"client", "clientCase", "createdBy", "serviceAppointment", "serviceAppointment.serviceType"})
     Optional<VisitReport> findById(Long id);
 }

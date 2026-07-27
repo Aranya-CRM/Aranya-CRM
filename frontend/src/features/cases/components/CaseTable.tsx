@@ -13,19 +13,21 @@ export interface CaseListRow {
   clientNameChn: string
   clientNameEn: string
   tradition: string
+  socialWorkerId?: string
   socialWorker: string
   status: CaseDisplayStatus
   colorCode: CaseColorCode
-  approvalOperation?: 'create' | 'close'
+  approvalOperation?: 'create' | 'close' | 'restore'
 }
 
 interface CaseTableProps {
   cases: CaseListRow[]
   loading: boolean
+  currentUserId?: string
   onView: (caseId: string) => void
 }
 
-export function CaseTable({ cases, loading, onView }: CaseTableProps) {
+export function CaseTable({ cases, loading, currentUserId, onView }: CaseTableProps) {
   const { t } = useTranslation()
 
   return (
@@ -36,6 +38,7 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
             <col className="case-col-intensity" />
             <col className="case-col-client" />
             <col className="case-col-tradition" />
+            <col className="case-col-worker" />
             <col className="case-col-status" />
             <col className="case-col-opened" />
           </colgroup>
@@ -44,15 +47,16 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
               <th>{t('cases.table.intensity')}</th>
               <th>{t('cases.table.monastic')}</th>
               <th>{t('cases.table.caseNo')}</th>
+              <th>{t('cases.table.caseworker')}</th>
               <th>{t('cases.table.status')}</th>
               <th>{t('cases.table.lastUpdated')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <EmptyTableRow colSpan={5} message={t('cases.table.loading')} />
+              <EmptyTableRow colSpan={6} message={t('cases.table.loading')} />
             ) : cases.length === 0 ? (
-              <EmptyTableRow colSpan={5} message={t('cases.table.empty')} />
+              <EmptyTableRow colSpan={6} message={t('cases.table.empty')} />
             ) : (
               cases.map((item) => (
                 <tr
@@ -75,6 +79,14 @@ export function CaseTable({ cases, loading, onView }: CaseTableProps) {
                     </span>
                   </td>
                   <td><span className="case-cell-main">{item.caseNo}</span></td>
+                  <td>
+                    <span className="case-cell-main case-cell-with-badge">
+                      <span>{item.socialWorker || '-'}</span>
+                      {currentUserId && item.socialWorkerId === currentUserId ? (
+                        <span className="case-owner-badge">{t('cases.table.mine')}</span>
+                      ) : null}
+                    </span>
+                  </td>
                   <td><CaseStatusBadge status={item.status} /></td>
                   <td><span className="case-cell-main">{item.lastModifiedAt ?? item.dateOpened}</span></td>
                 </tr>

@@ -6,11 +6,13 @@ import aranya.crm.dto.response.ReportSummaryResponse;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
 import aranya.crm.entity.ServiceAppointment;
+import aranya.crm.entity.ServiceType;
 import aranya.crm.entity.User;
 import aranya.crm.entity.VisitReport;
 import aranya.crm.repository.CaseRepository;
-import aranya.crm.repository.ClientRepository;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.ServiceAppointmentRepository;
+import aranya.crm.repository.ServiceEventAssignmentRepository;
 import aranya.crm.repository.VisitReportRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -18,18 +20,24 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportService {
 
-    private final ClientRepository clientRepository;
     private final VisitReportRepository visitReportRepository;
     private final CaseRepository caseRepository;
+    private final CaseAssignmentRepository caseAssignmentRepository;
     private final ServiceAppointmentRepository serviceAppointmentRepository;
+    private final OperationAuditLogService operationAuditLogService;
+    private final ServiceEventAssignmentRepository serviceEventAssignmentRepository;
+    private final EventOverdueNotificationService eventOverdueNotificationService;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_SUBMITTED = "SUBMITTED";
 
@@ -63,13 +71,29 @@ public class ReportService {
     }
 
     public List<ReportSummaryResponse> listOwnReports(User currentUser) {
-        return listOwnReports(currentUser, null);
+        return listOwnReports(currentUser, null, null);
     }
 
     public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId) {
+        return listOwnReports(currentUser, caseId, null);
+    }
+
+    public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId, Long appointmentId) {
+        return listOwnReports(currentUser, caseId, appointmentId, false);
+    }
+
+    public List<ReportSummaryResponse> listOwnReports(User currentUser, Long caseId, Long appointmentId, boolean canViewAllEventReports) {
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
         if (currentUserId == null) {
             return List.of();
+        }
+        if (appointmentId != null) {
+            ServiceAppointment appointment = canViewAllEventReports
+                    ? requireExistingAppointment(appointmentId)
+                    : requireAssignedAppointment(appointmentId, currentUser);
+            return visitReportRepository.findVisibleReportsForAssignedAppointment(currentUserId, appointment.getId()).stream()
+                    .map(this::toReportSummaryResponse)
+                    .toList();
         }
         if (caseId != null) {
             return visitReportRepository.findOwnReportsForCase(currentUserId, caseId).stream()
@@ -84,7 +108,6 @@ public class ReportService {
     public ReportDetailResponse getReportDetail(Long reportId) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
-
         return toReportDetailResponse(report);
     }
 
@@ -101,8 +124,9 @@ public class ReportService {
 
     @Transactional
     public ReportDetailResponse createReport(CreateReportRequest request, User createdBy) {
-        Client client = clientRepository.findById(request.getClientId())
-                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
+        ServiceAppointment appointment = requireAssignedAppointment(request.getAppointmentId(), createdBy);
+        ClientCase clientCase = appointment.getClientCase();
+        Client client = clientCase.getClient();
 
         VisitReport report = new VisitReport();
         report.setCreatedBy(createdBy);
@@ -110,12 +134,18 @@ public class ReportService {
                 ? normalizeText(request.getStaffName())
                 : createdBy != null ? createdBy.getFullName() : null);
         report.setReportTimestamp(LocalDateTime.now());
-        applyReportFields(report, client, request);
-        applyReportCase(report, request.getCaseId());
-        applyReportAppointment(report, request.getAppointmentId());
-        report.setStatus(normalizeStatus(request.getStatus()));
+        applyEventContext(report, appointment, clientCase, client);
+        applyReportFields(report, request);
+        String nextStatus = normalizeStatus(request.getStatus());
+        requireNoSubmittedReportWhenSubmitting(appointment, nextStatus);
+        report.setStatus(nextStatus);
 
-        return toReportDetailResponse(visitReportRepository.save(report));
+        VisitReport saved = visitReportRepository.save(report);
+        recordReportLog(saved, createdBy, "REPORT_CREATED", "创建报告", null, reportAuditValues(saved));
+        if (STATUS_SUBMITTED.equals(nextStatus)) {
+            eventOverdueNotificationService.resolveForEvent(appointment.getId());
+        }
+        return toReportDetailResponse(saved);
     }
 
     @Transactional
@@ -124,11 +154,20 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         requireOwner(report, currentUser);
         requireEditable(report);
-        Client client = clientRepository.findById(request.getClientId())
-                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
+        Map<String, Object> before = reportAuditValues(report);
+        ServiceAppointment appointment = report.getServiceAppointment();
+        if (appointment == null) {
+            appointment = requireAssignedAppointment(request.getAppointmentId(), currentUser);
+        } else {
+            requireAssignedAppointment(appointment, currentUser);
+        }
+        ClientCase clientCase = appointment.getClientCase();
+        Client client = clientCase.getClient();
 
-        applyReportFields(report, client, request);
-        applyReportCase(report, request.getCaseId());
+        applyEventContext(report, appointment, clientCase, client);
+        applyReportFields(report, request);
+
+        recordReportLog(report, currentUser, "REPORT_UPDATED", "修改报告", before, reportAuditValues(report));
 
         return toReportDetailResponse(report);
     }
@@ -139,22 +178,20 @@ public class ReportService {
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         requireOwner(report, currentUser);
         requireEditable(report);
+        String beforeStatus = report.getStatus();
+        requireNoSubmittedReportWhenSubmitting(report.getServiceAppointment(), STATUS_SUBMITTED);
         report.setStatus(STATUS_SUBMITTED);
         report.setUpdatedAt(LocalDateTime.now());
+        recordReportLog(report, currentUser, "REPORT_SUBMITTED", "提交报告",
+                Map.of("status", beforeStatus), Map.of("status", STATUS_SUBMITTED));
+        if (report.getServiceAppointment() != null) {
+            eventOverdueNotificationService.resolveForEvent(report.getServiceAppointment().getId());
+        }
         return toReportDetailResponse(report);
     }
 
     @Transactional
-    public void deleteOwnDraftReport(Long reportId, User currentUser) {
-        deleteReport(reportId, currentUser, false);
-    }
-
-    @Transactional
-    public void executeApprovedDeleteReport(Long reportId, User approvedBy) {
-        deleteReport(reportId, approvedBy, true);
-    }
-
-    private void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
+    public void deleteReport(Long reportId, User currentUser, boolean canDeleteAny) {
         VisitReport report = visitReportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("Report not found: " + reportId));
         if (!canDeleteAny) {
@@ -162,21 +199,47 @@ public class ReportService {
             requireDraft(report);
         }
 
+        recordReportLog(report, currentUser, "REPORT_DELETED", "删除报告",
+                reportAuditValues(report), null);
         visitReportRepository.delete(report);
+    }
+
+    private void recordReportLog(VisitReport report, User actor, String action, String summary,
+                                 Map<String, ?> before, Map<String, ?> after) {
+        ClientCase clientCase = report.getClientCase();
+        if (clientCase == null) return;
+        operationAuditLogService.record(
+                clientCase, actor, action, "REPORT", report.getId(), "RPT-" + report.getId(),
+                summary, before, after
+        );
+    }
+
+    private Map<String, Object> reportAuditValues(VisitReport report) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("status", report.getStatus());
+        values.put("dateOfVisit", report.getDateOfVisit());
+        values.put("timeOfVisit", report.getTimeOfVisit());
+        values.put("location", report.getLocation());
+        values.put("programmeName", report.getProgrammeName());
+        values.put("typeOfVisit", report.getTypeOfVisit());
+        return values;
     }
 
     private ReportSummaryResponse toReportSummaryResponse(VisitReport report) {
         Client client = report.getClient();
         User createdBy = report.getCreatedBy();
+        ServiceAppointment appointment = report.getServiceAppointment();
+        ServiceType serviceType = appointment != null ? appointment.getServiceType() : null;
 
         return ReportSummaryResponse.builder()
                 .id(report.getId())
                 .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
+                .appointmentId(appointment != null ? appointment.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
-                .caseCode(findReportCaseCode(client))
+                .caseCode(findReportCaseCode(report))
                 .createdById(createdBy != null ? createdBy.getId() : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
                 .staffName(report.getStaffName())
@@ -187,6 +250,14 @@ public class ReportService {
                 .location(report.getLocation())
                 .programmeName(report.getProgrammeName())
                 .typeOfVisit(report.getTypeOfVisit())
+                .eventTitle(eventTitle(report))
+                .eventScheduledStart(appointment != null ? appointment.getScheduledStart() : null)
+                .eventScheduledEnd(appointment != null ? appointment.getScheduledEnd() : null)
+                .eventLocation(appointment != null ? appointment.getLocation() : null)
+                .eventAddress(appointment != null ? appointment.getAddress() : null)
+                .eventContent(eventContent(appointment))
+                .serviceKey(serviceType != null ? serviceType.getDescription() : null)
+                .serviceName(serviceType != null ? serviceType.getName() : null)
                 .status(report.getStatus())
                 .createdAt(report.getCreatedAt())
                 .build();
@@ -195,15 +266,18 @@ public class ReportService {
     private ReportDetailResponse toReportDetailResponse(VisitReport report) {
         Client client = report.getClient();
         User createdBy = report.getCreatedBy();
+        ServiceAppointment appointment = report.getServiceAppointment();
+        ServiceType serviceType = appointment != null ? appointment.getServiceType() : null;
 
         return ReportDetailResponse.builder()
                 .id(report.getId())
                 .caseId(report.getClientCase() != null ? report.getClientCase().getId() : null)
                 .clientId(client != null ? client.getId() : null)
+                .appointmentId(appointment != null ? appointment.getId() : null)
                 .clientAbbr(client != null ? client.getAbbr() : null)
                 .clientNameEn(client != null ? client.getNameEn() : null)
                 .clientNameChn(client != null ? client.getNameChn() : null)
-                .caseCode(findReportCaseCode(client))
+                .caseCode(findReportCaseCode(report))
                 .createdById(createdBy != null ? createdBy.getId() : null)
                 .createdByName(createdBy != null ? createdBy.getFullName() : null)
                 .staffName(report.getStaffName())
@@ -214,6 +288,14 @@ public class ReportService {
                 .location(report.getLocation())
                 .programmeName(report.getProgrammeName())
                 .typeOfVisit(report.getTypeOfVisit())
+                .eventTitle(eventTitle(report))
+                .eventScheduledStart(appointment != null ? appointment.getScheduledStart() : null)
+                .eventScheduledEnd(appointment != null ? appointment.getScheduledEnd() : null)
+                .eventLocation(appointment != null ? appointment.getLocation() : null)
+                .eventAddress(appointment != null ? appointment.getAddress() : null)
+                .eventContent(eventContent(appointment))
+                .serviceKey(serviceType != null ? serviceType.getDescription() : null)
+                .serviceName(serviceType != null ? serviceType.getName() : null)
                 .purposeOfVisit(report.getPurposeOfVisit())
                 .whatWasDone(report.getWhatWasDone())
                 .environmentObservations(report.getEnvironmentObservations())
@@ -235,7 +317,11 @@ public class ReportService {
         return value.trim();
     }
 
-    private String findReportCaseCode(Client client) {
+    private String findReportCaseCode(VisitReport report) {
+        if (report.getClientCase() != null) {
+            return report.getClientCase().getCaseCode();
+        }
+        Client client = report.getClient();
         if (client == null || client.getId() == null) {
             return null;
         }
@@ -275,14 +361,31 @@ public class ReportService {
         }
     }
 
-    private void applyReportFields(VisitReport report, Client client, CreateReportRequest request) {
+    private void applyEventContext(VisitReport report, ServiceAppointment appointment, ClientCase clientCase, Client client) {
+        ServiceType serviceType = appointment.getServiceType();
         report.setClient(client);
-        report.setDateOfVisit(request.getDateOfVisit());
-        report.setTimeOfVisit(normalizeText(request.getTimeOfVisit()));
-        report.setDurationOfVisit(normalizeText(request.getDurationOfVisit()));
-        report.setLocation(normalizeText(request.getLocation()));
-        report.setProgrammeName(normalizeText(request.getProgrammeName()));
-        report.setTypeOfVisit(normalizeText(request.getTypeOfVisit()));
+        report.setClientCase(clientCase);
+        report.setServiceAppointment(appointment);
+        report.setDateOfVisit(appointment.getScheduledStart().toLocalDate());
+        report.setTimeOfVisit(formatEventTime(appointment));
+        report.setDurationOfVisit(formatEventDuration(appointment));
+        report.setLocation(normalizeText(appointment.getLocation()));
+        report.setProgrammeName(serviceType != null ? normalizeText(serviceType.getName()) : null);
+        report.setTypeOfVisit(serviceType != null ? normalizeText(serviceType.getDescription()) : null);
+    }
+
+    private void applyReportFields(VisitReport report, CreateReportRequest request) {
+        if (request.getDateOfVisit() != null) {
+            report.setDateOfVisit(request.getDateOfVisit());
+        }
+        String requestedTime = normalizeText(request.getTimeOfVisit());
+        if (requestedTime != null) {
+            report.setTimeOfVisit(requestedTime);
+        }
+        String requestedDuration = normalizeText(request.getDurationOfVisit());
+        if (requestedDuration != null) {
+            report.setDurationOfVisit(requestedDuration);
+        }
         report.setPurposeOfVisit(normalizeText(request.getPurposeOfVisit()));
         report.setWhatWasDone(normalizeText(request.getWhatWasDone()));
         report.setEnvironmentObservations(normalizeText(request.getEnvironmentObservations()));
@@ -294,22 +397,117 @@ public class ReportService {
         report.setUpdatedAt(LocalDateTime.now());
     }
 
-    private void applyReportCase(VisitReport report, Long caseId) {
-        if (caseId == null) {
-            return;
+    private ServiceAppointment requireAssignedAppointment(Long appointmentId, User currentUser) {
+        if (appointmentId == null) {
+            throw new IllegalArgumentException("Service event is required");
         }
-        ClientCase clientCase = caseRepository.findById(caseId)
-                .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
-        report.setClientCase(clientCase);
+        ServiceAppointment appointment = requireExistingAppointment(appointmentId);
+        requireAssignedAppointment(appointment, currentUser);
+        return appointment;
     }
 
-    private void applyReportAppointment(VisitReport report, Long appointmentId) {
+    private ServiceAppointment requireExistingAppointment(Long appointmentId) {
         if (appointmentId == null) {
+            throw new IllegalArgumentException("Service event is required");
+        }
+        return serviceAppointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + appointmentId));
+    }
+
+    private void requireAssignedAppointment(ServiceAppointment appointment, User currentUser) {
+        Long currentUserId = currentUser != null ? currentUser.getId() : null;
+        Long assignedUserId = appointment.getAssignedUser() != null ? appointment.getAssignedUser().getId() : null;
+        Long caseId = appointment.getClientCase() != null ? appointment.getClientCase().getId() : null;
+        boolean directlyAssigned = currentUserId != null && assignedUserId != null && currentUserId.equals(assignedUserId);
+        boolean eventParticipant = currentUserId != null && serviceEventAssignmentRepository.existsActiveAssignment(appointment.getId(), currentUserId);
+        boolean casePrimary = currentUserId != null && caseId != null
+                && caseAssignmentRepository.findFirstByClientCase_IdAndPrimaryTrueAndStatusIgnoreCaseOrderByAssignedAtDescIdDesc(caseId, "ACTIVE")
+                    .map(assignment -> assignment.getUser().getId())
+                    .filter(currentUserId::equals)
+                    .isPresent();
+        if (!directlyAssigned && !eventParticipant && !casePrimary) {
+            throw new AccessDeniedException("Report can only be submitted by an assigned event participant");
+        }
+    }
+
+    private void requireNoSubmittedReportWhenSubmitting(ServiceAppointment appointment, String nextStatus) {
+        if (appointment == null || !STATUS_SUBMITTED.equalsIgnoreCase(nextStatus)) {
             return;
         }
-        ServiceAppointment appointment = serviceAppointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Service event not found: " + appointmentId));
-        report.setServiceAppointment(appointment);
+        if (visitReportRepository.existsByServiceAppointmentIdAndStatusIgnoreCase(appointment.getId(), STATUS_SUBMITTED)) {
+            throw new IllegalStateException("A submitted report already exists for this event");
+        }
+    }
+
+    private String formatEventTime(ServiceAppointment appointment) {
+        LocalDateTime start = appointment.getScheduledStart();
+        LocalDateTime end = appointment.getScheduledEnd();
+        if (start == null) {
+            return null;
+        }
+        String startTime = start.toLocalTime().toString();
+        if (end == null) {
+            return startTime;
+        }
+        return startTime + " - " + end.toLocalTime();
+    }
+
+    private String formatEventDuration(ServiceAppointment appointment) {
+        LocalDateTime start = appointment.getScheduledStart();
+        LocalDateTime end = appointment.getScheduledEnd();
+        if (start == null || end == null || !end.isAfter(start)) {
+            return null;
+        }
+        long minutes = Duration.between(start, end).toMinutes();
+        if (minutes < 60) {
+            return minutes + " min";
+        }
+        long hours = minutes / 60;
+        long remainingMinutes = minutes % 60;
+        return remainingMinutes == 0 ? hours + " hr" : hours + " hr " + remainingMinutes + " min";
+    }
+
+    private String eventTitle(VisitReport report) {
+        ServiceAppointment appointment = report.getServiceAppointment();
+        if (appointment == null) {
+            return null;
+        }
+        ServiceType serviceType = appointment.getServiceType();
+        String serviceName = serviceType != null ? serviceType.getName() : null;
+        String clientAbbr = report.getClient() != null ? report.getClient().getAbbr() : null;
+        String location = normalizeText(appointment.getLocation());
+        if (serviceName == null && clientAbbr == null) {
+            return null;
+        }
+        String subject = serviceName != null ? serviceName : "";
+        if (clientAbbr != null) {
+            subject = subject.isBlank() ? clientAbbr : subject + ": " + clientAbbr;
+        }
+        if (location != null) {
+            subject = subject + "@" + location;
+        }
+        if (appointment.getEventSeq() != null) {
+            return appointment.getEventSeq() + " " + subject;
+        }
+        return subject;
+    }
+
+    private String eventContent(ServiceAppointment appointment) {
+        if (appointment == null) {
+            return null;
+        }
+        String content = java.util.stream.Stream.of(
+                        appointment.getWorkDescription(),
+                        appointment.getAgenda(),
+                        appointment.getSchedule(),
+                        appointment.getManpower(),
+                        appointment.getInstructions()
+                )
+                .map(this::normalizeText)
+                .filter(value -> value != null)
+                .distinct()
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+        return content.isBlank() ? null : content;
     }
 
 }

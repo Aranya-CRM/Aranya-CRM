@@ -1,19 +1,6 @@
-export type AuditAction =
-  | 'CASE_CREATE'
-  | 'DELETE_CASE'
-  | 'DELETE_CLIENT'
-  | 'DELETE_REPORT'
-  | 'CASE_SERVICE_UPDATE'
-  | 'CLIENT_CREATE'
-  | 'CLIENT_UPDATE'
-  | 'SENSITIVE_FILE_ARCHIVE'
-  | 'SENSITIVE_FILE_RESTORE'
-  | 'SENSITIVE_FILE_SUPERSEDE'
-  | 'SENSITIVE_FILE_VERSION_CREATE'
-  | 'CASE_NOTE_CREATE'
-  | 'SERVICE_EVENT_CREATE'
+export type AuditAction = string
 
-export type AuditTargetType = 'CASE' | 'CLIENT' | 'SENSITIVE_FILE' | 'SERVICE' | 'CASE_NOTE' | 'SERVICE_EVENT'
+export type AuditTargetType = 'CASE' | 'CLIENT' | 'DOCUMENT' | 'SENSITIVE_FILE' | 'SERVICE' | 'CASE_NOTE' | 'SERVICE_EVENT' | 'REPORT'
 
 export type AuditLifecycleStatus = 'active' | 'archived' | 'superseded' | 'restored'
 
@@ -43,6 +30,10 @@ export interface AuditTrailEntry {
   version?: number
   previousVersionId?: string
   metadata?: Record<string, string>
+  beforeValue?: string
+  afterValue?: string
+  result?: 'SUCCESS' | 'FAILED'
+  source?: 'WEB' | 'API' | 'SYSTEM'
   canEdit?: boolean
   canDelete?: boolean
 }

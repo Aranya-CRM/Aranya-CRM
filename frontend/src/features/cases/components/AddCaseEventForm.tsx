@@ -20,12 +20,25 @@ function toLocalInput(value?: string | null): string {
   return value ? value.slice(0, 16) : ''
 }
 
-/** 编辑模式预填:把旧的分段字段(议程/流程/地址/人力/注意事项)合并为单一「内容」文本。 */
+/** 编辑模式预填:把旧的分段字段(议程/流程/人力/注意事项)合并为单一「内容」文本。地址独立成字段,不并入。 */
 function combineContent(event?: ServiceEvent): string {
   if (!event) return ''
-  return [event.agenda, event.schedule, event.address, event.manpower, event.instructions]
-    .filter((p) => p && p.trim())
+  const seen = new Set<string>()
+  return [event.workDescription, event.agenda, event.schedule, event.manpower, event.instructions]
+    .map((part) => part?.trim())
+    .filter((part): part is string => {
+      if (!part || seen.has(part)) return false
+      seen.add(part)
+      return true
+    })
     .join('\n\n')
+}
+
+function isEventParticipantOption(user: UserSummary): boolean {
+  const roles = new Set(user.roles)
+  const managerLike = roles.has('MANAGER') || roles.has('ADMIN') || roles.has('FULL_MANAGER') || roles.has('TEAM_LEAD')
+  const eventParticipant = roles.has('SOCIAL_WORKER') || roles.has('VOLUNTEER')
+  return user.status === 'ACTIVE' && eventParticipant && !managerLike
 }
 
 /** 「增添/编辑事件」卡片弹窗 —— 按组织日历模板采集字段,创建/更新后镜像到 Google 共享日历。 */
@@ -49,19 +62,34 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
 
   const [serviceKey, setServiceKey] = useState<keyof CaseServices | ''>(event?.serviceKey ?? selectedServiceKeys[0] ?? '')
   const [calendarId, setCalendarId] = useState('')
-  const [assignedUserId, setAssignedUserId] = useState(event?.assignedUserId != null ? String(event.assignedUserId) : '')
+  const [participantUserIds, setParticipantUserIds] = useState<string[]>(() => {
+    const ids = event?.participantUserIds?.map(String) ?? []
+    if (ids.length > 0) return ids
+    return event?.assignedUserId != null ? [String(event.assignedUserId)] : []
+  })
   const [scheduledStart, setScheduledStart] = useState(toLocalInput(event?.scheduledStart))
   const [scheduledEnd, setScheduledEnd] = useState(toLocalInput(event?.scheduledEnd))
   const [location, setLocation] = useState(event?.location ?? '')
+  const [address, setAddress] = useState(event?.address ?? '')
   const [content, setContent] = useState(() => combineContent(event))
   const [users, setUsers] = useState<UserSummary[]>([])
+  const [participantSearch, setParticipantSearch] = useState('')
+  const [isParticipantSearchOpen, setIsParticipantSearchOpen] = useState(false)
   const [formError, setFormError] = useState<string>()
 
   useEffect(() => {
     fetchUsers()
-      .then((list) => setUsers(list.filter((u) => u.status === 'ACTIVE')))
+      .then((list) => {
+        const allowedUsers = list.filter((user) => (
+          isEventParticipantOption(user)
+          && String(user.id) !== String(caseData.socialWorkerId ?? '')
+        ))
+        const allowedIds = new Set(allowedUsers.map((user) => String(user.id)))
+        setUsers(allowedUsers)
+        setParticipantUserIds((current) => current.filter((id) => allowedIds.has(id)))
+      })
       .catch(() => {})
-  }, [])
+  }, [caseData.socialWorkerId])
 
   // 日历选项加载后:编辑模式预选事件原日历,否则选默认日历
   useEffect(() => {
@@ -81,6 +109,27 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     ? `${seqPrefix}${serviceLabel}: ${caseData.clientAbbr ?? ''}${location.trim() ? ` @ ${location.trim()}` : ''}`
     : ''
 
+  const selectedParticipants = useMemo(
+    () => participantUserIds
+      .map((id) => users.find((user) => String(user.id) === id))
+      .filter((user): user is UserSummary => user != null),
+    [participantUserIds, users],
+  )
+
+  const participantOptions = useMemo(
+    () => users.filter((user) => !participantUserIds.includes(String(user.id))),
+    [participantUserIds, users],
+  )
+  const normalizedParticipantSearch = participantSearch.trim().toLocaleLowerCase()
+  const filteredParticipantOptions = useMemo(
+    () => participantOptions.filter((user) => {
+      if (!normalizedParticipantSearch) return true
+      return [user.fullName, user.username, user.email]
+        .some((value) => value?.toLocaleLowerCase().includes(normalizedParticipantSearch))
+    }),
+    [normalizedParticipantSearch, participantOptions],
+  )
+
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
     setFormError(undefined)
@@ -96,10 +145,13 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     const payload = {
       serviceKey,
       calendarId: calendarId || undefined,
-      assignedUserId: assignedUserId || undefined,
+      assignedUserId: participantUserIds[0] || undefined,
+      participantUserIds,
       scheduledStart,
       scheduledEnd: scheduledEnd || undefined,
       location: location.trim() || undefined,
+      address: address.trim() || undefined,
+      workDescription: content.trim() || undefined,
       agenda: content.trim() || undefined,
     }
     try {
@@ -112,6 +164,23 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
     } catch {
       setFormError(t('cases.services.createError'))
     }
+  }
+
+  function addParticipant(id: number) {
+    const nextParticipantId = String(id)
+    setParticipantUserIds((current) => (
+      current.includes(nextParticipantId) ? current : [...current, nextParticipantId]
+    ))
+    setParticipantSearch('')
+  }
+
+  function removeParticipant(id: number | string) {
+    const value = String(id)
+    setParticipantUserIds((current) => current.filter((item) => item !== value))
+  }
+
+  function participantName(user: UserSummary): string {
+    return user.fullName || user.username || user.email || String(user.id)
   }
 
   return (
@@ -138,15 +207,89 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
               </select>
             </label>
 
-            <label>
-              <span>{t('cases.services.assignee')}</span>
-              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)}>
-                <option value="">{t('cases.services.selectAssignee')}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
-                ))}
-              </select>
-            </label>
+            <div className="event-participant-field wide">
+              <span>{t('cases.services.participants')}</span>
+
+              <div
+                className="case-participant-editor event-participant-editor"
+                onBlur={(blurEvent) => {
+                  if (!blurEvent.currentTarget.contains(blurEvent.relatedTarget)) setIsParticipantSearchOpen(false)
+                }}
+              >
+                {selectedParticipants.length > 0 ? (
+                  <div className="case-participant-selected">
+                    {selectedParticipants.map((user) => {
+                      const name = participantName(user)
+                      return (
+                        <span className="case-participant-chip" key={user.id}>
+                          <span>
+                            <strong>{name}</strong>
+                            {user.email && user.email !== name ? <small>{user.email}</small> : null}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={t('cases.services.removeParticipant', { name })}
+                            onClick={() => removeParticipant(user.id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                <div className="case-participant-search-shell">
+                  <input
+                    className="case-participant-search"
+                    type="search"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={isParticipantSearchOpen}
+                    aria-controls="event-participant-search-results"
+                    autoComplete="off"
+                    placeholder={t('cases.services.searchParticipants')}
+                    value={participantSearch}
+                    onChange={(changeEvent) => {
+                      setParticipantSearch(changeEvent.target.value)
+                      setIsParticipantSearchOpen(true)
+                    }}
+                    onFocus={() => setIsParticipantSearchOpen(true)}
+                  />
+                  {isParticipantSearchOpen ? (
+                    <div className="case-participant-search-results" id="event-participant-search-results" role="listbox">
+                      {filteredParticipantOptions.map((user) => {
+                        const name = participantName(user)
+                        return (
+                          <button
+                            className="case-participant-search-option"
+                            type="button"
+                            role="option"
+                            aria-selected="false"
+                            key={user.id}
+                            onClick={() => addParticipant(user.id)}
+                          >
+                            <span className="case-participant-avatar" aria-hidden="true">{participantInitials(name)}</span>
+                            <span>
+                              <strong>{name}</strong>
+                              <small>
+                                {user.email}
+                                {user.username ? ` · ${user.username}` : ''}
+                                {` · ${eventParticipantRoleLabel(user, t)}`}
+                              </small>
+                            </span>
+                            <span className="case-participant-add-mark" aria-hidden="true">+</span>
+                          </button>
+                        )
+                      })}
+                      {filteredParticipantOptions.length === 0 ? (
+                        <p className="case-participant-search-empty">{t('cases.services.noParticipantOptions')}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
 
             <label>
               <span>{t('cases.services.time')} {t('cases.services.timezoneHint')}</span>
@@ -168,11 +311,20 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
             </label>
 
             <label className="wide">
+              <span>{t('cases.services.address')}</span>
+              <textarea
+                value={address}
+                placeholder={'Clinic: 123 Example Rd, #04-01, Singapore 123456\nVihara: 45 Temple St, Singapore 654321'}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </label>
+
+            <label className="wide">
               <span>{t('cases.services.content')}</span>
               <textarea
                 className="ta-xl"
                 value={content}
-                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara\n\nAddress:\nClinic: ...\nVihara: ...\n\nManpower:\nMedical Kappiya:\nMedical Caseworker:'}
+                placeholder={'0930hrs Pickup @ vihara\n1030hrs Appointment @ clinic\n1130hrs Return to vihara\n\nManpower:\nMedical Kappiya:\nMedical Caseworker:'}
                 onChange={(e) => setContent(e.target.value)}
               />
             </label>
@@ -203,4 +355,16 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
       </form>
     </div>
   )
+}
+
+function participantInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  return words.slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase()
+}
+
+function eventParticipantRoleLabel(user: UserSummary, t: (key: string) => string): string {
+  return user.roles.includes('SOCIAL_WORKER')
+    ? t('users.role.SOCIAL_WORKER')
+    : t('users.role.VOLUNTEER')
 }

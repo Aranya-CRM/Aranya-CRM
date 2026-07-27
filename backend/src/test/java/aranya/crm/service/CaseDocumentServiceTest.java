@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +50,9 @@ class CaseDocumentServiceTest {
     @Mock
     private GcsFileStorageService fileStorageService;
 
+    @Mock
+    private OperationAuditLogService operationAuditLogService;
+
     @Test
     @DisplayName("listCaseDocuments maps active case documents")
     void listCaseDocuments_mapsActiveCaseDocuments() {
@@ -59,7 +63,7 @@ class CaseDocumentServiceTest {
                 .thenReturn(List.of(caseDocument));
 
         CaseDocumentService service = service();
-        List<CaseDocumentResponse> response = service.listCaseDocuments(7L);
+        List<CaseDocumentResponse> response = service.listCaseDocuments(7L, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getId()).isEqualTo(55L);
@@ -153,20 +157,20 @@ class CaseDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("deleteCaseDocument rejects sensitive (medical/legal) documents — never physically deleted")
-    void deleteCaseDocument_rejectsSensitive() {
+    @DisplayName("deleteCaseDocument soft-deletes medical and legal docs without removing storage objects")
+    void deleteCaseDocument_softDeletesMedicalAndLegalDocuments() {
         CaseDocument caseDocument = caseDocument(55L, clientCase(7L, "OPEN"), document(99L), DocumentCategory.MEDICAL, "ACTIVE");
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "OPEN")));
         when(caseDocumentRepository.findByClientCase_IdAndDocument_IdAndStatus(7L, 99L, "ACTIVE"))
                 .thenReturn(Optional.of(caseDocument));
 
-        assertThatThrownBy(() -> service().deleteCaseDocument(7L, 99L))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        service().deleteCaseDocument(7L, 99L);
 
-        assertThat(caseDocument.getStatus()).isEqualTo("ACTIVE");
+        assertThat(caseDocument.getStatus()).isEqualTo("DELETED");
+        verify(caseDocumentRepository).save(caseDocument);
         verify(fileStorageService, never()).deleteObject(any());
         verify(caseDocumentRepository, never()).delete(any());
-        verify(caseDocumentRepository, never()).save(any());
+        verify(documentRepository, never()).delete(any());
     }
 
     @Test
@@ -179,7 +183,7 @@ class CaseDocumentServiceTest {
         when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", true))
                 .thenReturn(URI.create("https://signed.example.test/medical.pdf"));
 
-        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L);
+        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical.pdf");
         assertThat(response.getFileName()).isEqualTo("Medical_Report.pdf");
@@ -195,7 +199,7 @@ class CaseDocumentServiceTest {
         when(fileStorageService.createReadUrl("cases/7/documents/99/medical.pdf", "application/pdf", "Medical_Report.pdf", false))
                 .thenReturn(URI.create("https://signed.example.test/medical-preview.pdf"));
 
-        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, false);
+        DocumentDownloadResponse response = service().createDownloadUrl(7L, 99L, false, EnumSet.allOf(DocumentCategory.class));
 
         assertThat(response.getUrl()).isEqualTo("https://signed.example.test/medical-preview.pdf");
     }
@@ -205,7 +209,7 @@ class CaseDocumentServiceTest {
     void listCaseDocuments_rejectsDeletedCases() {
         when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase(7L, "DELETED")));
 
-        assertThatThrownBy(() -> service().listCaseDocuments(7L))
+        assertThatThrownBy(() -> service().listCaseDocuments(7L, EnumSet.allOf(DocumentCategory.class)))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Case not found: 7");
     }
@@ -216,7 +220,8 @@ class CaseDocumentServiceTest {
                 documentRepository,
                 caseDocumentRepository,
                 fileStorageService,
-                new FileStorageProperties()
+                new FileStorageProperties(),
+                operationAuditLogService
         );
     }
 

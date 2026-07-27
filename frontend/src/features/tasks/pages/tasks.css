@@ -7,6 +7,35 @@
   margin-top: 18px;
 }
 
+.task-scope-tabs {
+  display: inline-flex;
+  gap: 4px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f3f6fa;
+  margin-top: 18px;
+  padding: 4px;
+}
+
+.task-scope-tabs button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #344054;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  min-height: 36px;
+  padding: 0 18px;
+}
+
+.task-scope-tabs button.active {
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.14);
+  color: #101828;
+}
+
 .task-list,
 .task-sub-list {
   display: grid;
@@ -136,11 +165,29 @@
   line-height: 1.5;
 }
 
-.task-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18px;
-  margin-top: 18px;
+/* 多行文本(如事件地址):保留换行 */
+.task-info.multiline strong {
+  white-space: pre-line;
+}
+
+.task-info-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #2f7d3f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  margin-top: 7px;
+  padding: 0 11px;
+}
+
+.task-info-link:hover {
+  background: #f7faf8;
 }
 
 .task-sub-row {
@@ -184,75 +231,8 @@
   gap: 22px 30px;
 }
 
-.task-note-form {
-  display: grid;
-  gap: 10px;
-}
-
-.task-note-form textarea,
-.task-note-form input {
-  width: 100%;
-  border: 1px solid #d8dee8;
-  border-radius: 8px;
-  background: #fbfcfd;
-  color: #1f2937;
-  font: inherit;
-  font-size: 14px;
-  padding: 11px 12px;
-}
-
-.task-note-form textarea {
-  min-height: 110px;
-  resize: vertical;
-}
-
-.note-list {
-  margin-top: 16px;
-}
-
-.task-note {
-  border-left: 3px solid #d8dee8;
-  padding-left: 14px;
-}
-
-.task-note-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.task-note-delete {
-  border: 0;
-  background: transparent;
-  color: var(--text-main);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.task-note-delete:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.task-note strong,
-.task-note span {
-  color: #667085;
-  font-size: 13px;
-}
-
-.task-note p {
-  margin: 6px 0;
-  color: #1f2937;
-  line-height: 1.55;
-}
-
 @media (max-width: 900px) {
   .task-overview-grid,
-  .task-detail-grid,
   .task-report-flow {
     grid-template-columns: 1fr;
   }

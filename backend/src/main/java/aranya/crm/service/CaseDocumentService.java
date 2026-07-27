@@ -13,11 +13,9 @@ import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.DocumentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,6 +25,8 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +34,7 @@ import java.util.Locale;
 public class CaseDocumentService {
 
     private static final String ACTIVE = "ACTIVE";
+    private static final String CLOSED = "CLOSED";
     private static final String DELETED = "DELETED";
 
     private final CaseRepository caseRepository;
@@ -41,11 +42,17 @@ public class CaseDocumentService {
     private final CaseDocumentRepository caseDocumentRepository;
     private final GcsFileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
+    private final OperationAuditLogService operationAuditLogService;
 
-    public List<CaseDocumentResponse> listCaseDocuments(Long caseId) {
-        requireActiveCase(caseId);
+    /**
+     * 列出个案文档,仅返回调用者有权查看的类别(cases:documents.view.&lt;category&gt;)。
+     * 类别可见性由 controller 依据 role_cap ∪ user_cap 计算后传入。
+     */
+    public List<CaseDocumentResponse> listCaseDocuments(Long caseId, Set<DocumentCategory> viewableCategories) {
+        requireVisibleCase(caseId);
         return caseDocumentRepository.findByClientCase_IdAndStatusOrderByCategoryAscLinkedAtDescIdDesc(caseId, ACTIVE)
                 .stream()
+                .filter(caseDocument -> viewableCategories.contains(caseDocument.getCategory()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -68,7 +75,7 @@ public class CaseDocumentService {
             String displayName,
             User currentUser
     ) {
-        ClientCase clientCase = requireActiveCase(caseId);
+        ClientCase clientCase = requireMutableCase(caseId);
         if (category == null) {
             throw new IllegalArgumentException("Document category is required");
         }
@@ -113,22 +120,39 @@ public class CaseDocumentService {
         caseDocument.setCategory(category);
         caseDocument.setStatus(ACTIVE);
         caseDocument = caseDocumentRepository.save(caseDocument);
+        operationAuditLogService.record(
+                clientCase, currentUser, "CASE_DOCUMENT_UPLOADED", "DOCUMENT", document.getId(), document.getFileName(),
+                "上传个案文件", null,
+                Map.of("fileName", document.getFileName(), "category", category.name(), "fileSize", document.getFileSize())
+        );
         return toResponse(caseDocument);
     }
 
-    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId) {
-        return createDownloadUrl(caseId, documentId, true);
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, Set<DocumentCategory> viewableCategories) {
+        return createDownloadUrl(caseId, documentId, true, viewableCategories);
     }
 
-    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload) {
-        requireActiveCase(caseId);
+    @Transactional
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload,
+                                                      Set<DocumentCategory> viewableCategories, User actor) {
+        ClientCase clientCase = requireVisibleCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
+        // 无该类别查看权限时按"不存在"处理,不泄露文件存在性
+        if (!viewableCategories.contains(caseDocument.getCategory())) {
+            throw new EntityNotFoundException("Case document not found: " + documentId);
+        }
         Document document = caseDocument.getDocument();
         URI uri = fileStorageService.createReadUrl(
                 document.getObjectKey(),
                 document.getMimeType(),
                 document.getFileName(),
                 forceDownload
+        );
+        operationAuditLogService.record(
+                clientCase, actor, forceDownload ? "CASE_DOCUMENT_DOWNLOADED" : "CASE_DOCUMENT_VIEWED",
+                "DOCUMENT", documentId, document.getFileName(),
+                forceDownload ? "下载个案文件" : "查看个案文件", null,
+                Map.of("fileName", document.getFileName(), "category", caseDocument.getCategory().name())
         );
         return DocumentDownloadResponse.builder()
                 .url(uri.toString())
@@ -137,34 +161,46 @@ public class CaseDocumentService {
                 .build();
     }
 
+    public DocumentDownloadResponse createDownloadUrl(Long caseId, Long documentId, boolean forceDownload,
+                                                      Set<DocumentCategory> viewableCategories) {
+        return createDownloadUrl(caseId, documentId, forceDownload, viewableCategories, null);
+    }
+
     /**
      * 移除个案文档 —— 遵循数据治理政策(retain by default):
-     * - §9 敏感文档(医疗 / 法律)永不删除,应改为归档或取代 → 直接拒绝;
-     * - §7 其余文档为软删除:仅标记 status=DELETED,保留 GCS 对象与数据库记录以便日后恢复,
+     * - 所有分类均为软删除:仅标记 status=DELETED,保留 GCS 对象与数据库记录以便日后恢复,
      *   绝不做物理删除(既不删 GCS blob,也不删表行)。
      */
     @Transactional
-    public void deleteCaseDocument(Long caseId, Long documentId) {
-        requireActiveCase(caseId);
+    public void deleteCaseDocument(Long caseId, Long documentId, User actor) {
+        ClientCase clientCase = requireMutableCase(caseId);
         CaseDocument caseDocument = findActiveCaseDocument(caseId, documentId);
-        if (isSensitive(caseDocument.getCategory())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Sensitive documents (medical/legal) cannot be deleted; archive or supersede instead");
-        }
+        Document document = caseDocument.getDocument();
         caseDocument.setStatus(DELETED);
         caseDocumentRepository.save(caseDocument);
+        operationAuditLogService.record(
+                clientCase, actor, "CASE_DOCUMENT_ARCHIVED", "DOCUMENT", documentId, document.getFileName(),
+                "归档个案文件", Map.of("status", ACTIVE), Map.of("status", DELETED)
+        );
     }
 
-    /** 政策 §9 视为「永不删除」的敏感类别。 */
-    private static boolean isSensitive(DocumentCategory category) {
-        return category == DocumentCategory.MEDICAL || category == DocumentCategory.LEGAL;
+    public void deleteCaseDocument(Long caseId, Long documentId) {
+        deleteCaseDocument(caseId, documentId, null);
     }
 
-    private ClientCase requireActiveCase(Long caseId) {
+    private ClientCase requireVisibleCase(Long caseId) {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         if (DELETED.equalsIgnoreCase(clientCase.getStatus())) {
             throw new EntityNotFoundException("Case not found: " + caseId);
+        }
+        return clientCase;
+    }
+
+    private ClientCase requireMutableCase(Long caseId) {
+        ClientCase clientCase = requireVisibleCase(caseId);
+        if (CLOSED.equalsIgnoreCase(clientCase.getStatus())) {
+            throw new IllegalStateException("Closed cases are read-only");
         }
         return clientCase;
     }

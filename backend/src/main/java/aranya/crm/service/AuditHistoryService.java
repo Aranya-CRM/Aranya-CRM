@@ -3,12 +3,15 @@ package aranya.crm.service;
 import aranya.crm.dto.response.AuditHistoryEntryResponse;
 import aranya.crm.entity.ApprovalRequest;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.OperationAuditLog;
 import aranya.crm.entity.User;
 import aranya.crm.repository.ApprovalRequestRepository;
 import aranya.crm.repository.CaseRepository;
+import aranya.crm.repository.OperationAuditLogRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -28,8 +31,16 @@ public class AuditHistoryService {
 
     private final ApprovalRequestRepository approvalRequestRepository;
     private final CaseRepository caseRepository;
+    private final OperationAuditLogRepository operationAuditLogRepository;
 
     public List<AuditHistoryEntryResponse> listCaseAuditHistory(Long caseId) {
+        return listCaseAuditHistory(caseId, null, true);
+    }
+
+    public List<AuditHistoryEntryResponse> listCaseAuditHistory(Long caseId, Long viewerId, boolean canViewAll) {
+        if (!canViewAll && viewerId == null) {
+            throw new AccessDeniedException("Authenticated user is required to view own audit history");
+        }
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Case not found: " + caseId));
         Long clientId = clientCase.getClient() != null ? clientCase.getClient().getId() : null;
@@ -39,13 +50,61 @@ public class AuditHistoryService {
                 ? List.of()
                 : approvalRequestRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDescIdDesc(CLIENT_TARGET, clientId);
 
-        return java.util.stream.Stream.concat(caseApprovals.stream(), clientApprovals.stream())
+        List<AuditHistoryEntryResponse> approvalEntries = java.util.stream.Stream.concat(caseApprovals.stream(), clientApprovals.stream())
+                .filter(request -> canViewAll || isOwnApproval(request, viewerId))
                 .sorted(Comparator
                         .comparing((ApprovalRequest request) -> request.getCreatedAt() == null ? LocalDateTime.MIN : request.getCreatedAt())
                         .reversed()
                         .thenComparing(ApprovalRequest::getId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(request -> toResponse(request, caseId))
                 .toList();
+        List<OperationAuditLog> operationLogs = canViewAll
+                ? operationAuditLogRepository.findByClientCaseIdOrderByOccurredAtDescIdDesc(caseId)
+                : operationAuditLogRepository.findByClientCaseIdAndActorIdOrderByOccurredAtDescIdDesc(caseId, viewerId);
+        List<AuditHistoryEntryResponse> operationEntries = operationLogs.stream()
+                .map(this::toResponse)
+                .toList();
+
+        return java.util.stream.Stream.concat(operationEntries.stream(), approvalEntries.stream())
+                .sorted(Comparator
+                        .comparing((AuditHistoryEntryResponse entry) -> entry.getOccurredAt() == null ? LocalDateTime.MIN : entry.getOccurredAt())
+                        .reversed()
+                        .thenComparing(AuditHistoryEntryResponse::getId))
+                .toList();
+    }
+
+    private boolean isOwnApproval(ApprovalRequest request, Long viewerId) {
+        if (viewerId == null) return false;
+        User requestedBy = request.getRequestedBy();
+        User decidedBy = request.getDecidedBy();
+        return requestedBy != null && viewerId.equals(requestedBy.getId())
+                || decidedBy != null && viewerId.equals(decidedBy.getId());
+    }
+
+    private AuditHistoryEntryResponse toResponse(OperationAuditLog log) {
+        return AuditHistoryEntryResponse.builder()
+                .id("operation-" + log.getId())
+                .action(log.getAction())
+                .targetType(log.getTargetType())
+                .targetId(parseLong(log.getTargetId()))
+                .caseId(log.getClientCase().getId())
+                .targetLabel(log.getTargetLabel())
+                .actorName(log.getActorName())
+                .occurredAt(log.getOccurredAt())
+                .approvalRequired(false)
+                .lifecycleStatus("active")
+                .decisionStatus("not_required")
+                .summary(log.getSummary())
+                .reason(log.getReason())
+                .approvalRequestId(log.getApprovalRequestId() == null ? null : String.valueOf(log.getApprovalRequestId()))
+                .beforeValue(log.getBeforeJson())
+                .afterValue(log.getAfterJson())
+                .result(log.getResult())
+                .source(log.getSource())
+                .metadata(Map.of())
+                .canEdit(false)
+                .canDelete(false)
+                .build();
     }
 
     private AuditHistoryEntryResponse toResponse(ApprovalRequest request, Long caseId) {
@@ -78,9 +137,20 @@ public class AuditHistoryService {
                 .version(readInteger(request.getPayloadJson(), "version"))
                 .previousVersionId(readText(request.getPayloadJson(), "previousVersionId"))
                 .metadata(metadata(request))
+                .result("SUCCESS")
+                .source("WEB")
                 .canEdit(false)
                 .canDelete(false)
                 .build();
+    }
+
+    private Long parseLong(String value) {
+        if (value == null) return null;
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String lifecycleStatus(ApprovalRequest request) {
@@ -95,7 +165,9 @@ public class AuditHistoryService {
         return switch (normalizeType(request.getType())) {
             case "CASE_SERVICE_UPDATE" -> "服务模块变更审批" + decisionText(decisionStatus);
             case "DELETE_CASE" -> "个案归档审批" + decisionText(decisionStatus);
+            case "RESTORE_CASE" -> "个案恢复审批" + decisionText(decisionStatus);
             case "DELETE_CLIENT" -> "会员档案归档审批" + decisionText(decisionStatus);
+            case "RESTORE_CLIENT" -> "会员档案恢复审批" + decisionText(decisionStatus);
             case "DELETE_REPORT" -> "报告作废审批" + decisionText(decisionStatus);
             case "CASE_CREATE" -> "创建个案审批" + decisionText(decisionStatus);
             case "CLIENT_CREATE" -> "创建会员档案审批" + decisionText(decisionStatus);

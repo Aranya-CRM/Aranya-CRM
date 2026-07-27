@@ -26,9 +26,12 @@ public class CaseDetailResponse {
     private String clientAbbr;
     private String clientNameEn;
     private String clientNameChn;
+    private String clientGender;
+    private String clientOrdinationStatus;
     private String venue;
     private Long createdById;
     private String createdByName;
+    private List<UserAssignmentResponse> participantUsers;
     private String comments;
     private String remarks;
     private Map<String, Boolean> services;

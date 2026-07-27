@@ -14,6 +14,7 @@ public class ReportDetailResponse {
     private Long id;
     private Long caseId;
     private Long clientId;
+    private Long appointmentId;
     private String clientAbbr;
     private String clientNameEn;
     private String clientNameChn;
@@ -28,6 +29,14 @@ public class ReportDetailResponse {
     private String location;
     private String programmeName;
     private String typeOfVisit;
+    private String eventTitle;
+    private LocalDateTime eventScheduledStart;
+    private LocalDateTime eventScheduledEnd;
+    private String eventLocation;
+    private String eventAddress;
+    private String eventContent;
+    private String serviceKey;
+    private String serviceName;
     private String purposeOfVisit;
     private String whatWasDone;
     private String environmentObservations;

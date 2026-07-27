@@ -5,13 +5,17 @@ import aranya.crm.dto.response.CaseDocumentResponse;
 import aranya.crm.dto.response.DocumentDownloadResponse;
 import aranya.crm.entity.DocumentCategory;
 import aranya.crm.entity.User;
+import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
 import aranya.crm.service.CaseDocumentService;
+import aranya.crm.service.CaseService;
 import aranya.crm.service.GcsFileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +26,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/cases/{caseId}/documents")
@@ -31,10 +38,17 @@ import java.util.List;
 public class CaseDocumentController {
 
     private final CaseDocumentService caseDocumentService;
+    private final CaseService caseService;
+    private final CapPermissionEvaluator capEval;
 
     @GetMapping
-    public ResponseEntity<List<CaseDocumentResponse>> listCaseDocuments(@PathVariable Long caseId) {
-        return ResponseEntity.ok(caseDocumentService.listCaseDocuments(caseId));
+    public ResponseEntity<List<CaseDocumentResponse>> listCaseDocuments(
+            @PathVariable Long caseId,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseDocumentService.listCaseDocuments(caseId, viewableCategories(currentUser)));
     }
 
     @PostMapping
@@ -44,8 +58,10 @@ public class CaseDocumentController {
             @RequestParam("category") DocumentCategory category,
             @RequestParam("file") MultipartFile file,
             @RequestParam(name = "displayName", required = false) String displayName,
+            Authentication authentication,
             @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseDocumentService.uploadCaseDocument(caseId, category, file, displayName, currentUser));
     }
 
@@ -53,20 +69,51 @@ public class CaseDocumentController {
     public ResponseEntity<DocumentDownloadResponse> createDownloadUrl(
             @PathVariable Long caseId,
             @PathVariable Long documentId,
-            @RequestParam(name = "disposition", defaultValue = "attachment") String disposition
+            @RequestParam(name = "disposition", defaultValue = "attachment") String disposition,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
         boolean forceDownload = !"inline".equalsIgnoreCase(disposition);
-        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload));
+        return ResponseEntity.ok(caseDocumentService.createDownloadUrl(caseId, documentId, forceDownload, viewableCategories(currentUser), currentUser));
     }
 
     @DeleteMapping("/{documentId}")
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:view') and @capEval.hasCap(authentication, 'cases:documents.delete')")
     public ResponseEntity<Void> deleteCaseDocument(
             @PathVariable Long caseId,
-            @PathVariable Long documentId
+            @PathVariable Long documentId,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        caseDocumentService.deleteCaseDocument(caseId, documentId);
+        caseService.requireCaseVisible(caseId, scopedUserId(authentication, currentUser));
+        caseDocumentService.deleteCaseDocument(caseId, documentId, currentUser);
         return ResponseEntity.noContent().build();
+    }
+
+    private Long scopedUserId(Authentication authentication, User currentUser) {
+        String scope = capEval.capScope(authentication, "cases:view");
+        if ("NO".equals(scope)) {
+            throw new AccessDeniedException("User cannot view cases");
+        }
+        if ("OWN".equals(scope)) {
+            if (currentUser == null || currentUser.getId() == null) {
+                throw new AccessDeniedException("User cannot view cases");
+            }
+            return currentUser.getId();
+        }
+        return null;
+    }
+
+    /** 计算调用者可查看的文档类别集合(cases:documents.view.&lt;category&gt;,含 role_cap ∪ user_cap)。 */
+    private Set<DocumentCategory> viewableCategories(User user) {
+        Set<DocumentCategory> viewable = EnumSet.noneOf(DocumentCategory.class);
+        for (DocumentCategory category : DocumentCategory.values()) {
+            if (capEval.hasCap(user, "cases:documents.view." + category.name().toLowerCase(Locale.ROOT))) {
+                viewable.add(category);
+            }
+        }
+        return viewable;
     }
 
     @ExceptionHandler(GcsFileStorageService.StorageNotConfiguredException.class)

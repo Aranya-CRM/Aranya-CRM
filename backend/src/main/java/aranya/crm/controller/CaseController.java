@@ -1,25 +1,25 @@
 package aranya.crm.controller;
 
 import aranya.crm.dto.request.CreateCaseRequest;
-import aranya.crm.dto.request.CreateCaseNoteRequest;
 import aranya.crm.dto.request.CreateServiceEventRequest;
+import aranya.crm.dto.request.UpdateAssigneesRequest;
 import aranya.crm.dto.request.UpdateCaseRequest;
 import aranya.crm.dto.response.ApprovalRequestResponse;
 import aranya.crm.dto.response.CalendarEventResponse;
 import aranya.crm.dto.response.CaseDetailResponse;
-import aranya.crm.dto.response.CaseNoteResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.response.ServiceEventResponse;
+import aranya.crm.dto.response.UserAssignmentResponse;
 import aranya.crm.entity.User;
 import aranya.crm.security.CapPermissionEvaluator;
 import aranya.crm.security.annotation.CurrentUser;
-import aranya.crm.service.CaseNoteService;
 import aranya.crm.service.CaseService;
 import aranya.crm.service.ApprovalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,25 +48,28 @@ public class CaseController {
     private static final String APPROVAL_REASON_HEADER = "X-Approval-Reason";
 
     private final CaseService caseService;
-    private final CaseNoteService caseNoteService;
     private final ApprovalService approvalService;
     private final CapPermissionEvaluator capEval;
 
     @GetMapping
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
     public ResponseEntity<List<CaseSummaryResponse>> listCases(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
             Authentication authentication,
             @CurrentUser User currentUser
     ) {
-        String scope = capEval.capScope(authentication, "cases:view");
-        Long scopedUserId = "OWN".equals(scope) && currentUser != null ? currentUser.getId() : null;
-        return ResponseEntity.ok(caseService.listCases(q, status, scopedUserId));
+        return ResponseEntity.ok(caseService.listCases(q, status, scopedUserId(authentication, currentUser)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CaseDetailResponse> getCaseDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(caseService.getCaseDetail(id));
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<CaseDetailResponse> getCaseDetail(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        return ResponseEntity.ok(caseService.getCaseDetail(id, scopedUserId(authentication, currentUser)));
     }
 
     @PostMapping
@@ -96,9 +99,11 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:status.close')")
     public ResponseEntity<CaseDetailResponse> updateCase(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateCaseRequest request
+            @Valid @RequestBody UpdateCaseRequest request,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.updateCase(id, request));
+        return ResponseEntity.ok(caseService.updateCase(id, request, currentUser, scopedUserId(authentication, currentUser)));
     }
 
     @PatchMapping("/{id}/services")
@@ -106,10 +111,13 @@ public class CaseController {
     public ResponseEntity<ApprovalRequestResponse> updateCaseServices(
             @PathVariable Long id,
             @RequestBody List<String> serviceKeys,
+            Authentication authentication,
             @CurrentUser User currentUser,
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        caseService.requireCaseEditor(id, currentUser);
         List<String> requestedServiceKeys = serviceKeys == null ? List.of() : serviceKeys;
         List<String> currentServiceKeys = caseService.listSelectedServiceKeys(id);
         List<String> addServiceKeys = requestedServiceKeys.stream()
@@ -130,24 +138,60 @@ public class CaseController {
                         "removeServiceKeys", removeServiceKeys
                 ),
                 currentUser,
-                approverId,
+                caseService.resolveCaseServiceApprovalApproverId(id, currentUser, approverId),
                 approvalReason
         );
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
     @GetMapping("/{id}/service-events")
-    public ResponseEntity<List<ServiceEventResponse>> listServiceEvents(@PathVariable Long id) {
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<List<ServiceEventResponse>> listServiceEvents(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.listServiceEvents(id));
     }
 
-    /** 读取 Google 共享日历在 [from, to] 区间内的事件(排除本 case 自己的,作为日历背景上下文)。 */
+    @GetMapping("/{id}/participants")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
+    public ResponseEntity<List<UserAssignmentResponse>> listCaseParticipants(
+            @PathVariable Long id,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseService.listCaseParticipants(id));
+    }
+
+    @PatchMapping("/{id}/participants")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:assign') or @capEval.hasCap(authentication, 'cases:services.create')")
+    public ResponseEntity<List<UserAssignmentResponse>> updateCaseParticipants(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAssigneesRequest request,
+            Authentication authentication,
+            @CurrentUser User currentUser
+    ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseService.updateCaseParticipants(id, request.getUserIds(), currentUser));
+    }
+
+    /**
+     * 读取 Google 共享日历在 [from, to] 区间内的事件(排除本 case 自己的,作为日历背景上下文)。
+     * 任何能进入本个案详情页的用户均可见(与 service-events 同级,靠 cases:view 进入把关)。
+     */
     @GetMapping("/{id}/calendar-events")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:view')")
     public ResponseEntity<List<CalendarEventResponse>> listSharedCalendarEvents(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.listSharedCalendarEvents(id, from, to));
     }
 
@@ -156,8 +200,10 @@ public class CaseController {
     public ResponseEntity<ServiceEventResponse> createServiceEvent(
             @PathVariable Long id,
             @Valid @RequestBody CreateServiceEventRequest request,
+            Authentication authentication,
             @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.createServiceEvent(id, request, currentUser));
     }
 
@@ -167,8 +213,10 @@ public class CaseController {
             @PathVariable Long id,
             @PathVariable Long eventId,
             @Valid @RequestBody CreateServiceEventRequest request,
+            Authentication authentication,
             @CurrentUser User currentUser
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         return ResponseEntity.ok(caseService.updateServiceEvent(id, eventId, request, currentUser));
     }
 
@@ -177,18 +225,24 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<ServiceEventResponse> syncServiceEvent(
             @PathVariable Long id,
-            @PathVariable Long eventId
+            @PathVariable Long eventId,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId));
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        return ResponseEntity.ok(caseService.syncServiceEvent(id, eventId, currentUser));
     }
 
     @DeleteMapping("/{id}/service-events/{eventId}")
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:services.create')")
     public ResponseEntity<Void> deleteServiceEvent(
             @PathVariable Long id,
-            @PathVariable Long eventId
+            @PathVariable Long eventId,
+            Authentication authentication,
+            @CurrentUser User currentUser
     ) {
-        caseService.deleteServiceEvent(id, eventId);
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        caseService.deleteServiceEvent(id, eventId, currentUser);
         return ResponseEntity.noContent().build();
     }
 
@@ -196,10 +250,12 @@ public class CaseController {
     @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
     public ResponseEntity<ApprovalRequestResponse> deleteCase(
             @PathVariable Long id,
+            Authentication authentication,
             @CurrentUser User currentUser,
             @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
             @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
         ApprovalRequestResponse approval = approvalService.createRequest(
                 "DELETE_CASE",
                 "CASE",
@@ -212,34 +268,40 @@ public class CaseController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
     }
 
-    @GetMapping("/{id}/notes")
-    public ResponseEntity<List<CaseNoteResponse>> listCaseNotes(
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("@capEval.hasCap(authentication, 'cases:delete')")
+    public ResponseEntity<ApprovalRequestResponse> restoreCase(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean mine,
-            @CurrentUser User currentUser
+            Authentication authentication,
+            @CurrentUser User currentUser,
+            @RequestHeader(name = APPROVER_HEADER, required = false) Long approverId,
+            @RequestHeader(name = APPROVAL_REASON_HEADER, required = false) String approvalReason
     ) {
-        if (mine) {
-            return ResponseEntity.ok(caseNoteService.listOwnCaseNotes(id, currentUser));
+        caseService.requireCaseVisible(id, scopedUserId(authentication, currentUser));
+        ApprovalRequestResponse approval = approvalService.createRequest(
+                "RESTORE_CASE",
+                "CASE",
+                id,
+                null,
+                currentUser,
+                approverId,
+                approvalReason
+        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(approval);
+    }
+
+    private Long scopedUserId(Authentication authentication, User currentUser) {
+        String scope = capEval.capScope(authentication, "cases:view");
+        if ("NO".equals(scope)) {
+            throw new AccessDeniedException("User cannot view cases");
         }
-        return ResponseEntity.ok(caseNoteService.listCaseNotes(id));
+        if ("OWN".equals(scope)) {
+            if (currentUser == null || currentUser.getId() == null) {
+                throw new AccessDeniedException("User cannot view cases");
+            }
+            return currentUser.getId();
+        }
+        return null;
     }
 
-    @PostMapping("/{id}/notes")
-    public ResponseEntity<CaseNoteResponse> createCaseNote(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateCaseNoteRequest request,
-            @CurrentUser User currentUser
-    ) {
-        return ResponseEntity.ok(caseNoteService.createCaseNote(id, request, currentUser));
-    }
-
-    @DeleteMapping("/{caseId}/notes/{noteId}")
-    public ResponseEntity<Void> deleteOwnCaseNote(
-            @PathVariable Long caseId,
-            @PathVariable Long noteId,
-            @CurrentUser User currentUser
-    ) {
-        caseNoteService.deleteOwnCaseNote(caseId, noteId, currentUser);
-        return ResponseEntity.noContent().build();
-    }
 }

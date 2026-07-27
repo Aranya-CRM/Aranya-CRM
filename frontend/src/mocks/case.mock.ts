@@ -1,4 +1,4 @@
-import type { Case, CaseNote, CaseStatusChange } from '../features/cases/types'
+import type { Case, CaseStatusChange } from '../features/cases/types'
 
 const defaultServices = {
   accommodationArrangement: false,
@@ -151,54 +151,6 @@ export const caseMockData: Case[] = [
       dailyExpenseSubsidy: true,
       mealDelivery: true,
     },
-  },
-]
-
-export const caseNoteMockData: CaseNote[] = [
-  {
-    id: 'note-001',
-    caseId: 'case-001',
-    date: '2026-03-10',
-    content: 'Visited client at temporary accommodation. Client expressed concern about long-term housing stability. Discussed options with HDB.',
-    followUp: 'Follow up with HDB on rental flat application status by 2026-03-17',
-    recordedBy: 'Admin',
-    createdAt: '2026-03-10T15:30:00+08:00',
-  },
-  {
-    id: 'note-002',
-    caseId: 'case-001',
-    date: '2026-03-03',
-    content: 'Initial assessment completed. Client needs immediate temporary shelter. Contacted MSF for emergency housing assistance.',
-    followUp: 'Arrange temporary housing within 48 hours',
-    recordedBy: 'Admin',
-    createdAt: '2026-03-03T10:00:00+08:00',
-  },
-  {
-    id: 'note-003',
-    caseId: 'case-002',
-    date: '2026-03-12',
-    content: 'Accompanied client to NUH for regular check-up. Doctor reports stable condition. Next appointment in 2 weeks.',
-    followUp: 'Arrange transport for appointment on 2026-03-26',
-    recordedBy: 'Admin',
-    createdAt: '2026-03-12T14:00:00+08:00',
-  },
-  {
-    id: 'note-004',
-    caseId: 'case-004',
-    date: '2026-03-15',
-    content: 'Met with immigration consultant. Visa renewal application submitted. Awaiting MOM response.',
-    followUp: 'Check MOM portal for application status in 2 weeks',
-    recordedBy: 'Sarah (SW)',
-    createdAt: '2026-03-15T11:00:00+08:00',
-  },
-  {
-    id: 'note-005',
-    caseId: 'case-004',
-    date: '2026-03-03',
-    content: 'Initial assessment completed. Client facing acute housing crisis — temple premises to be vacated by end of month. No immediate next of kin. MSF emergency referral initiated.',
-    followUp: 'Arrange temporary shelter within 48 hours. Contact MSF social worker by 2026-03-05.',
-    recordedBy: 'Sarah (SW)',
-    createdAt: '2026-03-03T11:00:00+08:00',
   },
 ]
 

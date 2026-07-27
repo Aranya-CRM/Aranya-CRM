@@ -32,6 +32,10 @@ public class AuditHistoryEntryResponse {
     private Integer version;
     private String previousVersionId;
     private Map<String, String> metadata;
+    private String beforeValue;
+    private String afterValue;
+    private String result;
+    private String source;
     private boolean canEdit;
     private boolean canDelete;
 }

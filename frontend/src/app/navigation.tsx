@@ -43,36 +43,11 @@ function ReportsIcon() {
   )
 }
 
-function TasksIcon() {
+export function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <path d="M3 6l1 1 2-2" />
-      <path d="M3 12l1 1 2-2" />
-      <path d="M3 18l1 1 2-2" />
-    </svg>
-  )
-}
-
-function DriveImportIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 3h8l4 8-4 8H8l-4-8z" />
-      <path d="M8 11h8" />
-      <path d="M12 11v6" />
-    </svg>
-  )
-}
-
-export function AdminIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="9" cy="8" r="3" />
-      <path d="M3.5 19c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" />
-      <circle cx="17.5" cy="8.5" r="2" />
-      <path d="M15 19c0-2.2 1.3-3.6 3.4-3.6" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
     </svg>
   )
 }
@@ -118,13 +93,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: <CasesIcon />,
   },
   {
-    id: 'tasks',
-    routeId: 'route:tasks',
-    path: '/tasks',
-    labelKey: 'nav.tasks',
-    icon: <TasksIcon />,
-  },
-  {
     id: 'reports',
     routeId: 'route:reports',
     path: '/reports',
@@ -136,27 +104,3 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
 export const NAVIGATION_BY_ID = Object.fromEntries(
   NAVIGATION_ITEMS.map((item) => [item.id, item]),
 ) as Record<string, NavigationItem>
-
-/**
- * 后台管理(Backend Dashboard)独立导航 —— 只在 AdminLayout 内渲染,不进主前台侧栏。
- * 系统与账号管理集中于此;各项仍按各自 cap 门控。
- */
-export const ADMIN_NAV_ITEMS: NavigationItem[] = [
-  {
-    id: 'admin-accounts',
-    routeId: 'route:users',
-    path: '/admin/accounts',
-    labelKey: 'admin.nav.accounts',
-    icon: <AdminIcon />,
-  },
-  {
-    id: 'admin-driveImport',
-    routeId: 'cases:documents.import',
-    path: '/admin/drive-import',
-    labelKey: 'nav.driveImport',
-    icon: <DriveImportIcon />,
-  },
-]
-
-/** 进入后台的入口只由 Admin shell cap 控制;后台内部菜单仍按各自 cap 门控。 */
-export const ADMIN_ENTRY_ROUTE_IDS = ['route:admin']

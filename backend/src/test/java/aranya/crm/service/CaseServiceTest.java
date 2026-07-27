@@ -3,9 +3,13 @@ package aranya.crm.service;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.request.CreateCaseRequest;
+import aranya.crm.entity.CaseAssignment;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.Role;
 import aranya.crm.entity.User;
+import aranya.crm.entity.UserRole;
+import aranya.crm.repository.CaseAssignmentRepository;
 import aranya.crm.repository.CaseRepository;
 import aranya.crm.repository.ClientRepository;
 import aranya.crm.repository.UserRepository;
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +45,9 @@ class CaseServiceTest {
     private CaseRepository caseRepository;
 
     @Mock
+    private CaseAssignmentRepository caseAssignmentRepository;
+
+    @Mock
     private ClientRepository clientRepository;
 
     @Mock
@@ -47,6 +55,9 @@ class CaseServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private OperationAuditLogService operationAuditLogService;
 
     @InjectMocks
     private CaseService caseService;
@@ -91,6 +102,17 @@ class CaseServiceTest {
         caseService.listCases(" tan ", " OPEN ", null);
 
         verify(caseRepository).searchCases("tan", "OPEN");
+    }
+
+    @Test
+    @DisplayName("listCases scoped to a user queries primary assignments")
+    void listCases_scopedUser_callsAssignedCasesQuery() {
+        when(caseRepository.findAssignedCasesByUserIdOrderByOpenedAtDescIdDesc(10L)).thenReturn(List.of());
+
+        caseService.listCases(null, null, 10L);
+
+        verify(caseRepository).findAssignedCasesByUserIdOrderByOpenedAtDescIdDesc(10L);
+        verify(caseRepository, never()).findByCreatedByIdOrderByOpenedAtDescIdDesc(10L);
     }
 
     @Test
@@ -178,6 +200,39 @@ class CaseServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Client already has an active case");
         verify(caseRepository, never()).save(any(ClientCase.class));
+    }
+
+    @Test
+    @DisplayName("executeApprovedCreateCase writes selected primary assignee")
+    void executeApprovedCreateCase_writesPrimaryAssignee() {
+        Client client = buildClient(100L, "John Smith");
+        User requester = buildUserWithRole(200L, "Manager A", "MANAGER");
+        User socialWorker = buildUserWithRole(300L, "Social Worker A", "SOCIAL_WORKER");
+        CreateCaseRequest request = buildCreateCaseRequest(100L);
+        request.setSocialWorkerId(300L);
+
+        when(clientRepository.findById(100L)).thenReturn(Optional.of(client));
+        when(caseRepository.existsActiveCaseByClientId(100L)).thenReturn(false);
+        when(userRepository.findByIdWithRoles(300L)).thenReturn(Optional.of(socialWorker));
+        when(caseRepository.findLatestCaseCodeByYear("2026")).thenReturn(Optional.empty());
+        when(caseRepository.save(any(ClientCase.class))).thenAnswer(invocation -> {
+            ClientCase saved = invocation.getArgument(0);
+            saved.setId(55L);
+            saved.setCreatedAt(LocalDateTime.of(2026, 6, 25, 10, 0));
+            return saved;
+        });
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(55L))).thenReturn(List.of());
+
+        caseService.executeApprovedCreateCase(request, requester);
+
+        ArgumentCaptor<CaseAssignment> assignmentCaptor = ArgumentCaptor.forClass(CaseAssignment.class);
+        verify(caseAssignmentRepository).save(assignmentCaptor.capture());
+        CaseAssignment assignment = assignmentCaptor.getValue();
+        assertThat(assignment.getClientCase().getId()).isEqualTo(55L);
+        assertThat(assignment.getUser().getId()).isEqualTo(300L);
+        assertThat(assignment.isPrimary()).isTrue();
+        assertThat(assignment.getAssignmentRole()).isEqualTo("SOCIAL_WORKER");
+        assertThat(assignment.getAssignedBy().getId()).isEqualTo(200L);
     }
 
     // ── resolveTradition ──────────────────────────────────────────────────────
@@ -306,6 +361,18 @@ class CaseServiceTest {
         User user = new User();
         user.setId(id);
         user.setFullName(fullName);
+        return user;
+    }
+
+    private User buildUserWithRole(Long id, String fullName, String roleName) {
+        User user = buildUser(id, fullName);
+        user.setStatus("ACTIVE");
+        Role role = new Role();
+        role.setName(roleName);
+        UserRole userRole = new UserRole();
+        userRole.setUser(user);
+        userRole.setRole(role);
+        user.getUserRoles().add(userRole);
         return user;
     }
 

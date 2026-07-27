@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +54,9 @@ class ClientServiceTest {
         client.setAreaDistrict("Hougang");
         client.setBuddhistTradition("Mahayana");
         client.setOrdinationStatus("Bhikkhuni");
+        client.setGender("F");
+        client.setDateOfBirth(LocalDate.of(1951, 2, 21));
+        client.setDateOfOrdination(LocalDate.of(1981, 5, 19));
         client.setMembershipStatus("ACTIVE");
         client.setCreatedAt(LocalDateTime.of(2026, 5, 7, 9, 30));
 
@@ -66,6 +70,9 @@ class ClientServiceTest {
         assertThat(response.get(0).getNameEn()).isEqualTo("Tan Mei Lin");
         assertThat(response.get(0).getArea()).isEqualTo("Hougang");
         assertThat(response.get(0).getBuddhistTradition()).isEqualTo("Mahayana");
+        assertThat(response.get(0).getGender()).isEqualTo("F");
+        assertThat(response.get(0).getDateOfBirth()).isEqualTo(LocalDate.of(1951, 2, 21));
+        assertThat(response.get(0).getDateOfOrdination()).isEqualTo(LocalDate.of(1981, 5, 19));
         verify(clientRepository).searchClients("tan", "ACTIVE");
     }
 

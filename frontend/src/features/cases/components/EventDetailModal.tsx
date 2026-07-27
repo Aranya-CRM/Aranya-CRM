@@ -116,6 +116,13 @@ export function EventDetailModal({ detail, onClose, onEdit, onDelete, onSync, de
             </div>
           ) : null}
 
+          {detail.assignedUserName ? (
+            <div className="event-detail-section">
+              <div className="event-detail-label">{t('cases.services.participants')}</div>
+              <div className="event-detail-content">{detail.assignedUserName}</div>
+            </div>
+          ) : null}
+
           {detail.kind === 'OWN' && hasStructured ? (
             <div className="event-detail-sections">
               {sections.map(([label, value]) =>

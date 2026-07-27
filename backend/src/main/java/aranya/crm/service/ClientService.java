@@ -32,6 +32,7 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final RelatedContactRepository relatedContactRepository;
     private final CaseRepository caseRepository;
+    private final CaseService caseService;
 
     public List<ClientSummaryResponse> listClients(String q, String membershipStatus) {
         String normalizedQuery = normalizeFilter(q);
@@ -154,11 +155,16 @@ public class ClientService {
 
     private void closeClientActiveCases(Long clientId) {
         List<ClientCase> activeCases = caseRepository.findActiveCasesByClientId(clientId);
-        activeCases.forEach(clientCase -> {
-            clientCase.setStatus(DELETED_STATUS);
-            clientCase.setClosedAt(java.time.LocalDateTime.now());
-        });
-        caseRepository.saveAll(activeCases);
+        activeCases.forEach(clientCase -> caseService.executeApprovedDeleteCase(clientCase.getId()));
+    }
+
+    @Transactional
+    public ClientDetailResponse restoreClient(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + clientId));
+        client.setMembershipStatus(ACTIVE_STATUS);
+        clientRepository.save(client);
+        return getClientDetail(clientId);
     }
 
     private static <T> void set(T value, Consumer<T> setter) {
@@ -188,7 +194,11 @@ public class ClientService {
                 .area(client.getAreaDistrict())
                 .buddhistTradition(client.getBuddhistTradition())
                 .ordinationStatus(client.getOrdinationStatus())
+                .gender(client.getGender())
+                .dateOfBirth(client.getDateOfBirth())
+                .dateOfOrdination(client.getDateOfOrdination())
                 .membershipStatus(client.getMembershipStatus())
+                .createdAt(client.getCreatedAt())
                 .build();
     }
 

@@ -99,28 +99,73 @@
 }
 
 .client-filter-popover {
-  position: absolute;
-  top: 36px;
-  right: 0;
-  z-index: 5;
-  width: min(262px, calc(100vw - 32px));
-  padding: 14px;
+  position: fixed;
+  z-index: 1000;
+  width: min(386px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 150px));
+  padding: 12px;
   border: 1px solid #d7dce5;
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+  overflow: auto;
+}
+
+.client-filter-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #d7dce5;
+  border-radius: 7px;
+  background: #f3f5f8;
+}
+
+.client-filter-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.client-filter-tabs button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.client-filter-grid,
+.client-filter-sort-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.client-filter-grid {
+  grid-template-columns: 1fr 1fr;
 }
 
 .client-filter-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eef1f5;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #eef1f5;
+  border-radius: 7px;
+  background: #ffffff;
 }
 
-.client-filter-group:first-child {
-  padding-top: 0;
+.client-filter-group.wide {
+  grid-column: 1 / -1;
+}
+
+.client-filter-group.compact .client-filter-chip {
+  flex: 1 1 auto;
 }
 
 .client-filter-group span {
@@ -172,6 +217,25 @@
 
 .client-filter-clear:hover {
   background: #f3f5f8;
+}
+
+.client-filter-sort-reset {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid #d7dce5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.client-filter-sort-reset:hover,
+.client-filter-sort-reset.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
 }
 
 .client-create-btn {
@@ -241,15 +305,6 @@
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.client-directory-en {
-  overflow: hidden;
-  margin-top: 4px;
-  color: #40506a;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .client-directory-meta {
@@ -329,11 +384,22 @@
   color: #991b1b;
 }
 
+.client-directory-approval-badge.restore,
+.client-approval-status.restore {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .client-profile-surface {
   height: 100%;
   overflow: auto;
   min-width: 0;
   background: #f8f9fb;
+}
+
+.client-profile-surface.empty {
+  background: #ffffff;
 }
 
 .client-profile {
@@ -492,6 +558,38 @@
   flex-wrap: wrap;
 }
 
+.client-profile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.client-profile-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d7dce5;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #40506a;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.client-profile-icon-btn:hover {
+  background: #f3f5f8;
+  color: #111827;
+}
+
+.client-profile-icon-btn span {
+  display: block;
+  transform: translateY(-1px);
+}
 
 .client-profile-section {
   padding-top: 28px;

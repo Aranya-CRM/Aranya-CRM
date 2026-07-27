@@ -3,7 +3,9 @@ import type { AuditAction, AuditCategory, AuditScope, AuditTrailEntry, AuditTrai
 const APPROVAL_AUDIT_ACTIONS = new Set<AuditAction>([
   'CASE_CREATE',
   'DELETE_CASE',
+  'RESTORE_CASE',
   'DELETE_CLIENT',
+  'RESTORE_CLIENT',
   'DELETE_REPORT',
   'CASE_SERVICE_UPDATE',
   'CLIENT_CREATE',
@@ -27,7 +29,7 @@ export function isApprovalAuditableAction(action: AuditAction): boolean {
 
 export function buildAuditTrail(entries: AuditTrailEntry[], scope: AuditScope): AuditTrailEntry[] {
   return entries
-    .filter((entry) => entry.approvalRequired && isApprovalAuditableAction(entry.action))
+    .filter((entry) => !entry.approvalRequired || isApprovalAuditableAction(entry.action))
     .filter((entry) => matchesScope(entry, scope))
     .slice()
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
@@ -57,10 +59,11 @@ export function summarizeAuditTrail(entries: AuditTrailEntry[]): AuditTrailSumma
 }
 
 export function auditCategoryForEntry(entry: Pick<AuditTrailEntry, 'action' | 'targetType'>): Exclude<AuditCategory, 'all'> {
+  if (entry.action.startsWith('SERVICE_EVENT_') || entry.targetType === 'SERVICE_EVENT') return 'service'
   if (entry.action === 'CASE_SERVICE_UPDATE' || entry.targetType === 'SERVICE') return 'service'
-  if (entry.action === 'DELETE_CLIENT' || entry.action === 'CLIENT_CREATE' || entry.action === 'CLIENT_UPDATE' || entry.targetType === 'CLIENT') return 'member'
-  if (entry.action.startsWith('SENSITIVE_FILE_') || entry.targetType === 'SENSITIVE_FILE') return 'file'
-  if (entry.action === 'DELETE_REPORT') return 'report'
+  if (entry.action === 'DELETE_CLIENT' || entry.action === 'RESTORE_CLIENT' || entry.action === 'CLIENT_CREATE' || entry.action === 'CLIENT_UPDATE' || entry.targetType === 'CLIENT') return 'member'
+  if (entry.action.startsWith('SENSITIVE_FILE_') || entry.action.startsWith('CASE_DOCUMENT_') || entry.targetType === 'SENSITIVE_FILE' || entry.targetType === 'DOCUMENT') return 'file'
+  if (entry.action === 'DELETE_REPORT' || entry.action.startsWith('REPORT_') || entry.targetType === 'REPORT') return 'report'
   return 'case'
 }
 

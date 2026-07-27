@@ -33,8 +33,8 @@ const COLOR_CLASS: Record<string, string> = {
 const ACTION_PATHS: Record<string, string> = {
   new_case: '/cases',
   add_client: '/clients',
-  submit_report: '/reports/new',
-  view_tasks: '/tasks',
+  submit_report: '/reports',
+  view_tasks: '/reports',
 }
 
 function getSection(data: DashboardResponse | undefined, id: string): DashboardSection | undefined {
@@ -172,7 +172,7 @@ function RecentTasks({ items }: { items: DashboardItem[] }) {
 
   return (
     <section className="dashboard-panel" aria-label="Recent Assigned Tasks">
-      <SectionHeader titleKey="dashboard.recentTasks" viewAllPath="/tasks" />
+      <SectionHeader titleKey="dashboard.recentTasks" viewAllPath="/reports" />
       <div className="dashboard-list">
         {items.length === 0 ? (
           <EmptyDashboardList message={t('dashboard.noTasks')} />
@@ -185,7 +185,7 @@ function RecentTasks({ items }: { items: DashboardItem[] }) {
                 className={`case-row case-row-${colorClass}`}
                 key={item.id}
                 type="button"
-                onClick={() => navigate(`/tasks/${item.id}`)}
+                onClick={() => navigate(`/reports/${item.id}`)}
               >
                 <span className="case-accent" aria-hidden="true" />
                 <span className="row-main">

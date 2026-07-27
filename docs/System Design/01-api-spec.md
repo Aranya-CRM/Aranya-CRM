@@ -35,6 +35,8 @@ Implemented HTTP API groups:
 | Dashboard | `GET /api/v1/dashboard` |
 | Users (read-only list) | `GET /api/v1/users` |
 | Admin — user management | `GET /api/admin/v1/users`, `POST /api/admin/v1/users/invite`, `PATCH /api/admin/v1/users/{id}/roles`, `PATCH /api/admin/v1/users/{id}/status`, `DELETE /api/admin/v1/users/{id}` |
+| Admin — sensitive file access | `GET /api/admin/v1/users/{userId}/file-access`, `PUT /api/admin/v1/users/{userId}/file-access` |
+| Admin — sensitive profile access | `GET /api/admin/v1/users/{userId}/profile-access`, `PUT /api/admin/v1/users/{userId}/profile-access` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{id}` |
 | Case documents | `GET/POST /api/v1/cases/{id}/documents`, `GET /api/v1/cases/{id}/documents/{documentId}/download-url`, `DELETE /api/v1/cases/{id}/documents/{documentId}` |
@@ -387,6 +389,37 @@ Soft-deletes a user by setting local status to `DELETED`. Managers cannot remove
 204 No Content
 ```
 
+### GET `/api/admin/v1/users/{userId}/file-access`
+
+Settings — per-user sensitive case-file access grants (pure additive model; each user holds an independent category set). Requires the `route:settings` capability. The response contains **only** category sets — never user identity or role information.
+
+```json
+{ "categories": ["MEDICAL"], "inherited": ["ORDINATION", "MEDICAL", "FINANCIAL", "LEGAL"] }
+```
+
+- `categories` — editable per-user grants (`user_cap`).
+- `inherited` — always-on categories the user already views via role baseline (`role_cap`); shown checked + locked in the UI, never sent back on save.
+
+Categories: `ORDINATION` (identity), `MEDICAL`, `FINANCIAL`, `LEGAL` (backend `DocumentCategory` enum).
+
+### PUT `/api/admin/v1/users/{userId}/file-access`
+
+Full-set replacement of the user's editable grants. Request `{ "categories": ["ORDINATION", "LEGAL"] }`; response mirrors GET. Writes are whitelisted server-side to the `cases:documents.view.*` cap family (`user_cap` table); role baseline is never modified.
+
+### GET `/api/admin/v1/users/{userId}/profile-access`
+
+Settings — per-user sensitive **client-profile section** grants. Same additive model, `route:settings`-gated, role-free response.
+
+```json
+{ "sections": ["IDENTITY"], "inherited": ["PERSONAL", "MEMBERSHIP"] }
+```
+
+Sections: `IDENTITY`, `PERSONAL`, `ORDINATION`, `MEMBERSHIP`, `WELLBEING`, `NEEDS` (backend `ClientProfileSection` enum). Semantics of `sections`/`inherited` mirror file-access. `GET /api/v1/clients/{id}` masks (nulls) the fields of any section the requester lacks.
+
+### PUT `/api/admin/v1/users/{userId}/profile-access`
+
+Full-set replacement. Request `{ "sections": ["IDENTITY", "WELLBEING"] }`; response mirrors GET. Whitelisted server-side to the `clients:profile.*` cap family.
+
 ## 9. Client API
 
 Authorization:
@@ -646,12 +679,21 @@ Response:
 
 Returns one case by database id.
 
-Response shape is the same as one item from `GET /api/v1/cases`.
+Response shape is the same as one item from `GET /api/v1/cases`, plus the following detail-only fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `clientAbbr` | string | Monastic abbreviation |
+| `clientGender` | string | From `client.gender` |
+| `clientOrdinationStatus` | string | From `client.ordination_status` |
+| `services` | object | Map of service key → boolean |
+| `serviceEvents` | array | See `ServiceEventResponse` |
 
 Notes:
 
 - Missing case ids result in an `EntityNotFoundException`; global error mapping should be confirmed before relying on a final HTTP shape.
 - Case notes and status history remain frontend fallback/mock behavior until their backend APIs are implemented.
+- `clientGender` / `clientOrdinationStatus` are read by the volunteer task detail page. They are visible to any role that can read a case.
 
 ### GET `/api/v1/cases/{id}/calendar-events`
 
@@ -674,13 +716,15 @@ Response: array of
   "end": "ISO-8601|null",
   "allDay": false,
   "source": "OTHER_CASE | EXTERNAL",
-  "caseId": 123              // present when the event was written by another case
+  "caseId": 123,             // present when the event was written by another case
+  "colorId": "string|null"   // Google event palette id "1"-"11"; null when the event has no per-event colour
 }
 ```
 
 Notes:
 
 - Backed by a Service Account / OAuth single account; controlled by `google.calendar.*` config. When `google.calendar.enabled=false` (or credentials/calendar-id missing) it returns an empty array — the integration degrades safely and never blocks the request.
+- `colorId` is only set for events whose colour was changed manually in Google Calendar. When null, the frontend falls back to its own source-based colours. The id → colour mapping lives in `frontend/src/features/cases/googleEventColors.ts` (sourced from `GET /calendar/v3/colors`, `event` palette).
 - Case service events created via `POST /api/v1/cases/{id}/service-events` are mirrored (best-effort) to the chosen shared calendar and tagged with the case id via extended properties; deletion removes the mirrored event.
 
 ### Service event write endpoints
@@ -694,6 +738,27 @@ Notes:
 
 - POST/PATCH bodies use `CreateServiceEventRequest`. `scheduledEnd`, when provided, must not be before `scheduledStart` (otherwise `400`).
 - `ServiceEventResponse` includes `synced` (true when a `google_event_id` exists) and `googleCalendarId` (the calendar the mirror currently lives on). The frontend shows a "not synced" badge + retry when integration is enabled but `synced=false`.
+
+`CreateServiceEventRequest` fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `serviceKey` | string | Required. Must be one of the case's selected services. |
+| `scheduledStart` | ISO-8601 local date-time | Required. |
+| `scheduledEnd` | ISO-8601 local date-time | Optional; must not be before `scheduledStart`. |
+| `assignedUserId` | number | Optional. The assignee sees the event on their task list. |
+| `calendarId` | string | Optional; defaults to the configured default calendar. |
+| `location` | string | Short venue name; goes into the title as `@X`. |
+| `address` | string | Full multi-line address; rendered as `*Address*` in the Google event body. Shown to the assigned volunteer on the task detail page. |
+| `agenda` | string | `*Agenda*` |
+| `schedule` | string | `*Schedule*` |
+| `manpower` | string | `*Manpower*` |
+| `instructions` | string | `*Instructions for Kappiya*` |
+| `workDescription` | string | Free text: what needs doing. |
+| `notes` | string | Free text: contact info etc. |
+| `reportDueAt` | ISO-8601 local date-time | Optional report deadline. |
+
+- `address` is distinct from `location`: `location` is the short label used in the event title, `address` is the full address a volunteer needs in order to get there. Events created before this field was wired up have `address = null` and render as `-`.
 
 ### Case document endpoints
 

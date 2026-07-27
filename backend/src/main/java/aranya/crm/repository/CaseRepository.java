@@ -136,6 +136,155 @@ public interface CaseRepository extends JpaRepository<ClientCase, Long> {
 
     @EntityGraph(attributePaths = {"client", "createdBy"})
     @Query("""
+            SELECT DISTINCT cc FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findAssignedCasesByUserIdOrderByOpenedAtDescIdDesc(@Param("assignedUserId") Long assignedUserId);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT DISTINCT cc FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) = LOWER(:status)
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findAssignedCasesByUserIdAndStatusIgnoreCaseOrderByOpenedAtDescIdDesc(
+            @Param("assignedUserId") Long assignedUserId,
+            @Param("status") String status);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT DISTINCT cc FROM ClientCase cc
+            JOIN cc.client c
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND (
+                LOWER(cc.caseCode) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(cc.title) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameEn) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameChn) LIKE LOWER(CONCAT('%', :q, '%'))
+            )
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> searchAssignedCasesByUserId(@Param("assignedUserId") Long assignedUserId, @Param("q") String q);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
+            SELECT DISTINCT cc FROM ClientCase cc
+            JOIN cc.client c
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) = LOWER(:status)
+            AND (
+                LOWER(cc.caseCode) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(cc.title) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameEn) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(c.nameChn) LIKE LOWER(CONCAT('%', :q, '%'))
+            )
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> searchAssignedCasesByUserId(
+            @Param("assignedUserId") Long assignedUserId,
+            @Param("q") String q,
+            @Param("status") String status);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(DISTINCT cc) > 0 THEN true ELSE false END
+            FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE cc.id = :caseId
+            AND LOWER(cc.status) <> 'deleted'
+            AND (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            """)
+    boolean existsVisibleCaseForAssignedUser(@Param("caseId") Long caseId, @Param("assignedUserId") Long assignedUserId);
+
+    @EntityGraph(attributePaths = "client")
+    @Query("""
+            SELECT DISTINCT cc FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            ORDER BY cc.openedAt DESC, cc.id DESC
+            """)
+    List<ClientCase> findActiveAssignedCasesByUserId(@Param("assignedUserId") Long assignedUserId, Pageable pageable);
+
+    @Query("""
+            SELECT COUNT(DISTINCT cc) FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    long countActiveAssignedCasesByUserId(@Param("assignedUserId") Long assignedUserId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT cc) FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            AND cc.colorCode IN :colorCodes
+            """)
+    long countUrgentActiveAssignedCasesByUserId(
+            @Param("assignedUserId") Long assignedUserId,
+            @Param("colorCodes") Collection<String> colorCodes);
+
+    @Query("""
+            SELECT COUNT(DISTINCT cc.client.id) FROM ClientCase cc
+            LEFT JOIN CaseAssignment ca
+              ON ca.clientCase = cc
+             AND UPPER(ca.status) = 'ACTIVE'
+            WHERE (
+                ca.user.id = :assignedUserId
+                OR (ca.id IS NULL AND cc.createdBy.id = :assignedUserId)
+            )
+            AND LOWER(cc.status) NOT IN ('closed', 'deleted')
+            """)
+    long countDistinctActiveClientsByAssignedUserId(@Param("assignedUserId") Long assignedUserId);
+
+    @EntityGraph(attributePaths = {"client", "createdBy"})
+    @Query("""
             SELECT cc FROM ClientCase cc
             JOIN cc.client c
             WHERE cc.createdBy.id = :createdById

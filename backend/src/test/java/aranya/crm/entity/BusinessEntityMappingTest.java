@@ -31,6 +31,7 @@ class BusinessEntityMappingTest {
                 Map.entry(ServiceAppointment.class, "service_appointment"),
                 Map.entry(Document.class, "document"),
                 Map.entry(CaseChangeLog.class, "case_change_log"),
+                Map.entry(OperationAuditLog.class, "operation_audit_log"),
                 Map.entry(CaseDocument.class, "case_document"),
                 Map.entry(VisitReport.class, "visit_report"),
                 Map.entry(ApprovalRequest.class, "approval_request")
@@ -56,6 +57,8 @@ class BusinessEntityMappingTest {
         assertManyToOne(CaseDocument.class, "document", "document_id", false);
         assertManyToOne(ApprovalRequest.class, "requestedBy", "requested_by", false);
         assertManyToOne(ApprovalRequest.class, "decidedBy", "decided_by", true);
+        assertManyToOne(OperationAuditLog.class, "clientCase", "case_id", false);
+        assertManyToOne(OperationAuditLog.class, "actor", "actor_id", true);
     }
 
     @Test

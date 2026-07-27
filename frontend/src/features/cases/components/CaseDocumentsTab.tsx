@@ -17,9 +17,6 @@ const CATEGORY_DEFS: { key: CategoryKey; apiCategory: CaseDocumentCategory; icon
   { key: 'legal', apiCategory: 'LEGAL', icon: '⚖' },
 ]
 
-// 数据治理政策 §9:敏感文档(医疗 / 法律)永不删除 —— 前端隐藏删除按钮,后端也会拒绝。
-const SENSITIVE_CATEGORIES: CaseDocumentCategory[] = ['MEDICAL', 'LEGAL']
-
 type PreviewDocument = CaseDocument & { previewUrl?: string }
 type SelectedUploadFile = NonNullable<UploadFile['originFileObj']>
 
@@ -108,14 +105,16 @@ function UploadModal({
   onClose,
   onUpload,
   isUploading,
+  categoryDefs,
 }: {
   onClose: () => void
   onUpload: (category: CaseDocumentCategory, files: File[], displayName?: string) => Promise<void>
   isUploading: boolean
+  categoryDefs: typeof CATEGORY_DEFS
 }) {
   const { t } = useTranslation()
   const [customName, setCustomName] = useState('')
-  const [category, setCategory] = useState<CaseDocumentCategory>('ORDINATION')
+  const [category, setCategory] = useState<CaseDocumentCategory>(categoryDefs[0]?.apiCategory ?? 'ORDINATION')
   const [fileList, setFileList] = useState<UploadFile[]>([])
 
   const uploadProps: UploadProps = {
@@ -145,22 +144,22 @@ function UploadModal({
         </header>
 
         <div className="event-modal-body">
+          <Upload.Dragger {...uploadProps} className="case-document-dragger">
+            <p className="case-document-dragger-icon">⬆</p>
+            <p className="case-document-dragger-text">{t('cases.documents.uploadHint')}</p>
+            <p className="case-document-dragger-hint">{t('cases.documents.uploadHintSub')}</p>
+          </Upload.Dragger>
+
           <label className="case-document-name-field">
             <span>{t('cases.documents.categoryLabel')}</span>
             <select value={category} onChange={(e) => setCategory(e.target.value as CaseDocumentCategory)}>
-              {CATEGORY_DEFS.map((item) => (
+              {categoryDefs.map((item) => (
                 <option key={item.apiCategory} value={item.apiCategory}>
                   {t(`cases.documents.category.${item.key}`)}
                 </option>
               ))}
             </select>
           </label>
-
-          <Upload.Dragger {...uploadProps} className="case-document-dragger">
-            <p className="case-document-dragger-icon">⬆</p>
-            <p className="case-document-dragger-text">{t('cases.documents.uploadHint')}</p>
-            <p className="case-document-dragger-hint">{t('cases.documents.uploadHintSub')}</p>
-          </Upload.Dragger>
 
           <label className="case-document-name-field">
             <span>{t('cases.documents.fileNameLabel')}</span>
@@ -184,11 +183,19 @@ function UploadModal({
   )
 }
 
-export function CaseDocumentsTab({ caseId }: { caseId: string }) {
+export function CaseDocumentsTab({ caseId, readOnly = false }: { caseId: string, readOnly?: boolean }) {
   const { t } = useTranslation()
   const { resolve } = useAccess()
-  const canUpload = resolve('cases:documents.upload')
-  const canDelete = resolve('cases:documents.delete')
+  const canUpload = !readOnly && resolve('cases:documents.upload')
+  const canDelete = !readOnly && resolve('cases:documents.delete')
+  const viewableCategoryDefs = useMemo(
+    () => CATEGORY_DEFS.filter((def) => resolve(`cases:documents.view.${def.key}`)),
+    [resolve],
+  )
+  const viewableKeys = useMemo(
+    () => new Set(viewableCategoryDefs.map((def) => def.key)),
+    [viewableCategoryDefs],
+  )
   const { data = [], isLoading, isError } = useCaseDocuments(caseId)
   const uploadMutation = useUploadCaseDocument(caseId)
   const deleteMutation = useDeleteCaseDocument(caseId)
@@ -254,7 +261,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
     <div className="case-document-tab">
       <div className="case-document-toolbar">
         <span className="case-document-list-head">{t('cases.documents.title')}</span>
-        {canUpload ? (
+        {canUpload && viewableCategoryDefs.length > 0 ? (
           <button type="button" className="btn-primary case-document-upload-btn" onClick={() => setShowUpload(true)}>
             ⬆ {t('cases.documents.upload')}
           </button>
@@ -265,6 +272,19 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
       {isError ? <p className="case-placeholder-text">{t('cases.documents.loadError')}</p> : null}
 
       {CATEGORY_DEFS.map(({ key, apiCategory, icon }) => {
+        // 无权限的类别仍展示,但加锁:不显示文件与数量,仅显示锁定占位。
+        if (!viewableKeys.has(key)) {
+          return (
+            <section className={`case-document-section case-document-section--${key} locked`} key={key}>
+              <div className="case-document-section-head">
+                <span className="case-document-section-icon">{icon}</span>
+                <span className="case-document-section-title">{t(`cases.documents.category.${key}`)}</span>
+                <span className="case-document-section-lock" aria-hidden="true">🔒</span>
+              </div>
+              <p className="case-placeholder-text case-document-section-empty">{t('cases.documents.locked')}</p>
+            </section>
+          )
+        }
         const docs = documentsByCategory[apiCategory]
         return (
           <section className={`case-document-section case-document-section--${key}`} key={key}>
@@ -298,7 +318,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
                     </div>
                     <div className="case-document-actions">
                       <button type="button" className="btn-document-action" onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}>{t('cases.documents.download')}</button>
-                      {canDelete && !SENSITIVE_CATEGORIES.includes(apiCategory) ? (
+                      {canDelete ? (
                         <button type="button" className="btn-document-action danger" onClick={(e) => { e.stopPropagation(); handleDelete(doc) }}>{t('cases.documents.delete')}</button>
                       ) : null}
                     </div>
@@ -315,6 +335,7 @@ export function CaseDocumentsTab({ caseId }: { caseId: string }) {
           onClose={() => setShowUpload(false)}
           onUpload={handleUpload}
           isUploading={uploadMutation.isPending}
+          categoryDefs={viewableCategoryDefs}
         />
       ) : null}
       {previewDoc ? <PreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} onDownload={handleDownload} /> : null}

@@ -11,6 +11,13 @@ app:
     issuer: AranyaCRM
     temp-token-expiration: 300000
     encryption-key: ${TWO_FACTOR_ENCRYPTION_KEY}
+  event-reminders:
+    enabled: ${EVENT_REMINDERS_ENABLED:true}
+    cron: ${EVENT_REMINDERS_CRON:0 */10 * * * *}
+    time-zone: ${EVENT_REMINDERS_TIME_ZONE:Asia/Singapore}
+    grace-hours: ${EVENT_REPORT_GRACE_HOURS:0}
+    max-email-attempts: ${EVENT_REMINDER_MAX_EMAIL_ATTEMPTS:3}
+    public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
 
 
 spring:
@@ -54,6 +61,13 @@ firebase:
   project-id: ${FIREBASE_PROJECT_ID:aranya-crm-dev}
 
 google:
+  gmail:
+    enabled: ${GOOGLE_GMAIL_ENABLED:false}
+    oauth-client-id: ${GOOGLE_GMAIL_OAUTH_CLIENT_ID:${GOOGLE_CALENDAR_OAUTH_CLIENT_ID:}}
+    oauth-client-secret: ${GOOGLE_GMAIL_OAUTH_CLIENT_SECRET:${GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET:}}
+    oauth-refresh-token: ${GOOGLE_GMAIL_OAUTH_REFRESH_TOKEN:${GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN:}}
+    from-address: ${GOOGLE_GMAIL_FROM_ADDRESS:}
+    from-name: ${GOOGLE_GMAIL_FROM_NAME:Aranya CRM}
   calendar:
     enabled: ${GOOGLE_CALENDAR_ENABLED:false}
     # SERVICE_ACCOUNT 或 OAUTH

@@ -94,7 +94,7 @@ export function ClientFormPage() {
   const { data: client, isLoading } = useClient(id)
   const createClientMutation = useCreateClient()
   const updateClientMutation = useUpdateClient()
-  const approvalAssignees = useApprovalAssigneeOptions()
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: !isEdit })
   const canWriteClient = isEdit ? resolve('clients:update') : resolve('clients:create')
 
   useEffect(() => {

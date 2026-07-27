@@ -1,6 +1,6 @@
 import { encodeHttpHeaderValue, http } from '../../../shared/api'
-import { caseMockData, caseNoteMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
-import { emptyCaseServices, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseNote, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
+import { caseMockData, caseStatusChangeMockData } from '../../../mocks/case.mock'
+import { emptyCaseServices, type AssignmentUser, type CalendarOption, type Case, type CaseColorCode, type CaseDocument, type CaseDocumentCategory, type CaseServices, type CaseStatus, type CaseStatusChange, type DocumentDownloadUrl, type ServiceEvent, type SharedCalendarEvent } from '../types'
 
 type BackendCase = {
   id: number | string
@@ -17,9 +17,12 @@ type BackendCase = {
   clientAbbr?: string | null
   clientNameEn?: string | null
   clientNameChn?: string | null
+  clientGender?: string | null
+  clientOrdinationStatus?: string | null
   venue?: string | null
   createdById?: number | string | null
   createdByName?: string | null
+  participantUsers?: AssignmentUser[] | null
   comments?: string | null
   remarks?: string | null
   services?: Partial<Record<keyof CaseServices, boolean>> | null
@@ -69,6 +72,7 @@ export interface CreateServiceEventPayload {
   serviceKey: keyof CaseServices
   calendarId?: string
   assignedUserId?: string | number
+  participantUserIds?: Array<string | number>
   scheduledStart: string
   scheduledEnd?: string
   reportDueAt?: string
@@ -149,6 +153,19 @@ export async function deleteCase(id: string, options?: ApprovalOptions): Promise
   return res.data
 }
 
+export async function updateCaseParticipants(id: string, userIds: Array<string | number>): Promise<AssignmentUser[]> {
+  const normalizedUserIds = userIds
+    .map((userId) => Number(userId))
+    .filter((userId) => Number.isFinite(userId))
+  const res = await http.patch<AssignmentUser[]>(`/v1/cases/${id}/participants`, { userIds: normalizedUserIds })
+  return res.data
+}
+
+export async function restoreCase(id: string, options?: ApprovalOptions): Promise<ApprovalRequest> {
+  const res = await http.post<ApprovalRequest>(`/v1/cases/${id}/restore`, null, approvalRequestConfig(options))
+  return res.data
+}
+
 export async function createServiceEvent(caseId: string, data: CreateServiceEventPayload): Promise<ServiceEvent> {
   const res = await http.post<ServiceEvent>(`/v1/cases/${caseId}/service-events`, data)
   return res.data
@@ -173,8 +190,15 @@ export async function deleteServiceEvent(caseId: string, eventId: string | numbe
   await http.delete(`/v1/cases/${caseId}/service-events/${eventId}`)
 }
 
-export async function fetchAssignedServiceEvents(): Promise<ServiceEvent[]> {
-  const res = await http.get<ServiceEvent[]>('/v1/tasks')
+export async function fetchAssignedServiceEvents(scope: 'mine' | 'all' | 'created' = 'mine'): Promise<ServiceEvent[]> {
+  const res = await http.get<ServiceEvent[]>('/v1/events', {
+    params: scope === 'mine' ? undefined : { scope },
+  })
+  return res.data
+}
+
+export async function fetchAssignedServiceEvent(eventId: string | number): Promise<ServiceEvent> {
+  const res = await http.get<ServiceEvent>(`/v1/events/${eventId}`)
   return res.data
 }
 
@@ -248,25 +272,6 @@ export async function updateCase(id: string, data: UpdateCasePayload): Promise<C
   }
 }
 
-export async function fetchCaseNotes(caseId: string, mine = false): Promise<CaseNote[]> {
-  const mode = getDataMode()
-  if (mode === 'mock') return caseNoteMockData.filter((n) => n.caseId === caseId)
-
-  try {
-    const res = await http.get<CaseNote[]>(`/v1/cases/${caseId}/notes`, { params: mine ? { mine: true } : undefined })
-    return res.data
-  } catch {
-    if (mode === 'auto') return caseNoteMockData.filter((n) => n.caseId === caseId)
-    throw new Error('Failed to fetch case notes')
-  }
-}
-
-export interface CreateCaseNotePayload {
-  caseId: string
-  content: string
-  followUp?: string
-}
-
 export interface UploadCaseDocumentPayload {
   caseId: string
   category: CaseDocumentCategory
@@ -275,64 +280,6 @@ export interface UploadCaseDocumentPayload {
 }
 
 export type CaseDocumentUrlDisposition = 'attachment' | 'inline'
-
-export async function createCaseNote(data: CreateCaseNotePayload): Promise<CaseNote> {
-  const mode = getDataMode()
-  if (mode === 'mock') {
-    const note: CaseNote = {
-      ...data,
-      followUp: data.followUp ?? '',
-      date: new Date().toISOString().slice(0, 10),
-      recordedBy: 'Volunteer',
-      id: `note-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    }
-    caseNoteMockData.push(note)
-    return note
-  }
-
-  try {
-    const res = await http.post<CaseNote>(`/v1/cases/${data.caseId}/notes`, {
-      content: data.content,
-      followUp: data.followUp,
-    })
-    return res.data
-  } catch {
-    if (mode === 'auto') {
-      const note: CaseNote = {
-        ...data,
-        followUp: data.followUp ?? '',
-        date: new Date().toISOString().slice(0, 10),
-        recordedBy: 'Volunteer',
-        id: `note-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      }
-      caseNoteMockData.push(note)
-      return note
-    }
-    throw new Error('Failed to create case note')
-  }
-}
-
-export async function deleteCaseNote(caseId: string, noteId: string): Promise<void> {
-  const mode = getDataMode()
-  if (mode === 'mock') {
-    const index = caseNoteMockData.findIndex((note) => note.caseId === caseId && note.id === noteId)
-    if (index >= 0) caseNoteMockData.splice(index, 1)
-    return
-  }
-
-  try {
-    await http.delete(`/v1/cases/${caseId}/notes/${noteId}`)
-  } catch {
-    if (mode === 'auto') {
-      const index = caseNoteMockData.findIndex((note) => note.caseId === caseId && note.id === noteId)
-      if (index >= 0) caseNoteMockData.splice(index, 1)
-      return
-    }
-    throw new Error('Failed to delete case note')
-  }
-}
 
 export async function fetchCaseDocuments(caseId: string): Promise<CaseDocument[]> {
   const mode = getDataMode()
@@ -392,10 +339,13 @@ function mapBackendCase(source: BackendCase): Case {
     clientAbbr: text(source.clientAbbr),
     clientNameEn: text(source.clientNameEn),
     clientNameChn: text(source.clientNameChn),
+    clientGender: text(source.clientGender),
+    clientOrdinationStatus: text(source.clientOrdinationStatus),
     venue: text(source.venue),
     tradition: text(source.tradition),
     socialWorkerId: text(source.createdById),
     socialWorker: text(source.createdByName),
+    participantUsers: source.participantUsers ?? [],
     status: mapCaseStatus(source.status),
     colorCode: mapCaseColorCode(source.colorCode),
     comments: text(source.comments ?? source.description),

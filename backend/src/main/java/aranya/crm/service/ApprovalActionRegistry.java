@@ -19,7 +19,6 @@ public class ApprovalActionRegistry {
 
     private final CaseService caseService;
     private final ClientService clientService;
-    private final ReportService reportService;
     private final ObjectMapper objectMapper;
     private static final String APPROVAL_META_FIELD = "_approval";
 
@@ -42,8 +41,9 @@ public class ApprovalActionRegistry {
                 "CLIENT_CREATE", this::executeClientCreate,
                 "CLIENT_UPDATE", this::executeClientUpdate,
                 "DELETE_CLIENT", (request, _decidedBy) -> clientService.executeApprovedDeleteClient(request.getTargetId()),
-                "DELETE_CASE", (request, _decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId()),
-                "DELETE_REPORT", (request, decidedBy) -> reportService.executeApprovedDeleteReport(request.getTargetId(), decidedBy)
+                "DELETE_CASE", (request, decidedBy) -> caseService.executeApprovedDeleteCase(request.getTargetId(), decidedBy),
+                "RESTORE_CLIENT", (request, _decidedBy) -> clientService.restoreClient(request.getTargetId()),
+                "RESTORE_CASE", (request, decidedBy) -> caseService.restoreCase(request.getTargetId(), decidedBy)
         );
     }
 
@@ -54,13 +54,14 @@ public class ApprovalActionRegistry {
         );
     }
 
-    private void executeCaseServiceUpdate(ApprovalRequest request, User ignoredDecidedBy) {
+    private void executeCaseServiceUpdate(ApprovalRequest request, User decidedBy) {
         caseService.executeApprovedUpdateCaseServices(
                 request.getTargetId(),
                 objectMapper.convertValue(
                         request.getPayloadJson().path("serviceKeys"),
                         objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
-                )
+                ),
+                decidedBy
         );
     }
 

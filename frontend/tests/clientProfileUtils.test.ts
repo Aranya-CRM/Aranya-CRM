@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   applyClientCaseFilter,
+  applyClientGenderFilter,
+  applyClientOrdinationStatusFilter,
   applyClientStatusFilter,
   calculateCompletedYears,
   countActiveClientFilters,
@@ -9,8 +11,11 @@ import {
   isClientClosed,
   mapBackendClientResponse,
   profileActionGroups,
+  sortClientDirectory,
   type ClientArchiveFilter,
   type ClientCaseFilter,
+  type ClientDirectorySort,
+  type ClientGenderFilter,
   type ClientDateFields,
 } from '../src/features/clients/pages/clientProfileUtils.ts'
 
@@ -70,10 +75,58 @@ describe('client case filters', () => {
   })
 
   it('counts active directory filters for the collapsed filter button', () => {
-    assert.equal(countActiveClientFilters('all', 'all', 'current'), 0)
-    assert.equal(countActiveClientFilters('Mahayana', 'all', 'current'), 1)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'current'), 2)
-    assert.equal(countActiveClientFilters('Mahayana', 'without_case', 'closed'), 3)
+    assert.equal(countActiveClientFilters([], 'all', 'current'), 0)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'all', 'current'), 1)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'current'), 2)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'closed'), 3)
+    assert.equal(countActiveClientFilters(['Mahayana'], 'without_case', 'closed', 'Female', ['Bhikkhuni'], 'age_desc'), 6)
+    // 同一组多选仍按“该组是否激活”计一次
+    assert.equal(countActiveClientFilters(['Mahayana', 'Theravada'], 'all', 'current', 'all', ['Bhikkhu', 'Bhikkhuni']), 2)
+  })
+
+  it('filters clients by gender and ordination status', () => {
+    const fullClients = [
+      { id: '1', abbr: 'VXA', gender: 'Female', ordinationStatus: 'Bhikkhuni' },
+      { id: '2', abbr: 'VKB', gender: 'Male', ordinationStatus: 'Bhikkhu' },
+      { id: '3', abbr: 'VKC', gender: 'Female', ordinationStatus: 'Samaneri' },
+    ]
+
+    assert.deepEqual(
+      applyClientGenderFilter(fullClients, 'Female' satisfies ClientGenderFilter).map((client) => client.abbr),
+      ['VXA', 'VKC'],
+    )
+    assert.deepEqual(
+      applyClientOrdinationStatusFilter(fullClients, ['Bhikkhu']).map((client) => client.abbr),
+      ['VKB'],
+    )
+    // 多选取并集(OR)
+    assert.deepEqual(
+      applyClientOrdinationStatusFilter(fullClients, ['Bhikkhu', 'Samaneri']).map((client) => client.abbr),
+      ['VKB', 'VKC'],
+    )
+    // 空数组表示不筛选
+    assert.deepEqual(
+      applyClientOrdinationStatusFilter(fullClients, []).map((client) => client.abbr),
+      ['VXA', 'VKB', 'VKC'],
+    )
+  })
+
+  it('sorts clients by age or ordination years while keeping missing values last', () => {
+    const sortableClients = [
+      { id: '1', abbr: 'A', age: 62, ordinationYears: 24, dateOfBirth: '1964-01-01', dateOfOrdination: '2002-01-01' },
+      { id: '2', abbr: 'B', age: 48, ordinationYears: 8, dateOfBirth: '1978-01-01', dateOfOrdination: '2018-01-01' },
+      { id: '3', abbr: 'C', age: 70, ordinationYears: 8, dateOfBirth: '1956-01-01', dateOfOrdination: '2018-01-01' },
+      { id: '4', abbr: 'D', age: 0, ordinationYears: 0, dateOfBirth: '', dateOfOrdination: '' },
+    ]
+
+    assert.deepEqual(
+      sortClientDirectory(sortableClients, 'age_asc' satisfies ClientDirectorySort).map((client) => client.abbr),
+      ['B', 'A', 'C', 'D'],
+    )
+    assert.deepEqual(
+      sortClientDirectory(sortableClients, 'ordination_years_desc' satisfies ClientDirectorySort).map((client) => client.abbr),
+      ['A', 'B', 'C', 'D'],
+    )
   })
 })
 
@@ -122,6 +175,7 @@ describe('backend client mapping', () => {
       dateOfBirth: '1956-12-03',
       dateOfOrdination: '2014-11-04',
       buddhistTradition: 'Mahayana',
+      gender: 'F',
       membershipStatus: 'CLOSED',
       wellbeingPhysicalHealth: true,
       specialNeeds: 'hearing,visual',
@@ -130,6 +184,7 @@ describe('backend client mapping', () => {
     assert.equal(mapped.id, '12')
     assert.equal(mapped.nameEn, 'Venerable Xian Ai Updated')
     assert.equal(mapped.ordinationCertificate, 'Completed')
+    assert.equal(mapped.gender, 'Female')
     assert.equal(mapped.age, 69)
     assert.equal(mapped.ordinationYears, 11)
     assert.equal(mapped.membershipStatus, 'CLOSED')

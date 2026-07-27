@@ -8,6 +8,7 @@ import type { Case } from '../types'
 interface Props {
   caseData: Case
   isManager: boolean
+  readOnly?: boolean
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -30,7 +31,7 @@ function isVisibleCaseReport(report: ReportSummary): boolean {
   return isSubmittedReport(report.status)
 }
 
-export function CaseReportsTab({ caseData, isManager }: Props) {
+export function CaseReportsTab({ caseData, isManager, readOnly = false }: Props) {
   const { t } = useTranslation()
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportDetail | null>(null)
@@ -67,15 +68,29 @@ export function CaseReportsTab({ caseData, isManager }: Props) {
     }
   }
 
+  async function handlePrintReport(reportId: number) {
+    setLoadingDetail(true)
+    setErrorMessage(undefined)
+    try {
+      const detail = await fetchReportById(reportId)
+      setSelectedReport(detail)
+      setLoadingDetail(false)
+      await nextPaint()
+      printCaseReport(detail, t)
+    } catch {
+      setErrorMessage(t('reports.loadError'))
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
+
   async function handleDeleteReport() {
     if (!selectedReport) return
     if (!window.confirm(t('reports.detail.confirmDelete', { id: `RPT-${String(selectedReport.id).padStart(4, '0')}` }))) return
-    const reason = window.prompt(t('approvalConfirm.reasonPlaceholder'))
-    if (reason === null) return
     setDeletingReport(true)
     setErrorMessage(undefined)
     try {
-      await deleteReport(selectedReport.id, { reason })
+      await deleteReport(selectedReport.id)
       setReports((current) => current.filter((report) => report.id !== selectedReport.id))
       setSelectedReport(null)
     } catch {
@@ -109,6 +124,7 @@ export function CaseReportsTab({ caseData, isManager }: Props) {
               <th>{t('cases.reports.col.duration')}</th>
               <th>{t('cases.reports.col.submitter')}</th>
               <th>{t('cases.reports.col.status')}</th>
+              <th>{t('cases.reports.col.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -130,6 +146,19 @@ export function CaseReportsTab({ caseData, isManager }: Props) {
                       {statusLabel(report.status, t)}
                     </span>
                   </td>
+                  <td>
+                    <button
+                      className="case-report-print-tag"
+                      type="button"
+                      disabled={loadingDetail}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void handlePrintReport(report.id)
+                      }}
+                    >
+                      {t('cases.reports.print')}
+                    </button>
+                  </td>
                 </tr>
               ))}
           </tbody>
@@ -142,6 +171,7 @@ export function CaseReportsTab({ caseData, isManager }: Props) {
         <CaseReportDetail
           report={selectedReport}
           deleting={deletingReport}
+          readOnly={readOnly}
           onClose={() => setSelectedReport(null)}
           onDelete={() => void handleDeleteReport()}
         />
@@ -157,30 +187,43 @@ function displayText(value: string | null | undefined): string {
 function CaseReportDetail({
   report,
   deleting,
+  readOnly,
   onClose,
   onDelete,
 }: {
   report: ReportDetail
   deleting: boolean
+  readOnly: boolean
   onClose: () => void
   onDelete: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const clientName = i18n.language.startsWith('zh')
+    ? report.clientNameChn || report.clientNameEn
+    : report.clientNameEn || report.clientNameChn
+  const reportMeta = [report.caseCode, clientName, formatDate(report.dateOfVisit), displayText(report.createdByName ?? report.staffName)]
+    .filter((value) => value && value !== '—')
+    .join(' · ')
 
   return (
     <section className="case-report-detail">
       <header className="case-report-detail-header">
         <div>
-          <h4>{t('reports.detail.title')}</h4>
-          <span>{formatDate(report.dateOfVisit)} · {displayText(report.createdByName ?? report.staffName)}</span>
+          <h4>{report.eventTitle || t('reports.detail.title')}</h4>
+          <span>{reportMeta}</span>
         </div>
         <div className="case-report-detail-actions">
+          <button className="btn-secondary btn-compact case-report-print-action" type="button" onClick={() => printCaseReport(report, t)}>
+            {t('cases.reports.print')}
+          </button>
           <button className="btn-secondary btn-compact" type="button" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onDelete}>
-            {deleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
-          </button>
+          {!readOnly ? (
+            <button className="btn-danger btn-compact" type="button" disabled={deleting} onClick={onDelete}>
+              {deleting ? t('reports.detail.deleting') : t('reports.detail.delete')}
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -202,6 +245,24 @@ function CaseReportDetail({
       </div>
     </section>
   )
+}
+
+function printCaseReport(report: ReportDetail, t: (key: string) => string) {
+  const previousTitle = document.title
+  document.title = report.eventTitle || t('reports.detail.title')
+  document.body.classList.add('printing-case-report')
+  try {
+    window.print()
+  } finally {
+    document.body.classList.remove('printing-case-report')
+    document.title = previousTitle
+  }
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
 }
 
 function ReportField({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {

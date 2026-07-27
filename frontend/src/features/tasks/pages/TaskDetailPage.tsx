@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAccess } from '../../../shared/auth'
+import { useAuth } from '../../../contexts/AuthContext'
 import { BackButton, ErrorBanner, PageHeader, SectionCard } from '../../../shared/ui'
 import { fetchReportById, fetchReports } from '../../reports/api/report.api'
 import { isCurrentReportStatus, reportStatusKey } from '../../reports/reportStatus'
 import type { ReportDetail, ReportSummary } from '../../reports/types'
-import { useCase, useCreateCaseNote, useDeleteCaseNote, useOwnCaseNotes } from '../../cases/hooks'
+import { useCase } from '../../cases/hooks'
 import type { ServiceEvent } from '../../cases/types'
-import { fetchAssignedTasks } from '../api/task.api'
+import { fetchEvent } from '../api/task.api'
 import './tasks.css'
 
 function formatDate(value: string | null | undefined): string {
@@ -15,15 +17,33 @@ function formatDate(value: string | null | undefined): string {
   return value.slice(0, 10)
 }
 
-function reportClientMatches(report: ReportSummary, clientId: string | undefined): boolean {
-  return Boolean(clientId && report.clientId != null && String(report.clientId) === clientId)
+function formatTimeRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start) return '-'
+  const startTime = start.slice(11, 16)
+  const endTime = end ? end.slice(11, 16) : ''
+  return endTime ? `${startTime} - ${endTime}` : startTime
 }
 
-function reportMatchesTask(report: ReportSummary, caseId: string | undefined, clientId: string | undefined): boolean {
-  if (caseId && report.caseId != null) {
-    return String(report.caseId) === caseId
-  }
-  return reportClientMatches(report, clientId)
+function eventContent(event: ServiceEvent): string {
+  const seen = new Set<string>()
+  return [
+    event.workDescription,
+    event.agenda,
+    event.schedule,
+    event.manpower,
+    event.instructions,
+  ]
+    .map((part) => part?.trim())
+    .filter((part): part is string => {
+      if (!part || seen.has(part)) return false
+      seen.add(part)
+      return true
+    })
+    .join('\n\n') || '-'
+}
+
+function reportMatchesTask(report: ReportSummary, appointmentId: string | undefined): boolean {
+  return Boolean(appointmentId && report.appointmentId != null && String(report.appointmentId) === appointmentId)
 }
 
 function mergeReportSummary(reports: ReportSummary[], report: ReportDetail): ReportSummary[] {
@@ -41,21 +61,19 @@ function isReportDetail(value: unknown): value is ReportDetail {
 }
 
 export function TaskDetailPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
-  const isZh = i18n.language === 'zh'
+  const { getCap } = useAccess()
+  const { user } = useAuth()
+  const canViewMember = getCap('clients:view') === 'ALL' || getCap('clients:view') === 'YES'
+    || getCap('clients:view.full') === 'ALL' || getCap('clients:view.full') === 'YES'
   const [taskEvent, setTaskEvent] = useState<ServiceEvent>()
   const [isTaskLoading, setIsTaskLoading] = useState(true)
   const caseId = taskEvent ? String(taskEvent.caseId) : undefined
-  const { data: caseData, isLoading } = useCase(caseId)
-  const { data: notes = [], refetch: refetchNotes } = useOwnCaseNotes(caseId)
-  const createNote = useCreateCaseNote()
-  const deleteNote = useDeleteCaseNote(caseId)
+  const { data: caseData, isLoading } = useCase(canViewMember ? caseId : undefined)
   const [reports, setReports] = useState<ReportSummary[]>([])
-  const [content, setContent] = useState('')
-  const [followUp, setFollowUp] = useState('')
   const [errorMessage, setErrorMessage] = useState<string>()
   const returnedReport = isReportDetail(location.state && typeof location.state === 'object' ? (location.state as { report?: unknown }).report : undefined)
     ? (location.state as { report: ReportDetail }).report
@@ -64,27 +82,34 @@ export function TaskDetailPage() {
   useEffect(() => {
     let active = true
     setIsTaskLoading(true)
-    fetchAssignedTasks()
-      .then((items) => {
-        if (active) setTaskEvent(items.find((item) => String(item.id) === id))
-      })
-      .catch(() => { if (active) setErrorMessage(t('tasks.loadError')) })
-      .finally(() => { if (active) setIsTaskLoading(false) })
+    async function loadEvent() {
+      try {
+        if (!id) throw new Error('Missing event id')
+        const match = await fetchEvent(id)
+        if (active) setTaskEvent(match)
+      } catch {
+        if (active) setTaskEvent(undefined)
+      } finally {
+        if (active) setIsTaskLoading(false)
+      }
+    }
+    void loadEvent()
     return () => {
       active = false
     }
-  }, [id, t])
+  }, [id])
 
   const loadReports = useCallback(async (active = true) => {
+    if (!taskEvent?.id) return
     try {
-      const data = await fetchReports({ mine: true, caseId })
+      const data = await fetchReports({ mine: true, appointmentId: taskEvent?.id })
       if (active) {
         setReports((prev) => mergeReportLists(data, prev))
       }
     } catch {
       if (active) setErrorMessage(t('tasks.reportsLoadError'))
     }
-  }, [caseId, t])
+  }, [taskEvent?.id, t])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -100,7 +125,7 @@ export function TaskDetailPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const reportId = params.get('reportId')
-    if (!reportId) return
+    if (!reportId || !taskEvent?.id) return
 
     let active = true
     async function loadCreatedReport() {
@@ -111,7 +136,7 @@ export function TaskDetailPage() {
         setReports((prev) => mergeReportSummary(prev, detail))
 
         if (!active) return
-        const latestReports = await fetchReports({ mine: true, caseId })
+        const latestReports = await fetchReports({ mine: true, appointmentId: taskEvent?.id })
         if (!active) return
         setReports((prev) => mergeReportSummary(mergeReportLists(latestReports, prev), detail))
       } catch {
@@ -125,125 +150,100 @@ export function TaskDetailPage() {
     return () => {
       active = false
     }
-  }, [caseId, location.pathname, location.search, navigate, returnedReport, t])
+  }, [location.pathname, location.search, navigate, returnedReport, t, taskEvent?.id])
 
-  const myReports = reports.filter((report) => reportMatchesTask(report, caseId, caseData?.clientId) && isCurrentReportStatus(report.status))
-  const returnTo = `/tasks/${taskEvent?.id ?? id ?? ''}`
-
-  async function handleAddNote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!caseId || !content.trim()) return
-    setErrorMessage(undefined)
-    try {
-      await createNote.mutateAsync({ caseId, content, followUp })
-      setContent('')
-      setFollowUp('')
-      await refetchNotes()
-    } catch {
-      setErrorMessage(t('tasks.noteError'))
+  useEffect(() => {
+    if (!isTaskLoading && !errorMessage && !taskEvent) {
+      navigate('/reports', { replace: true })
     }
-  }
+  }, [errorMessage, isTaskLoading, navigate, taskEvent])
 
-  async function handleDeleteNote(noteId: string) {
-    if (!window.confirm(t('tasks.confirmDeleteNote'))) return
-    setErrorMessage(undefined)
-    try {
-      await deleteNote.mutateAsync(noteId)
-      await refetchNotes()
-    } catch {
-      setErrorMessage(t('tasks.deleteNoteError'))
-    }
-  }
+  const myReports = reports.filter((report) => reportMatchesTask(report, taskEvent ? String(taskEvent.id) : id) && isCurrentReportStatus(report.status))
+  const hasSubmittedReport = myReports.some((report) => String(report.status ?? '').toUpperCase() === 'SUBMITTED')
+  const returnTo = `/reports/${taskEvent?.id ?? id ?? ''}`
+  const isAssignedToMe = Boolean(user?.id != null && taskEvent && (
+    isEventParticipant(taskEvent, String(user.id))
+    || String(caseData?.socialWorkerId ?? '') === String(user.id)
+  ))
 
-  if (isTaskLoading || isLoading) {
+  if (isTaskLoading || (canViewMember && isLoading)) {
     return <div className="task-page"><PageHeader title={t('common.loading')} /></div>
   }
 
-  if (!taskEvent || !caseData) {
+  if (!taskEvent) {
     return (
       <div className="task-page">
-        <BackButton onClick={() => navigate('/tasks')} />
+        <BackButton onClick={() => navigate('/reports')} />
         <PageHeader title={t('tasks.notFound')} />
       </div>
     )
   }
 
-  const clientName = isZh ? caseData.clientNameChn || caseData.clientNameEn : caseData.clientNameEn || caseData.clientNameChn
-
   return (
     <div className="task-page">
-      <BackButton onClick={() => navigate('/tasks')} />
-      <PageHeader title={taskEvent.title} subtitle={`${clientName} · ${caseData.tradition}`} />
+      <BackButton onClick={() => navigate('/reports')} />
+      <PageHeader title={taskEvent.title} subtitle={taskEvent.caseCode ?? caseData?.caseNo} />
       {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
 
       <SectionCard className="task-detail-card" title={t('tasks.caseOverview')} ariaLabel="Request" bodyPadding>
         <div className="task-overview-grid">
-          <Info label={t('tasks.request.subject')} value={taskEvent.serviceName} />
-          <Info label={t('tasks.request.time')} value={taskEvent.scheduledStart} />
+          <Info label={t('tasks.request.subject')} value={taskEvent.title} />
+          {canViewMember && (taskEvent.clientId != null || caseData?.clientId != null) ? (
+            <ActionInfo label={t('reports.form.member')} value={t('tasks.viewMember')} onClick={() => navigate(`/clients/${taskEvent.clientId ?? caseData?.clientId}`)} />
+          ) : null}
+          <Info label={t('reports.form.case')} value={taskEvent.caseCode ?? caseData?.caseNo ?? '-'} />
+          <Info label={t('reports.form.dateOfVisit')} value={formatDate(taskEvent.scheduledStart)} />
+          <Info label={t('reports.form.timeOfVisit')} value={formatTimeRange(taskEvent.scheduledStart, taskEvent.scheduledEnd)} />
           <Info label={t('tasks.request.location')} value={taskEvent.location || '-'} />
-          <Info label={t('tasks.request.todo')} value={taskEvent.workDescription || '-'} wide />
-          <Info label={t('tasks.request.contact')} value={taskEvent.notes || '-'} wide />
+          <Info label={t('tasks.request.address')} value={taskEvent.address || '-'} wide multiline />
+          <Info label={t('tasks.request.content')} value={eventContent(taskEvent)} wide />
         </div>
       </SectionCard>
 
-      <div className="task-detail-grid">
-        <SectionCard title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
-          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?clientId=${caseData.clientId}&caseId=${caseData.id}&appointmentId=${taskEvent.id}&returnTo=${encodeURIComponent(returnTo)}&clientName=${encodeURIComponent(clientName)}`)}>
+      <SectionCard className="task-detail-card" title={t('tasks.myReports')} ariaLabel="My reports" bodyPadding>
+        {isAssignedToMe && !hasSubmittedReport ? (
+          <button className="btn-primary task-report-action" type="button" onClick={() => navigate(`/reports/new?appointmentId=${taskEvent.id}&returnTo=${encodeURIComponent(returnTo)}`)}>
             {t('tasks.submitReport')}
           </button>
-          {myReports.length === 0 ? (
-            <div className="task-empty compact">{t('tasks.noReports')}</div>
-          ) : (
-            <div className="task-sub-list">
-              {myReports.map((report) => (
-                <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports/${report.id}?returnTo=${encodeURIComponent(returnTo)}`)}>
-                  <span>{report.typeOfVisit || report.programmeName || t('reports.detail.title')}</span>
-                  <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report.status)}`)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard title={t('tasks.myNotes')} ariaLabel="My notes" bodyPadding>
-          <form className="task-note-form" onSubmit={handleAddNote}>
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder={t('tasks.notePlaceholder')} />
-            <input value={followUp} onChange={(event) => setFollowUp(event.target.value)} placeholder={t('tasks.followUpPlaceholder')} />
-            <button className="btn-primary" type="submit" disabled={!content.trim() || createNote.isPending}>
-              {createNote.isPending ? t('common.saving') : t('tasks.addNote')}
-            </button>
-          </form>
-          <div className="task-sub-list note-list">
-            {notes.length === 0 ? <div className="task-empty compact">{t('tasks.noNotes')}</div> : null}
-            {notes.map((note) => (
-              <article key={note.id} className="task-note">
-                <div className="task-note-header">
-                  <strong>{formatDate(note.createdAt)}</strong>
-                  <button
-                    type="button"
-                    className="task-note-delete"
-                    disabled={deleteNote.isPending}
-                    onClick={() => void handleDeleteNote(note.id)}
-                  >
-                    {t('tasks.deleteNote')}
-                  </button>
-                </div>
-                <p>{note.content}</p>
-                {note.followUp ? <span>{t('cases.notes.followup')}: {note.followUp}</span> : null}
-              </article>
+        ) : !isAssignedToMe ? (
+          <div className="task-empty compact">{t('tasks.reportOnlyAssigned')}</div>
+        ) : null}
+        {myReports.length === 0 ? (
+          <div className="task-empty compact">{t('tasks.noReports')}</div>
+        ) : (
+          <div className="task-sub-list">
+            {myReports.map((report) => (
+              <button key={report.id} type="button" className="task-sub-row" onClick={() => navigate(`/reports/report/${report.id}?returnTo=${encodeURIComponent(returnTo)}`)}>
+                <span>{report.eventTitle || t('reports.detail.title')}</span>
+                <span>{formatDate(report.dateOfVisit)} · {t(`reports.status.${reportStatusKey(report.status)}`)}</span>
+              </button>
             ))}
           </div>
-        </SectionCard>
-      </div>
+        )}
+      </SectionCard>
     </div>
   )
 }
 
-function Info({ label, value, wide }: { label: string, value: string, wide?: boolean }) {
+function isEventParticipant(event: ServiceEvent, userId: string): boolean {
+  return (event.participantUserIds ?? []).map(String).includes(userId)
+    || (event.assignedUserId != null && String(event.assignedUserId) === userId)
+}
+
+function Info({ label, value, wide, multiline }: { label: string, value: string, wide?: boolean, multiline?: boolean }) {
   return (
-    <div className={`task-info${wide ? ' wide' : ''}`}>
+    <div className={`task-info${wide ? ' wide' : ''}${multiline ? ' multiline' : ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  )
+}
+
+function ActionInfo({ label, value, onClick }: { label: string, value: string, onClick: () => void }) {
+  return (
+    <div className="task-info">
+      <span>{label}</span>
+      <button className="task-info-link" type="button" onClick={onClick}>{value}</button>
     </div>
   )
 }

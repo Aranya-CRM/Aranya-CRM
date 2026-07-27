@@ -2,20 +2,21 @@ import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  ADMIN_ENTRY_ROUTE_IDS,
-  AdminIcon,
   NAVIGATION_ITEMS,
   LogoutIcon,
+  SettingsIcon,
   type NavigationItem,
 } from '../../app/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { countApprovalNavBadges } from '../../features/approvals/approvalNavBadges'
 import { usePendingApprovals } from '../../features/approvals/api/approval.api'
 import { useAccess } from '../auth'
+import { confirmLeave } from '../navigation/unsavedGuard'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import './AppLayout.css'
 import { useIdleLogout } from '../hooks/useIdleLogout'
 import { IdleWarningModal } from '../ui/feedback/IdleWarningModal'
+import { NotificationBell } from '../../features/notifications/components/NotificationBell'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -52,19 +53,18 @@ export function AppLayout({ children }: AppLayoutProps) {
     },
   })
 
-  const isVolunteerOnly = resolve('route:tasks')
+  const isVolunteerOnly = (resolve('route:reports') || resolve('route:tasks'))
     && !resolve('route:clients')
     && !resolve('route:cases')
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
-    if (isVolunteerOnly && item.id !== 'tasks') return false
+    if (isVolunteerOnly && item.id !== 'reports') return false
     return resolve(item.routeId) || canRoute(item.routeId)
   })
-  const canEnterAdmin = ADMIN_ENTRY_ROUTE_IDS.some((routeId) => resolve(routeId) || canRoute(routeId))
-    || resolve('admin:console.access')
-    || canRoute('admin:console.access')
+  const canManageSettings = resolve('route:settings') || canRoute('route:settings')
 
-
+  // 分区内可能存在未保存更改(如 Settings),离开前先过守卫
   function handleNavClick(item: NavigationItem) {
+    if (!confirmLeave()) return
     navigate(item.path)
   }
 
@@ -112,19 +112,19 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
-        {canEnterAdmin ? (
+        {canManageSettings ? (
           <a
             className="sidebar-admin-entry"
-            href="/admin"
+            href="/settings"
             onClick={(event) => {
               event.preventDefault()
-              navigate('/admin')
+              if (confirmLeave()) navigate('/settings')
             }}
           >
             <span className="nav-icon" aria-hidden="true">
-              <AdminIcon />
+              <SettingsIcon />
             </span>
-            <span className="nav-label">{t('nav.admin')}</span>
+            <span className="nav-label">{t('nav.settings')}</span>
           </a>
         ) : null}
 
@@ -133,11 +133,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       <section className="main">
         <header className="topbar">
           <div className="topbar-right">
+            <NotificationBell />
             <LanguageSwitcher />
             <button
               type="button"
               className={'topbar-profile' + (location.pathname.startsWith('/profile') ? ' active' : '')}
-              onClick={() => navigate('/profile')}
+              onClick={() => { if (confirmLeave()) navigate('/profile') }}
               aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
               title={t('nav.profile')}
             >
@@ -146,7 +147,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </span>
               <span className="topbar-profile-name">{user?.fullName ?? 'User'}</span>
             </button>
-            <button className="logout-btn" type="button" onClick={logout} title={t('layout.logout')}>
+            <button className="logout-btn" type="button" onClick={() => { if (confirmLeave()) logout() }} title={t('layout.logout')}>
               <LogoutIcon />
             </button>
           </div>

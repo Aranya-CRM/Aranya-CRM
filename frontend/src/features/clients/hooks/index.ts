@@ -6,5 +6,6 @@ export {
   useClientsAvailableForCase,
   useCreateClient,
   useDeleteClient,
+  useRestoreClient,
   useUpdateClient,
 } from './useClients'

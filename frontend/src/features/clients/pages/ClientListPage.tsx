@@ -1,27 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAccess } from '../../../shared/auth'
 import { useApprovalAssigneeOptions } from '../../../shared/approvals/useApprovalAssigneeOptions'
-import { ApprovalConfirmModal, EmptyState } from '../../../shared/ui'
+import { ApprovalConfirmModal } from '../../../shared/ui'
 import { CheckboxRow, SelectField, TextareaField, TextField } from '../../../shared/ui/form'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useApproveRequest, usePendingApprovals, useRejectRequest } from '../../approvals/api/approval.api'
 import { useCases, useDeleteCase } from '../../cases/hooks'
 import type { Case } from '../../cases/types'
 import { type ClientFormData, type ClientFormFieldUpdater } from '../components'
-import { isClientResult, useClient, useClients, useClientsAvailableForCase, useCreateClient, useDeleteClient, useUpdateClient } from '../hooks'
+import { isClientResult, useClient, useClients, useClientsAvailableForCase, useCreateClient, useDeleteClient, useRestoreClient, useUpdateClient } from '../hooks'
 import type { Client, WellbeingDomain } from '../types'
 import {
   applyClientCaseFilter,
+  applyClientGenderFilter,
+  applyClientOrdinationStatusFilter,
   applyClientStatusFilter,
   countActiveClientFilters,
   deriveClientDateFields,
   isClientClosed,
   profileActionGroups,
+  sortClientDirectory,
   type ClientArchiveFilter,
   type ClientCaseFilter,
+  type ClientDirectorySort,
+  type ClientGenderFilter,
 } from './clientProfileUtils'
 import './clients.css'
 
@@ -39,6 +44,8 @@ const ORDINATION_STATUSES: Array<Client['ordinationStatus']> = [
   'Sikkhamana',
   'Sayalay',
 ]
+
+const GENDERS: Array<Client['gender']> = ['Female', 'Male']
 
 const WELLBEING_KEYS: Record<WellbeingDomain, string> = {
   physicalHealth:     'clients.wellbeing.physicalHealth',
@@ -68,8 +75,8 @@ const initialNewClientForm: NewClientForm = {
   areaDistrict: '',
 }
 
-type ClientApprovalIntent = 'create' | 'delete' | 'closeCase'
-type ClientApprovalOperation = 'create' | 'update' | 'delete'
+type ClientApprovalIntent = 'create' | 'delete' | 'restore' | 'closeCase'
+type ClientApprovalOperation = 'create' | 'update' | 'delete' | 'restore'
 
 interface ClientApprovalView {
   id: number
@@ -85,7 +92,7 @@ interface ClientApprovalView {
 
 interface ClientDirectoryItem {
   key: string
-  display: Pick<Client, 'abbr' | 'nameEn' | 'nameChn' | 'buddhistTradition'>
+  display: Pick<Client, 'abbr' | 'nameEn' | 'nameChn' | 'buddhistTradition' | 'gender' | 'ordinationStatus'>
   client?: Client
   approval?: ClientApprovalView
   operation?: ClientApprovalOperation
@@ -105,22 +112,29 @@ export function ClientListPage() {
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
+  const restoreClient = useRestoreClient()
   const closeCase = useDeleteCase()
-  const approvalAssignees = useApprovalAssigneeOptions()
   const { data: pendingApprovals = [] } = usePendingApprovals()
   const approveRequest = useApproveRequest()
   const rejectRequest = useRejectRequest()
   const [search, setSearch] = useState('')
-  const [filterTradition, setFilterTradition] = useState<string>('all')
+  const [filterTraditions, setFilterTraditions] = useState<string[]>([])
   const [filterCase, setFilterCase] = useState<ClientCaseFilter>('all')
   const [filterArchive, setFilterArchive] = useState<ClientArchiveFilter>('current')
+  const [filterGender, setFilterGender] = useState<ClientGenderFilter>('all')
+  const [filterOrdinationStatuses, setFilterOrdinationStatuses] = useState<string[]>([])
+  const [directorySort, setDirectorySort] = useState<ClientDirectorySort>('default')
+  const [filterPanelTab, setFilterPanelTab] = useState<'filters' | 'sort'>('filters')
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [filterPopoverStyle, setFilterPopoverStyle] = useState<CSSProperties | undefined>()
   const filterMenuRef = useRef<HTMLDivElement | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClientForm, setNewClientForm] = useState<NewClientForm>(initialNewClientForm)
   const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ClientFormData | null>(null)
   const [approvalIntent, setApprovalIntent] = useState<ClientApprovalIntent | null>(null)
+  const [profileCollapsed, setProfileCollapsed] = useState(false)
+  const approvalAssignees = useApprovalAssigneeOptions({ allowSelfAssignment: approvalIntent === 'create' || approvalIntent === 'restore' })
 
   const selectedApprovalId = searchParams.get('approval')
   const selectedClientId = searchParams.get('client') ?? routeClientId
@@ -130,7 +144,15 @@ export function ClientListPage() {
   const canViewDetailedProfile = resolve('clients:view.full')
   const canConvertToCase = resolve('cases:create')
   const canCloseCase = resolve('cases:delete')
-  const activeFilterCount = countActiveClientFilters(filterTradition, filterCase, filterArchive)
+  const isAdminView = resolve('admin:console.access')
+  const activeFilterCount = countActiveClientFilters(
+    filterTraditions,
+    filterCase,
+    filterArchive,
+    filterGender,
+    filterOrdinationStatuses,
+    directorySort,
+  )
 
   const withoutCaseIds = useMemo(
     () => new Set(clientsAvailableForCase.map((client) => client.id)),
@@ -149,17 +171,28 @@ export function ClientListPage() {
   )
 
   const filtered = useMemo(() => {
-    return applyClientCaseFilter(applyClientStatusFilter(clients, filterArchive), withCaseIds, filterCase).filter((client) => {
+    const matched = applyClientOrdinationStatusFilter(
+      applyClientGenderFilter(
+        applyClientCaseFilter(
+          applyClientStatusFilter(clients, filterArchive),
+          withCaseIds,
+          filterCase,
+        ),
+        filterGender,
+      ),
+      filterOrdinationStatuses,
+    ).filter((client) => {
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
         client.nameChn.includes(q) ||
         client.nameEn.toLowerCase().includes(q) ||
         client.abbr.toLowerCase().includes(q)
-      const matchTradition = filterTradition === 'all' || client.buddhistTradition === filterTradition
+      const matchTradition = filterTraditions.length === 0 || filterTraditions.includes(client.buddhistTradition)
       return matchSearch && matchTradition
     })
-  }, [clients, filterArchive, filterCase, filterTradition, search, withCaseIds])
+    return sortClientDirectory(matched, directorySort)
+  }, [clients, directorySort, filterArchive, filterCase, filterGender, filterOrdinationStatuses, filterTraditions, search, withCaseIds])
 
   const clientApprovalItems = useMemo(() => {
     return pendingApprovals.filter((approval) => isClientApprovalType(approval.type))
@@ -168,7 +201,7 @@ export function ClientListPage() {
   const pendingApprovalByClientId = useMemo(() => {
     const map = new Map<string, ClientApprovalView>()
     clientApprovalItems
-      .filter((approval) => approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT')
+      .filter((approval) => approval.type === 'CLIENT_UPDATE' || approval.type === 'DELETE_CLIENT' || approval.type === 'RESTORE_CLIENT')
       .forEach((approval) => {
         if (approval.targetId == null) return
         const clientId = String(approval.targetId)
@@ -187,8 +220,8 @@ export function ClientListPage() {
         approval,
         operation: 'create',
       }))
-      .filter((item) => clientDirectoryItemMatches(item, search, filterTradition))
-  }, [clientApprovalItems, filterArchive, filterCase, filterTradition, search])
+      .filter((item) => clientDirectoryItemMatches(item, search, filterTraditions, filterGender, filterOrdinationStatuses))
+  }, [clientApprovalItems, filterArchive, filterCase, filterGender, filterOrdinationStatuses, filterTraditions, search])
 
   const directoryItems = useMemo(() => {
     return [
@@ -215,7 +248,8 @@ export function ClientListPage() {
 
   const selectedClient = useMemo(() => {
     if (selectedCreateApproval) return undefined
-    return filtered.find((client) => client.id === selectedClientId) ?? filtered[0]
+    if (!selectedClientId) return undefined
+    return filtered.find((client) => client.id === selectedClientId)
   }, [filtered, selectedClientId, selectedCreateApproval])
   const {
     data: selectedClientDetail,
@@ -245,12 +279,6 @@ export function ClientListPage() {
     approval.type === 'DELETE_CASE' && String(approval.targetId) === String(activeProfileCase.id)
   )))
   const routeWantsEdit = location.pathname.endsWith('/edit')
-
-  useEffect(() => {
-    if (selectedCreateApproval) return
-    if (!selectedClient || selectedClient.id === selectedClientId) return
-    setSearchParams({ client: selectedClient.id }, { replace: true })
-  }, [selectedClient, selectedClientId, selectedCreateApproval, setSearchParams])
 
   useEffect(() => {
     setEditingClientId(null)
@@ -290,6 +318,19 @@ export function ClientListPage() {
   function selectApproval(approvalId: number) {
     setSearchParams({ approval: String(approvalId) })
   }
+
+  function toggleFilterMenu() {
+    if (!filterMenuOpen && filterMenuRef.current) {
+      const rect = filterMenuRef.current.getBoundingClientRect()
+      const panelWidth = Math.min(386, window.innerWidth - 32)
+      setFilterPopoverStyle({
+        top: Math.round(rect.bottom + 8),
+        left: Math.round(Math.min(Math.max(16, rect.left), window.innerWidth - panelWidth - 16)),
+      })
+    }
+    setFilterMenuOpen((open) => !open)
+  }
+
 
   function submitNewClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -406,6 +447,17 @@ export function ClientListPage() {
     setApprovalIntent(null)
   }
 
+  function confirmRestoreClient() {
+    if (!profileClient) return
+    setApprovalIntent('restore')
+  }
+
+  async function restoreSelectedClient(approverId?: number, reason?: string) {
+    if (!profileClient) return
+    await restoreClient.mutateAsync({ id: profileClient.id, approverId, reason })
+    setApprovalIntent(null)
+  }
+
   function confirmCloseCase() {
     if (!activeProfileCase || closeCasePending) return
     setApprovalIntent('closeCase')
@@ -418,13 +470,15 @@ export function ClientListPage() {
   }
 
   const isEditingProfile = Boolean(profileClient && editForm && editingClientId === profileClient.id)
-  const approvalPending = createClient.isPending || deleteClient.isPending || closeCase.isPending
+  const approvalPending = createClient.isPending || deleteClient.isPending || restoreClient.isPending || closeCase.isPending
   const approvalMessageKey =
     approvalIntent === 'create'
       ? 'approvalConfirm.clientCreate'
       : approvalIntent === 'closeCase'
         ? 'approvalConfirm.caseDelete'
-        : 'approvalConfirm.clientDelete'
+        : approvalIntent === 'restore'
+          ? 'approvalConfirm.clientRestore'
+          : 'approvalConfirm.clientDelete'
 
   return (
     <div className="client-workspace">
@@ -451,66 +505,161 @@ export function ClientListPage() {
                 aria-label={t('clients.filterButton')}
                 aria-haspopup="menu"
                 aria-expanded={filterMenuOpen}
-                onClick={() => setFilterMenuOpen((open) => !open)}
+                onClick={toggleFilterMenu}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M4 5h16l-6.4 7.2v5.1l-3.2 1.7v-6.8L4 5z" />
                 </svg>
               </button>
-              {filterMenuOpen ? (
-                <div className="client-filter-popover" role="menu">
-                  <FilterGroup label={t('clients.filterArchiveLabel')}>
-                    {(['current', 'closed'] as ClientArchiveFilter[]).map((value) => (
-                      <FilterChip
-                        key={value}
-                        active={filterArchive === value}
-                        onClick={() => setFilterArchive(value)}
+            </div>
+            {filterMenuOpen ? (
+                <div className="client-filter-popover" role="menu" style={filterPopoverStyle}>
+                  <div className="client-filter-tabs" role="tablist" aria-label={t('clients.filterPanelLabel')}>
+                    <button
+                      className={filterPanelTab === 'filters' ? 'active' : ''}
+                      type="button"
+                      role="tab"
+                      aria-selected={filterPanelTab === 'filters'}
+                      onClick={() => setFilterPanelTab('filters')}
+                    >
+                      {t('clients.filterTabFilters')}
+                    </button>
+                    <button
+                      className={filterPanelTab === 'sort' ? 'active' : ''}
+                      type="button"
+                      role="tab"
+                      aria-selected={filterPanelTab === 'sort'}
+                      onClick={() => setFilterPanelTab('sort')}
+                    >
+                      {t('clients.filterTabSort')}
+                    </button>
+                  </div>
+
+                  {filterPanelTab === 'filters' ? (
+                    <div className="client-filter-grid">
+                      <FilterGroup label={t('clients.filterArchiveLabel')} compact>
+                        {(['current', 'closed'] as ClientArchiveFilter[]).map((value) => (
+                          <FilterChip
+                            key={value}
+                            active={filterArchive === value}
+                            onClick={() => setFilterArchive(value)}
+                          >
+                            {value === 'closed' ? t('clients.filterClosed') : t('clients.filterCurrent')}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterGenderLabel')} compact>
+                        <FilterChip active={filterGender === 'all'} onClick={() => setFilterGender('all')}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {GENDERS.map((gender) => (
+                          <FilterChip key={gender} active={filterGender === gender} onClick={() => setFilterGender(gender)}>
+                            {t(`clients.profile.field.gender${gender}`)}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterTraditionLabel')}>
+                        <FilterChip active={filterTraditions.length === 0} onClick={() => setFilterTraditions([])}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {TRADITIONS.map((tradition) => (
+                          <FilterChip
+                            key={tradition}
+                            active={filterTraditions.includes(tradition)}
+                            onClick={() => setFilterTraditions((prev) => toggleFilterValue(prev, tradition))}
+                          >
+                            {tradition}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterCaseLabel')}>
+                        <FilterChip active={filterCase === 'all'} onClick={() => setFilterCase('all')}>
+                          {t('clients.filterCaseAllShort')}
+                        </FilterChip>
+                        <FilterChip active={filterCase === 'with_case'} onClick={() => setFilterCase('with_case')}>
+                          {t('clients.filterWithCase')}
+                        </FilterChip>
+                        <FilterChip active={filterCase === 'without_case'} onClick={() => setFilterCase('without_case')}>
+                          {t('clients.filterWithoutCase')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.filterOrdinationStatusLabel')} wide>
+                        <FilterChip active={filterOrdinationStatuses.length === 0} onClick={() => setFilterOrdinationStatuses([])}>
+                          {t('clients.filterAllShort')}
+                        </FilterChip>
+                        {ORDINATION_STATUSES.map((status) => (
+                          <FilterChip
+                            key={status}
+                            active={filterOrdinationStatuses.includes(status)}
+                            onClick={() => setFilterOrdinationStatuses((prev) => toggleFilterValue(prev, status))}
+                          >
+                            {status}
+                          </FilterChip>
+                        ))}
+                      </FilterGroup>
+                    </div>
+                  ) : (
+                    <div className="client-filter-sort-panel">
+                      <FilterGroup label={t('clients.sortCreatedAtLabel')}>
+                        <FilterChip active={directorySort === 'created_at_desc'} onClick={() => setDirectorySort('created_at_desc')}>
+                          {t('clients.sortCreatedAtDesc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'created_at_asc'} onClick={() => setDirectorySort('created_at_asc')}>
+                          {t('clients.sortCreatedAtAsc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.sortAlphaLabel')}>
+                        <FilterChip active={directorySort === 'alpha_asc'} onClick={() => setDirectorySort('alpha_asc')}>
+                          {t('clients.sortAlphaAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'alpha_desc'} onClick={() => setDirectorySort('alpha_desc')}>
+                          {t('clients.sortAlphaDesc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.sortAgeLabel')}>
+                        <FilterChip active={directorySort === 'age_asc'} onClick={() => setDirectorySort('age_asc')}>
+                          {t('clients.sortAgeAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'age_desc'} onClick={() => setDirectorySort('age_desc')}>
+                          {t('clients.sortAgeDesc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <FilterGroup label={t('clients.sortOrdinationYearsLabel')}>
+                        <FilterChip active={directorySort === 'ordination_years_asc'} onClick={() => setDirectorySort('ordination_years_asc')}>
+                          {t('clients.sortOrdinationYearsAsc')}
+                        </FilterChip>
+                        <FilterChip active={directorySort === 'ordination_years_desc'} onClick={() => setDirectorySort('ordination_years_desc')}>
+                          {t('clients.sortOrdinationYearsDesc')}
+                        </FilterChip>
+                      </FilterGroup>
+                      <button
+                        className={'client-filter-sort-reset' + (directorySort === 'default' ? ' active' : '')}
+                        type="button"
+                        onClick={() => setDirectorySort('default')}
                       >
-                        {value === 'closed' ? t('clients.filterClosed') : t('clients.filterCurrent')}
-                      </FilterChip>
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup label={t('clients.filterTraditionLabel')}>
-                    <FilterChip active={filterTradition === 'all'} onClick={() => setFilterTradition('all')}>
-                      {t('clients.filterAllShort')}
-                    </FilterChip>
-                    {TRADITIONS.map((tradition) => (
-                      <FilterChip
-                        key={tradition}
-                        active={filterTradition === tradition}
-                        onClick={() => setFilterTradition(tradition)}
-                      >
-                        {tradition}
-                      </FilterChip>
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup label={t('clients.filterCaseLabel')}>
-                    <FilterChip active={filterCase === 'all'} onClick={() => setFilterCase('all')}>
-                      {t('clients.filterCaseAllShort')}
-                    </FilterChip>
-                    <FilterChip active={filterCase === 'with_case'} onClick={() => setFilterCase('with_case')}>
-                      {t('clients.filterWithCase')}
-                    </FilterChip>
-                    <FilterChip active={filterCase === 'without_case'} onClick={() => setFilterCase('without_case')}>
-                      {t('clients.filterWithoutCase')}
-                    </FilterChip>
-                  </FilterGroup>
+                        {t('clients.sortDefault')}
+                      </button>
+                    </div>
+                  )}
+
                   {activeFilterCount > 0 ? (
                     <button
                       className="client-filter-clear"
                       type="button"
                       onClick={() => {
-                        setFilterTradition('all')
+                        setFilterTraditions([])
                         setFilterCase('all')
                         setFilterArchive('current')
+                        setFilterGender('all')
+                        setFilterOrdinationStatuses([])
+                        setDirectorySort('default')
                       }}
                     >
-                      {t('clients.filterClear')}
+                      {t('clients.filterClear')} · {activeFilterCount}
                     </button>
                   ) : null}
                 </div>
               ) : null}
-            </div>
           </div>
           {canCreateClient ? (
             <button className="btn-primary client-create-btn" type="button" onClick={() => setShowCreateModal(true)}>
@@ -547,18 +696,13 @@ export function ClientListPage() {
                     </span>
                   ) : null}
                 </div>
-                {item.display.nameEn || item.display.nameChn ? (
-                  <div className="client-directory-en">
-                    {item.display.nameEn || item.display.nameChn}
-                  </div>
-                ) : null}
               </button>
             ))
           )}
         </div>
       </aside>
 
-      <main className="client-profile-surface">
+      <main className={'client-profile-surface' + (!displayProfileClient ? ' empty' : '')}>
         {displayProfileClient ? (
           <>
             {isDetailLoading && !selectedCreateApproval ? (
@@ -594,25 +738,31 @@ export function ClientListPage() {
                 onRejectApproval={() => serverProfileApproval ? void rejectRequest.mutateAsync({ id: serverProfileApproval.id, data: {} }) : undefined}
                 closed={profileClosed}
                 canUpdateClient={!profileApproval && !profileClosed && canUpdateClient}
-                canDeleteClient={!profileApproval && !profileClosed && canDeleteClient}
+                canDeleteClient={!isAdminView && !profileApproval && !profileClosed && canDeleteClient}
+                canRestoreClient={!profileApproval && profileClosed && canDeleteClient}
                 canViewDetailedProfile={canViewDetailedProfile}
-                canConvertToCase={!profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
+                canConvertToCase={!isAdminView && !profileApproval && !profileClosed && canConvertToCase && Boolean(profileClient && withoutCaseIds.has(profileClient.id))}
                 activeCase={activeProfileCase}
-                canCloseCase={!profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
+                canCloseCase={!isAdminView && !profileApproval && !profileClosed && canCloseCase && Boolean(activeProfileCase)}
+                collapsed={profileCollapsed}
                 closeCasePending={closeCasePending}
                 closingCase={closeCase.isPending}
                 deleting={deleteClient.isPending}
+                restoring={restoreClient.isPending}
                 deleteError={deleteClient.error instanceof Error ? deleteClient.error.message : undefined}
+                restoreError={restoreClient.error instanceof Error ? restoreClient.error.message : undefined}
                 onConfirmDelete={() => void confirmDeleteClient()}
+                onRestore={() => confirmRestoreClient()}
                 onConfirmCloseCase={() => void confirmCloseCase()}
                 onEdit={() => profileClient ? beginEditClient(profileClient) : undefined}
                 onCreateCase={() => profileClient ? navigate(`/cases/new?clientId=${encodeURIComponent(profileClient.id)}`) : undefined}
                 onViewCase={() => activeProfileCase ? navigate(`/cases/${activeProfileCase.id}`) : undefined}
+                onToggleCollapsed={() => setProfileCollapsed((collapsed) => !collapsed)}
               />
             )}
           </>
         ) : (
-          <EmptyState message={t('clients.selectPrompt')} />
+          null
         )}
       </main>
 
@@ -641,6 +791,7 @@ export function ClientListPage() {
         onConfirm={(approverId, reason) => {
           if (approvalIntent === 'create') void confirmCreateClient(approverId, reason)
           if (approvalIntent === 'delete') void submitDeleteClient(approverId, reason)
+          if (approvalIntent === 'restore') void restoreSelectedClient(approverId, reason)
           if (approvalIntent === 'closeCase') void submitCloseCase(approverId, reason)
         }}
       />
@@ -650,13 +801,16 @@ export function ClientListPage() {
 
 function canDecideApproval(approval: ClientApprovalView | undefined, currentUserId: number | undefined) {
   if (!approval || currentUserId === undefined) return false
-  if (approval.requestedById === currentUserId) return false
+  if (approval.requestedById === currentUserId) {
+    return (approval.type === 'CLIENT_CREATE' || approval.type === 'RESTORE_CLIENT') && approval.assignedApproverId === currentUserId
+  }
   return approval.assignedApproverId == null || approval.assignedApproverId === currentUserId
 }
 
 function approvalOperation(approval: ClientApprovalView): ClientApprovalOperation {
   if (approval.type === 'CLIENT_CREATE') return 'create'
   if (approval.type === 'DELETE_CLIENT') return 'delete'
+  if (approval.type === 'RESTORE_CLIENT') return 'restore'
   return 'update'
 }
 
@@ -667,15 +821,27 @@ function directoryItemActive(item: ClientDirectoryItem, selectedClientId?: strin
   return Boolean(item.client && item.client.id === selectedClientId)
 }
 
-function clientDirectoryItemMatches(item: ClientDirectoryItem, search: string, tradition: string) {
+function toggleFilterValue<T>(values: readonly T[], value: T): T[] {
+  return values.includes(value) ? values.filter((current) => current !== value) : [...values, value]
+}
+
+function clientDirectoryItemMatches(
+  item: ClientDirectoryItem,
+  search: string,
+  traditions: readonly string[],
+  gender: ClientGenderFilter,
+  ordinationStatuses: readonly string[],
+) {
   const q = search.trim().toLowerCase()
   const matchesSearch =
     !q ||
     item.display.nameChn.includes(q) ||
     item.display.nameEn.toLowerCase().includes(q) ||
     item.display.abbr.toLowerCase().includes(q)
-  const matchesTradition = tradition === 'all' || item.display.buddhistTradition === tradition
-  return matchesSearch && matchesTradition
+  const matchesTradition = traditions.length === 0 || traditions.includes(item.display.buddhistTradition)
+  const matchesGender = gender === 'all' || item.display.gender === gender
+  const matchesOrdinationStatus = ordinationStatuses.length === 0 || ordinationStatuses.includes(item.display.ordinationStatus)
+  return matchesSearch && matchesTradition && matchesGender && matchesOrdinationStatus
 }
 
 function clientFromApproval(approval: ClientApprovalView): Client {
@@ -785,9 +951,19 @@ function approvalReason(payload: Record<string, unknown>): string {
   return typeof reason === 'string' ? reason.trim() : ''
 }
 
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({
+  label,
+  children,
+  compact = false,
+  wide = false,
+}: {
+  label: string
+  children: ReactNode
+  compact?: boolean
+  wide?: boolean
+}) {
   return (
-    <section className="client-filter-group">
+    <section className={'client-filter-group' + (compact ? ' compact' : '') + (wide ? ' wide' : '')}>
       <span>{label}</span>
       <div className="client-filter-chip-row">{children}</div>
     </section>
@@ -803,7 +979,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 function isClientApprovalType(type: string): boolean {
-  return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT'
+  return type === 'CLIENT_CREATE' || type === 'CLIENT_UPDATE' || type === 'DELETE_CLIENT' || type === 'RESTORE_CLIENT'
 }
 
 function formatDateTime(value?: string | null): string {
@@ -1085,19 +1261,25 @@ interface ClientProfilePanelProps {
   closed: boolean
   canUpdateClient: boolean
   canDeleteClient: boolean
+  canRestoreClient: boolean
   canViewDetailedProfile: boolean
   canConvertToCase: boolean
   activeCase?: Case
   canCloseCase: boolean
+  collapsed: boolean
   closeCasePending: boolean
   closingCase: boolean
   deleting: boolean
+  restoring: boolean
   deleteError?: string
+  restoreError?: string
   onConfirmDelete: () => void
+  onRestore: () => void
   onConfirmCloseCase: () => void
   onEdit: () => void
   onCreateCase: () => void
   onViewCase: () => void
+  onToggleCollapsed: () => void
 }
 
 function ClientProfilePanel({
@@ -1112,21 +1294,30 @@ function ClientProfilePanel({
   closed,
   canUpdateClient,
   canDeleteClient,
+  canRestoreClient,
   canViewDetailedProfile,
   canConvertToCase,
   activeCase,
   canCloseCase,
+  collapsed,
   closeCasePending,
   closingCase,
   deleting,
+  restoring,
   deleteError,
+  restoreError,
   onConfirmDelete,
+  onRestore,
   onConfirmCloseCase,
   onEdit,
   onCreateCase,
   onViewCase,
+  onToggleCollapsed,
 }: ClientProfilePanelProps) {
   const { t } = useTranslation()
+  const { resolve } = useAccess()
+  // 每个敏感区块按 clients:profile.<section> 授权单独显示(后端亦对字段真过滤)
+  const canSee = (section: string) => resolve(`clients:profile.${section}`)
   const actionGroups = profileActionGroups({
     canEdit: canViewDetailedProfile && canUpdateClient,
     canConvertToCase,
@@ -1144,11 +1335,26 @@ function ClientProfilePanel({
             {closed ? <span className="client-profile-status closed">{t('clients.profile.closedStatus')}</span> : null}
           </div>
         </div>
+        <div className="client-profile-header-actions">
+          <button
+            className="client-profile-icon-btn"
+            type="button"
+            aria-label={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            aria-expanded={!collapsed}
+            title={t(collapsed ? 'clients.profile.expandDetails' : 'clients.profile.collapseDetails')}
+            onClick={onToggleCollapsed}
+          >
+            <span aria-hidden="true">{collapsed ? '▾' : '▴'}</span>
+          </button>
+        </div>
       </header>
 
+      {collapsed ? null : (
+        <>
       {deleteError ? <div className="client-profile-loading client-profile-warning">{deleteError}</div> : null}
+      {restoreError ? <div className="client-profile-loading client-profile-warning">{restoreError}</div> : null}
 
-      <ProfileSection title={t('clients.profile.section.basicInfo')}>
+      <ProfileSection key={`${client.id}-basicInfo`} title={t('clients.profile.section.basicInfo')}>
         <InfoCell label={t('clients.profile.field.nameChn')} value={client.nameChn} changed={changedFields.has('nameChn')} />
         <InfoCell label={t('clients.profile.field.nameEn')} value={client.nameEn} changed={changedFields.has('nameEn')} />
         <InfoCell label={t('clients.profile.field.abbr')} value={client.abbr} changed={changedFields.has('abbr')} />
@@ -1163,43 +1369,67 @@ function ClientProfilePanel({
         <InfoCell label={t('clients.profile.field.viharaType')} value={client.viharaType} changed={changedFields.has('viharaType')} />
       </ProfileSection>
 
-      {canViewDetailedProfile ? (
-        <>
-          <ProfileSection title={t('clients.profile.section.identity')}>
-            <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
-            <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
-            <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
-            <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} changed={changedFields.has('ordinationCertificate')} />
-            <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
-          </ProfileSection>
+      {canSee('identity') ? (
+        <ProfileSection key={`${client.id}-identity`} title={t('clients.profile.section.identity')}>
+          <InfoCell label={t('clients.profile.field.nricNameEn')} value={client.nricNameEn} changed={changedFields.has('nricNameEn')} />
+          <InfoCell label={t('clients.profile.field.nricNameChn')} value={client.nricNameChn} changed={changedFields.has('nricNameChn')} />
+          <InfoCell label={t('clients.profile.field.nricNo')} value={client.nricNo} changed={changedFields.has('nricNo')} />
+          <InfoCell label={t('clients.profile.field.ordinationCert')} value={client.ordinationCertificate} changed={changedFields.has('ordinationCertificate')} />
+          <InfoCell label={t('clients.profile.field.dateVerification')} value={client.dateOfVerification} changed={changedFields.has('dateOfVerification')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection title={t('clients.profile.section.personal')}>
-            <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
-            <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
-            <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
-            <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} changed={changedFields.has('maritalStatus')} />
-            <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} changed={changedFields.has('nationality')} />
-            <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} changed={changedFields.has('ethnicity')} />
-            <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} changed={changedFields.has('dialectGroup')} />
-            <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
-          </ProfileSection>
+      {canSee('personal') ? (
+        <ProfileSection key={`${client.id}-personal`} title={t('clients.profile.section.personal')}>
+          <InfoCell label={t('clients.profile.field.gender')} value={client.gender} changed={changedFields.has('gender')} />
+          <InfoCell label={t('clients.profile.field.dob')} value={client.dateOfBirth} changed={changedFields.has('dateOfBirth')} />
+          <InfoCell label={t('clients.profile.field.age')} value={`${client.age} ${t('clients.profile.field.ageUnit')}`} changed={changedFields.has('age')} />
+          <InfoCell label={t('clients.profile.field.maritalStatus')} value={client.maritalStatus} changed={changedFields.has('maritalStatus')} />
+          <InfoCell label={t('clients.profile.field.nationality')} value={client.nationality} changed={changedFields.has('nationality')} />
+          <InfoCell label={t('clients.profile.field.ethnicity')} value={client.ethnicity} changed={changedFields.has('ethnicity')} />
+          <InfoCell label={t('clients.profile.field.dialectGroup')} value={client.dialectGroup} changed={changedFields.has('dialectGroup')} />
+          <InfoCell label={t('clients.profile.field.nextOfKin')} value={client.nextOfKinContact} changed={changedFields.has('nextOfKinContact')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection title={t('clients.profile.section.ordination')}>
-            <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
-            <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
-            <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
-            <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} changed={changedFields.has('placeOfTonsure') || changedFields.has('countryOfTonsure')} />
-            <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} changed={changedFields.has('dateOfOrdination')} />
-            <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} changed={changedFields.has('placeOfOrdination') || changedFields.has('countryOfOrdination')} />
-            <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
-          </ProfileSection>
+      {canSee('ordination') ? (
+        <ProfileSection key={`${client.id}-ordination`} title={t('clients.profile.section.ordination')}>
+          <InfoCell label={t('clients.profile.field.buddhistTradition')} value={client.buddhistTradition} changed={changedFields.has('buddhistTradition')} />
+          <InfoCell label={t('clients.profile.field.ordinationStatus')} value={client.ordinationStatus} changed={changedFields.has('ordinationStatus')} />
+          <InfoCell label={t('clients.profile.field.dateTonsure')} value={client.dateOfTonsure} changed={changedFields.has('dateOfTonsure')} />
+          <InfoCell label={t('clients.profile.field.placeTonsure')} value={`${client.placeOfTonsure}, ${client.countryOfTonsure}`} changed={changedFields.has('placeOfTonsure') || changedFields.has('countryOfTonsure')} />
+          <InfoCell label={t('clients.profile.field.dateOrdination')} value={client.dateOfOrdination} changed={changedFields.has('dateOfOrdination')} />
+          <InfoCell label={t('clients.profile.field.placeOrdination')} value={`${client.placeOfOrdination}, ${client.countryOfOrdination}`} changed={changedFields.has('placeOfOrdination') || changedFields.has('countryOfOrdination')} />
+          <InfoCell label={t('clients.profile.field.ordinationYears')} value={`${client.ordinationYears} ${t('clients.profile.field.ordinationYearsUnit')}`} changed={changedFields.has('ordinationYears')} />
+        </ProfileSection>
+      ) : null}
 
-          <ProfileSection title={t('clients.profile.section.membership')}>
-            <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
-            <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
-            <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
-          </ProfileSection>
-        </>
+      {canSee('membership') ? (
+        <ProfileSection key={`${client.id}-membership`} title={t('clients.profile.section.membership')}>
+          <InfoCell label={t('clients.profile.field.dateJoined')} value={client.dateJoined} changed={changedFields.has('dateJoined')} />
+          <InfoCell label={t('clients.profile.field.membershipRemarks')} value={client.membershipRemarks || '-'} changed={changedFields.has('membershipRemarks')} />
+          <InfoCell label={t('clients.profile.field.comments')} value={client.comments || '-'} wide changed={changedFields.has('comments')} />
+        </ProfileSection>
+      ) : null}
+
+      {canSee('wellbeing') ? (
+        <ProfileSection key={`${client.id}-wellbeing`} title={t('clients.profile.section.wellbeing')}>
+          {(Object.keys(WELLBEING_KEYS) as WellbeingDomain[]).map((key) => (
+            <InfoCell key={key} label={t(WELLBEING_KEYS[key])} value={client.wellbeingIssues[key] ? '✓' : '—'} />
+          ))}
+          <InfoCell label={t('clients.profile.field.wellbeingRemarks')} value={client.wellbeingRemarks || '-'} wide />
+        </ProfileSection>
+      ) : null}
+
+      {canSee('needs') ? (
+        <ProfileSection key={`${client.id}-needs`} title={t('clients.profile.section.needs')}>
+          {(Object.keys(client.specialNeeds) as Array<keyof Client['specialNeeds']>).map((key) => (
+            <InfoCell key={key} label={capitalize(key)} value={client.specialNeeds[key] ? '✓' : '—'} />
+          ))}
+          <InfoCell label={t('clients.profile.field.bankTransfer')} value={client.bankTransferInfo || '-'} />
+          <InfoCell label={t('clients.profile.field.payNow')} value={client.payNowInfo || '-'} />
+          <InfoCell label={t('clients.profile.field.specialNeedsRemarks')} value={client.specialNeedsRemarks || '-'} wide />
+        </ProfileSection>
       ) : null}
 
       {pendingApproval ? (
@@ -1211,6 +1441,15 @@ function ClientProfilePanel({
           onApproveApproval={onApproveApproval}
           onRejectApproval={onRejectApproval}
         />
+      ) : closed && canViewDetailedProfile && canRestoreClient ? (
+        <footer className="client-profile-action-footer split">
+          <div className="client-profile-secondary-actions" />
+          <div className="client-profile-primary-actions">
+            <button className="btn-primary" type="button" disabled={restoring} onClick={onRestore}>
+              {restoring ? t('common.saving') : t('clients.profile.restoreProfile')}
+            </button>
+          </div>
+        </footer>
       ) : actionGroups.primary.length || actionGroups.secondary.length || activeCase ? (
         <footer className="client-profile-action-footer split">
           <div className="client-profile-secondary-actions">
@@ -1246,6 +1485,8 @@ function ClientProfilePanel({
           </div>
         </footer>
       ) : null}
+        </>
+      )}
     </article>
   )
 }

@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 070-clean-orphan-service-event-assignments
+      author: Codex
+      changes:
+        - sql:
+            sql: >
+              DELETE FROM service_event_assignment sea
+              WHERE NOT EXISTS (
+                SELECT 1 FROM service_appointment sa
+                WHERE sa.id = sea.service_appointment_id
+              );
+      rollback: []
