@@ -1,7 +1,10 @@
 package aranya.crm.service;
 
-import aranya.crm.config.EventReminderProperties;
 import aranya.crm.config.GoogleGmailProperties;
+import aranya.crm.entity.Client;
+import aranya.crm.entity.ClientCase;
+import aranya.crm.entity.ServiceAppointment;
+import aranya.crm.entity.ServiceType;
 import aranya.crm.entity.User;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.Message;
@@ -30,36 +33,29 @@ public class GmailEmailGateway {
 
     private final ObjectProvider<Gmail> gmailProvider;
     private final GoogleGmailProperties gmailProperties;
-    private final EventReminderProperties reminderProperties;
 
     public boolean isEnabled() {
         return gmailProperties.isEnabled() && gmailProvider.getIfAvailable() != null;
     }
 
-    public String sendOverdueEmail(Long eventId, User recipient, LocalDateTime deadline) throws Exception {
+    public String sendOverdueEmail(
+            ServiceAppointment event,
+            User recipient,
+            LocalDateTime deadline
+    ) throws Exception {
         Gmail gmail = gmailProvider.getIfAvailable();
         if (gmail == null) {
             throw new IllegalStateException("Gmail API client is not configured");
         }
 
-        boolean zh = "zh".equalsIgnoreCase(recipient.getPreferredLanguage());
-        String dueText = deadline.format(DEADLINE_FORMAT) + " (Asia/Singapore)";
-        String eventUrl = stripTrailingSlash(reminderProperties.getPublicBaseUrl()) + "/reports/" + eventId;
-        String subject = zh ? "事件报告已逾期" : "Event report overdue";
-        String text = zh
-                ? "事件 #" + eventId + " 的报告已逾期。截止时间：" + dueText
-                    + "。请登录 Aranya CRM 处理：" + eventUrl
-                : "The report for event #" + eventId + " is overdue. Deadline: " + dueText
-                    + ". Sign in to Aranya CRM to complete it: " + eventUrl;
-        String html = zh
-                ? "<p>事件 <strong>#" + eventId + "</strong> 的报告已逾期。</p>"
-                    + "<p>截止时间：" + HtmlUtils.htmlEscape(dueText) + "</p>"
-                    + "<p><a href=\"" + HtmlUtils.htmlEscape(eventUrl) + "\">登录 Aranya CRM 处理</a></p>"
-                : "<p>The report for event <strong>#" + eventId + "</strong> is overdue.</p>"
-                    + "<p>Deadline: " + HtmlUtils.htmlEscape(dueText) + "</p>"
-                    + "<p><a href=\"" + HtmlUtils.htmlEscape(eventUrl) + "\">Open Aranya CRM</a></p>";
-
-        MimeMessage mimeMessage = createMimeMessage(eventId, recipient, subject, text, html);
+        EmailContent content = buildEmailContent(event, recipient, deadline);
+        MimeMessage mimeMessage = createMimeMessage(
+                event.getId(),
+                recipient,
+                content.subject(),
+                content.text(),
+                content.html()
+        );
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         mimeMessage.writeTo(output);
 
@@ -68,6 +64,134 @@ public class GmailEmailGateway {
         );
         Message sent = gmail.users().messages().send("me", request).execute();
         return sent.getId();
+    }
+
+    static EmailContent buildEmailContent(
+            ServiceAppointment event,
+            User recipient,
+            LocalDateTime deadline
+    ) {
+        String eventTitle = eventTitle(event);
+        String recipientName = valueOrFallback(recipient.getFullName(), "there");
+        String caseDetails = caseDetails(event.getClientCase());
+        String serviceName = event.getServiceType() == null
+                ? null
+                : event.getServiceType().getName();
+        String eventLocation = firstNonBlank(event.getAddress(), event.getLocation());
+
+        StringBuilder text = new StringBuilder()
+                .append("Hello ").append(recipientName).append(",\n\n")
+                .append("The report for the following event is overdue.\n\n")
+                .append("Event: ").append(eventTitle).append('\n');
+        appendTextDetail(text, "Case", caseDetails);
+        appendTextDetail(text, "Service", serviceName);
+        appendTextDetail(text, "Scheduled start", formatDateTime(event.getScheduledStart()));
+        appendTextDetail(text, "Scheduled end", formatDateTime(event.getScheduledEnd()));
+        appendTextDetail(text, "Report deadline", formatDateTime(deadline));
+        appendTextDetail(text, "Location", eventLocation);
+        appendTextDetail(text, "Agenda", event.getAgenda());
+        appendTextDetail(text, "Work description", event.getWorkDescription());
+        text.append("\nPlease sign in to Aranya CRM and submit the event report as soon as possible.")
+                .append("\n\nThis is an automated reminder from Aranya CRM.");
+
+        StringBuilder details = new StringBuilder();
+        appendHtmlDetail(details, "Event", eventTitle);
+        appendHtmlDetail(details, "Case", caseDetails);
+        appendHtmlDetail(details, "Service", serviceName);
+        appendHtmlDetail(details, "Scheduled start", formatDateTime(event.getScheduledStart()));
+        appendHtmlDetail(details, "Scheduled end", formatDateTime(event.getScheduledEnd()));
+        appendHtmlDetail(details, "Report deadline", formatDateTime(deadline));
+        appendHtmlDetail(details, "Location", eventLocation);
+        appendHtmlDetail(details, "Agenda", event.getAgenda());
+        appendHtmlDetail(details, "Work description", event.getWorkDescription());
+
+        String html = "<p>Hello " + html(recipientName) + ",</p>"
+                + "<p>The report for the following event is overdue.</p>"
+                + "<table role=\"presentation\" style=\"border-collapse:collapse\">"
+                + details
+                + "</table>"
+                + "<p>Please sign in to Aranya CRM and submit the event report as soon as possible.</p>"
+                + "<p>This is an automated reminder from Aranya CRM.</p>";
+
+        return new EmailContent(
+                "Overdue event report: " + eventTitle,
+                text.toString(),
+                html
+        );
+    }
+
+    private static String eventTitle(ServiceAppointment event) {
+        ServiceType serviceType = event.getServiceType();
+        String serviceName = serviceType == null
+                ? "Service event"
+                : valueOrFallback(serviceType.getName(), "Service event");
+
+        ClientCase clientCase = event.getClientCase();
+        Client client = clientCase == null ? null : clientCase.getClient();
+        String clientAbbr = client == null ? null : client.getAbbr();
+
+        StringBuilder title = new StringBuilder();
+        if (event.getEventSeq() != null) {
+            title.append(String.format("%03d", event.getEventSeq())).append(' ');
+        }
+        title.append(serviceName);
+        if (clientAbbr != null && !clientAbbr.isBlank()) {
+            title.append(": ").append(clientAbbr.trim());
+        }
+        if (event.getLocation() != null && !event.getLocation().isBlank()) {
+            title.append(" @ ").append(event.getLocation().trim());
+        }
+        return title.toString();
+    }
+
+    private static String caseDetails(ClientCase clientCase) {
+        if (clientCase == null) return null;
+        String caseCode = normalize(clientCase.getCaseCode());
+        String caseTitle = normalize(clientCase.getTitle());
+        if (caseCode == null) return caseTitle;
+        if (caseTitle == null) return caseCode;
+        return caseCode + " - " + caseTitle;
+    }
+
+    private static void appendTextDetail(StringBuilder text, String label, String value) {
+        String normalized = normalize(value);
+        if (normalized != null) {
+            text.append(label).append(": ").append(normalized).append('\n');
+        }
+    }
+
+    private static void appendHtmlDetail(StringBuilder html, String label, String value) {
+        String normalized = normalize(value);
+        if (normalized != null) {
+            html.append("<tr><td style=\"padding:4px 16px 4px 0;vertical-align:top\"><strong>")
+                    .append(HtmlUtils.htmlEscape(label))
+                    .append("</strong></td><td style=\"padding:4px 0;white-space:pre-wrap\">")
+                    .append(html(normalized))
+                    .append("</td></tr>");
+        }
+    }
+
+    private static String formatDateTime(LocalDateTime value) {
+        return value == null ? null : value.format(DEADLINE_FORMAT) + " (Asia/Singapore)";
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        String normalized = normalize(first);
+        return normalized != null ? normalized : normalize(second);
+    }
+
+    private static String valueOrFallback(String value, String fallback) {
+        String normalized = normalize(value);
+        return normalized != null ? normalized : fallback;
+    }
+
+    private static String normalize(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim().replace("\r\n", "\n").replace('\r', '\n');
+    }
+
+    private static String html(String value) {
+        return HtmlUtils.htmlEscape(value).replace("\n", "<br>");
     }
 
     private MimeMessage createMimeMessage(
@@ -111,8 +235,5 @@ public class GmailEmailGateway {
         return "<event-" + eventId + "-overdue-user-" + recipientId + "@" + domain + ">";
     }
 
-    private String stripTrailingSlash(String value) {
-        if (value == null || value.isBlank()) return "http://localhost:5173";
-        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
-    }
+    record EmailContent(String subject, String text, String html) {}
 }

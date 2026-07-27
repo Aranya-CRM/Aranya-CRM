@@ -188,7 +188,7 @@ public class EventOverdueNotificationService {
             notification.setLastEmailAttemptAt(LocalDateTime.now());
             try {
                 String messageId = emailGateway.sendOverdueEmail(
-                        notification.getEvent().getId(),
+                        notification.getEvent(),
                         notification.getRecipientUser(),
                         notification.getDeadline()
                 );

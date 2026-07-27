@@ -249,7 +249,7 @@ function CaseReportDetail({
 
 function printCaseReport(report: ReportDetail, t: (key: string) => string) {
   const previousTitle = document.title
-  document.title = `${t('reports.detail.title')} RPT-${String(report.id).padStart(4, '0')}`
+  document.title = report.eventTitle || t('reports.detail.title')
   document.body.classList.add('printing-case-report')
   try {
     window.print()

@@ -2265,6 +2265,11 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
   body.printing-case-report * {
     visibility: hidden !important;
   }
@@ -2279,18 +2284,75 @@
     inset: 0;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 16mm;
     border: 0;
     border-radius: 0;
+    box-sizing: border-box;
+    color: #000;
+  }
+
+  body.printing-case-report .case-report-detail-header {
+    display: block;
+    margin: 0 0 10mm;
+  }
+
+  body.printing-case-report .case-report-detail-header > div:first-child {
+    width: 100%;
+  }
+
+  body.printing-case-report .case-report-detail-header h4 {
+    margin: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #000;
+  }
+
+  body.printing-case-report .case-report-detail-header span {
+    display: none !important;
   }
 
   body.printing-case-report .case-report-detail-actions {
     display: none !important;
   }
 
+  body.printing-case-report .case-report-detail-grid {
+    display: block;
+  }
+
   body.printing-case-report .case-report-detail-field {
     break-inside: avoid;
-    background: #fff;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
+    margin: 0;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  body.printing-case-report .case-report-detail-field span {
+    display: inline;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: none;
+    color: #000;
+  }
+
+  body.printing-case-report .case-report-detail-field span::after {
+    content: ":";
+  }
+
+  body.printing-case-report .case-report-detail-field p {
+    margin: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
   }
 }
 
