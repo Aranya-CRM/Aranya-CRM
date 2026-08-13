@@ -4,12 +4,11 @@ set -euo pipefail
 exec > >(tee -a /var/log/aranya-bootstrap.log) 2>&1
 
 PROJECT_ID="aranya-crm-dev"
-REGION="asia-southeast1"
 APP_DIR="/opt/aranya"
 BOOTSTRAP_MARKER="/var/lib/aranya/bootstrap-complete"
 TEMP_DOMAIN="aranya-dev.34-142-150-221.sslip.io"
-BACKEND_IMAGE="asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/backend:b8931f1"
-FRONTEND_IMAGE="asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/frontend:9af9a07"
+INITIAL_BACKEND_IMAGE="asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/backend:b8931f1"
+INITIAL_FRONTEND_IMAGE="asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/frontend:9af9a07"
 CLOUD_SQL_CONNECTION="aranya-crm-dev:asia-southeast1:aranya-crm-dev-db"
 
 if [[ -f "${BOOTSTRAP_MARKER}" ]]; then
@@ -23,6 +22,12 @@ apt-get install -y ca-certificates curl docker.io docker-compose-v2 jq
 systemctl enable --now docker
 
 install -d -m 0750 "${APP_DIR}" "${APP_DIR}/secrets"
+
+cat > "${APP_DIR}/images.env" <<EOF
+BACKEND_IMAGE=${INITIAL_BACKEND_IMAGE}
+FRONTEND_IMAGE=${INITIAL_FRONTEND_IMAGE}
+EOF
+chmod 0600 "${APP_DIR}/images.env"
 
 cat > "${APP_DIR}/compose.yaml" <<EOF
 services:
@@ -39,7 +44,7 @@ services:
       - aranya
 
   backend:
-    image: ${BACKEND_IMAGE}
+    image: \${BACKEND_IMAGE}
     env_file:
       - ./secrets/backend.env
     environment:
@@ -48,7 +53,7 @@ services:
       FIREBASE_SERVICE_ACCOUNT_PATH: file:/secrets/firebase.json
       SPRING_DATASOURCE_URL: jdbc:postgresql://cloud-sql-proxy:5432/aranya_crm
       SPRING_DATASOURCE_USERNAME: aranya_admin
-      APP_CORS_ALLOWED_ORIGINS: https://${TEMP_DOMAIN},https://aranya-frontend-746649380908.asia-southeast1.run.app
+      APP_CORS_ALLOWED_ORIGINS: https://${TEMP_DOMAIN}
       EVENT_REPORT_GRACE_HOURS: "0"
       GOOGLE_GMAIL_ENABLED: "true"
       GOOGLE_GMAIL_FROM_ADDRESS: infotech@aranya.sg
@@ -71,7 +76,7 @@ services:
       - aranya
 
   frontend:
-    image: ${FRONTEND_IMAGE}
+    image: \${FRONTEND_IMAGE}
     environment:
       BACKEND_URL: http://backend:8080
     depends_on:
@@ -128,6 +133,7 @@ set -euo pipefail
 PROJECT_ID="aranya-crm-dev"
 APP_DIR="/opt/aranya"
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+IMAGES_FILE="${APP_DIR}/images.env"
 
 metadata() {
   curl -fsS -H 'Metadata-Flavor: Google' "${METADATA_URL}/$1"
@@ -149,6 +155,43 @@ read_secret() {
     | base64 -d
 }
 
+wait_for_application() {
+  local attempt
+  for attempt in $(seq 1 30); do
+    if docker compose --env-file "${IMAGES_FILE}" exec -T caddy \
+      wget -qO- http://backend:8080/actuator/health 2>/dev/null \
+      | grep -q '"status":"UP"' \
+      && docker compose --env-file "${IMAGES_FILE}" exec -T caddy \
+        wget -qO- http://frontend:8080/ 2>/dev/null \
+        | grep -qi '<!doctype html'; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+if [[ $# -ne 0 && $# -ne 2 ]]; then
+  echo "Usage: aranya-deploy [BACKEND_IMAGE FRONTEND_IMAGE]" >&2
+  exit 2
+fi
+
+candidate_file="$(mktemp "${APP_DIR}/images.env.candidate.XXXXXX")"
+previous_file="${APP_DIR}/images.env.previous"
+trap 'rm -f "${candidate_file}"' EXIT
+
+if [[ $# -eq 2 ]]; then
+  backend_image="$1"
+  frontend_image="$2"
+  [[ "${backend_image}" == asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/backend:* ]]
+  [[ "${frontend_image}" == asia-southeast1-docker.pkg.dev/aranya-crm-dev/aranya-crm/frontend:* ]]
+  printf 'BACKEND_IMAGE=%s\nFRONTEND_IMAGE=%s\n' \
+    "${backend_image}" "${frontend_image}" > "${candidate_file}"
+else
+  cp "${IMAGES_FILE}" "${candidate_file}"
+fi
+chmod 0600 "${candidate_file}"
+
 umask 077
 read_secret firebase-sa-dev > "${APP_DIR}/secrets/firebase.json"
 {
@@ -164,8 +207,20 @@ printf '%s' "${token}" \
   | docker login -u oauth2accesstoken --password-stdin https://asia-southeast1-docker.pkg.dev
 
 cd "${APP_DIR}"
-docker compose pull
-docker compose up -d --remove-orphans
+docker compose --env-file "${candidate_file}" pull
+cp "${IMAGES_FILE}" "${previous_file}"
+mv "${candidate_file}" "${IMAGES_FILE}"
+trap - EXIT
+
+docker compose --env-file "${IMAGES_FILE}" up -d --remove-orphans
+if ! wait_for_application; then
+  echo "Deployment health check failed; rolling back images." >&2
+  mv "${previous_file}" "${IMAGES_FILE}"
+  docker compose --env-file "${IMAGES_FILE}" up -d --remove-orphans
+  exit 1
+fi
+
+rm -f "${previous_file}"
 docker image prune -f
 DEPLOY
 

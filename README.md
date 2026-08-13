@@ -13,6 +13,8 @@ For onboarding, local setup, architecture notes, and ongoing development guidanc
 
 - [Developer Guide](docs/System%20Design/developer-guide.md)
 - [API Spec](docs/System%20Design/01-api-spec.md)
+- [VM Deployment](docs/vm-deployment.md)
+- [Event Reminders and Gmail](docs/event-overdue-reminders.md)
 
 ## Running with Docker Compose
 
