@@ -30,8 +30,8 @@ substitutions:
   _FIREBASE_PROJECT_ID: aranya-crm-dev
   _CLOUD_SQL_CONN: ""
   _CORS_ORIGINS: ""
-  _GMAIL_ENABLED: "false"
-  _GMAIL_FROM_ADDRESS: ""
+  _GMAIL_ENABLED: "true"
+  _GMAIL_FROM_ADDRESS: "infotech@aranya.sg"
   _GMAIL_FROM_NAME: "Aranya CRM"
   _EVENT_REPORT_GRACE_HOURS: "0"
   # ── Google 日历集成(非机密;机密见 --set-secrets)──
