@@ -339,7 +339,7 @@ public class CaseService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
-        requirePrimaryCaseOwner(caseId, createdBy);
+        requireCaseOperator(caseId, createdBy);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {
@@ -425,7 +425,7 @@ public class CaseService {
         ClientCase clientCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("Case not found: " + caseId));
         requireMutableCase(clientCase);
-        requirePrimaryCaseOwner(caseId, currentUser);
+        requireCaseOperator(caseId, currentUser);
         Set<String> selected = selectedServiceKeySet(caseId);
         String serviceKey = trimToNull(request.getServiceKey());
         if (serviceKey == null || !selected.contains(serviceKey)) {

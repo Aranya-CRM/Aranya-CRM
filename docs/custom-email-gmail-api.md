@@ -174,6 +174,9 @@ Gmail API: users.messages.send("me", message)
 4. 调用 Gmail API `users.messages.send`。
 5. 将 Gmail 返回的 Message ID 保存到 PostgreSQL。
 
+逾期提醒的主题和正文固定使用英文，正文只提供提醒及 Event 的重要信息，不包含 CRM
+或其他网页链接。
+
 邮件头还包含：
 
 ```text
@@ -292,7 +295,6 @@ Revision：backend-dev-00017-zw5
 GOOGLE_GMAIL_ENABLED=true
 GOOGLE_GMAIL_FROM_ADDRESS=infotech@aranya.sg
 GOOGLE_GMAIL_FROM_NAME=Aranya CRM
-APP_PUBLIC_BASE_URL=https://aranya-frontend-2bf3zhn3pq-as.a.run.app
 EVENT_REPORT_GRACE_HOURS=24
 ```
 

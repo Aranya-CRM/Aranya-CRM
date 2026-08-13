@@ -81,7 +81,7 @@ public class GmailEmailGateway {
 
         StringBuilder text = new StringBuilder()
                 .append("Hello ").append(recipientName).append(",\n\n")
-                .append("The report for the following event is overdue.\n\n")
+                .append("This is a reminder that the report for the following event is overdue.\n\n")
                 .append("Event: ").append(eventTitle).append('\n');
         appendTextDetail(text, "Case", caseDetails);
         appendTextDetail(text, "Service", serviceName);
@@ -91,7 +91,7 @@ public class GmailEmailGateway {
         appendTextDetail(text, "Location", eventLocation);
         appendTextDetail(text, "Agenda", event.getAgenda());
         appendTextDetail(text, "Work description", event.getWorkDescription());
-        text.append("\nPlease sign in to Aranya CRM and submit the event report as soon as possible.")
+        text.append("\nPlease submit the event report as soon as possible.")
                 .append("\n\nThis is an automated reminder from Aranya CRM.");
 
         StringBuilder details = new StringBuilder();
@@ -106,11 +106,11 @@ public class GmailEmailGateway {
         appendHtmlDetail(details, "Work description", event.getWorkDescription());
 
         String html = "<p>Hello " + html(recipientName) + ",</p>"
-                + "<p>The report for the following event is overdue.</p>"
+                + "<p>This is a reminder that the report for the following event is overdue.</p>"
                 + "<table role=\"presentation\" style=\"border-collapse:collapse\">"
                 + details
                 + "</table>"
-                + "<p>Please sign in to Aranya CRM and submit the event report as soon as possible.</p>"
+                + "<p>Please submit the event report as soon as possible.</p>"
                 + "<p>This is an automated reminder from Aranya CRM.</p>";
 
         return new EmailContent(

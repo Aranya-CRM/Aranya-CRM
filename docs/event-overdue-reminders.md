@@ -23,6 +23,9 @@ Report 提交后，提醒自动结束。
 后端使用 Gmail API `users.messages.send` 直接从一个已授权的 Gmail/Google Workspace
 账号发信，不依赖 Firestore、Firebase Extension 或 SMTP。
 
+邮件主题和正文使用英文，不包含网页链接。提醒会列出 Event 标题、Case、Service、
+起止时间、Report deadline、Location，以及有填写时的 Agenda 和 Work description。
+
 所需 OAuth scope：
 
 - `https://www.googleapis.com/auth/calendar`
@@ -37,7 +40,6 @@ scope 的 refresh token。新的 token 写入现有 Secret Manager 密钥
 - `GOOGLE_GMAIL_ENABLED=true`
 - `GOOGLE_GMAIL_FROM_ADDRESS=<完成授权的 Gmail 地址或其已配置的 Send-as alias>`
 - `GOOGLE_GMAIL_FROM_NAME=Aranya CRM`
-- `APP_PUBLIC_BASE_URL=https://<frontend-domain>`
 - 可选：`EVENT_REPORT_GRACE_HOURS=0`
 
 OAuth client secret 和 refresh token 始终从 Secret Manager 注入，不写入仓库。

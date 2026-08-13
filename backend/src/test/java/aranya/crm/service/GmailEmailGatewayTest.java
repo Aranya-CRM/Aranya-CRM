@@ -49,9 +49,11 @@ class GmailEmailGatewayTest {
         );
 
         assertThat(content.subject())
-                .isEqualTo("Overdue event report: 072 Medical Appointment: VKZhi @ TTSH");
+                .isEqualTo("Overdue event report: 072 Medical Appointment: VKZhi @ TTSH")
+                .doesNotContainPattern("[\\p{IsHan}]");
         assertThat(content.text())
                 .contains("Hello Kong Yikai")
+                .contains("This is a reminder that the report for the following event is overdue.")
                 .contains("Event: 072 Medical Appointment: VKZhi @ TTSH")
                 .contains("Case: CASE-2026-015 - Home support")
                 .contains("Scheduled start: 2026-07-21 09:00 (Asia/Singapore)")
@@ -60,10 +62,12 @@ class GmailEmailGatewayTest {
                 .contains("Location: 11 Jalan Tan Tock Seng, Singapore")
                 .contains("Agenda: Attend the specialist consultation")
                 .contains("Work description: Provide transport and appointment support")
-                .doesNotContain("事件", "#15", "http://", "https://");
+                .doesNotContain("#15", "http://", "https://")
+                .doesNotContainPattern("[\\p{IsHan}]");
         assertThat(content.html())
                 .contains("072 Medical Appointment: VKZhi @ TTSH")
-                .contains("Please sign in to Aranya CRM")
-                .doesNotContain("<a", "href=", "http://", "https://");
+                .contains("Please submit the event report as soon as possible.")
+                .doesNotContain("<a", "href=", "http://", "https://")
+                .doesNotContainPattern("[\\p{IsHan}]");
     }
 }
