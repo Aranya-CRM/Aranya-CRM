@@ -17,7 +17,6 @@ app:
     time-zone: ${EVENT_REMINDERS_TIME_ZONE:Asia/Singapore}
     grace-hours: ${EVENT_REPORT_GRACE_HOURS:0}
     max-email-attempts: ${EVENT_REMINDER_MAX_EMAIL_ATTEMPTS:3}
-    public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
 
 
 spring:

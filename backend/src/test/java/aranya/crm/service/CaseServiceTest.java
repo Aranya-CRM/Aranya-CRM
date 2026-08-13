@@ -3,6 +3,7 @@ package aranya.crm.service;
 import aranya.crm.dto.response.CaseDetailResponse;
 import aranya.crm.dto.response.CaseSummaryResponse;
 import aranya.crm.dto.request.CreateCaseRequest;
+import aranya.crm.dto.request.CreateServiceEventRequest;
 import aranya.crm.entity.CaseAssignment;
 import aranya.crm.entity.Client;
 import aranya.crm.entity.ClientCase;
@@ -21,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Pageable;
 
@@ -233,6 +235,41 @@ class CaseServiceTest {
         assertThat(assignment.isPrimary()).isTrue();
         assertThat(assignment.getAssignmentRole()).isEqualTo("SOCIAL_WORKER");
         assertThat(assignment.getAssignedBy().getId()).isEqualTo(200L);
+    }
+
+    // ── service events ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createServiceEvent allows a manager who is not the primary case owner")
+    void createServiceEvent_allowsManagerWithoutPrimaryAssignment() {
+        ClientCase clientCase = buildCase(7L, "ASDFL/2026/C/007", "OPEN", "GREEN");
+        User manager = buildUserWithRole(200L, "Manager A", "MANAGER");
+        CreateServiceEventRequest request = new CreateServiceEventRequest();
+        request.setServiceKey("transport");
+        request.setScheduledStart(LocalDateTime.of(2026, 8, 13, 18, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(7L))).thenReturn(List.of());
+
+        assertThatThrownBy(() -> caseService.createServiceEvent(7L, request, manager))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Service is not selected for this case");
+    }
+
+    @Test
+    @DisplayName("createServiceEvent still rejects a non-primary social worker")
+    void createServiceEvent_rejectsNonPrimarySocialWorker() {
+        ClientCase clientCase = buildCase(7L, "ASDFL/2026/C/007", "OPEN", "GREEN");
+        User socialWorker = buildUserWithRole(300L, "Social Worker A", "SOCIAL_WORKER");
+        CreateServiceEventRequest request = new CreateServiceEventRequest();
+        request.setServiceKey("transport");
+        request.setScheduledStart(LocalDateTime.of(2026, 8, 13, 18, 0));
+
+        when(caseRepository.findById(7L)).thenReturn(Optional.of(clientCase));
+
+        assertThatThrownBy(() -> caseService.createServiceEvent(7L, request, socialWorker))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Only the primary case owner or manager can modify this case");
     }
 
     // ── resolveTradition ──────────────────────────────────────────────────────
