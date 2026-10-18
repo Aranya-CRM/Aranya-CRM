@@ -59,6 +59,13 @@ class AdminUserControllerTest {
                     .authorizeHttpRequests(a -> a.anyRequest().permitAll());
             return http.build();
         }
+
+        // SpEL (@capEval.hasCap(...)) resolves by bean name; a plain @Bean mock registers it
+        // in the slice context where @MockitoBean did not.
+        @Bean
+        CapPermissionEvaluator capEval() {
+            return org.mockito.Mockito.mock(CapPermissionEvaluator.class);
+        }
     }
 
     @Autowired
@@ -67,12 +74,12 @@ class AdminUserControllerTest {
     @MockitoBean
     private UserService userService;
 
-    @MockitoBean
+    @Autowired
     private CapPermissionEvaluator capEval;
 
     @BeforeEach
     void setUpCaps() {
-        when(capEval.hasCap(any(), eq("admin:users.manage"))).thenAnswer(invocation -> {
+        when(capEval.hasCap(any(org.springframework.security.core.Authentication.class), eq("admin:users.manage"))).thenAnswer(invocation -> {
             Object auth = invocation.getArgument(0);
             return auth instanceof org.springframework.security.core.Authentication authentication
                     && authentication.getAuthorities().stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()));
@@ -121,6 +128,31 @@ class AdminUserControllerTest {
                         .content("{}")
                         .with(authentication(authFor(managerUser(1L), "ROLE_MANAGER"))))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ── POST /api/admin/v1/users/{id}/resend-invite ────────────────────────────
+
+    @Test
+    @DisplayName("Manager can resend an invite — 200")
+    void resendInvite_returns200_forManager() throws Exception {
+        when(userService.resendInvite(eq(7L))).thenReturn(
+                UserSummaryDto.builder()
+                        .id(7L).username("pending").email("pending@x.com").fullName("Pending User")
+                        .status("INVITED").roles(List.of("VOLUNTEER")).build()
+        );
+
+        mockMvc.perform(post("/api/admin/v1/users/7/resend-invite")
+                        .with(authentication(authFor(managerUser(1L), "ROLE_MANAGER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("INVITED"));
+    }
+
+    @Test
+    @DisplayName("Volunteer cannot resend an invite — 403")
+    @WithMockUser(roles = "VOLUNTEER")
+    void resendInvite_returns403_forVolunteer() throws Exception {
+        mockMvc.perform(post("/api/admin/v1/users/7/resend-invite"))
+                .andExpect(status().isForbidden());
     }
 
     // ── PATCH /api/admin/v1/users/{id}/roles ───────────────────────────────────

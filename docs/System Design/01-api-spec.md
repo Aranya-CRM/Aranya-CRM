@@ -34,7 +34,7 @@ Implemented HTTP API groups:
 | UI manifest | `GET /api/v1/ui/manifest` |
 | Dashboard | `GET /api/v1/dashboard` |
 | Users (read-only list) | `GET /api/v1/users` |
-| Admin — user management | `GET /api/admin/v1/users`, `POST /api/admin/v1/users/invite`, `PATCH /api/admin/v1/users/{id}/roles`, `PATCH /api/admin/v1/users/{id}/status`, `DELETE /api/admin/v1/users/{id}` |
+| Admin — user management | `GET /api/admin/v1/users`, `POST /api/admin/v1/users/invite`, `POST /api/admin/v1/users/{id}/resend-invite`, `PATCH /api/admin/v1/users/{id}/roles`, `PATCH /api/admin/v1/users/{id}/status`, `DELETE /api/admin/v1/users/{id}` |
 | Admin — sensitive file access | `GET /api/admin/v1/users/{userId}/file-access`, `PUT /api/admin/v1/users/{userId}/file-access` |
 | Admin — sensitive profile access | `GET /api/admin/v1/users/{userId}/profile-access`, `PUT /api/admin/v1/users/{userId}/profile-access` |
 | Clients | `GET /api/v1/clients`, `GET /api/v1/clients/{id}`, `POST /api/v1/clients`, `PATCH /api/v1/clients/{id}` |
@@ -349,7 +349,7 @@ Lists all local users for the admin console (same shape as `GET /api/v1/users`).
 
 ### POST `/api/admin/v1/users/invite`
 
-Creates a Firebase Auth account (email marked verified, no password) plus a local user with status `INVITED` and the assigned role; rolls back the Firebase account if local persistence fails. The frontend then triggers Firebase's built-in "set password" email. On first full login (password set + TOTP) the auth filter flips the user to `ACTIVE`.
+Creates a Firebase Auth account (email marked verified, no password) plus a local user with status `INVITED` and the assigned role; rolls back the Firebase account if local persistence fails. After the local save commits, the backend emails the invitee a bilingual (EN/中文) Firebase set-password link that redirects to `<app.frontend-url>/login`; email failure never fails the invite, and sending is skipped entirely when Gmail is disabled (`google.gmail.enabled`). On first full login (password set + TOTP) the auth filter flips the user to `ACTIVE`.
 
 Request:
 
@@ -372,6 +372,12 @@ Validation:
 - `roles`: required, exactly one role
 
 Response: `UserSummaryDto` for the created user (`status: "INVITED"`).
+
+### POST `/api/admin/v1/users/{id}/resend-invite`
+
+Re-sends the set-password email to a user still in `INVITED` status (the Firebase link expires in about 1 hour; without this endpoint an expired invite is a `409 ALREADY_INVITED` dead end). Returns the `UserSummaryDto`.
+
+Errors: `409` with code `NOT_INVITED` when the user's status is not `INVITED`; `404` when the user does not exist.
 
 ### PATCH `/api/admin/v1/users/{id}/roles`
 

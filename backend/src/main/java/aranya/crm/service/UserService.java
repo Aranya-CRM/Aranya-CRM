@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -36,6 +38,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
+    private final InviteEmailService inviteEmailService;
 
     /** 邀请超过该天数仍未接受(状态仍为 INVITED),在用户列表中标记提醒。 */
     private static final long INVITE_STALE_DAYS = 3;
@@ -175,11 +178,43 @@ public class UserService {
 
             log.info("Invited user email={} uid={} role={} status=INVITED",
                     user.getEmail(), firebaseUid, role.getName());
+            sendSetupEmailAfterCommit(user);
             return toDto(user);
         } catch (RuntimeException e) {
             // 本地落库失败 → 回滚刚创建的 Firebase 账号,避免产生孤儿账号。
             deleteFirebaseUserQuietly(firebaseUid);
             throw e;
+        }
+    }
+
+    /**
+     * 重发设置密码邮件:仅 INVITED 可重发(Firebase 链接约 1 小时过期,否则管理员被 ALREADY_INVITED 挡死后无入口自救)。
+     */
+    public UserSummaryDto resendInvite(Long userId) {
+        User user = userRepository.findByIdWithRoles(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        if (!"INVITED".equals(user.getStatus())) {
+            throw new ConflictException("NOT_INVITED", "Only INVITED users can be re-invited: " + userId);
+        }
+        sendSetupEmailAfterCommit(user);
+        log.info("Resent invite setup email to userId={} email={}", userId, user.getEmail());
+        return toDto(user);
+    }
+
+    /**
+     * 在邀请落库事务提交成功后再发设置密码邮件,避免提交失败时给不存在的账号发出有效链接;
+     * 无活动事务(单元测试)时直接发送。发送异常已在 InviteEmailService 内吞掉,绝不影响邀请结果。
+     */
+    private void sendSetupEmailAfterCommit(User user) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    inviteEmailService.sendSetupEmail(user);
+                }
+            });
+        } else {
+            inviteEmailService.sendSetupEmail(user);
         }
     }
 

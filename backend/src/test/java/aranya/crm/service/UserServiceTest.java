@@ -48,6 +48,9 @@ class UserServiceTest {
     @Mock
     private UserRoleRepository userRoleRepository;
 
+    @Mock
+    private InviteEmailService inviteEmailService;
+
     @InjectMocks
     private UserService userService;
 
@@ -124,6 +127,7 @@ class UserServiceTest {
 
             assertThat(result.getId()).isEqualTo(10L);
             assertThat(result.getRoles()).containsExactly("MANAGER");
+            verify(inviteEmailService).sendSetupEmail(savedUser);
         }
     }
 
@@ -222,9 +226,47 @@ class UserServiceTest {
         User user = user(10L, "newuser", "new.user@test.com", "New User", "ACTIVE");
         when(userRepository.findById(10L)).thenReturn(Optional.of(user));
 
-        userService.executeApprovedDeleteUser(10L);
+        userService.deleteUser(10L);
 
         assertThat(user.getStatus()).isEqualTo("DELETED");
+    }
+
+    @Test
+    @DisplayName("resendInvite re-sends the setup email for an INVITED user")
+    void resendInvite_sendsSetupEmailForInvitedUser() {
+        User invited = user(7L, "pending", "pending@test.com", "Pending User", "INVITED");
+        invited.getUserRoles().add(userRole(invited, role("VOLUNTEER"), 1L));
+        when(userRepository.findByIdWithRoles(7L)).thenReturn(Optional.of(invited));
+
+        UserSummaryDto result = userService.resendInvite(7L);
+
+        verify(inviteEmailService).sendSetupEmail(invited);
+        assertThat(result.getStatus()).isEqualTo("INVITED");
+    }
+
+    @Test
+    @DisplayName("resendInvite rejects non-INVITED users with NOT_INVITED")
+    void resendInvite_rejectsNonInvitedUser() {
+        User active = user(8L, "active", "active@test.com", "Active User", "ACTIVE");
+        when(userRepository.findByIdWithRoles(8L)).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> userService.resendInvite(8L))
+                .isInstanceOf(ConflictException.class)
+                .satisfies(ex -> assertThat(((ConflictException) ex).getCode()).isEqualTo("NOT_INVITED"));
+
+        verifyNoInteractions(inviteEmailService);
+    }
+
+    @Test
+    @DisplayName("resendInvite throws when user does not exist")
+    void resendInvite_throwsWhenUserDoesNotExist() {
+        when(userRepository.findByIdWithRoles(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.resendInvite(404L))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("User not found: 404");
+
+        verifyNoInteractions(inviteEmailService);
     }
 
     private InviteUserRequest inviteRequest(List<String> roles) {
