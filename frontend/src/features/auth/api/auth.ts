@@ -136,6 +136,14 @@ export async function sendInviteSetupEmail(email: string): Promise<void> {
   await sendPasswordResetEmail(firebaseAuth, email)
 }
 
+/**
+ * 忘记密码:发送 Firebase 密码重置邮件。
+ * Firebase 不会泄露邮箱是否存在(未知邮箱同样 resolve),调用方应展示通用提示。
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(firebaseAuth, email.trim())
+}
+
 export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
   return firebaseAuth.currentUser?.getIdToken(forceRefresh) ?? null
 }

@@ -70,6 +70,7 @@ export function LoginPage() {
         onEmailChange={loginFlow.setEmail}
         onPasswordChange={loginFlow.setPassword}
         onPasswordSubmit={loginFlow.handlePasswordLogin}
+        onForgotPassword={loginFlow.handleForgotPassword}
         onGoogleLogin={loginFlow.handleGoogleLogin}
       />
     )
