@@ -675,8 +675,11 @@
     },
     "role": {
       "ADMIN": "Admin",
+      "FULL_MANAGER": "General Manager",
       "MANAGER": "Manager",
+      "TEAM_LEAD": "Lead Social Worker",
       "SOCIAL_WORKER": "Social Worker",
+      "VIEW_MANAGER": "Board / Audit (read-only)",
       "VOLUNTEER": "Volunteer"
     },
     "status": {

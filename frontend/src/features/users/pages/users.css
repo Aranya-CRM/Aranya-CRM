@@ -170,6 +170,21 @@
   color: var(--role-social-fg);
 }
 
+.users-role-full_manager {
+  background: var(--role-full-manager-bg);
+  color: var(--role-full-manager-fg);
+}
+
+.users-role-team_lead {
+  background: var(--role-team-lead-bg);
+  color: var(--role-team-lead-fg);
+}
+
+.users-role-view_manager {
+  background: var(--role-view-manager-bg);
+  color: var(--role-view-manager-fg);
+}
+
 .users-role-volunteer {
   background: var(--role-volunteer-bg);
   color: var(--role-volunteer-fg);

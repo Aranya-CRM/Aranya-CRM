@@ -675,8 +675,11 @@
     },
     "role": {
       "ADMIN": "管理员",
+      "FULL_MANAGER": "总经理",
       "MANAGER": "经理",
+      "TEAM_LEAD": "主任社工",
       "SOCIAL_WORKER": "社工",
+      "VIEW_MANAGER": "董事会／审计（只读）",
       "VOLUNTEER": "义工"
     },
     "status": {
