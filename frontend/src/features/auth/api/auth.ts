@@ -129,14 +129,6 @@ export async function sendVerificationEmail(user: User): Promise<void> {
 }
 
 /**
- * 给被邀请的用户发送"设置密码"邮件(复用 Firebase 密码重置邮件)。
- * 由 MANAGER 邀请成功后触发;不影响当前登录会话。
- */
-export async function sendInviteSetupEmail(email: string): Promise<void> {
-  await sendPasswordResetEmail(firebaseAuth, email)
-}
-
-/**
  * 忘记密码:发送 Firebase 密码重置邮件。
  * Firebase 不会泄露邮箱是否存在(未知邮箱同样 resolve),调用方应展示通用提示。
  */

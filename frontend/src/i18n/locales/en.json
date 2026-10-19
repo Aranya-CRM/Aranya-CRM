@@ -11,7 +11,8 @@
   "settings": {
     "title": "Settings",
     "nav": {
-      "access": "Permissions"
+      "access": "Permissions",
+      "accounts": "Accounts"
     },
     "searchUser": "Search by name or email…",
     "selectUser": "Select a user to manage their sensitive-file access.",
@@ -649,7 +650,8 @@
       "alreadyExists": "An account with this email already exists.",
       "inviteEmail": "Account created, but the set-password email failed to send. Please re-invite the user.",
       "roles": "Failed to update roles.",
-      "roleRequired": "Select at least one role."
+      "roleRequired": "Select at least one role.",
+      "notInvited": "This account is no longer awaiting an invite."
     },
     "table": {
       "name": "Name",
@@ -682,14 +684,23 @@
       "INACTIVE": "Inactive",
       "INVITED": "Invited"
     },
+    "page": {
+      "title": "Account Management",
+      "subtitle": "Invite users, manage roles and account status."
+    },
     "invite": {
       "stale": "Invite expired",
-      "staleHint": "Invitation not accepted within 3 days. Please remove this account manually."
+      "staleHint": "Invitation not accepted within 3 days. Re-send the invite or remove this account.",
+      "resend": "Resend invite",
+      "resent": "Setup email re-sent to {{name}}.",
+      "sent": "Invitation created — setup-password email is on its way to {{email}}.",
+      "sentAt": "Sent {{date}}"
     },
     "summary": {
       "total": "Total Users",
       "active": "Active",
-      "volunteers": "Volunteers"
+      "volunteers": "Volunteers",
+      "invited": "Invited"
     },
     "modal": {
       "addTitle": "Invite User",

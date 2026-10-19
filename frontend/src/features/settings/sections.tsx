@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react'
 import { AccessSection } from './sections/AccessSection'
+import { AccountManagementSection } from '../users/components/AccountManagementSection'
 
 export interface SettingsSectionDef {
   /** URL 段:/admin/settings/:section */
   id: string
   labelKey: string
   element: ReactNode
+  /** 可选权限门控:缺该 cap 时导航项隐藏、深链接回退到默认分区 */
+  capKey?: string
 }
 
 /**
@@ -15,6 +18,7 @@ export interface SettingsSectionDef {
  */
 export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   { id: 'access', labelKey: 'settings.nav.access', element: <AccessSection /> },
+  { id: 'accounts', labelKey: 'settings.nav.accounts', element: <AccountManagementSection />, capKey: 'admin:users.manage' },
 ]
 
 export const DEFAULT_SECTION_ID = SETTINGS_SECTIONS[0].id

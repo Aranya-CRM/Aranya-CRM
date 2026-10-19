@@ -482,3 +482,49 @@
     width: 100%;
   }
 }
+
+/* Settings「账号管理」分区 */
+.admin-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.admin-section-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.admin-section-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.users-invite-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.users-action-notice {
+  border: 1px solid #bcd7ee;
+  border-radius: 8px;
+  background: #f0f7fd;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #2d5f8a;
+  margin-bottom: 14px;
+}
+
+.users-action-notice-error {
+  border-color: #e3c2c2;
+  background: #fbf3f3;
+  color: #8a4444;
+}

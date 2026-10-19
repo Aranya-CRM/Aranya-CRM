@@ -11,7 +11,8 @@
   "settings": {
     "title": "Settings",
     "nav": {
-      "access": "权限"
+      "access": "权限",
+      "accounts": "账号管理"
     },
     "searchUser": "按姓名或邮箱搜索…",
     "selectUser": "选择一个用户以管理其敏感文件访问权限。",
@@ -649,7 +650,8 @@
       "alreadyExists": "该邮箱的账号已存在。",
       "inviteEmail": "账号已创建，但设置密码邮件发送失败，请稍后重新邀请该用户。",
       "roles": "角色更新失败，请稍后重试。",
-      "roleRequired": "请至少选择一个角色。"
+      "roleRequired": "请至少选择一个角色。",
+      "notInvited": "该账号已不处于邀请状态。"
     },
     "table": {
       "name": "姓名",
@@ -682,14 +684,23 @@
       "INACTIVE": "停用",
       "INVITED": "已邀请"
     },
+    "page": {
+      "title": "账号管理",
+      "subtitle": "邀请用户、分配角色、管理账号状态。"
+    },
     "invite": {
       "stale": "邀请已超时",
-      "staleHint": "邀请已超过 3 天未接受,请手动删除该账户。"
+      "staleHint": "邀请已超过 3 天未接受,可重新发送邀请或删除该账户。",
+      "resend": "重新发送邀请",
+      "resent": "已向 {{name}} 重新发送设置密码邮件。",
+      "sent": "邀请已创建——设置密码邮件正在发往 {{email}}。",
+      "sentAt": "发送于 {{date}}"
     },
     "summary": {
       "total": "总用户数",
       "active": "活跃用户",
-      "volunteers": "义工"
+      "volunteers": "义工",
+      "invited": "已邀请"
     },
     "modal": {
       "addTitle": "邀请用户",
