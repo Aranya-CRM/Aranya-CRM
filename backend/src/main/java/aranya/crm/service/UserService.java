@@ -130,13 +130,17 @@ public class UserService {
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {
         validateSingleRole(request.getRoles());
-        userRepository.findByEmail(request.getEmail()).ifPresent(existing -> {
-            // INVITED → 提示"已邀请";其余(ACTIVE/INACTIVE/DELETED)→ 提示"已存在"
+        User existing = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (existing != null) {
+            // INVITED → 提示"已邀请";DELETED → 复用原行重新邀请;其余(ACTIVE/INACTIVE)→ 提示"已存在"
             if ("INVITED".equals(existing.getStatus())) {
                 throw new ConflictException("ALREADY_INVITED", "User already invited: " + request.getEmail());
             }
-            throw new ConflictException("ALREADY_EXISTS", "Email already in use: " + request.getEmail());
-        });
+            if (!"DELETED".equals(existing.getStatus())) {
+                throw new ConflictException("ALREADY_EXISTS", "Email already in use: " + request.getEmail());
+            }
+            return reinviteDeleted(existing, request, invitedBy);
+        }
         Role role = resolveRole(request.getRoles().get(0));
 
         String username;
@@ -185,6 +189,50 @@ public class UserService {
             deleteFirebaseUserQuietly(firebaseUid);
             throw e;
         }
+    }
+
+    /**
+     * 重新邀请已软删除的账号:复用原 users 行(保留审计痕迹)与 Firebase 账号,
+     * 重置状态为 INVITED、替换角色、更新姓名/电话并重发设置密码邮件。
+     * email 唯一约束允许复用原行,避免与 Firebase 已占用邮箱冲突。
+     */
+    private UserSummaryDto reinviteDeleted(User user, InviteUserRequest request, Long invitedBy) {
+        Role role = resolveRole(request.getRoles().get(0));
+        String fullName = (request.getFullName() != null && !request.getFullName().isBlank())
+                ? request.getFullName().trim()
+                : localPart(request.getEmail());
+
+        String firebaseUid = user.getFirebaseUid();
+        if (firebaseUid == null || firebaseUid.isBlank()) {
+            firebaseUid = createFirebaseUser(user.getEmail(), fullName);
+        } else {
+            try {
+                FirebaseAuth.getInstance().getUser(firebaseUid);
+            } catch (FirebaseAuthException e) {
+                // 原 Firebase 账号已不存在 → 重新创建
+                firebaseUid = createFirebaseUser(user.getEmail(), fullName);
+            }
+        }
+
+        user.setFirebaseUid(firebaseUid);
+        user.setFullName(fullName);
+        user.setPhone(request.getPhone());
+        user.setStatus("INVITED");
+        user.setInvitedAt(OffsetDateTime.now());
+
+        user.getUserRoles().clear();
+        userRoleRepository.flush();
+        UserRole ur = new UserRole();
+        ur.setUser(user);
+        ur.setRole(role);
+        ur.setAssignedBy(invitedBy);
+        user.getUserRoles().add(ur);
+        userRepository.save(user);
+
+        log.info("Re-invited soft-deleted user id={} email={} uid={} role={} status=INVITED",
+                user.getId(), user.getEmail(), firebaseUid, role.getName());
+        sendSetupEmailAfterCommit(user);
+        return toDto(user);
     }
 
     /**
@@ -250,10 +298,11 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
         Role role = resolveRole(roleNames.get(0));
 
-        // 先把旧的 UserRole 全部删掉再插入新的 — 显式 flush 避免唯一约束冲突
-        userRoleRepository.deleteByUserId(userId);
-        userRoleRepository.flush();
+        // 通过受管集合删除(orphanRemoval)并显式 flush:
+        // 不可用批量 JPQL DELETE — 受管旧实体会被集合二次删除,命中 0 行 → StaleObjectState;
+        // flush 保证 DELETE 先于新行 INSERT,满足 unique(user_id, role_id)。
         user.getUserRoles().clear();
+        userRoleRepository.flush();
 
         UserRole ur = new UserRole();
         ur.setUser(user);
