@@ -11,6 +11,7 @@ app:
     issuer: AranyaCRM
     temp-token-expiration: 300000
     encryption-key: ${TWO_FACTOR_ENCRYPTION_KEY}
+  frontend-url: ${FRONTEND_URL:https://aranya-dev.34-142-150-221.sslip.io}
   event-reminders:
     enabled: ${EVENT_REMINDERS_ENABLED:true}
     cron: ${EVENT_REMINDERS_CRON:0 */10 * * * *}

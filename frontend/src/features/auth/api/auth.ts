@@ -11,6 +11,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  type ActionCodeSettings,
   type AuthCredential,
   type MultiFactorError,
   type MultiFactorResolver,
@@ -129,11 +130,17 @@ export async function sendVerificationEmail(user: User): Promise<void> {
 }
 
 /**
- * 给被邀请的用户发送"设置密码"邮件(复用 Firebase 密码重置邮件)。
- * 由 MANAGER 邀请成功后触发;不影响当前登录会话。
+ * 忘记密码:发送 Firebase 密码重置邮件。
+ * Firebase 不会泄露邮箱是否存在(未知邮箱同样 resolve),调用方应展示通用提示。
+ * handleCodeInApp=false:与邀请设密邮件一致,在 Firebase 托管页完成重置后跳回本站 /login
+ * (不传 actionCodeSettings 会停留在 firebaseapp.com 默认域名页)。
  */
-export async function sendInviteSetupEmail(email: string): Promise<void> {
-  await sendPasswordResetEmail(firebaseAuth, email)
+export async function requestPasswordReset(email: string): Promise<void> {
+  const actionCodeSettings: ActionCodeSettings = {
+    url: `${window.location.origin}/login`,
+    handleCodeInApp: false,
+  }
+  await sendPasswordResetEmail(firebaseAuth, email.trim(), actionCodeSettings)
 }
 
 export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {

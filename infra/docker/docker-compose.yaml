@@ -47,6 +47,8 @@ services:
       FIREBASE_SERVICE_ACCOUNT_PATH: file:/run/secrets/firebase-service-account-dev.json
       SPRING_BOOT_ADMIN_URL: http://admin-server:9090
       TZ: Asia/Singapore
+      # 前端对外地址:邀请设置密码邮件的跳转目标(continueUrl = 该地址 + /login)
+      FRONTEND_URL: ${FRONTEND_URL:-https://aranya-dev.34-142-150-221.sslip.io}
       # Google Calendar 集成
       GOOGLE_CALENDAR_ENABLED: ${GOOGLE_CALENDAR_ENABLED:-true}
       GOOGLE_CALENDAR_AUTH_MODE: ${GOOGLE_CALENDAR_AUTH_MODE:-OAUTH}

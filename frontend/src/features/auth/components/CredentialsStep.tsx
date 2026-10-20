@@ -9,6 +9,7 @@ interface CredentialsStepProps {
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
   onPasswordSubmit: FormEventHandler<HTMLFormElement>
+  onForgotPassword: () => void
   onGoogleLogin: () => void
 }
 
@@ -21,6 +22,7 @@ export function CredentialsStep({
   onEmailChange,
   onPasswordChange,
   onPasswordSubmit,
+  onForgotPassword,
   onGoogleLogin,
 }: CredentialsStepProps) {
   return (
@@ -53,6 +55,10 @@ export function CredentialsStep({
           required
         />
       </label>
+
+      <button className="login-forgot" type="button" onClick={onForgotPassword} disabled={submitting}>
+        忘记密码? / Forgot password?
+      </button>
 
       {noticeMessage ? <div className="login-notice">{noticeMessage}</div> : null}
       {errorMessage ? <div className="login-error">{errorMessage}</div> : null}

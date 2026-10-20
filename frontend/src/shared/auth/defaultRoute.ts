@@ -1,6 +1,6 @@
 import type { ScopeValue } from '../../types/capManifest'
 
-function hasCap(caps: Record<string, ScopeValue>, capKey: string): boolean {
+export function hasCap(caps: Record<string, ScopeValue>, capKey: string): boolean {
   return ['YES', 'ALL', 'OWN', 'TEAM', 'WORKFLOW'].includes(caps[capKey] ?? 'NO')
 }
 

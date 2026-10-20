@@ -1,50 +1,99 @@
-# Event 逾期提醒
+# Event 逾期提醒与 Gmail 邮件
 
-## 规则
+## 功能
 
-- `visit_report.status = SUBMITTED`：Event 已完成，不提醒。
-- 未提交 Report 且超过截止时间：Event 逾期。
+Event 超过 Report 截止时间且仍未提交 Report 时，系统会：
+
+- 为每位有效参与者建立一条站内提醒。
+- 通过 Gmail API 从 `Aranya CRM <infotech@aranya.sg>` 发送邮件。
+- 在 Report 提交、Event 取消或参与者移除后结束提醒。
+
+## 处理流程
+
+```text
+Spring Scheduler（每 10 分钟）
+  -> 查询逾期 Event 和 ACTIVE 参与者
+  -> 写入 event_overdue_notification
+  -> 站内通知
+  -> Gmail API users.messages.send
+```
+
+Firebase Authentication 邮件仅用于密码重置、邮箱验证等认证流程。Event 逾期邮件是
+自定义业务邮件，直接使用 Gmail API，不经过 Firestore、Firebase Trigger Email
+Extension 或 SMTP。
+
+## 逾期规则
+
+- 存在 `visit_report.status = SUBMITTED` 时视为已完成，不提醒。
 - 截止时间优先使用 `service_appointment.report_due_at`。
-- 没有单独设置截止时间时，使用 Event 结束时间（没有结束时间则使用开始时间）加
-  `EVENT_REPORT_GRACE_HOURS`，默认 0 小时，即逾期后立即进入提醒队列。
+- 未设置时使用 Event 结束时间；没有结束时间则使用开始时间。
+- 上述时间加 `EVENT_REPORT_GRACE_HOURS`，当前默认值为 `0`。
 - 收件人来自 `service_event_assignment` 中所有 `ACTIVE` 参与者。
 
-后端每 10 分钟扫描一次。每个 Event、每位参与者只建立一条提醒；数据库行锁避免
-Cloud Run 多实例同时扫描时重复发信。参与者被移除、Event 被取消，或任意一份
-Report 提交后，提醒自动结束。
+扫描默认每 10 分钟执行，因此截止后最多约等待 10 分钟。
 
-## 站内提醒
+## 防重复与重试
 
-提醒保存在 PostgreSQL 的 `event_overdue_notification` 表中。登录用户会在右上角
-铃铛中看到自己的未解决提醒，可以逐条或全部标记为已读。点击提醒进入相应 Event。
+提醒保存在 PostgreSQL 表 `event_overdue_notification` 中，唯一键为：
 
-## Gmail API 邮件
+```text
+(event_id, recipient_user_id)
+```
 
-后端使用 Gmail API `users.messages.send` 直接从一个已授权的 Gmail/Google Workspace
-账号发信，不依赖 Firestore、Firebase Extension 或 SMTP。
+邮件状态为 `PENDING`、`SENDING`、`SENT` 或 `FAILED`。队列查询使用
+`FOR UPDATE SKIP LOCKED`，避免多个后端实例处理同一记录。失败邮件默认最多尝试 3 次；
+成功后保存 Gmail Message ID。
 
-邮件主题和正文使用英文，不包含网页链接。提醒会列出 Event 标题、Case、Service、
-起止时间、Report deadline、Location，以及有填写时的 Agenda 和 Work description。
+## 站内通知 API
 
-所需 OAuth scope：
+```text
+GET   /api/v1/notifications
+PATCH /api/v1/notifications/{id}/read
+PATCH /api/v1/notifications/read-all
+```
 
-- `https://www.googleapis.com/auth/calendar`
-- `https://www.googleapis.com/auth/gmail.send`
+用户可通过页面右上角通知铃铛查看、跳转和标记提醒。
 
-必须以 `access_type=offline` 和 `prompt=consent` 完成一次合并授权，取得包含两个
-scope 的 refresh token。新的 token 写入现有 Secret Manager 密钥
-`gcal-oauth-refresh-token`，Calendar 与 Gmail 共用同一套 OAuth client 和 token。
+## Gmail 与 OAuth 配置
 
-运行配置：
+Calendar 和 Gmail 共用 OAuth client 与 refresh token。授权 scope 至少包含：
 
-- `GOOGLE_GMAIL_ENABLED=true`
-- `GOOGLE_GMAIL_FROM_ADDRESS=<完成授权的 Gmail 地址或其已配置的 Send-as alias>`
-- `GOOGLE_GMAIL_FROM_NAME=Aranya CRM`
-- 可选：`EVENT_REPORT_GRACE_HOURS=0`
+```text
+https://www.googleapis.com/auth/calendar
+https://www.googleapis.com/auth/gmail.send
+```
 
-OAuth client secret 和 refresh token 始终从 Secret Manager 注入，不写入仓库。
+`gmail.send` 只授予发信权限，不允许读取邮箱。运行时配置：
 
-## Cloud Run
+```text
+GOOGLE_GMAIL_ENABLED=true
+GOOGLE_GMAIL_FROM_ADDRESS=infotech@aranya.sg
+GOOGLE_GMAIL_FROM_NAME=Aranya CRM
+EVENT_REPORT_GRACE_HOURS=0
+```
 
-项目当前使用 Spring `@Scheduled` 扫描。Cloud Run 部署配置设置了一个最小实例和
-`--no-cpu-throttling`，保证没有 HTTP 流量时任务仍能运行。这会产生少量空闲实例费用。
+机密只存放在 Google Secret Manager：
+
+```text
+gcal-oauth-client-secret
+gcal-oauth-refresh-token
+```
+
+需要重新授权时运行：
+
+```powershell
+node scripts/google/authorize-gmail.mjs
+```
+
+脚本会验证授权账号，并把新 refresh token 直接写入 Secret Manager，不输出 token。
+
+## 运维检查
+
+- 后端日志应包含 `Gmail API client initialized`。
+- 关注 `event_overdue_notification.email_status = FAILED` 和 `email_error`。
+- OAuth client secret、refresh token 和邮箱密码不得写入 Git、镜像或 `.env`。
+- Gmail API 与数据库之间无法提供严格的 exactly-once；唯一约束、数据库行锁和状态字段
+  用于降低正常运行中的重复发送概率。
+
+项目仍保留 Firebase Trigger Email Extension，用于监听 Firestore `mail` 集合的其他邮件。
+它与 Event 逾期提醒是两条独立链路。

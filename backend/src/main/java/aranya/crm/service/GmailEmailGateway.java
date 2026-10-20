@@ -43,18 +43,33 @@ public class GmailEmailGateway {
             User recipient,
             LocalDateTime deadline
     ) throws Exception {
+        EmailContent content = buildEmailContent(event, recipient, deadline);
+        return sendEmail(
+                recipient.getEmail(),
+                null,
+                content,
+                deterministicMessageId(event.getId(), recipient.getId())
+        );
+    }
+
+    /**
+     * Generic send: MIME (text + HTML alternative) → base64url raw → Gmail messages.send.
+     * A null/blank toName keeps the To header as a bare address; a null messageId lets
+     * Jakarta Mail generate one during saveChanges (callers needing idempotency pass their own).
+     */
+    public String sendEmail(String toEmail, String toName, EmailContent content, String messageId) throws Exception {
         Gmail gmail = gmailProvider.getIfAvailable();
         if (gmail == null) {
             throw new IllegalStateException("Gmail API client is not configured");
         }
 
-        EmailContent content = buildEmailContent(event, recipient, deadline);
         MimeMessage mimeMessage = createMimeMessage(
-                event.getId(),
-                recipient,
+                toEmail,
+                toName,
                 content.subject(),
                 content.text(),
-                content.html()
+                content.html(),
+                messageId
         );
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         mimeMessage.writeTo(output);
@@ -195,11 +210,12 @@ public class GmailEmailGateway {
     }
 
     private MimeMessage createMimeMessage(
-            Long eventId,
-            User recipient,
+            String toEmail,
+            String toName,
             String subject,
             String text,
-            String html
+            String html,
+            String messageId
     ) throws Exception {
         MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
         message.setFrom(new InternetAddress(
@@ -207,10 +223,10 @@ public class GmailEmailGateway {
                 gmailProperties.getFromName(),
                 StandardCharsets.UTF_8.name()
         ));
-        message.addRecipient(
-                jakarta.mail.Message.RecipientType.TO,
-                new InternetAddress(recipient.getEmail())
-        );
+        InternetAddress to = toName == null || toName.isBlank()
+                ? new InternetAddress(toEmail)
+                : new InternetAddress(toEmail, toName, StandardCharsets.UTF_8.name());
+        message.addRecipient(jakarta.mail.Message.RecipientType.TO, to);
         message.setSubject(subject, StandardCharsets.UTF_8.name());
         message.setHeader("Auto-Submitted", "auto-generated");
         message.setHeader("X-Auto-Response-Suppress", "All");
@@ -224,7 +240,9 @@ public class GmailEmailGateway {
         alternatives.addBodyPart(htmlPart);
         message.setContent(alternatives);
         message.saveChanges();
-        message.setHeader("Message-ID", deterministicMessageId(eventId, recipient.getId()));
+        if (messageId != null && !messageId.isBlank()) {
+            message.setHeader("Message-ID", messageId);
+        }
         return message;
     }
 

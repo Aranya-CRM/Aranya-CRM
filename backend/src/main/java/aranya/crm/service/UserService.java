@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -36,6 +38,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
+    private final InviteEmailService inviteEmailService;
 
     /** 邀请超过该天数仍未接受(状态仍为 INVITED),在用户列表中标记提醒。 */
     private static final long INVITE_STALE_DAYS = 3;
@@ -127,13 +130,17 @@ public class UserService {
 
     public UserSummaryDto invite(InviteUserRequest request, Long invitedBy) {
         validateSingleRole(request.getRoles());
-        userRepository.findByEmail(request.getEmail()).ifPresent(existing -> {
-            // INVITED → 提示"已邀请";其余(ACTIVE/INACTIVE/DELETED)→ 提示"已存在"
+        User existing = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (existing != null) {
+            // INVITED → 提示"已邀请";DELETED → 复用原行重新邀请;其余(ACTIVE/INACTIVE)→ 提示"已存在"
             if ("INVITED".equals(existing.getStatus())) {
                 throw new ConflictException("ALREADY_INVITED", "User already invited: " + request.getEmail());
             }
-            throw new ConflictException("ALREADY_EXISTS", "Email already in use: " + request.getEmail());
-        });
+            if (!"DELETED".equals(existing.getStatus())) {
+                throw new ConflictException("ALREADY_EXISTS", "Email already in use: " + request.getEmail());
+            }
+            return reinviteDeleted(existing, request, invitedBy);
+        }
         Role role = resolveRole(request.getRoles().get(0));
 
         String username;
@@ -175,11 +182,87 @@ public class UserService {
 
             log.info("Invited user email={} uid={} role={} status=INVITED",
                     user.getEmail(), firebaseUid, role.getName());
+            sendSetupEmailAfterCommit(user);
             return toDto(user);
         } catch (RuntimeException e) {
             // 本地落库失败 → 回滚刚创建的 Firebase 账号,避免产生孤儿账号。
             deleteFirebaseUserQuietly(firebaseUid);
             throw e;
+        }
+    }
+
+    /**
+     * 重新邀请已软删除的账号:复用原 users 行(保留审计痕迹)与 Firebase 账号,
+     * 重置状态为 INVITED、替换角色、更新姓名/电话并重发设置密码邮件。
+     * email 唯一约束允许复用原行,避免与 Firebase 已占用邮箱冲突。
+     */
+    private UserSummaryDto reinviteDeleted(User user, InviteUserRequest request, Long invitedBy) {
+        Role role = resolveRole(request.getRoles().get(0));
+        String fullName = (request.getFullName() != null && !request.getFullName().isBlank())
+                ? request.getFullName().trim()
+                : localPart(request.getEmail());
+
+        String firebaseUid = user.getFirebaseUid();
+        if (firebaseUid == null || firebaseUid.isBlank()) {
+            firebaseUid = createFirebaseUser(user.getEmail(), fullName);
+        } else {
+            try {
+                FirebaseAuth.getInstance().getUser(firebaseUid);
+            } catch (FirebaseAuthException e) {
+                // 原 Firebase 账号已不存在 → 重新创建
+                firebaseUid = createFirebaseUser(user.getEmail(), fullName);
+            }
+        }
+
+        user.setFirebaseUid(firebaseUid);
+        user.setFullName(fullName);
+        user.setPhone(request.getPhone());
+        user.setStatus("INVITED");
+        user.setInvitedAt(OffsetDateTime.now());
+
+        user.getUserRoles().clear();
+        userRoleRepository.flush();
+        UserRole ur = new UserRole();
+        ur.setUser(user);
+        ur.setRole(role);
+        ur.setAssignedBy(invitedBy);
+        user.getUserRoles().add(ur);
+        userRepository.save(user);
+
+        log.info("Re-invited soft-deleted user id={} email={} uid={} role={} status=INVITED",
+                user.getId(), user.getEmail(), firebaseUid, role.getName());
+        sendSetupEmailAfterCommit(user);
+        return toDto(user);
+    }
+
+    /**
+     * 重发设置密码邮件:仅 INVITED 可重发(Firebase 链接约 1 小时过期,否则管理员被 ALREADY_INVITED 挡死后无入口自救)。
+     */
+    public UserSummaryDto resendInvite(Long userId) {
+        User user = userRepository.findByIdWithRoles(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        if (!"INVITED".equals(user.getStatus())) {
+            throw new ConflictException("NOT_INVITED", "Only INVITED users can be re-invited: " + userId);
+        }
+        sendSetupEmailAfterCommit(user);
+        log.info("Resent invite setup email to userId={} email={}", userId, user.getEmail());
+        return toDto(user);
+    }
+
+    /**
+     * 在邀请落库事务提交成功后再发设置密码邮件,避免提交失败时给不存在的账号发出有效链接;
+     * 无活动事务(单元测试)时直接发送。发送异常已在 InviteEmailService 内吞掉,绝不影响邀请结果。
+     */
+    private void sendSetupEmailAfterCommit(User user) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    inviteEmailService.sendSetupEmail(user);
+                }
+            });
+        } else {
+            inviteEmailService.sendSetupEmail(user);
         }
     }
 
@@ -215,10 +298,11 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
         Role role = resolveRole(roleNames.get(0));
 
-        // 先把旧的 UserRole 全部删掉再插入新的 — 显式 flush 避免唯一约束冲突
-        userRoleRepository.deleteByUserId(userId);
-        userRoleRepository.flush();
+        // 通过受管集合删除(orphanRemoval)并显式 flush:
+        // 不可用批量 JPQL DELETE — 受管旧实体会被集合二次删除,命中 0 行 → StaleObjectState;
+        // flush 保证 DELETE 先于新行 INSERT,满足 unique(user_id, role_id)。
         user.getUserRoles().clear();
+        userRoleRepository.flush();
 
         UserRole ur = new UserRole();
         ur.setUser(user);
