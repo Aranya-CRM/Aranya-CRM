@@ -13,6 +13,9 @@ public class AppProperties {
 
     private CorsProperties cors = new CorsProperties();
 
+    /** 前端对外地址:邀请邮件中 Firebase 设置密码链接的跳转目标(continueUrl = 该地址 + /login)。 */
+    private String frontendUrl;
+
     @Data
     public static class CorsProperties {
         private List<String> allowedOrigins;

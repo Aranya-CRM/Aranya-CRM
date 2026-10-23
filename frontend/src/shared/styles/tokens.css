@@ -130,8 +130,15 @@
   /* ── 角色 Badge / Role (紫色系区分状态) ─────────────── */
   --role-manager-bg: var(--purple-50);
   --role-manager-fg: var(--purple-800);
-  --role-admin-bg: var(--slate-100);
-  --role-admin-fg: var(--slate-800);
+  /* slate-* 从未定义 → admin 曾无底色,改用已定义的 gray 系 */
+  --role-admin-bg: var(--gray-100);
+  --role-admin-fg: var(--gray-800);
+  --role-full-manager-bg: var(--purple-100);
+  --role-full-manager-fg: var(--purple-800);
+  --role-team-lead-bg: var(--teal-50);
+  --role-team-lead-fg: var(--teal-800);
+  --role-view-manager-bg: var(--green-50);
+  --role-view-manager-fg: var(--green-800);
   --role-volunteer-bg: var(--amber-50);
   --role-volunteer-fg: var(--amber-800);
   --role-social-bg: var(--blue-50);

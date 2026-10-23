@@ -1,6 +1,8 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { confirmLeave } from '../../../shared/navigation/unsavedGuard'
+import { hasCap } from '../../../shared/auth/defaultRoute'
+import { useAuth } from '../../../contexts/AuthContext'
 import { SETTINGS_PATH } from '../constants'
 import { DEFAULT_SECTION_ID, SETTINGS_SECTIONS } from '../sections'
 import './settings.css'
@@ -10,10 +12,18 @@ export function SettingsLayout() {
   const { t } = useTranslation()
   const { section } = useParams()
   const navigate = useNavigate()
+  const { caps } = useAuth()
 
-  const active = SETTINGS_SECTIONS.find((s) => s.id === section)
+  const visibleSections = SETTINGS_SECTIONS.filter(
+    (s) => !s.capKey || hasCap(caps, s.capKey),
+  )
+  const defaultSection = visibleSections.some((s) => s.id === DEFAULT_SECTION_ID)
+    ? DEFAULT_SECTION_ID
+    : visibleSections[0]?.id ?? DEFAULT_SECTION_ID
+
+  const active = visibleSections.find((s) => s.id === section)
   if (!active) {
-    return <Navigate to={`${SETTINGS_PATH}/${DEFAULT_SECTION_ID}`} replace />
+    return <Navigate to={`${SETTINGS_PATH}/${defaultSection}`} replace />
   }
 
   function handleNav(id: string) {
@@ -27,7 +37,7 @@ export function SettingsLayout() {
       <aside className="settings-side">
         <h1 className="settings-side-title">{t('settings.title')}</h1>
         <nav className="settings-side-nav" aria-label="Settings sections">
-          {SETTINGS_SECTIONS.map((s) => (
+          {visibleSections.map((s) => (
             <a
               key={s.id}
               href={`${SETTINGS_PATH}/${s.id}`}

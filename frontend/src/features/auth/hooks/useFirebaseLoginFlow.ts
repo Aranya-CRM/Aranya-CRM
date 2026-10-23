@@ -10,6 +10,7 @@ import {
   hasTotpFactor,
   linkPendingCredential,
   logoutFirebase,
+  requestPasswordReset,
   sendVerificationEmail,
   signInWithGoogle,
   signInWithPassword,
@@ -39,6 +40,8 @@ function normalizeFirebaseError(error: unknown): string {
         return t('auth.error.tooManyRequests')
       case 'auth/invalid-verification-code':
         return t('auth.error.invalidCode')
+      case 'auth/invalid-email':
+        return t('auth.error.emailRequired')
       default:
         return error.message
     }
@@ -229,6 +232,27 @@ export function useFirebaseLoginFlow() {
     }
   }
 
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setErrorMessage(i18n.t('auth.error.emailRequired'))
+      return
+    }
+
+    setSubmitting(true)
+    setNoticeMessage(undefined)
+    setErrorMessage(undefined)
+
+    try {
+      await requestPasswordReset(email)
+      // 不区分邮箱是否存在(Firebase 对未知邮箱同样成功),统一提示避免账号枚举
+      setNoticeMessage(i18n.t('auth.notice.passwordResetSent'))
+    } catch (error) {
+      setErrorMessage(normalizeFirebaseError(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   function resetLoginState() {
     setStep('credentials')
     setPassword('')
@@ -264,6 +288,7 @@ export function useFirebaseLoginFlow() {
     handleTotpChallenge,
     handleTotpEnrollment,
     handleSendVerificationEmail,
+    handleForgotPassword,
     resetLoginState,
   }
 }

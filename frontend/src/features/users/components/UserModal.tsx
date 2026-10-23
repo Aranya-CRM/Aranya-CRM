@@ -3,7 +3,15 @@ import { useTranslation } from 'react-i18next'
 import type { UserRole } from '../types'
 import '../pages/users.css'
 
-export const ROLE_VALUES: UserRole[] = ['ADMIN', 'MANAGER', 'SOCIAL_WORKER', 'VOLUNTEER']
+export const ROLE_VALUES: UserRole[] = [
+  'ADMIN',
+  'FULL_MANAGER',
+  'MANAGER',
+  'TEAM_LEAD',
+  'SOCIAL_WORKER',
+  'VIEW_MANAGER',
+  'VOLUNTEER',
+]
 
 interface UserModalProps {
   titleKey: string

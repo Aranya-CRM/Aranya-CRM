@@ -47,6 +47,11 @@ public class AdminUserController {
         return ResponseEntity.ok(userService.invite(request, currentUser.getId()));
     }
 
+    @PostMapping("/{id}/resend-invite")
+    public ResponseEntity<UserSummaryDto> resendInvite(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.resendInvite(id));
+    }
+
     @PatchMapping("/{id}/roles")
     public ResponseEntity<UserSummaryDto> updateRoles(
             @CurrentUser User currentUser,
