@@ -214,6 +214,10 @@ public class UserService {
             }
         }
 
+        // 复用的 Firebase 账号可能处于 Remove 时设置的禁用态,必须先解禁,
+        // 否则受邀人无法完成设密码登录。
+        setFirebaseDisabledQuietly(firebaseUid, false);
+
         user.setFirebaseUid(firebaseUid);
         user.setFullName(fullName);
         user.setPhone(request.getPhone());
@@ -292,6 +296,25 @@ public class UserService {
         }
     }
 
+    /**
+     * 禁用/恢复 Firebase Auth 账号(只禁用、不删除):Remove 是软删除、可重新邀请,
+     * 账号必须保留邮箱/密码,恢复后才能再次登录。
+     * 注意:已签发的 ID Token 在 ≤1 小时内仍然有效,真正的门禁是 FirebaseAuthFilter
+     * 对本地 users.status 的校验;此处禁用 Firebase 是为了堵住新登录/新令牌。
+     * 失败仅记录日志、不影响本地操作(与邀请回滚同一策略)。
+     */
+    private void setFirebaseDisabledQuietly(String uid, boolean disabled) {
+        if (uid == null || uid.isBlank()) {
+            return;
+        }
+        try {
+            FirebaseAuth.getInstance().updateUser(new UserRecord.UpdateRequest(uid).setDisabled(disabled));
+            log.info("Set Firebase user {} disabled={}", uid, disabled);
+        } catch (FirebaseAuthException e) {
+            log.error("Failed to set disabled={} on Firebase user {}: {}", disabled, uid, e.getMessage());
+        }
+    }
+
     public UserSummaryDto updateRoles(Long userId, List<String> roleNames, Long assignedBy) {
         validateSingleRole(roleNames);
         User user = userRepository.findByIdWithRoles(userId)
@@ -317,6 +340,8 @@ public class UserService {
         User user = userRepository.findByIdWithRoles(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
         user.setStatus(status);
+        // PATCH status 仅允许 ACTIVE|INACTIVE:停用即禁用 Firebase 登录,恢复即解禁。
+        setFirebaseDisabledQuietly(user.getFirebaseUid(), "INACTIVE".equals(status));
         log.info("Updated status for userId={} -> {}", userId, status);
         return toDto(user);
     }
@@ -326,6 +351,8 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
         // Soft delete: 标记 DELETED 并从管理列表隐藏，保留审计痕迹。
         user.setStatus("DELETED");
+        // Firebase 侧同步禁用(不删除):保留邮箱/密码供重新邀请恢复,仅堵住新登录。
+        setFirebaseDisabledQuietly(user.getFirebaseUid(), true);
         log.info("Soft-deleted userId={}", userId);
     }
 
