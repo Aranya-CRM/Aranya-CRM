@@ -257,7 +257,14 @@ export function AddCaseEventForm({ caseData, event, onDone }: Props) {
                     onFocus={() => setIsParticipantSearchOpen(true)}
                   />
                   {isParticipantSearchOpen ? (
-                    <div className="case-participant-search-results" id="event-participant-search-results" role="listbox">
+                    <div
+                      className="case-participant-search-results"
+                      id="event-participant-search-results"
+                      role="listbox"
+                      // Safari 中 button 点击不会获得焦点 → onBlur 会在 click 到达前
+                      // 卸载列表导致点击失效;阻止 mousedown 的默认行为(焦点切换)即可,click 照常触发。
+                      onMouseDown={(mouseEvent) => mouseEvent.preventDefault()}
+                    >
                       {filteredParticipantOptions.map((user) => {
                         const name = participantName(user)
                         return (
